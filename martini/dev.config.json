@@ -3,9 +3,9 @@
   "cache": "900s",
   "timeout": {
     "read-header": "2s",
-    "read": "3s",
-    "handler": "10s",
-    "write": "3s"
+    "read": "2s",
+    "handler": "5s",
+    "write": "2s"
   },
   "limiter": {
     "max-size-request-header": "1MB",
@@ -58,8 +58,7 @@
         ],
         "endpoint": "/token/validate",
         "method": "POST",
-        "remove-body-request": true,
-        "remove-response": true,
+        "hide-response": true,
         "forward-headers": [
           "*"
         ],

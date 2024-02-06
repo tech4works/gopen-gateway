@@ -3,27 +3,24 @@ package middleware
 import (
 	"github.com/GabrielHCataldo/go-error-detail/errors"
 	"github.com/GabrielHCataldo/go-logger/logger"
-	"github.com/GabrielHCataldo/open-gateway/internal/domain/dto"
-	"github.com/GabrielHCataldo/open-gateway/internal/domain/handler"
-	"github.com/GabrielHCataldo/open-gateway/internal/domain/service"
+	"github.com/GabrielHCataldo/martini-gateway/internal/application/handler"
+	"github.com/GabrielHCataldo/martini-gateway/internal/application/model/dto"
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"slices"
 )
 
 type cors struct {
-	securityCors  dto.SecurityCors
-	localeUseCase service.Locale
+	securityCors dto.SecurityCors
 }
 
 type Cors interface {
 	PreHandlerRequest(ctx *gin.Context)
 }
 
-func NewCors(securityCors dto.SecurityCors, localeUseCase service.Locale) Cors {
+func NewCors(securityCors dto.SecurityCors) Cors {
 	return cors{
-		securityCors:  securityCors,
-		localeUseCase: localeUseCase,
+		securityCors: securityCors,
 	}
 }
 
@@ -48,6 +45,7 @@ func (c cors) PreHandlerRequest(ctx *gin.Context) {
 	//	))
 	//	return
 	//}
+
 	//check allow-origins
 	if len(c.securityCors.AllowOrigins) > 0 &&
 		!slices.Contains(c.securityCors.AllowOrigins, "*") &&

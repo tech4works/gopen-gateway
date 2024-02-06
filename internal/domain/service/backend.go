@@ -2,91 +2,152 @@ package service
 
 import (
 	"bytes"
-	"encoding/json"
+	"context"
 	"fmt"
-	"github.com/GabrielHCataldo/open-gateway/internal/domain/dto"
-	"github.com/gin-gonic/gin"
+	"github.com/GabrielHCataldo/go-helper/helper"
+	"github.com/GabrielHCataldo/martini-gateway/internal/domain/model/valueobject"
+	"github.com/ohler55/ojg/oj"
 	"io"
-	"math/rand"
 	"net/http"
-	"slices"
+	"net/url"
 	"strings"
 )
+
+type BackendRequest struct {
+	Host     string
+	Endpoint string
+	Url      string
+	Method   string
+	Header   http.Header
+	Query    url.Values
+	Params   map[string]string
+	Body     any
+}
+
+type BackendResponse struct {
+	StatusCode int
+	Header     http.Header
+	Body       any
+	Group      string
+	Hide       bool
+}
+
+type BuildBackendRequestInput struct {
+	Backend valueobject.Backend
+	Host    string
+	Header  http.Header
+	Query   url.Values
+	Params  map[string]string
+	Body    any
+}
+
+type ExecuteBackendInput struct {
+	Backend        valueobject.Backend
+	BackendRequest BackendRequest
+}
 
 type backend struct {
 }
 
 type Backend interface {
-	Execute(ctx *gin.Context, backend dto.Backend, requests *[]dto.BackendRequest) (*http.Response, error)
+	BuildBackendRequest(input BuildBackendRequestInput) (*BackendRequest, error)
+	Execute(ctx context.Context, input ExecuteBackendInput) (*BackendResponse, error)
 }
 
 func NewBackend() Backend {
 	return backend{}
 }
 
-func (b backend) Execute(ctx *gin.Context, backend dto.Backend, requests *[]dto.BackendRequest) (
-	*http.Response, error) {
-	request, err := b.prepareBackendRequest(ctx, backend, requests)
-	if err != nil {
-		return nil, err
-	}
-	return b.makeRequest(ctx, backend, *request)
-}
-
-func (b backend) prepareBackendRequest(ctx *gin.Context, backend dto.Backend, requests *[]dto.BackendRequest) (
-	*dto.BackendRequest, error) {
-	request := (*requests)[len(*requests)-1]
+func (b backend) BuildBackendRequest(input BuildBackendRequestInput) (*BackendRequest, error) {
 	//removemos todos os headers nao mapeados no backend.forward-headers
-	if !slices.Contains(backend.ForwardHeaders, "*") {
-		for key := range request.Header {
-			if !slices.Contains(backend.ForwardHeaders, key) {
-				request.Header.Del(key)
+	if helper.NotContains(input.Backend.ForwardHeaders, "*") {
+		for key := range input.Header {
+			if helper.NotContains(input.Backend.ForwardHeaders, key) {
+				input.Header.Del(key)
 			}
 		}
 	}
 	//removemos os queryParams nao mapeados no backend
-	for key := range request.Query {
-		if !slices.Contains(backend.Query, key) {
-			request.Query.Del(key)
+	for key := range input.Query {
+		if helper.NotContains(input.Backend.Query, key) {
+			input.Query.Del(key)
 		}
 	}
 	//substituímos os parâmetros no endpoint pelo valor do parâmetro por exemplo find/user/:userID para find/user/2
-	requestURL := request.Endpoint
-	for key, value := range request.Params {
-		if strings.Contains(request.Endpoint, ":"+key) {
-			requestURL = strings.ReplaceAll(request.Endpoint, ":"+key, value)
+	endpoint := input.Backend.Endpoint
+	for key, value := range input.Params {
+		rKey := fmt.Sprint(":", key)
+		if helper.Contains(input.Backend.Endpoint, rKey) {
+			endpoint = strings.ReplaceAll(input.Backend.Endpoint, rKey, value)
 		}
 	}
-	request.Endpoint = requestURL
-	//preparamos o body para envio
-	if request.Body != nil {
-		var bodyBytes []byte
-		if ctx.GetHeader("Content-Type") == "application/json" {
-			bodyBytes, _ = json.Marshal(request.Body)
-		} else {
-			bodyBytes = []byte(fmt.Sprintf("%v", request.Body))
-		}
-		request.BodyToSend = io.NopCloser(bytes.NewReader(bodyBytes))
-	}
-	(*requests)[len(*requests)-1] = request
-	return &request, nil
+	return &BackendRequest{
+		Host:     input.Host,
+		Endpoint: input.Backend.Endpoint,
+		Url:      fmt.Sprint(input.Host, endpoint),
+		Method:   input.Backend.Method,
+		Header:   input.Header,
+		Query:    input.Query,
+		Params:   input.Params,
+		Body:     input.Body,
+	}, nil
 }
 
-func (b backend) makeRequest(ctx *gin.Context, backend dto.Backend, currentRequest dto.BackendRequest) (
-	*http.Response, error) {
-	//para cada host uma request: todo -> talvez desenvolver uma opção de balancer através do host
-	host := backend.Host[rand.Intn(len(backend.Host))]
-	client := &http.Client{}
-	request, err := http.NewRequestWithContext(
-		ctx.Request.Context(),
-		backend.Method,
-		host+currentRequest.Endpoint,
-		currentRequest.BodyToSend,
-	)
-	if err != nil {
+func (b backend) Execute(ctx context.Context, input ExecuteBackendInput) (*BackendResponse, error) {
+	response, err := b.makeRequest(ctx, input.BackendRequest)
+	if helper.IsNotNil(err) {
 		return nil, err
 	}
-	request.Header = currentRequest.Header
-	request.URL.RawQuery = currentRequest.Query.Encode()
+	defer b.closeBodyResponse(response)
+	bodyParsed, err := b.readResponseBody(response)
+	if helper.IsNotNil(err) {
+		return nil, err
+	}
+	return &BackendResponse{
+		Header:     response.Header,
+		StatusCode: response.StatusCode,
+		Body:       bodyParsed,
+		Group:      input.Backend.Group,
+		Hide:       input.Backend.HideResponse,
+	}, nil
+}
+
+func (b backend) makeRequest(ctx context.Context, backendRequest BackendRequest) (*http.Response, error) {
+	var bodyToSend io.ReadCloser
+	if helper.IsNotNil(backendRequest.Body) {
+		bodyBytes, err := helper.ConvertToBytes(backendRequest.Body)
+		if helper.IsNotNil(err) {
+			return nil, err
+		}
+		bodyToSend = io.NopCloser(bytes.NewReader(bodyBytes))
+	}
+	client := &http.Client{}
+	request, err := http.NewRequestWithContext(
+		ctx,
+		backendRequest.Method,
+		backendRequest.Url,
+		bodyToSend,
+	)
+	if helper.IsNotNil(err) {
+		return nil, err
+	}
+	request.Header = backendRequest.Header
+	request.URL.RawQuery = backendRequest.Query.Encode()
 	return client.Do(request)
+}
+
+func (b backend) closeBodyResponse(response *http.Response) {
+	_ = response.Body.Close()
+}
+
+func (b backend) readResponseBody(resp *http.Response) (any, error) {
+	var result any
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if helper.IsGreaterThan(bodyBytes, 0) {
+		result, err = oj.ParseString(helper.SimpleConvertToString(bodyBytes))
+	}
+	if helper.IsNotNil(err) {
+		result = string(bodyBytes)
+	}
+	return result, nil
 }

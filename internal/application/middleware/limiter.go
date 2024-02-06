@@ -3,8 +3,8 @@ package middleware
 import (
 	"bytes"
 	"github.com/GabrielHCataldo/go-error-detail/errors"
-	"github.com/GabrielHCataldo/open-gateway/internal/domain/handler"
-	"github.com/GabrielHCataldo/open-gateway/internal/domain/infra/rate"
+	"github.com/GabrielHCataldo/martini-gateway/internal/application/handler"
+	"github.com/GabrielHCataldo/martini-gateway/internal/infra"
 	"github.com/gin-gonic/gin"
 	"io"
 	"net/http"
@@ -15,7 +15,7 @@ import (
 type limiter struct {
 	maxSizeReqBody         int64
 	maxSizeMultipartMemory int64
-	ipRateLimiter          *rate.IPRateLimiter
+	ipRateLimiter          *infra.IpRateLimiter
 }
 
 type Limiter interface {
@@ -30,7 +30,7 @@ func NewLimiter(maxSizeRequestBody, maxSizeMultipartMemory, maxIpRequestPerSecon
 	return limiter{
 		maxSizeReqBody:         int64(maxSizeRequestBody),
 		maxSizeMultipartMemory: int64(maxSizeMultipartMemory),
-		ipRateLimiter:          rate.NewIPRateLimiter(1, maxRequestPerSeconds),
+		ipRateLimiter:          infra.NewIpRateLimiter(1, maxRequestPerSeconds),
 	}
 }
 

@@ -14,7 +14,6 @@ func RespondCode(ctx *gin.Context, code int) {
 }
 
 func RespondCodeWithError(ctx *gin.Context, code int, err *errors.ErrorDetail) {
-	// TODO -> aqui vamos pensar se talvez colocar o error padrão e depois converter para manter o padrão go
 	if ctx.IsAborted() {
 		return
 	}

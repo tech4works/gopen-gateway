@@ -1,19 +1,19 @@
-package rate
+package infra
 
 import (
 	"golang.org/x/time/rate"
 	"sync"
 )
 
-type IPRateLimiter struct {
+type IpRateLimiter struct {
 	ips map[string]*rate.Limiter
 	mu  *sync.RWMutex
 	r   rate.Limit
 	b   int
 }
 
-func NewIPRateLimiter(r rate.Limit, b int) *IPRateLimiter {
-	i := &IPRateLimiter{
+func NewIpRateLimiter(r rate.Limit, b int) *IpRateLimiter {
+	i := &IpRateLimiter{
 		ips: make(map[string]*rate.Limiter),
 		mu:  &sync.RWMutex{},
 		r:   r,
@@ -22,7 +22,7 @@ func NewIPRateLimiter(r rate.Limit, b int) *IPRateLimiter {
 	return i
 }
 
-func (i *IPRateLimiter) AddIP(ip string) *rate.Limiter {
+func (i *IpRateLimiter) AddIP(ip string) *rate.Limiter {
 	i.mu.Lock()
 	defer i.mu.Unlock()
 	limiter := rate.NewLimiter(i.r, i.b)
@@ -30,7 +30,7 @@ func (i *IPRateLimiter) AddIP(ip string) *rate.Limiter {
 	return limiter
 }
 
-func (i *IPRateLimiter) GetLimiter(ip string) *rate.Limiter {
+func (i *IpRateLimiter) GetLimiter(ip string) *rate.Limiter {
 	i.mu.Lock()
 	limiter, exists := i.ips[ip]
 	if !exists {

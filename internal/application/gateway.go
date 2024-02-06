@@ -3,9 +3,9 @@ package application
 import (
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/go-logger/logger"
-	"github.com/GabrielHCataldo/open-gateway/internal/domain/dto"
-	"github.com/GabrielHCataldo/open-gateway/internal/domain/middleware"
-	"github.com/GabrielHCataldo/open-gateway/internal/domain/usecase"
+	middleware2 "github.com/GabrielHCataldo/martini-gateway/internal/application/middleware"
+	"github.com/GabrielHCataldo/martini-gateway/internal/application/model/dto"
+	"github.com/GabrielHCataldo/martini-gateway/internal/application/usecase"
 	cache "github.com/chenyahui/gin-cache"
 	"github.com/chenyahui/gin-cache/persist"
 	"github.com/gin-gonic/gin"
@@ -19,9 +19,9 @@ import (
 type gateway struct {
 	config            dto.Config
 	redisClient       *redis.Client
-	timeoutMiddleware middleware.Timeout
-	limiterMiddleware middleware.Limiter
-	corsMiddleware    middleware.Cors
+	timeoutMiddleware middleware2.Timeout
+	limiterMiddleware middleware2.Limiter
+	corsMiddleware    middleware2.Cors
 	endpointUseCase   usecase.Endpoint
 }
 
@@ -32,9 +32,9 @@ type Gateway interface {
 func NewGateway(
 	config dto.Config,
 	redisClient *redis.Client,
-	timeoutMiddleware middleware.Timeout,
-	limiterMiddleware middleware.Limiter,
-	corsMiddleware middleware.Cors,
+	timeoutMiddleware middleware2.Timeout,
+	limiterMiddleware middleware2.Limiter,
+	corsMiddleware middleware2.Cors,
 	endpointUseCase usecase.Endpoint,
 ) Gateway {
 	return gateway{

@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"github.com/GabrielHCataldo/go-error-detail/errors"
 	"github.com/GabrielHCataldo/go-helper/helper"
-	"github.com/GabrielHCataldo/open-gateway/internal/domain/dto"
-	"github.com/GabrielHCataldo/open-gateway/internal/domain/factory"
-	"github.com/GabrielHCataldo/open-gateway/internal/domain/handler"
-	"github.com/GabrielHCataldo/open-gateway/internal/domain/service"
+	"github.com/GabrielHCataldo/martini-gateway/internal/application/handler"
+	"github.com/GabrielHCataldo/martini-gateway/internal/application/model/dto"
+	"github.com/GabrielHCataldo/martini-gateway/internal/domain/factory"
+	"github.com/GabrielHCataldo/martini-gateway/internal/domain/service"
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"strconv"
@@ -18,7 +18,7 @@ type endpoint struct {
 	config          dto.Config
 	backendService  service.Backend
 	backendFactory  factory.Backend
-	modifierFactory factory.Modifier
+	modifierFactory service.Modifier
 }
 
 type Endpoint interface {
@@ -29,7 +29,7 @@ func NewEndpoint(
 	configDto dto.Config,
 	backendService service.Backend,
 	backendFactory factory.Backend,
-	modifierFactory factory.Modifier,
+	modifierFactory service.Modifier,
 ) Endpoint {
 	return endpoint{
 		config:          configDto,
@@ -73,7 +73,7 @@ func (e endpoint) processBackendAuthorizations(
 		authBackend, ok := e.config.ExtraConfig.Authorizations[authKey]
 		if !ok {
 			handler.RespondCodeWithError(ctx, http.StatusInternalServerError, errors.New(
-				"authorization", "'"+authKey+"'", "not configured on extra-config.authorizations",
+				"authorization", "'"+authKey+"'", "not configured on extra-martini.authorizations",
 			))
 			return
 		}
@@ -144,7 +144,7 @@ func (e endpoint) prepareBackendRequest(
 	responses *[]dto.BackendResponse,
 ) error {
 	e.backendFactory.CreateBackendRequest(ctx, backend, requests, isAuthBackend)
-	err := e.modifierFactory.ExecuteModifier("request", backend, *requests, *responses)
+	err := e.modifierFactory.Execute("request", backend, *requests, *responses)
 	if err != nil {
 		return err
 	}
@@ -161,7 +161,7 @@ func (e endpoint) prepareBackendResponse(
 	if err != nil {
 		return err
 	}
-	err = e.modifierFactory.ExecuteModifier("response", backend, *requests, *responses)
+	err = e.modifierFactory.Execute("response", backend, *requests, *responses)
 	if err != nil {
 		return err
 	}

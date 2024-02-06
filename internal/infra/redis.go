@@ -1,6 +1,7 @@
-package config
+package infra
 
 import (
+	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/go-logger/logger"
 	"github.com/go-redis/redis/v8"
 )
@@ -21,7 +22,7 @@ func DisconnectRedis() {
 		return
 	}
 	err := clientRedis.Close()
-	if err != nil {
+	if helper.IsNotNil(err) {
 		logger.Error("Error disconnect Redis:", err)
 		return
 	}

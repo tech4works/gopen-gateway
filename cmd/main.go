@@ -4,14 +4,14 @@ import (
 	"encoding/json"
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/go-logger/logger"
-	"github.com/GabrielHCataldo/open-gateway/internal/application"
-	"github.com/GabrielHCataldo/open-gateway/internal/domain/dto"
-	"github.com/GabrielHCataldo/open-gateway/internal/domain/factory"
-	"github.com/GabrielHCataldo/open-gateway/internal/domain/infra/config"
-	"github.com/GabrielHCataldo/open-gateway/internal/domain/infra/geolocalization"
-	"github.com/GabrielHCataldo/open-gateway/internal/domain/middleware"
-	"github.com/GabrielHCataldo/open-gateway/internal/domain/service"
-	"github.com/GabrielHCataldo/open-gateway/internal/domain/usecase"
+	"github.com/GabrielHCataldo/martini-gateway/internal/application"
+	middleware2 "github.com/GabrielHCataldo/martini-gateway/internal/application/middleware"
+	"github.com/GabrielHCataldo/martini-gateway/internal/application/model/dto"
+	"github.com/GabrielHCataldo/martini-gateway/internal/application/usecase"
+	"github.com/GabrielHCataldo/martini-gateway/internal/domain/factory"
+	"github.com/GabrielHCataldo/martini-gateway/internal/domain/service"
+	"github.com/GabrielHCataldo/martini-gateway/internal/infra"
+	"github.com/GabrielHCataldo/martini-gateway/internal/infra/geolocalization"
 	"github.com/joho/godotenv"
 	"os"
 	"os/signal"
@@ -26,32 +26,32 @@ func main() {
 		env = os.Args[1]
 	}
 	if env != "prod" {
-		if err := godotenv.Load("config/" + env + ".env"); err != nil {
+		if err := godotenv.Load("martini/" + env + ".env"); err != nil {
 			logger.Errorf("Error load .env file: %s", err)
 			return
 		}
 	}
 
 	var configDto dto.Config
-	bytes, err := os.ReadFile("config/" + env + ".config.json")
+	bytes, err := os.ReadFile("martini/" + env + ".martini.json")
 	if err != nil {
-		logger.Errorf("Error read config.json file: %s", err)
+		logger.Errorf("Error read martini.json file: %s", err)
 		return
 	}
 	strJSON := string(bytes)
 	bytesReadJSON := []byte(fillEnvValues(strJSON))
 	err = json.Unmarshal(bytesReadJSON, &configDto)
 	if err != nil {
-		logger.Errorf("Error parse config.json file to Struct: %s", err)
+		logger.Errorf("Error parse martini.json file to Struct: %s", err)
 		return
 	}
 	if err = helper.Validate().Struct(configDto); err != nil {
-		logger.Errorf("Error validate config.json: %s", err)
+		logger.Errorf("Error validate martini.json: %s", err)
 		return
 	}
 
-	redisClient := config.ConnectRedis(os.Getenv("REDIS_URL"), os.Getenv("REDIS_PASSWORD"))
-	defer config.DisconnectRedis()
+	redisClient := infra.ConnectRedis(os.Getenv("REDIS_URL"), os.Getenv("REDIS_PASSWORD"))
+	defer infra.DisconnectRedis()
 
 	geolocalizationClient := geolocalization.NewClient()
 
@@ -78,19 +78,19 @@ func main() {
 		return
 	}
 
-	modifierFactory := factory.NewModifier()
+	modifierFactory := service.NewModifier()
 	backendFactory := factory.NewBackend()
 
 	localeService := service.NewLocale(geolocalizationClient)
 	backendService := service.NewBackend()
 
-	limiterMiddleware := middleware.NewLimiter(
+	limiterMiddleware := middleware2.NewLimiter(
 		maxSizeRequestBody,
 		maxSizeMultipartMemory,
 		configDto.Limiter.MaxIpRequestPerSeconds,
 	)
-	timeoutMiddleware := middleware.NewTimeout(handlerTimeout)
-	corsMiddleware := middleware.NewCors(configDto.ExtraConfig.SecurityCors, localeService)
+	timeoutMiddleware := middleware2.NewTimeout(handlerTimeout)
+	corsMiddleware := middleware2.NewCors(configDto.ExtraConfig.SecurityCors, localeService)
 
 	endpointUseCase := usecase.NewEndpoint(configDto, backendService, backendFactory, modifierFactory)
 

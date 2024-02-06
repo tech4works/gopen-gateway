@@ -4,7 +4,7 @@ import (
 	"context"
 	"github.com/GabrielHCataldo/go-error-detail/errors"
 	"github.com/GabrielHCataldo/go-logger/logger"
-	"github.com/GabrielHCataldo/open-gateway/internal/domain/handler"
+	"github.com/GabrielHCataldo/martini-gateway/internal/application/handler"
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"runtime/debug"
