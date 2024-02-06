@@ -1,6 +1,8 @@
 package dto
 
-import "github.com/GabrielHCataldo/martini-gateway/internal/domain/enum"
+import (
+	"github.com/GabrielHCataldo/martini-gateway/internal/application/model/enum"
+)
 
 type Config struct {
 	Port        int         `json:"port,omitempty" validate:"required"`

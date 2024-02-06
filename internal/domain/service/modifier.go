@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/GabrielHCataldo/go-errors/errors"
 	"github.com/GabrielHCataldo/go-helper/helper"
-	"github.com/GabrielHCataldo/martini-gateway/internal/domain/enum"
+	"github.com/GabrielHCataldo/martini-gateway/internal/application/model/enum"
 	"github.com/GabrielHCataldo/martini-gateway/internal/domain/model/valueobject"
 	"github.com/ohler55/ojg/jp"
 	"net/http"
