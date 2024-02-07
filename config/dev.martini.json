@@ -59,6 +59,7 @@
         "endpoint": "/token/validate",
         "method": "POST",
         "hide-response": true,
+        "dont-send-body": true,
         "forward-headers": [
           "*"
         ],

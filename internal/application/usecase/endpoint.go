@@ -1,232 +1,277 @@
 package usecase
 
 import (
+	"context"
 	"fmt"
-	"github.com/GabrielHCataldo/go-error-detail/errors"
+	"github.com/GabrielHCataldo/go-errors/errors"
 	"github.com/GabrielHCataldo/go-helper/helper"
-	"github.com/GabrielHCataldo/martini-gateway/internal/application/handler"
+	"github.com/GabrielHCataldo/martini-gateway/internal/application/factory"
 	"github.com/GabrielHCataldo/martini-gateway/internal/application/model/dto"
-	"github.com/GabrielHCataldo/martini-gateway/internal/domain/factory"
+	"github.com/GabrielHCataldo/martini-gateway/internal/domain/model/valueobject"
 	"github.com/GabrielHCataldo/martini-gateway/internal/domain/service"
-	"github.com/gin-gonic/gin"
+	"github.com/iancoleman/orderedmap"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 )
 
+type Request struct {
+	Host     string            `json:"host,omitempty"`
+	Endpoint string            `json:"endpoint,omitempty"`
+	Url      string            `json:"url,omitempty"`
+	Method   string            `json:"method,omitempty"`
+	Header   http.Header       `json:"header,omitempty"`
+	Query    url.Values        `json:"query,omitempty"`
+	Params   map[string]string `json:"params,omitempty"`
+	Body     any               `json:"body,omitempty"`
+}
+
+type Response struct {
+	StatusCode int         `json:"statusCode,omitempty"`
+	Header     http.Header `json:"header,omitempty"`
+	Body       any         `json:"body,omitempty"`
+	Group      string      `json:"group,omitempty"`
+	Hide       bool        `json:"hide,omitempty"`
+}
+
+type ExecuteInput struct {
+	Config   dto.Martini
+	Endpoint dto.Endpoint
+	Header   http.Header
+	Query    url.Values
+	Params   map[string]string
+	Body     any
+}
+
+type ExecuteOutput struct {
+	StatusCode int
+	Header     map[string]string
+	Body       any
+}
+
 type endpoint struct {
-	config          dto.Config
 	backendService  service.Backend
-	backendFactory  factory.Backend
-	modifierFactory service.Modifier
+	modifierService service.Modifier
 }
 
 type Endpoint interface {
-	Execute(ctx *gin.Context)
+	Execute(ctx context.Context, input ExecuteInput) (*ExecuteOutput, error)
 }
 
-func NewEndpoint(
-	configDto dto.Config,
-	backendService service.Backend,
-	backendFactory factory.Backend,
-	modifierFactory service.Modifier,
-) Endpoint {
+func NewEndpoint(backendService service.Backend, modifierService service.Modifier) Endpoint {
 	return endpoint{
-		config:          configDto,
 		backendService:  backendService,
-		backendFactory:  backendFactory,
-		modifierFactory: modifierFactory,
+		modifierService: modifierService,
 	}
 }
 
-func (e endpoint) Execute(ctx *gin.Context) {
-	for _, item := range e.config.Endpoints {
-		if (item.Endpoint == ctx.Request.URL.Path ||
-			item.Endpoint == ctx.FullPath()) &&
-			item.Method == ctx.Request.Method {
-			responses := &[]dto.BackendResponse{}
-			requests := &[]dto.BackendRequest{}
-			for _, backend := range item.Backends {
-				if ctx.IsAborted() {
-					return
-				}
-				e.processBackendAuthorizations(ctx, item, backend, requests, responses)
-				e.processBackend(ctx, item, backend, requests, responses)
+func (e endpoint) Execute(ctx context.Context, input ExecuteInput) (*ExecuteOutput, error) {
+	var requests []Request
+	var responses []Response
+	for _, backend := range input.Endpoint.Backends {
+		// primeiro processamos as requisições de autorização configuradas
+		for _, authKey := range backend.Authorizations {
+			authBackend, ok := input.Config.ExtraConfig.Authorizations[authKey]
+			if !ok {
+				return nil, errors.New("authorization", authKey, "not configured on extra-config.authorizations")
 			}
-			e.replyGateway(ctx, item, responses)
-			return
+			// montamos a request com base no authBackend
+			request, err := e.buildBackendRequest(authBackend, input, requests, responses)
+			if helper.IsNotNil(err) {
+				return nil, err
+			}
+			requests = append(requests, *request)
+			// processamos o backend de autorização
+			response, err := e.makeBackendRequest(ctx, authBackend, *request, requests, responses)
+			//qualquer erro na requisição de autorização ja paramos e retornamos o mesmo
+			if helper.IsNotNil(err) {
+				return nil, err
+			} else if helper.IsNotEqualTo(response.StatusCode, http.StatusOK) {
+				return e.buildExecuteOutput(input.Endpoint, []Response{*response})
+			}
+			responses = append(responses, *response)
 		}
+		// montamos a request com base no authBackend
+		request, err := e.buildBackendRequest(backend, input, requests, responses)
+		if helper.IsNotNil(err) {
+			return nil, err
+		}
+		requests = append(requests, *request)
+		// processamos o backend
+		response, err := e.makeBackendRequest(ctx, backend, *request, requests, responses)
+		//qualquer erro na requisição e teríamos mais de 1 backend e o campo abortSequential estiver true,
+		//abortamos as demais requisições
+		if helper.IsNotNil(err) {
+			return nil, err
+		} else if helper.IsGreaterThan(input.Endpoint.Backends, 1) &&
+			helper.IsGreaterThanOrEqual(response.StatusCode, http.StatusBadRequest) &&
+			input.Endpoint.AbortSequential {
+			return e.buildExecuteOutput(input.Endpoint, []Response{*response})
+		}
+		responses = append(responses, *response)
 	}
-	handler.RespondCodeWithError(ctx, http.StatusInternalServerError, errors.New(
-		"endpoint is not response nothing:", ctx.Request.RequestURI, "method:", ctx.Request.Method,
-	))
+	return e.buildExecuteOutput(input.Endpoint, responses)
 }
 
-func (e endpoint) processBackendAuthorizations(
-	ctx *gin.Context,
-	endpoint dto.Endpoint,
+func (e endpoint) buildBackendRequest(
 	backend dto.Backend,
-	requests *[]dto.BackendRequest,
-	responses *[]dto.BackendResponse,
-) {
-	for _, authKey := range backend.Authorizations {
-		authBackend, ok := e.config.ExtraConfig.Authorizations[authKey]
-		if !ok {
-			handler.RespondCodeWithError(ctx, http.StatusInternalServerError, errors.New(
-				"authorization", "'"+authKey+"'", "not configured on extra-martini.authorizations",
-			))
-			return
-		}
-		//preparamos a requisição nas factories
-		err := e.prepareBackendRequest(ctx, authBackend, true, requests, responses)
-		if err != nil {
-			handler.RespondCodeWithError(ctx, http.StatusInternalServerError, errors.NewByErr(err))
-			return
-		}
-		//executamos a requisition backend
-		resp, err := e.backendService.Execute(ctx, authBackend, requests)
-		if err != nil {
-			handler.RespondCodeWithError(ctx, http.StatusBadGateway, errors.NewByErr(err))
-			return
-		}
-		//preparamos a resposta anexando na lista responses e usaremos a ferramenta modifier
-		err = e.prepareBackendResponse(resp, authBackend, requests, responses)
-		if err != nil {
-			handler.RespondCodeWithError(ctx, http.StatusInternalServerError, errors.NewByErr(err))
-			return
-		}
-		//qualquer erro na requisição de autorização ja paramos e retornamos o mesmo
-		if resp.StatusCode != http.StatusOK {
-			e.replyGateway(ctx, endpoint, responses)
-		}
+	input ExecuteInput,
+	requests []Request,
+	responses []Response,
+) (*Request, error) {
+	//preparamos a requisição com base o dto backend
+	// todo: aqui obtemos o host (correto é criar um domínio chamado balancer aonde ele vai retornar o host
+	//  disponível pegando como base, se ele esta de pé ou não, e sua config de porcentagem)
+	host := backend.Host[len(backend.Host)-1]
+	backendRequest, err := e.backendService.BuildBackendRequest(service.BuildBackendRequestInput{
+		Backend: valueobject.BuildBackend(backend),
+		Host:    host,
+		Header:  input.Header,
+		Query:   input.Query,
+		Params:  input.Params,
+		Body:    input.Body,
+	})
+	if helper.IsNotNil(err) {
+		return nil, err
 	}
+	//modificamos a requisição no escopo request no domínio modifier
+	request, err := e.modifierRequest(backend, *backendRequest, requests, responses)
+	if helper.IsNotNil(err) {
+		return nil, err
+	}
+	return &Request{
+		Host:     request.Host,
+		Endpoint: request.Endpoint,
+		Url:      request.Url,
+		Method:   request.Method,
+		Header:   request.Header,
+		Query:    request.Query,
+		Params:   request.Params,
+		Body:     request.Body,
+	}, nil
 }
 
-func (e endpoint) processBackend(
-	ctx *gin.Context,
-	endpoint dto.Endpoint,
+func (e endpoint) makeBackendRequest(
+	ctx context.Context,
+	authBackend dto.Backend,
+	request Request,
+	requests []Request,
+	responses []Response,
+) (*Response, error) {
+	//executamos a requisição backend
+	backendResponse, err := e.backendService.Execute(ctx, service.ExecuteBackendInput{
+		Backend: valueobject.BuildBackend(authBackend),
+		BackendRequest: service.BackendRequest{
+			Host:     request.Host,
+			Endpoint: request.Endpoint,
+			Url:      request.Url,
+			Method:   request.Method,
+			Header:   request.Header,
+			Query:    request.Query,
+			Params:   request.Params,
+			Body:     request.Body,
+		},
+	})
+	if helper.IsNotNil(err) {
+		return nil, errBadGateway(err)
+	}
+	//modificamos a response no escopo response no domínio modifier
+	response, err := e.modifierResponse(authBackend, *backendResponse, requests, responses)
+	if helper.IsNotNil(err) {
+		return nil, err
+	}
+	return &Response{
+		StatusCode: response.StatusCode,
+		Header:     response.Header,
+		Body:       response.Body,
+		Group:      authBackend.Group,
+		Hide:       true,
+	}, nil
+}
+
+func (e endpoint) modifierRequest(
 	backend dto.Backend,
-	requests *[]dto.BackendRequest,
-	responses *[]dto.BackendResponse,
-) {
-	//preparamos a requisição para o backend
-	err := e.prepareBackendRequest(ctx, backend, false, requests, responses)
-	if err != nil {
-		handler.RespondCodeWithError(ctx, http.StatusInternalServerError, errors.NewByErr(err))
-		return
-	}
-	//processamos o backend enviando solicitação
-	resp, err := e.backendService.Execute(ctx, backend, requests)
-	if err != nil {
-		handler.RespondCodeWithError(ctx, http.StatusBadGateway, errors.NewByErr(err))
-		return
-	}
-	//preparamos a resposta anexando na lista responses e usaremos a ferramenta modifier
-	err = e.prepareBackendResponse(resp, backend, requests, responses)
-	if err != nil {
-		handler.RespondCodeWithError(ctx, http.StatusInternalServerError, errors.NewByErr(err))
-		return
-	}
-	//qualquer erro na requisição e teríamos mais de 1 backend e o campo abortSequential estiver true,
-	//abortamos as demais requisições
-	if len(endpoint.Backends) > 1 && resp.StatusCode >= http.StatusBadRequest && endpoint.AbortSequential {
-		currentResp := (*responses)[len(*responses)-1]
-		responses = &[]dto.BackendResponse{currentResp}
-		e.replyGateway(ctx, endpoint, responses)
-	}
+	backendRequest service.BackendRequest,
+	requests []Request,
+	responses []Response,
+) (*service.ModifierRequest, error) {
+	return e.modifierService.ExecuteRequestScope(service.ExecuteRequestScopeInput{
+		Request:         factory.BuildModifierRequestByBackendRequest(backendRequest),
+		Headers:         valueobject.BuildModifiers(backend.Headers),
+		Params:          valueobject.BuildModifiers(backend.Params),
+		Queries:         valueobject.BuildModifiers(backend.Queries),
+		Body:            valueobject.BuildModifiers(backend.Body),
+		RequestHistory:  factory.BuildModifierRequests(requests),
+		ResponseHistory: factory.BuildModifierResponses(responses),
+	})
 }
 
-func (e endpoint) prepareBackendRequest(
-	ctx *gin.Context,
+func (e endpoint) modifierResponse(
 	backend dto.Backend,
-	isAuthBackend bool,
-	requests *[]dto.BackendRequest,
-	responses *[]dto.BackendResponse,
-) error {
-	e.backendFactory.CreateBackendRequest(ctx, backend, requests, isAuthBackend)
-	err := e.modifierFactory.Execute("request", backend, *requests, *responses)
-	if err != nil {
-		return err
-	}
-	return nil
+	backendResponse service.BackendResponse,
+	requests []Request,
+	responses []Response,
+) (*service.ModifierResponse, error) {
+	return e.modifierService.ExecuteResponseScope(service.ExecuteResponseScopeInput{
+		Response:        factory.BuildModifierResponseByBackendResponse(backendResponse),
+		Headers:         valueobject.BuildModifiers(backend.Headers),
+		Params:          valueobject.BuildModifiers(backend.Params),
+		Queries:         valueobject.BuildModifiers(backend.Queries),
+		Body:            valueobject.BuildModifiers(backend.Body),
+		RequestHistory:  factory.BuildModifierRequests(requests),
+		ResponseHistory: factory.BuildModifierResponses(responses),
+	})
 }
 
-func (e endpoint) prepareBackendResponse(
-	resp *http.Response,
-	backend dto.Backend,
-	requests *[]dto.BackendRequest,
-	responses *[]dto.BackendResponse,
-) error {
-	err := e.backendFactory.CreateBackendResponse(resp, backend, responses)
-	if err != nil {
-		return err
-	}
-	err = e.modifierFactory.Execute("response", backend, *requests, *responses)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (e endpoint) replyGateway(ctx *gin.Context, endpoint dto.Endpoint, responses *[]dto.BackendResponse) {
-	if ctx.IsAborted() {
-		return
-	}
-	statusCode, header, body := e.prepareGatewayResponse(endpoint, *responses)
-	for k, v := range header {
-		ctx.Header(k, v)
-	}
-	if helper.IsString(body) && helper.IsStringNotEmpty(body) {
-		ctx.String(statusCode, helper.ConvertToString(body))
-	} else if helper.IsJson(body) && helper.IsJsonNotEmpty(body) {
-		ctx.JSON(statusCode, body)
-	} else {
-		ctx.Status(statusCode)
-	}
-	ctx.Abort()
-}
-
-func (e endpoint) prepareGatewayResponse(endpoint dto.Endpoint, responses []dto.BackendResponse) (
-	statusCode int, header map[string]string, body any) {
-	gatewayCompleted, responsesCleaned := e.cleanResponses(responses)
-	header = e.prepareHeaderResponse(gatewayCompleted, responses)
-	if len(endpoint.Backends) > 1 && len(responsesCleaned) > 1 {
+func (e endpoint) buildExecuteOutput(endpoint dto.Endpoint, responses []Response) (*ExecuteOutput, error) {
+	var statusCode int
+	var body any
+	gatewayCompleted, responsesFiltered := e.filterResponses(responses)
+	if helper.IsGreaterThan(endpoint.Backends, 1) && helper.IsGreaterThan(responsesFiltered, 1) {
 		statusCode = http.StatusOK
 		if endpoint.AggregateResponses {
-			body = e.prepareBodyAggregateResponses(responsesCleaned)
+			body = e.buildAggregateResponsesBody(responsesFiltered)
 		} else {
-			body = e.prepareBodyResponses(responsesCleaned)
+			body = responsesFiltered
 		}
-	} else if len(responsesCleaned) > 0 {
-		statusCode = responsesCleaned[0].StatusCode
-		body = responsesCleaned[0].Body
+	} else if helper.IsGreaterThan(responsesFiltered, 0) {
+		statusCode = responsesFiltered[0].StatusCode
+		body = responsesFiltered[0].Body
 	} else {
 		gatewayCompleted = false
 		statusCode = http.StatusInternalServerError
 	}
-	return statusCode, header, body
+	return &ExecuteOutput{
+		StatusCode: statusCode,
+		Header:     e.buildHeaderResponse(gatewayCompleted, responsesFiltered),
+		Body:       body,
+	}, nil
 }
 
-func (e endpoint) cleanResponses(responses []dto.BackendResponse) (gatewayCompleted bool, result []dto.BackendResponse) {
+func (e endpoint) filterResponses(responses []Response) (gatewayCompleted bool, responsesFiltered []Response) {
 	gatewayCompleted = true
-	for _, respBackend := range responses {
-		if respBackend.Remove && len(responses) > 1 {
+	for _, response := range responses {
+		if response.Hide && helper.IsGreaterThan(responses, 1) {
 			continue
-		} else if respBackend.StatusCode >= http.StatusBadRequest {
+		} else if helper.IsGreaterThanOrEqual(response.StatusCode, http.StatusBadRequest) {
 			gatewayCompleted = false
 		}
-		result = append(result, respBackend)
+		response.Header = nil
+		response.Hide = false
+		responsesFiltered = append(responsesFiltered, response)
 	}
-	return gatewayCompleted, result
+	return gatewayCompleted, responsesFiltered
 }
 
-func (e endpoint) prepareHeaderResponse(gatewayCompleted bool, responses []dto.BackendResponse) map[string]string {
+func (e endpoint) buildHeaderResponse(gatewayCompleted bool, responses []Response) map[string]string {
 	header := map[string]string{
-		"X-Gateway-Completed": strconv.FormatBool(gatewayCompleted),
+		"X-Gateway-Completed": helper.SimpleConvertToString(gatewayCompleted),
 	}
 	for _, respBackend := range responses {
 		for k, v := range respBackend.Header {
-			if k != "Content-Length" && k != "Content-Type" {
+			if helper.IsNotEqualToIgnoreCase(k, "content-length") &&
+				helper.IsNotEqualToIgnoreCase(k, "content-type") {
 				header[k] = strings.Join(v, ", ")
 			}
 		}
@@ -234,49 +279,39 @@ func (e endpoint) prepareHeaderResponse(gatewayCompleted bool, responses []dto.B
 	return header
 }
 
-func (e endpoint) prepareBodyResponses(responses []dto.BackendResponse) []dto.BackendResponse {
-	var result []dto.BackendResponse
-	for _, respBackend := range responses {
-		respBackend.Header = nil
-		respBackend.Remove = false
-		result = append(result, respBackend)
-	}
-	return result
-}
-
-func (e endpoint) prepareBodyAggregateResponses(responses []dto.BackendResponse) map[string]any {
-	result := map[string]any{}
-	for index, respBackend := range responses {
-		if respBackend.Body == nil {
+func (e endpoint) buildAggregateResponsesBody(responses []Response) *orderedmap.OrderedMap {
+	result := orderedmap.New()
+	for index, response := range responses {
+		if response.Body == nil {
 			continue
 		}
 		genericKey := "response" + strconv.Itoa(index)
-		if helper.IsSlice(respBackend.Body) {
+		if helper.IsSlice(response.Body) {
 			key := genericKey
-			if helper.IsNotEmpty(respBackend.Group) {
-				key = respBackend.Group
+			if helper.IsNotEmpty(response.Group) {
+				key = response.Group
 			}
-			result[key] = respBackend.Body
-		} else if helper.IsJson(respBackend.Body) {
-			bodyResult := map[string]any{}
-			for k, v := range respBackend.Body.(map[string]any) {
-				if _, ok := result[k]; ok {
-					bodyResult[k+strconv.Itoa(index)] = v
+			result.Set(key, response.Body)
+		} else if helper.IsJson(response.Body) {
+			bodyResult := orderedmap.New()
+			for k, v := range response.Body.(map[string]any) {
+				if _, ok := result.Get(k); ok {
+					bodyResult.Set(fmt.Sprint(k, index), v)
 				} else {
-					bodyResult[k] = v
+					bodyResult.Set(k, v)
 				}
 			}
-			if helper.IsNotEmpty(respBackend.Group) {
-				result[respBackend.Group] = bodyResult
+			if helper.IsNotEmpty(response.Group) {
+				result.Set(response.Group, bodyResult)
 			} else {
 				result = bodyResult
 			}
-		} else if helper.IsString(respBackend.Body) {
+		} else if helper.IsString(response.Body) {
 			key := genericKey
-			if helper.IsNotEmpty(respBackend.Group) {
-				key = respBackend.Group
+			if helper.IsNotEmpty(response.Group) {
+				key = response.Group
 			}
-			result[key] = fmt.Sprintf("%s", respBackend.Body)
+			result.Set(key, helper.SimpleConvertToString(response))
 		}
 	}
 	if helper.IsEmpty(result) {

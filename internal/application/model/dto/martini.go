@@ -2,14 +2,15 @@ package dto
 
 import (
 	"github.com/GabrielHCataldo/martini-gateway/internal/application/model/enum"
+	"time"
 )
 
-type Config struct {
+type Martini struct {
 	Port        int         `json:"port,omitempty" validate:"required"`
 	Cache       string      `json:"cache,omitempty" validate:"omitempty"`
 	Timeout     Timeout     `json:"timeout,omitempty" validate:"required"`
 	Limiter     Limiter     `json:"limiter,omitempty" validate:"omitempty"`
-	ExtraConfig ExtraConfig `json:"extra-martini,omitempty" validate:"omitempty"`
+	ExtraConfig ExtraConfig `json:"extra-config,omitempty" validate:"omitempty"`
 	Endpoints   []Endpoint  `json:"endpoints,omitempty" validate:"required"`
 }
 
@@ -40,12 +41,13 @@ type SecurityCors struct {
 }
 
 type Endpoint struct {
-	Endpoint           string    `json:"endpoint,omitempty" validate:"required"`
-	Method             string    `json:"method,omitempty" validate:"required"`
-	Cacheable          bool      `json:"cacheable,omitempty"`
-	AggregateResponses bool      `json:"aggregate-responses,omitempty"`
-	AbortSequential    bool      `json:"abort-sequential,omitempty"`
-	Backends           []Backend `json:"backends,omitempty" validate:"required"`
+	Endpoint           string        `json:"endpoint,omitempty" validate:"required"`
+	Method             string        `json:"method,omitempty" validate:"required"`
+	TimeoutHandler     time.Duration `json:"timeout-handler"`
+	Cacheable          bool          `json:"cacheable,omitempty"`
+	AggregateResponses bool          `json:"aggregate-responses,omitempty"`
+	AbortSequential    bool          `json:"abort-sequential,omitempty"`
+	Backends           []Backend     `json:"backends,omitempty" validate:"required"`
 }
 
 type Backend struct {
@@ -53,6 +55,7 @@ type Backend struct {
 	Endpoint       string     `json:"endpoint,omitempty" validate:"required,url"`
 	Method         string     `json:"method,omitempty" validate:"required"`
 	Group          string     `json:"group,omitempty"`
+	DontSendBody   bool       `json:"dont-send-body,omitempty"`
 	HideResponse   bool       `json:"hide-response,omitempty"`
 	ForwardHeaders []string   `json:"forward-headers,omitempty" validate:"required,min=1"`
 	Authorizations []string   `json:"authorizations,omitempty"`

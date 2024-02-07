@@ -2,16 +2,17 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/go-logger/logger"
 	"github.com/GabrielHCataldo/martini-gateway/internal/application"
-	middleware2 "github.com/GabrielHCataldo/martini-gateway/internal/application/middleware"
+	"github.com/GabrielHCataldo/martini-gateway/internal/application/controller"
+	"github.com/GabrielHCataldo/martini-gateway/internal/application/middleware"
 	"github.com/GabrielHCataldo/martini-gateway/internal/application/model/dto"
 	"github.com/GabrielHCataldo/martini-gateway/internal/application/usecase"
-	"github.com/GabrielHCataldo/martini-gateway/internal/domain/factory"
 	"github.com/GabrielHCataldo/martini-gateway/internal/domain/service"
 	"github.com/GabrielHCataldo/martini-gateway/internal/infra"
-	"github.com/GabrielHCataldo/martini-gateway/internal/infra/geolocalization"
+	"github.com/chenyahui/gin-cache/persist"
 	"github.com/joho/godotenv"
 	"os"
 	"os/signal"
@@ -21,89 +22,93 @@ import (
 )
 
 func main() {
+	logger.Info("Start application!")
 	env := "dev"
-	if len(os.Args) > 1 {
+	if helper.IsGreaterThan(os.Args, 1) {
 		env = os.Args[1]
 	}
-	if env != "prod" {
-		if err := godotenv.Load("martini/" + env + ".env"); err != nil {
-			logger.Errorf("Error load .env file: %s", err)
-			return
-		}
-	}
-
-	var configDto dto.Config
-	bytes, err := os.ReadFile("martini/" + env + ".martini.json")
-	if err != nil {
-		logger.Errorf("Error read martini.json file: %s", err)
-		return
-	}
-	strJSON := string(bytes)
-	bytesReadJSON := []byte(fillEnvValues(strJSON))
-	err = json.Unmarshal(bytesReadJSON, &configDto)
-	if err != nil {
-		logger.Errorf("Error parse martini.json file to Struct: %s", err)
-		return
-	}
-	if err = helper.Validate().Struct(configDto); err != nil {
-		logger.Errorf("Error validate martini.json: %s", err)
+	envUri := fmt.Sprint("config/", env, ".martini.env")
+	logger.Info("Loading envs from file:", envUri)
+	if err := godotenv.Load(envUri); helper.IsNotNil(err) {
+		logger.Error("Error load env from file:", envUri, "err:", err)
 		return
 	}
 
-	redisClient := infra.ConnectRedis(os.Getenv("REDIS_URL"), os.Getenv("REDIS_PASSWORD"))
+	martiniFileJsonUri := fmt.Sprint("config/", env, ".martini.json")
+	logger.Info("Loading martini config from file json:", martiniFileJsonUri)
+	var martini dto.Martini
+	martiniBytes, err := os.ReadFile(martiniFileJsonUri)
+	if helper.IsNotNil(err) {
+		logger.Error("Error read martini config from file json:", martiniFileJsonUri, "err:", err)
+		return
+	}
+	logger.Info("Start filling environment variables with $word syntax!")
+	martiniBytes = fillEnvValues(martiniBytes)
+	err = json.Unmarshal(martiniBytes, &martini)
+	if helper.IsNotNil(err) {
+		logger.Error("Error parse martini config file to DTO:", err)
+		return
+	} else if err = helper.Validate().Struct(martini); helper.IsNotNil(err) {
+		logger.Error("Error validate martini config file:", err)
+		return
+	}
+
+	redisClient := infra.ConnectRedis(os.Getenv("REDIS_URL"), os.Getenv("REDIS_PASSWORD")) //todo: passar isso para martini.json como opcional
 	defer infra.DisconnectRedis()
+	memoryStore := persist.NewRedisStore(redisClient) //todo: isso tem que vim a configuração config json
 
-	geolocalizationClient := geolocalization.NewClient()
-
-	handlerTimeout, err := time.ParseDuration(configDto.Timeout.Handler)
+	logger.Info("Converting martini timeout and limiter!")
+	handlerTimeout, err := time.ParseDuration(martini.Timeout.Handler)
 	if err != nil {
-		logger.Errorf("Error parse duration timeout.handler field: %s", err)
+		logger.Error("Error parse duration timeout.handler field:", err)
+		return
+	}
+	if helper.IsEmpty(martini.Limiter.MaxSizeRequestBody) {
+		martini.Limiter.MaxSizeRequestBody = "3MB"
+	}
+	maxSizeRequestBody, err := helper.ConvertByteUnit(martini.Limiter.MaxSizeRequestBody)
+	if err != nil {
+		logger.Error("Error parse byte unit limiter.max-size-request-body field:", err)
+		return
+	}
+	if helper.IsEmpty(martini.Limiter.MaxSizeMultipartMemory) {
+		martini.Limiter.MaxSizeMultipartMemory = "5MB"
+	}
+	maxSizeMultipartMemory, err := helper.ConvertByteUnit(martini.Limiter.MaxSizeMultipartMemory)
+	if err != nil {
+		logger.Error("Error parse byte unit limiter.max-size-multipart-memory field:", err)
 		return
 	}
 
-	if helper.IsEmpty(configDto.Limiter.MaxSizeRequestBody) {
-		configDto.Limiter.MaxSizeRequestBody = "1MB"
-	}
-	maxSizeRequestBody, err := helper.ConvertByteUnit(configDto.Limiter.MaxSizeRequestBody)
-	if err != nil {
-		logger.Errorf("Error parse byte unit limiter.maxSizeRequestBody field: %s", err)
-		return
-	}
-	if helper.IsEmpty(configDto.Limiter.MaxSizeMultipartMemory) {
-		configDto.Limiter.MaxSizeMultipartMemory = "1MB"
-	}
-	maxSizeMultipartMemory, err := helper.ConvertByteUnit(configDto.Limiter.MaxSizeMultipartMemory)
-	if err != nil {
-		logger.Errorf("Error parse byte unit limiter.maxSizeMultipartMemory field: %s", err)
-		return
-	}
-
-	modifierFactory := service.NewModifier()
-	backendFactory := factory.NewBackend()
-
-	localeService := service.NewLocale(geolocalizationClient)
+	modifierService := service.NewModifier()
 	backendService := service.NewBackend()
 
-	limiterMiddleware := middleware2.NewLimiter(
+	timeoutUseCase := usecase.NewTimeout(handlerTimeout)
+	limiterUseCase := usecase.NewLimiter(
 		maxSizeRequestBody,
 		maxSizeMultipartMemory,
-		configDto.Limiter.MaxIpRequestPerSeconds,
+		martini.Limiter.MaxIpRequestPerSeconds,
 	)
-	timeoutMiddleware := middleware2.NewTimeout(handlerTimeout)
-	corsMiddleware := middleware2.NewCors(configDto.ExtraConfig.SecurityCors, localeService)
+	corsUseCase := usecase.NewCors(martini.ExtraConfig.SecurityCors)
+	endpointUseCase := usecase.NewEndpoint(backendService, modifierService)
 
-	endpointUseCase := usecase.NewEndpoint(configDto, backendService, backendFactory, modifierFactory)
+	limiterMiddleware := middleware.NewLimiter(limiterUseCase)
+	timeoutMiddleware := middleware.NewTimeout(timeoutUseCase)
+	corsMiddleware := middleware.NewCors(corsUseCase)
+
+	endpointController := controller.NewEndpoint(martini, endpointUseCase)
 
 	app := application.NewGateway(
-		configDto,
-		redisClient,
+		martini,
+		memoryStore,
 		limiterMiddleware,
 		timeoutMiddleware,
 		corsMiddleware,
-		endpointUseCase,
+		endpointController,
 	)
 	go app.Run()
 
+	logger.Info("Application started!")
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 	select {
@@ -112,15 +117,20 @@ func main() {
 	}
 }
 
-func fillEnvValues(stringJSON string) string {
+func fillEnvValues(bytesJson []byte) []byte {
+	stringJson := helper.SimpleConvertToString(bytesJson)
 	regex := regexp.MustCompile(`\B\$\w+`)
-	resultFind := regex.FindAllString(stringJSON, -1)
+	resultFind := regex.FindAllString(stringJson, -1)
+	logger.Info(len(resultFind), "environment variable values were found to fill in!")
+	countProcessed := 0
 	for _, word := range resultFind {
 		envJsonValue := strings.ReplaceAll(word, "$", "")
 		envValue := os.Getenv(envJsonValue)
-		if envValue != "" {
-			stringJSON = strings.ReplaceAll(stringJSON, word, envValue)
+		if helper.IsNotEmpty(envValue) {
+			stringJson = strings.ReplaceAll(stringJson, word, envValue)
+			countProcessed++
 		}
 	}
-	return stringJSON
+	logger.Info(countProcessed, "environment variables successfully filled!")
+	return helper.SimpleConvertToBytes(stringJson)
 }

@@ -6,37 +6,37 @@ import (
 )
 
 type IpRateLimiter struct {
-	ips map[string]*rate.Limiter
-	mu  *sync.RWMutex
-	r   rate.Limit
-	b   int
+	ips   map[string]*rate.Limiter
+	mutex *sync.RWMutex
+	r     rate.Limit
+	b     int
 }
 
 func NewIpRateLimiter(r rate.Limit, b int) *IpRateLimiter {
 	i := &IpRateLimiter{
-		ips: make(map[string]*rate.Limiter),
-		mu:  &sync.RWMutex{},
-		r:   r,
-		b:   b,
+		ips:   make(map[string]*rate.Limiter),
+		mutex: &sync.RWMutex{},
+		r:     r,
+		b:     b,
 	}
 	return i
 }
 
 func (i *IpRateLimiter) AddIP(ip string) *rate.Limiter {
-	i.mu.Lock()
-	defer i.mu.Unlock()
+	i.mutex.Lock()
+	defer i.mutex.Unlock()
 	limiter := rate.NewLimiter(i.r, i.b)
 	i.ips[ip] = limiter
 	return limiter
 }
 
 func (i *IpRateLimiter) GetLimiter(ip string) *rate.Limiter {
-	i.mu.Lock()
+	i.mutex.Lock()
 	limiter, exists := i.ips[ip]
 	if !exists {
-		i.mu.Unlock()
+		i.mutex.Unlock()
 		return i.AddIP(ip)
 	}
-	i.mu.Unlock()
+	i.mutex.Unlock()
 	return limiter
 }

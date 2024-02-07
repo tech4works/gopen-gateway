@@ -99,14 +99,10 @@ func (b backend) Execute(ctx context.Context, input ExecuteBackendInput) (*Backe
 		return nil, err
 	}
 	defer b.closeBodyResponse(response)
-	bodyParsed, err := b.readResponseBody(response)
-	if helper.IsNotNil(err) {
-		return nil, err
-	}
 	return &BackendResponse{
 		Header:     response.Header,
 		StatusCode: response.StatusCode,
-		Body:       bodyParsed,
+		Body:       b.readResponseBody(response),
 		Group:      input.Backend.Group,
 		Hide:       input.Backend.HideResponse,
 	}, nil
@@ -140,8 +136,7 @@ func (b backend) closeBodyResponse(response *http.Response) {
 	_ = response.Body.Close()
 }
 
-func (b backend) readResponseBody(resp *http.Response) (any, error) {
-	var result any
+func (b backend) readResponseBody(resp *http.Response) (result any) {
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if helper.IsGreaterThan(bodyBytes, 0) {
 		result, err = oj.ParseString(helper.SimpleConvertToString(bodyBytes))
@@ -149,5 +144,5 @@ func (b backend) readResponseBody(resp *http.Response) (any, error) {
 	if helper.IsNotNil(err) {
 		result = string(bodyBytes)
 	}
-	return result, nil
+	return result
 }

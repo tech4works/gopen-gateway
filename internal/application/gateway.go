@@ -1,28 +1,27 @@
 package application
 
 import (
+	"fmt"
+	"github.com/GabrielHCataldo/go-errors/errors"
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/go-logger/logger"
-	middleware2 "github.com/GabrielHCataldo/martini-gateway/internal/application/middleware"
+	"github.com/GabrielHCataldo/martini-gateway/internal/application/controller"
+	"github.com/GabrielHCataldo/martini-gateway/internal/application/middleware"
 	"github.com/GabrielHCataldo/martini-gateway/internal/application/model/dto"
-	"github.com/GabrielHCataldo/martini-gateway/internal/application/usecase"
-	cache "github.com/chenyahui/gin-cache"
+	"github.com/GabrielHCataldo/martini-gateway/internal/infra"
 	"github.com/chenyahui/gin-cache/persist"
 	"github.com/gin-gonic/gin"
-	"github.com/go-redis/redis/v8"
 	"net/http"
-	"slices"
-	"strconv"
 	"time"
 )
 
 type gateway struct {
-	config            dto.Config
-	redisClient       *redis.Client
-	timeoutMiddleware middleware2.Timeout
-	limiterMiddleware middleware2.Limiter
-	corsMiddleware    middleware2.Cors
-	endpointUseCase   usecase.Endpoint
+	martini            dto.Martini
+	redisStore         *persist.RedisStore
+	timeoutMiddleware  middleware.Timeout
+	limiterMiddleware  middleware.Limiter
+	corsMiddleware     middleware.Cors
+	endpointController controller.Endpoint
 }
 
 type Gateway interface {
@@ -30,150 +29,122 @@ type Gateway interface {
 }
 
 func NewGateway(
-	config dto.Config,
-	redisClient *redis.Client,
-	timeoutMiddleware middleware2.Timeout,
-	limiterMiddleware middleware2.Limiter,
-	corsMiddleware middleware2.Cors,
-	endpointUseCase usecase.Endpoint,
+	martini dto.Martini,
+	redisStore *persist.RedisStore,
+	timeoutMiddleware middleware.Timeout,
+	limiterMiddleware middleware.Limiter,
+	corsMiddleware middleware.Cors,
+	endpointController controller.Endpoint,
 ) Gateway {
 	return gateway{
-		redisClient:       redisClient,
-		config:            config,
-		timeoutMiddleware: timeoutMiddleware,
-		limiterMiddleware: limiterMiddleware,
-		corsMiddleware:    corsMiddleware,
-		endpointUseCase:   endpointUseCase,
+		martini:            martini,
+		redisStore:         redisStore,
+		timeoutMiddleware:  timeoutMiddleware,
+		limiterMiddleware:  limiterMiddleware,
+		corsMiddleware:     corsMiddleware,
+		endpointController: endpointController,
 	}
 }
 
 func (a gateway) Run() {
-	ginRoute := gin.New()
-	ginRoute.Use(gin.Recovery())
-	ginRoute.Use(gin.Logger())
-	ginRoute.Use(a.limiterMiddleware.PreHandlerRequest)
-	ginRoute.Use(a.timeoutMiddleware.PreHandlerRequest)
-	ginRoute.Use(a.corsMiddleware.PreHandlerRequest)
+	logger.Info("Starting gateway application!")
 
-	ginRoute.GET("/ping", func(ctx *gin.Context) {
-		ctx.Status(http.StatusOK)
+	ginEngine := gin.New()
+
+	logger.Info("Configuring middleware!")
+	ginEngine.Use(gin.Recovery())
+	ginEngine.Use(gin.Logger())
+	ginEngine.Use(a.timeoutMiddleware.PreHandlerRequest)
+	ginEngine.Use(a.limiterMiddleware.PreHandlerRequest)
+	ginEngine.Use(a.corsMiddleware.PreHandlerRequest)
+
+	ginEngine.GET("/ping", func(ctx *gin.Context) {
+		ctx.String(http.StatusOK, "%s", "Pong!")
 	})
 
-	cacheDuration, err := time.ParseDuration(a.config.Cache)
-	if err != nil {
-		logger.Error(err)
-		return
+	logger.Info("Setting cache duration by martini.cache!")
+	cacheDuration, err := time.ParseDuration(a.martini.Cache)
+	if helper.IsNotNil(err) {
+		panic(errors.New("Error parse config.cache duration:", err))
 	}
-	memoryStore := persist.NewRedisStore(a.redisClient)
 
-	for _, endpoint := range a.config.Endpoints {
-		if !slices.Contains(a.config.ExtraConfig.SecurityCors.AllowMethods, endpoint.Method) {
-			logger.Error("Error method:", endpoint.Method, "not allowed on security-cors allow-methods")
-			return
+	logger.Info("Starting route configuration!")
+	for _, endpoint := range a.martini.Endpoints {
+		if helper.NotContains(a.martini.ExtraConfig.SecurityCors.AllowMethods, endpoint.Method) {
+			panic(errors.New("Error method:", endpoint.Method, "not allowed on security-cors allow-methods"))
 		}
-		for _, item := range ginRoute.Routes() {
-			if item.Path == endpoint.Endpoint && item.Method == endpoint.Method {
-				logger.Error("Error endpoint:", endpoint.Endpoint, "method:", endpoint.Method,
-					"repeat route endpoint error")
-				return
+		for _, route := range ginEngine.Routes() {
+			if helper.Equals(route.Path, endpoint.Endpoint) && helper.Equals(route.Method, endpoint.Method) {
+				panic(errors.New(
+					"Error endpoint:", endpoint.Endpoint, "method:", endpoint.Method, "repeat route endpoint error",
+				))
 			}
 		}
 
-		cacheDurationEndpoint := 5 * time.Second
+		var cacheDurationEndpoint time.Duration
 		if endpoint.Cacheable {
 			cacheDurationEndpoint = cacheDuration
 		}
-
-		cacheGinHandler := cache.Cache(
-			memoryStore,
-			cacheDurationEndpoint,
-			cache.WithCacheStrategyByRequest(func(ctx *gin.Context) (bool, cache.Strategy) {
-				path := ctx.Request.RequestURI
-				method := ctx.Request.Method
-				device := ctx.GetHeader("Device")
-				ip := ctx.ClientIP()
-				key := ip
-				if helper.IsNotEmpty(device) {
-					key = key + ":" + device
-				}
-				key = key + ":" + path + ":" + method
-				withoutCacheHeader := ctx.GetHeader("Without-Cache")
-
-				shouldCache := true
-				if helper.IsNotEmpty(withoutCacheHeader) {
-					withoutCache, _ := strconv.ParseBool(withoutCacheHeader)
-					shouldCache = withoutCache && method == "GET"
-				}
-				return shouldCache, cache.Strategy{CacheKey: key}
-			}),
-			cache.WithBeforeReplyWithCache(func(ctx *gin.Context, cache *cache.ResponseCache) {
-				ctx.Header("X-Gateway-Cache", "true")
-			}),
-		)
-
+		cacheGinHandler := infra.CacheHandler(a.redisStore, cacheDurationEndpoint)
 		switch endpoint.Method {
 		case http.MethodPost:
-			ginRoute.POST(endpoint.Endpoint, cacheGinHandler, a.endpointUseCase.Execute)
+			ginEngine.POST(endpoint.Endpoint, cacheGinHandler, a.endpointController.Execute)
 			break
 		case http.MethodGet:
-			ginRoute.GET(endpoint.Endpoint, cacheGinHandler, a.endpointUseCase.Execute)
+			ginEngine.GET(endpoint.Endpoint, cacheGinHandler, a.endpointController.Execute)
 			break
 		case http.MethodPut:
-			ginRoute.PUT(endpoint.Endpoint, cacheGinHandler, a.endpointUseCase.Execute)
+			ginEngine.PUT(endpoint.Endpoint, cacheGinHandler, a.endpointController.Execute)
 			break
 		case http.MethodPatch:
-			ginRoute.PATCH(endpoint.Endpoint, cacheGinHandler, a.endpointUseCase.Execute)
+			ginEngine.PATCH(endpoint.Endpoint, cacheGinHandler, a.endpointController.Execute)
 			break
 		case http.MethodDelete:
-			ginRoute.DELETE(endpoint.Endpoint, cacheGinHandler, a.endpointUseCase.Execute)
+			ginEngine.DELETE(endpoint.Endpoint, cacheGinHandler, a.endpointController.Execute)
 			break
 		default:
-			logger.Error("Error method: ", endpoint.Method, "not found on valid methods (POST,GET,PUT,PATCH,DELETE)")
-			return
+			panic(errors.New("Error method: ", endpoint.Method, "not found on valid methods (POST, GET, PUT, PATCH, DELETE)"))
 		}
 	}
 
-	if helper.IsEmpty(a.config.Limiter.MaxSizeRequestHeader) {
-		a.config.Limiter.MaxSizeRequestHeader = "1MB"
+	if helper.IsEmpty(a.martini.Limiter.MaxSizeRequestHeader) {
+		a.martini.Limiter.MaxSizeRequestHeader = "1MB"
 	}
-	if helper.IsEmpty(a.config.Limiter.MaxSizeMultipartMemory) {
-		a.config.Limiter.MaxSizeMultipartMemory = "5MB"
+	if helper.IsEmpty(a.martini.Limiter.MaxSizeMultipartMemory) {
+		a.martini.Limiter.MaxSizeMultipartMemory = "5MB"
 	}
-	maxSizeRequestHeader, err := helper.ConvertMegaByteUnit(a.config.Limiter.MaxSizeRequestHeader)
+	maxSizeRequestHeader, err := helper.ConvertMegaByteUnit(a.martini.Limiter.MaxSizeRequestHeader)
 	if err != nil {
-		logger.Errorf("Error parse megabyte unit limiter.maxSizeRequestHeader field: %s", err)
+		panic(errors.New("Error parse megabyte unit limiter.maxSizeRequestHeader field:", err))
 		return
 	}
 
-	readHeaderTimeout := 0 * time.Second
-	readTimeout := 0 * time.Second
-	writeTimeout := 0 * time.Second
-	if helper.IsNotEmpty(a.config.Timeout.ReadHeader) {
-		readHeaderTimeout, err = time.ParseDuration(a.config.Timeout.ReadHeader)
-		if err != nil {
-			logger.Errorf("Error parse duration timeout.readHeader field: %s", err)
-			return
+	var readHeaderTimeout time.Duration
+	var readTimeout time.Duration
+	var writeTimeout time.Duration
+	if helper.IsNotEmpty(a.martini.Timeout.ReadHeader) {
+		readHeaderTimeout, err = time.ParseDuration(a.martini.Timeout.ReadHeader)
+		if helper.IsNotNil(err) {
+			panic(errors.New("Error parse duration timeout.readHeader field:", err))
 		}
 	}
-	if helper.IsNotEmpty(a.config.Timeout.Read) {
-		readTimeout, err = time.ParseDuration(a.config.Timeout.Read)
-		if err != nil {
-			logger.Errorf("Error parse duration timeout.read field: %s", err)
-			return
+	if helper.IsNotEmpty(a.martini.Timeout.Read) {
+		readTimeout, err = time.ParseDuration(a.martini.Timeout.Read)
+		if helper.IsNotNil(err) {
+			panic(errors.New("Error parse duration timeout.read field:", err))
 		}
 	}
-	if helper.IsNotEmpty(a.config.Timeout.Write) {
-		writeTimeout, err = time.ParseDuration(a.config.Timeout.Write)
-		if err != nil {
-			logger.Errorf("Error parse duration timeout.write field: %s", err)
-			return
+	if helper.IsNotEmpty(a.martini.Timeout.Write) {
+		writeTimeout, err = time.ParseDuration(a.martini.Timeout.Write)
+		if helper.IsNotNil(err) {
+			panic(errors.New("Error parse duration timeout.write field:", err))
 		}
 	}
 
-	address := ":" + strconv.Itoa(a.config.Port)
+	address := fmt.Sprint(":", a.martini.Port)
 	s := &http.Server{
 		Addr:              address,
-		Handler:           ginRoute,
+		Handler:           ginEngine,
 		MaxHeaderBytes:    maxSizeRequestHeader,
 		ReadHeaderTimeout: readHeaderTimeout,
 		ReadTimeout:       readTimeout,
@@ -182,6 +153,6 @@ func (a gateway) Run() {
 	logger.Info("Listening and serving HTTP on", address)
 	err = s.ListenAndServe()
 	if err != nil {
-		logger.Errorf("Error start gateway listen and serve on address %s err: %v", address, err)
+		panic(errors.New("Error start gateway listen and serve on address:", address, "err:", err))
 	}
 }

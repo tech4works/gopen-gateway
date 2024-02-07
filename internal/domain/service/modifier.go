@@ -14,7 +14,7 @@ import (
 	"strings"
 )
 
-type Request struct {
+type ModifierRequest struct {
 	Host     string
 	Endpoint string
 	Url      string
@@ -25,32 +25,30 @@ type Request struct {
 	Body     any
 }
 
-type Response struct {
+type ModifierResponse struct {
 	StatusCode int
 	Header     http.Header
 	Body       any
-	Group      string
-	Hide       bool
 }
 
 type ExecuteRequestScopeInput struct {
-	Request         Request
+	Request         ModifierRequest
 	Headers         []valueobject.Modifier
 	Params          []valueobject.Modifier
 	Queries         []valueobject.Modifier
 	Body            []valueobject.Modifier
-	RequestHistory  []Request
-	ResponseHistory []Response
+	RequestHistory  []ModifierRequest
+	ResponseHistory []ModifierResponse
 }
 
 type ExecuteResponseScopeInput struct {
-	Response        Response
+	Response        ModifierResponse
 	Headers         []valueobject.Modifier
 	Params          []valueobject.Modifier
 	Queries         []valueobject.Modifier
 	Body            []valueobject.Modifier
-	RequestHistory  []Request
-	ResponseHistory []Response
+	RequestHistory  []ModifierRequest
+	ResponseHistory []ModifierResponse
 }
 
 type executeModifierInput struct {
@@ -59,24 +57,24 @@ type executeModifierInput struct {
 	Params    []valueobject.Modifier
 	Queries   []valueobject.Modifier
 	Body      []valueobject.Modifier
-	Requests  []Request
-	Responses []Response
+	Requests  []ModifierRequest
+	Responses []ModifierResponse
 }
 
 type modifier struct {
 }
 
 type Modifier interface {
-	ExecuteRequestScope(input ExecuteRequestScopeInput) (*Request, error)
-	ExecuteResponseScope(input ExecuteResponseScopeInput) (*Response, error)
+	ExecuteRequestScope(input ExecuteRequestScopeInput) (*ModifierRequest, error)
+	ExecuteResponseScope(input ExecuteResponseScopeInput) (*ModifierResponse, error)
 }
 
 func NewModifier() Modifier {
 	return modifier{}
 }
 
-func (m modifier) ExecuteRequestScope(input ExecuteRequestScopeInput) (*Request, error) {
-	input.RequestHistory = append([]Request{input.Request}, input.RequestHistory...)
+func (m modifier) ExecuteRequestScope(input ExecuteRequestScopeInput) (*ModifierRequest, error) {
+	input.RequestHistory = append([]ModifierRequest{input.Request}, input.RequestHistory...)
 	inputExecModifier := executeModifierInput{
 		Scope:     enum.ModifierScopeRequest,
 		Headers:   input.Headers,
@@ -94,8 +92,8 @@ func (m modifier) ExecuteRequestScope(input ExecuteRequestScopeInput) (*Request,
 	return &request, nil
 }
 
-func (m modifier) ExecuteResponseScope(input ExecuteResponseScopeInput) (*Response, error) {
-	input.ResponseHistory = append([]Response{input.Response}, input.ResponseHistory...)
+func (m modifier) ExecuteResponseScope(input ExecuteResponseScopeInput) (*ModifierResponse, error) {
+	input.ResponseHistory = append([]ModifierResponse{input.Response}, input.ResponseHistory...)
 	inputExecModifier := executeModifierInput{
 		Scope:     enum.ModifierScopeResponse,
 		Headers:   input.Headers,
@@ -138,8 +136,8 @@ func (m modifier) executeModifier(input executeModifierInput) error {
 	return nil
 }
 
-func (m modifier) modifierHeader(scope enum.ModifierScope, modifier valueobject.Modifier, requests []Request,
-	responses []Response) {
+func (m modifier) modifierHeader(scope enum.ModifierScope, modifier valueobject.Modifier, requests []ModifierRequest,
+	responses []ModifierResponse) {
 	if helper.NotContains(modifier.Scope, scope) && helper.NotContains(modifier.Scope, "*") {
 		return
 	}
@@ -170,8 +168,8 @@ func (m modifier) modifierHeader(scope enum.ModifierScope, modifier valueobject.
 	}
 }
 
-func (m modifier) modifierParams(scope enum.ModifierScope, modifier valueobject.Modifier, requests []Request,
-	responses []Response) error {
+func (m modifier) modifierParams(scope enum.ModifierScope, modifier valueobject.Modifier, requests []ModifierRequest,
+	responses []ModifierResponse) error {
 	if helper.NotContains(modifier.Scope, scope) && helper.NotContains(modifier.Scope, "*") {
 		return nil
 	} else if helper.IsNotEqualTo(scope, enum.ModifierScopeRequest) && helper.IsNotEqualTo(scope, "*") {
@@ -194,8 +192,8 @@ func (m modifier) modifierParams(scope enum.ModifierScope, modifier valueobject.
 	return nil
 }
 
-func (m modifier) modifierQueries(scope enum.ModifierScope, modifier valueobject.Modifier, requests []Request,
-	responses []Response) error {
+func (m modifier) modifierQueries(scope enum.ModifierScope, modifier valueobject.Modifier, requests []ModifierRequest,
+	responses []ModifierResponse) error {
 	if helper.NotContains(modifier.Scope, scope) && helper.NotContains(modifier.Scope, "*") {
 		return nil
 	} else if helper.IsNotEqualTo(scope, enum.ModifierScopeRequest) && helper.IsNotEqualTo(scope, "*") {
@@ -221,8 +219,8 @@ func (m modifier) modifierQueries(scope enum.ModifierScope, modifier valueobject
 	return nil
 }
 
-func (m modifier) modifierBody(scope enum.ModifierScope, modifier valueobject.Modifier, requests []Request,
-	responses []Response) error {
+func (m modifier) modifierBody(scope enum.ModifierScope, modifier valueobject.Modifier, requests []ModifierRequest,
+	responses []ModifierResponse) error {
 	if helper.NotContains(modifier.Scope, scope) && helper.NotContains(modifier.Scope, "*") {
 		return nil
 	}
@@ -343,10 +341,10 @@ func (m modifier) getValueByStruct(v any, eval string) any {
 	return nil
 }
 
-func (m modifier) getCurrentRequest(requests []Request) Request {
+func (m modifier) getCurrentRequest(requests []ModifierRequest) ModifierRequest {
 	return requests[len(requests)-1]
 }
 
-func (m modifier) getCurrentResponse(responses []Response) Response {
+func (m modifier) getCurrentResponse(responses []ModifierResponse) ModifierResponse {
 	return responses[len(responses)-1]
 }

@@ -2,54 +2,40 @@ package middleware
 
 import (
 	"bytes"
-	"github.com/GabrielHCataldo/go-error-detail/errors"
-	"github.com/GabrielHCataldo/martini-gateway/internal/application/handler"
-	"github.com/GabrielHCataldo/martini-gateway/internal/infra"
+	"github.com/GabrielHCataldo/go-helper/helper"
+	"github.com/GabrielHCataldo/martini-gateway/internal/application/usecase"
+	"github.com/GabrielHCataldo/martini-gateway/internal/application/util"
 	"github.com/gin-gonic/gin"
 	"io"
 	"net/http"
-	"strconv"
-	"strings"
 )
 
 type limiter struct {
-	maxSizeReqBody         int64
-	maxSizeMultipartMemory int64
-	ipRateLimiter          *infra.IpRateLimiter
+	limiterUseCase usecase.Limiter
 }
 
 type Limiter interface {
 	PreHandlerRequest(ctx *gin.Context)
 }
 
-func NewLimiter(maxSizeRequestBody, maxSizeMultipartMemory, maxIpRequestPerSeconds int) Limiter {
-	maxRequestPerSeconds := 5
-	if maxIpRequestPerSeconds > 0 {
-		maxRequestPerSeconds = maxIpRequestPerSeconds
-	}
+func NewLimiter(limiterUseCase usecase.Limiter) Limiter {
 	return limiter{
-		maxSizeReqBody:         int64(maxSizeRequestBody),
-		maxSizeMultipartMemory: int64(maxSizeMultipartMemory),
-		ipRateLimiter:          infra.NewIpRateLimiter(1, maxRequestPerSeconds),
+		limiterUseCase: limiterUseCase,
 	}
 }
 
 func (l limiter) PreHandlerRequest(ctx *gin.Context) {
-	ipLimiter := l.ipRateLimiter.GetLimiter(ctx.ClientIP())
-	if !ipLimiter.Allow() {
-		handler.RespondCode(ctx, http.StatusTooManyRequests)
+	// checa rate limite de requisição pelo ip
+	if err := l.limiterUseCase.ValidateRate(ctx.ClientIP()); helper.IsNotNil(err) {
+		util.RespondCodeWithError(ctx, http.StatusTooManyRequests, err)
 		return
 	}
-	maxBytesReader := l.maxSizeReqBody
-	if strings.Contains(ctx.GetHeader("Content-Type"), "multipart/form-data") {
-		maxBytesReader = l.maxSizeMultipartMemory
-	}
-	r := http.MaxBytesReader(nil, ctx.Request.Body, maxBytesReader)
-	bodyBytes, err := io.ReadAll(r)
-	if err != nil {
-		handler.RespondCodeWithError(ctx, http.StatusRequestEntityTooLarge, errors.New(
-			"request body too large! limit: ", strconv.Itoa(int(maxBytesReader))+"B",
-		))
+	// checa tamanho do body da requisição
+	headerContentType := ctx.GetHeader("Content-Type")
+	body := ctx.Request.Body
+	bodyBytes, err := l.limiterUseCase.ValidateRequestSize(headerContentType, body)
+	if helper.IsNotNil(err) {
+		util.RespondCodeWithError(ctx, http.StatusTooManyRequests, err)
 		return
 	}
 	ctx.Request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
