@@ -108,7 +108,9 @@ func main() {
 	)
 	go app.Run()
 
-	logger.Info("Application started!")
+	fileBytes, _ := json.MarshalIndent(martini, "", "\t")
+	_ = os.WriteFile("martini.json", fileBytes, 0644)
+
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 	select {
@@ -119,7 +121,7 @@ func main() {
 
 func fillEnvValues(bytesJson []byte) []byte {
 	stringJson := helper.SimpleConvertToString(bytesJson)
-	regex := regexp.MustCompile(`\B\$\w+`)
+	regex := regexp.MustCompile(`\$\w+`)
 	resultFind := regex.FindAllString(stringJson, -1)
 	logger.Info(len(resultFind), "environment variable values were found to fill in!")
 	countProcessed := 0

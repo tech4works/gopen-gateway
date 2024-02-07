@@ -422,7 +422,7 @@
               ],
               "action": "SET",
               "key": "Authorization",
-              "value": "Bearer $responses[0].body.token"
+              "value": "Bearer #responses[0].body.token"
             }
           ]
         }
@@ -460,7 +460,7 @@
               ],
               "action": "SET",
               "key": "Authorization",
-              "value": "Bearer $responses[0].body.token"
+              "value": "Bearer #responses[0].body.token"
             }
           ]
         }
@@ -498,7 +498,7 @@
               ],
               "action": "SET",
               "key": "Authorization",
-              "value": "Bearer $responses[0].body.token"
+              "value": "Bearer #responses[0].body.token"
             }
           ]
         }
@@ -536,7 +536,7 @@
               ],
               "action": "SET",
               "key": "Authorization",
-              "value": "Bearer $responses[0].body.token"
+              "value": "Bearer #responses[0].body.token"
             }
           ]
         }
@@ -574,7 +574,7 @@
               ],
               "action": "SET",
               "key": "Authorization",
-              "value": "Bearer $responses[0].body.token"
+              "value": "Bearer #responses[0].body.token"
             }
           ]
         }
@@ -612,7 +612,7 @@
               ],
               "action": "SET",
               "key": "Authorization",
-              "value": "Bearer $responses[0].body.token"
+              "value": "Bearer #responses[0].body.token"
             }
           ]
         }
@@ -650,7 +650,7 @@
               ],
               "action": "SET",
               "key": "Authorization",
-              "value": "Bearer $responses[0].body.token"
+              "value": "Bearer #responses[0].body.token"
             }
           ]
         }
@@ -747,7 +747,7 @@
               ],
               "action": "SET",
               "key": "Authorization",
-              "value": "Bearer $responses[0].body.token"
+              "value": "Bearer #responses[0].body.token"
             }
           ]
         }
@@ -785,7 +785,7 @@
               ],
               "action": "SET",
               "key": "Authorization",
-              "value": "Bearer $responses[0].body.token"
+              "value": "Bearer #responses[0].body.token"
             }
           ]
         }
@@ -823,7 +823,7 @@
               ],
               "action": "SET",
               "key": "Authorization",
-              "value": "Bearer $responses[0].body.token"
+              "value": "Bearer #responses[0].body.token"
             }
           ]
         }
@@ -861,7 +861,7 @@
               ],
               "action": "SET",
               "key": "Authorization",
-              "value": "Bearer $responses[0].body.token"
+              "value": "Bearer #responses[0].body.token"
             }
           ]
         }
@@ -899,7 +899,7 @@
               ],
               "action": "SET",
               "key": "Authorization",
-              "value": "Bearer $responses[0].body.token"
+              "value": "Bearer #responses[0].body.token"
             }
           ]
         }
@@ -937,7 +937,7 @@
               ],
               "action": "SET",
               "key": "Authorization",
-              "value": "Bearer $responses[0].body.token"
+              "value": "Bearer #responses[0].body.token"
             }
           ]
         }
@@ -980,7 +980,7 @@
               ],
               "action": "SET",
               "key": "Authorization",
-              "value": "Bearer $responses[0].body.token"
+              "value": "Bearer #responses[0].body.token"
             }
           ]
         }
@@ -1018,7 +1018,7 @@
               ],
               "action": "SET",
               "key": "Authorization",
-              "value": "Bearer $responses[0].body.token"
+              "value": "Bearer #responses[0].body.token"
             }
           ]
         }
@@ -1056,7 +1056,7 @@
               ],
               "action": "SET",
               "key": "Authorization",
-              "value": "Bearer $responses[0].body.token"
+              "value": "Bearer #responses[0].body.token"
             }
           ]
         }
@@ -1096,7 +1096,7 @@
               ],
               "action": "SET",
               "key": "Authorization",
-              "value": "Bearer $responses[0].body.token"
+              "value": "Bearer #responses[0].body.token"
             }
           ]
         },
@@ -1132,7 +1132,7 @@
               ],
               "action": "SET",
               "key": "Authorization",
-              "value": "Bearer $responses[0].body.token"
+              "value": "Bearer #responses[0].body.token"
             }
           ]
         }
@@ -1174,7 +1174,7 @@
               ],
               "action": "SET",
               "key": "Authorization",
-              "value": "Bearer $responses[0].body.token"
+              "value": "Bearer #responses[0].body.token"
             }
           ]
         }
@@ -1212,7 +1212,7 @@
               ],
               "action": "SET",
               "key": "Authorization",
-              "value": "Bearer $responses[0].body.token"
+              "value": "Bearer #responses[0].body.token"
             }
           ]
         }

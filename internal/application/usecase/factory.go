@@ -1,11 +1,10 @@
-package factory
+package usecase
 
 import (
-	"github.com/GabrielHCataldo/martini-gateway/internal/application/usecase"
 	"github.com/GabrielHCataldo/martini-gateway/internal/domain/service"
 )
 
-func BuildModifierRequest(request usecase.Request) service.ModifierRequest {
+func BuildModifierRequest(request Request) service.ModifierRequest {
 	return service.ModifierRequest{
 		Host:     request.Host,
 		Endpoint: request.Endpoint,
@@ -31,7 +30,7 @@ func BuildModifierRequestByBackendRequest(request service.BackendRequest) servic
 	}
 }
 
-func BuildModifierRequests(requests []usecase.Request) []service.ModifierRequest {
+func BuildModifierRequests(requests []Request) []service.ModifierRequest {
 	var result []service.ModifierRequest
 	for _, request := range requests {
 		result = append(result, BuildModifierRequest(request))
@@ -39,7 +38,7 @@ func BuildModifierRequests(requests []usecase.Request) []service.ModifierRequest
 	return result
 }
 
-func BuildModifierResponse(response usecase.Response) service.ModifierResponse {
+func BuildModifierResponse(response Response) service.ModifierResponse {
 	return service.ModifierResponse{
 		StatusCode: response.StatusCode,
 		Header:     response.Header,
@@ -55,7 +54,7 @@ func BuildModifierResponseByBackendResponse(response service.BackendResponse) se
 	}
 }
 
-func BuildModifierResponses(responses []usecase.Response) []service.ModifierResponse {
+func BuildModifierResponses(responses []Response) []service.ModifierResponse {
 	var result []service.ModifierResponse
 	for _, response := range responses {
 		result = append(result, BuildModifierResponse(response))

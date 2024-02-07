@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/GabrielHCataldo/go-errors/errors"
 	"github.com/GabrielHCataldo/go-helper/helper"
-	"github.com/GabrielHCataldo/martini-gateway/internal/application/factory"
 	"github.com/GabrielHCataldo/martini-gateway/internal/application/model/dto"
 	"github.com/GabrielHCataldo/martini-gateway/internal/domain/model/valueobject"
 	"github.com/GabrielHCataldo/martini-gateway/internal/domain/service"
@@ -197,13 +196,13 @@ func (e endpoint) modifierRequest(
 	responses []Response,
 ) (*service.ModifierRequest, error) {
 	return e.modifierService.ExecuteRequestScope(service.ExecuteRequestScopeInput{
-		Request:         factory.BuildModifierRequestByBackendRequest(backendRequest),
+		Request:         BuildModifierRequestByBackendRequest(backendRequest),
 		Headers:         valueobject.BuildModifiers(backend.Headers),
 		Params:          valueobject.BuildModifiers(backend.Params),
 		Queries:         valueobject.BuildModifiers(backend.Queries),
 		Body:            valueobject.BuildModifiers(backend.Body),
-		RequestHistory:  factory.BuildModifierRequests(requests),
-		ResponseHistory: factory.BuildModifierResponses(responses),
+		RequestHistory:  BuildModifierRequests(requests),
+		ResponseHistory: BuildModifierResponses(responses),
 	})
 }
 
@@ -214,13 +213,13 @@ func (e endpoint) modifierResponse(
 	responses []Response,
 ) (*service.ModifierResponse, error) {
 	return e.modifierService.ExecuteResponseScope(service.ExecuteResponseScopeInput{
-		Response:        factory.BuildModifierResponseByBackendResponse(backendResponse),
+		Response:        BuildModifierResponseByBackendResponse(backendResponse),
 		Headers:         valueobject.BuildModifiers(backend.Headers),
 		Params:          valueobject.BuildModifiers(backend.Params),
 		Queries:         valueobject.BuildModifiers(backend.Queries),
 		Body:            valueobject.BuildModifiers(backend.Body),
-		RequestHistory:  factory.BuildModifierRequests(requests),
-		ResponseHistory: factory.BuildModifierResponses(responses),
+		RequestHistory:  BuildModifierRequests(requests),
+		ResponseHistory: BuildModifierResponses(responses),
 	})
 }
 

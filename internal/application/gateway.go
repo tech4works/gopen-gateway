@@ -58,10 +58,6 @@ func (a gateway) Run() {
 	ginEngine.Use(a.limiterMiddleware.PreHandlerRequest)
 	ginEngine.Use(a.corsMiddleware.PreHandlerRequest)
 
-	ginEngine.GET("/ping", func(ctx *gin.Context) {
-		ctx.String(http.StatusOK, "%s", "Pong!")
-	})
-
 	logger.Info("Setting cache duration by martini.cache!")
 	cacheDuration, err := time.ParseDuration(a.martini.Cache)
 	if helper.IsNotNil(err) {
@@ -69,6 +65,9 @@ func (a gateway) Run() {
 	}
 
 	logger.Info("Starting route configuration!")
+	ginEngine.GET("/ping", func(ctx *gin.Context) {
+		ctx.String(http.StatusOK, "%s", "Pong!")
+	})
 	for _, endpoint := range a.martini.Endpoints {
 		if helper.NotContains(a.martini.ExtraConfig.SecurityCors.AllowMethods, endpoint.Method) {
 			panic(errors.New("Error method:", endpoint.Method, "not allowed on security-cors allow-methods"))
@@ -152,7 +151,8 @@ func (a gateway) Run() {
 	}
 	logger.Info("Listening and serving HTTP on", address)
 	err = s.ListenAndServe()
-	if err != nil {
+	if helper.IsNotNil(err) {
 		panic(errors.New("Error start gateway listen and serve on address:", address, "err:", err))
 	}
+	logger.Info("Application started!")
 }

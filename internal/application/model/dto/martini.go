@@ -2,7 +2,6 @@ package dto
 
 import (
 	"github.com/GabrielHCataldo/martini-gateway/internal/application/model/enum"
-	"time"
 )
 
 type Martini struct {
@@ -41,13 +40,12 @@ type SecurityCors struct {
 }
 
 type Endpoint struct {
-	Endpoint           string        `json:"endpoint,omitempty" validate:"required"`
-	Method             string        `json:"method,omitempty" validate:"required"`
-	TimeoutHandler     time.Duration `json:"timeout-handler"`
-	Cacheable          bool          `json:"cacheable,omitempty"`
-	AggregateResponses bool          `json:"aggregate-responses,omitempty"`
-	AbortSequential    bool          `json:"abort-sequential,omitempty"`
-	Backends           []Backend     `json:"backends,omitempty" validate:"required"`
+	Endpoint           string    `json:"endpoint,omitempty" validate:"required"`
+	Method             string    `json:"method,omitempty" validate:"required"`
+	Cacheable          bool      `json:"cacheable,omitempty"`
+	AggregateResponses bool      `json:"aggregate-responses,omitempty"`
+	AbortSequential    bool      `json:"abort-sequential,omitempty"`
+	Backends           []Backend `json:"backends,omitempty" validate:"required"`
 }
 
 type Backend struct {

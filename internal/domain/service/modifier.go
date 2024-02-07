@@ -295,10 +295,10 @@ func (m modifier) modifierBodyString(modifier valueobject.Modifier, body *any, v
 }
 
 func (m modifier) getValueEval(valueModifier string, requests, responses any) any {
-	regex := regexp.MustCompile(`\B\$[a-zA-Z0-9_.\[\]]+`)
+	regex := regexp.MustCompile(`\B#[a-zA-Z0-9_.\[\]]+`)
 	find := regex.FindAllString(valueModifier, -1)
 	for _, word := range find {
-		evalValue := strings.ReplaceAll(word, "$", "") //responses[0].body.token or //requests[0].body.auth.token
+		evalValue := strings.ReplaceAll(word, "#", "") //responses[0].body.token or //requests[0].body.auth.token
 		splitDot := strings.Split(evalValue, ".")
 		if helper.IsEmpty(splitDot) {
 			continue

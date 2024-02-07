@@ -22,3 +22,6 @@ go.work
 
 # Goland IDE
 .idea
+
+# Martini result json
+martini.json
