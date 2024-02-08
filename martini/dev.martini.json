@@ -2,10 +2,10 @@
   "port": 8090,
   "cache": "900s",
   "timeout": {
-    "read-header": "2s",
-    "read": "2s",
-    "handler": "5s",
-    "write": "2s"
+    "read-header": "30s",
+    "read": "30s",
+    "handler": "3600s",
+    "write": "30s"
   },
   "limiter": {
     "max-size-request-header": "1MB",
@@ -66,7 +66,7 @@
         "headers": [
           {
             "scope": [
-              "request"
+              "REQUEST"
             ],
             "action": "SET",
             "key": "Api-Key",
@@ -74,7 +74,7 @@
           },
           {
             "scope": [
-              "request"
+              "REQUEST"
             ],
             "action": "SET",
             "key": "Client-Id",
@@ -82,7 +82,7 @@
           },
           {
             "scope": [
-              "request"
+              "REQUEST"
             ],
             "action": "SET",
             "key": "Secret-Key",
@@ -110,7 +110,7 @@
           "headers": [
             {
               "scope": [
-                "request"
+                "REQUEST"
               ],
               "action": "SET",
               "key": "Api-Key",
@@ -118,7 +118,7 @@
             },
             {
               "scope": [
-                "request"
+                "REQUEST"
               ],
               "action": "SET",
               "key": "Client-Id",
@@ -126,7 +126,7 @@
             },
             {
               "scope": [
-                "request"
+                "REQUEST"
               ],
               "action": "SET",
               "key": "Secret-Key",
@@ -153,7 +153,7 @@
           "headers": [
             {
               "scope": [
-                "request"
+                "REQUEST"
               ],
               "action": "SET",
               "key": "Api-Key",
@@ -161,7 +161,7 @@
             },
             {
               "scope": [
-                "request"
+                "REQUEST"
               ],
               "action": "SET",
               "key": "Client-Id",
@@ -169,7 +169,7 @@
             },
             {
               "scope": [
-                "request"
+                "REQUEST"
               ],
               "action": "SET",
               "key": "Secret-Key",
@@ -197,7 +197,7 @@
           "headers": [
             {
               "scope": [
-                "request"
+                "REQUEST"
               ],
               "action": "SET",
               "key": "Api-Key",
@@ -224,7 +224,7 @@
           "headers": [
             {
               "scope": [
-                "request"
+                "REQUEST"
               ],
               "action": "SET",
               "key": "Api-Key",
@@ -251,7 +251,7 @@
           "headers": [
             {
               "scope": [
-                "request"
+                "REQUEST"
               ],
               "action": "SET",
               "key": "Api-Key",
@@ -259,7 +259,7 @@
             },
             {
               "scope": [
-                "request"
+                "REQUEST"
               ],
               "action": "SET",
               "key": "Client-Id",
@@ -267,7 +267,7 @@
             },
             {
               "scope": [
-                "request"
+                "REQUEST"
               ],
               "action": "SET",
               "key": "Secret-Key",
@@ -294,7 +294,7 @@
           "headers": [
             {
               "scope": [
-                "request"
+                "REQUEST"
               ],
               "action": "SET",
               "key": "Api-Key",
@@ -302,7 +302,7 @@
             },
             {
               "scope": [
-                "request"
+                "REQUEST"
               ],
               "action": "SET",
               "key": "Client-Id",
@@ -310,7 +310,7 @@
             },
             {
               "scope": [
-                "request"
+                "REQUEST"
               ],
               "action": "SET",
               "key": "Secret-Key",
@@ -337,7 +337,7 @@
           "headers": [
             {
               "scope": [
-                "request"
+                "REQUEST"
               ],
               "action": "SET",
               "key": "Api-Key",
@@ -345,7 +345,7 @@
             },
             {
               "scope": [
-                "request"
+                "REQUEST"
               ],
               "action": "SET",
               "key": "Client-Id",
@@ -353,7 +353,7 @@
             },
             {
               "scope": [
-                "request"
+                "REQUEST"
               ],
               "action": "SET",
               "key": "Secret-Key",
@@ -380,7 +380,7 @@
           "headers": [
             {
               "scope": [
-                "request"
+                "REQUEST"
               ],
               "action": "SET",
               "key": "Api-Key",
@@ -394,6 +394,9 @@
       "@comment": "Feature: USER UpdateUserPassword",
       "endpoint": "/user/password",
       "method": "PUT",
+      "authorizations": [
+        "oAuth2"
+      ],
       "backends": [
         {
           "host": [
@@ -404,13 +407,10 @@
           "forward-headers": [
             "*"
           ],
-          "authorizations": [
-            "oAuth2"
-          ],
           "headers": [
             {
               "scope": [
-                "request"
+                "REQUEST"
               ],
               "action": "SET",
               "key": "Api-Key",
@@ -418,7 +418,7 @@
             },
             {
               "scope": [
-                "request"
+                "REQUEST"
               ],
               "action": "SET",
               "key": "Authorization",
@@ -432,6 +432,9 @@
       "@comment": "Feature: USER UpdateUserAccountStatus",
       "endpoint": "/user/status",
       "method": "PUT",
+      "authorizations": [
+        "oAuth2"
+      ],
       "backends": [
         {
           "host": [
@@ -442,13 +445,10 @@
           "forward-headers": [
             "*"
           ],
-          "authorizations": [
-            "oAuth2"
-          ],
           "headers": [
             {
               "scope": [
-                "request"
+                "REQUEST"
               ],
               "action": "SET",
               "key": "Api-Key",
@@ -456,7 +456,7 @@
             },
             {
               "scope": [
-                "request"
+                "REQUEST"
               ],
               "action": "SET",
               "key": "Authorization",
@@ -470,6 +470,9 @@
       "@comment": "Feature: USER UpdateUserAccountCurrentPage",
       "endpoint": "/user/current-page",
       "method": "PUT",
+      "authorizations": [
+        "oAuth2"
+      ],
       "backends": [
         {
           "host": [
@@ -480,13 +483,10 @@
           "forward-headers": [
             "*"
           ],
-          "authorizations": [
-            "oAuth2"
-          ],
           "headers": [
             {
               "scope": [
-                "request"
+                "REQUEST"
               ],
               "action": "SET",
               "key": "Api-Key",
@@ -494,7 +494,7 @@
             },
             {
               "scope": [
-                "request"
+                "REQUEST"
               ],
               "action": "SET",
               "key": "Authorization",
@@ -508,6 +508,9 @@
       "@comment": "Feature: USER UpdateUserPersonalData",
       "endpoint": "/user/personal-data",
       "method": "PUT",
+      "authorizations": [
+        "oAuth2"
+      ],
       "backends": [
         {
           "host": [
@@ -518,13 +521,10 @@
           "forward-headers": [
             "*"
           ],
-          "authorizations": [
-            "oAuth2"
-          ],
           "headers": [
             {
               "scope": [
-                "request"
+                "REQUEST"
               ],
               "action": "SET",
               "key": "Api-Key",
@@ -532,7 +532,7 @@
             },
             {
               "scope": [
-                "request"
+                "REQUEST"
               ],
               "action": "SET",
               "key": "Authorization",
@@ -546,6 +546,9 @@
       "@comment": "Feature: USER UpdateUserContact",
       "endpoint": "/user/contact",
       "method": "PUT",
+      "authorizations": [
+        "oAuth2"
+      ],
       "backends": [
         {
           "host": [
@@ -556,13 +559,10 @@
           "forward-headers": [
             "*"
           ],
-          "authorizations": [
-            "oAuth2"
-          ],
           "headers": [
             {
               "scope": [
-                "request"
+                "REQUEST"
               ],
               "action": "SET",
               "key": "Api-Key",
@@ -570,7 +570,7 @@
             },
             {
               "scope": [
-                "request"
+                "REQUEST"
               ],
               "action": "SET",
               "key": "Authorization",
@@ -584,6 +584,9 @@
       "@comment": "Feature: USER UploadUserPicture",
       "endpoint": "/user/image",
       "method": "POST",
+      "authorizations": [
+        "oAuth2"
+      ],
       "backends": [
         {
           "host": [
@@ -594,13 +597,10 @@
           "forward-headers": [
             "*"
           ],
-          "authorizations": [
-            "oAuth2"
-          ],
           "headers": [
             {
               "scope": [
-                "request"
+                "REQUEST"
               ],
               "action": "SET",
               "key": "Api-Key",
@@ -608,7 +608,7 @@
             },
             {
               "scope": [
-                "request"
+                "REQUEST"
               ],
               "action": "SET",
               "key": "Authorization",
@@ -622,6 +622,9 @@
       "@comment": "Feature: USER DeleteUserPicture",
       "endpoint": "/user/image",
       "method": "DELETE",
+      "authorizations": [
+        "oAuth2"
+      ],
       "backends": [
         {
           "host": [
@@ -632,13 +635,10 @@
           "forward-headers": [
             "*"
           ],
-          "authorizations": [
-            "oAuth2"
-          ],
           "headers": [
             {
               "scope": [
-                "request"
+                "REQUEST"
               ],
               "action": "SET",
               "key": "Api-Key",
@@ -646,7 +646,7 @@
             },
             {
               "scope": [
-                "request"
+                "REQUEST"
               ],
               "action": "SET",
               "key": "Authorization",
@@ -673,7 +673,7 @@
           "headers": [
             {
               "scope": [
-                "request"
+                "REQUEST"
               ],
               "action": "SET",
               "key": "Api-Key",
@@ -705,7 +705,7 @@
           "headers": [
             {
               "scope": [
-                "request"
+                "REQUEST"
               ],
               "action": "SET",
               "key": "Api-Key",
@@ -719,6 +719,9 @@
       "@comment": "Feature: SOCIAL CreatePost",
       "endpoint": "/post",
       "method": "POST",
+      "authorizations": [
+        "oAuth2"
+      ],
       "backends": [
         {
           "host": [
@@ -729,13 +732,10 @@
           "forward-headers": [
             "*"
           ],
-          "authorizations": [
-            "oAuth2"
-          ],
           "headers": [
             {
               "scope": [
-                "request"
+                "REQUEST"
               ],
               "action": "SET",
               "key": "Api-Key",
@@ -743,7 +743,7 @@
             },
             {
               "scope": [
-                "request"
+                "REQUEST"
               ],
               "action": "SET",
               "key": "Authorization",
@@ -757,6 +757,9 @@
       "@comment": "Feature: SOCIAL CreateLike",
       "endpoint": "/like",
       "method": "POST",
+      "authorizations": [
+        "oAuth2"
+      ],
       "backends": [
         {
           "host": [
@@ -767,13 +770,10 @@
           "forward-headers": [
             "*"
           ],
-          "authorizations": [
-            "oAuth2"
-          ],
           "headers": [
             {
               "scope": [
-                "request"
+                "REQUEST"
               ],
               "action": "SET",
               "key": "Api-Key",
@@ -781,7 +781,7 @@
             },
             {
               "scope": [
-                "request"
+                "REQUEST"
               ],
               "action": "SET",
               "key": "Authorization",
@@ -795,6 +795,9 @@
       "@comment": "Feature: SOCIAL UpdatePostByID",
       "endpoint": "/post",
       "method": "PATCH",
+      "authorizations": [
+        "oAuth2"
+      ],
       "backends": [
         {
           "host": [
@@ -805,13 +808,10 @@
           "forward-headers": [
             "*"
           ],
-          "authorizations": [
-            "oAuth2"
-          ],
           "headers": [
             {
               "scope": [
-                "request"
+                "REQUEST"
               ],
               "action": "SET",
               "key": "Api-Key",
@@ -819,7 +819,7 @@
             },
             {
               "scope": [
-                "request"
+                "REQUEST"
               ],
               "action": "SET",
               "key": "Authorization",
@@ -833,6 +833,9 @@
       "@comment": "Feature: SOCIAL UpdatePostStatusByID",
       "endpoint": "/post/status",
       "method": "PUT",
+      "authorizations": [
+        "oAuth2"
+      ],
       "backends": [
         {
           "host": [
@@ -843,13 +846,10 @@
           "forward-headers": [
             "*"
           ],
-          "authorizations": [
-            "oAuth2"
-          ],
           "headers": [
             {
               "scope": [
-                "request"
+                "REQUEST"
               ],
               "action": "SET",
               "key": "Api-Key",
@@ -857,7 +857,7 @@
             },
             {
               "scope": [
-                "request"
+                "REQUEST"
               ],
               "action": "SET",
               "key": "Authorization",
@@ -871,6 +871,9 @@
       "@comment": "Feature: SOCIAL DeletePostByID",
       "endpoint": "/post/:postId",
       "method": "DELETE",
+      "authorizations": [
+        "oAuth2"
+      ],
       "backends": [
         {
           "host": [
@@ -881,13 +884,10 @@
           "forward-headers": [
             "*"
           ],
-          "authorizations": [
-            "oAuth2"
-          ],
           "headers": [
             {
               "scope": [
-                "request"
+                "REQUEST"
               ],
               "action": "SET",
               "key": "Api-Key",
@@ -895,7 +895,7 @@
             },
             {
               "scope": [
-                "request"
+                "REQUEST"
               ],
               "action": "SET",
               "key": "Authorization",
@@ -909,6 +909,9 @@
       "@comment": "Feature: SOCIAL DeleteLikeByToID",
       "endpoint": "/like/:toId",
       "method": "DELETE",
+      "authorizations": [
+        "oAuth2"
+      ],
       "backends": [
         {
           "host": [
@@ -916,16 +919,13 @@
           ],
           "endpoint": "/like/:toId",
           "method": "DELETE",
-          "authorizations": [
-            "oAuth2"
-          ],
           "forward-headers": [
             "*"
           ],
           "headers": [
             {
               "scope": [
-                "request"
+                "REQUEST"
               ],
               "action": "SET",
               "key": "Api-Key",
@@ -933,7 +933,7 @@
             },
             {
               "scope": [
-                "request"
+                "REQUEST"
               ],
               "action": "SET",
               "key": "Authorization",
@@ -948,6 +948,9 @@
       "endpoint": "/post/all/:page",
       "cacheable": true,
       "method": "GET",
+      "authorizations": [
+        "oAuth2"
+      ],
       "backends": [
         {
           "host": [
@@ -955,9 +958,6 @@
           ],
           "endpoint": "/post/all/:page",
           "method": "GET",
-          "authorizations": [
-            "oAuth2"
-          ],
           "forward-headers": [
             "*"
           ],
@@ -968,7 +968,7 @@
           "headers": [
             {
               "scope": [
-                "request"
+                "REQUEST"
               ],
               "action": "SET",
               "key": "Api-Key",
@@ -976,7 +976,7 @@
             },
             {
               "scope": [
-                "request"
+                "REQUEST"
               ],
               "action": "SET",
               "key": "Authorization",
@@ -990,6 +990,9 @@
       "@comment": "Feature: SOCIAL CreateView",
       "endpoint": "/view",
       "method": "POST",
+      "authorizations": [
+        "oAuth2"
+      ],
       "backends": [
         {
           "host": [
@@ -1000,13 +1003,10 @@
           "forward-headers": [
             "*"
           ],
-          "authorizations": [
-            "oAuth2"
-          ],
           "headers": [
             {
               "scope": [
-                "request"
+                "REQUEST"
               ],
               "action": "SET",
               "key": "Api-Key",
@@ -1014,7 +1014,7 @@
             },
             {
               "scope": [
-                "request"
+                "REQUEST"
               ],
               "action": "SET",
               "key": "Authorization",
@@ -1028,6 +1028,9 @@
       "@comment": "Feature: PRODUCT GetAllProducts",
       "endpoint": "/product/all",
       "method": "GET",
+      "authorizations": [
+        "oAuth2"
+      ],
       "backends": [
         {
           "host": [
@@ -1035,16 +1038,13 @@
           ],
           "endpoint": "/product/all",
           "method": "GET",
-          "authorizations": [
-            "oAuth2"
-          ],
           "forward-headers": [
             "*"
           ],
           "headers": [
             {
               "scope": [
-                "request"
+                "REQUEST"
               ],
               "action": "SET",
               "key": "Api-Key",
@@ -1052,7 +1052,7 @@
             },
             {
               "scope": [
-                "request"
+                "REQUEST"
               ],
               "action": "SET",
               "key": "Authorization",
@@ -1068,6 +1068,9 @@
       "aggregate-responses": true,
       "abort-sequential": true,
       "method": "GET",
+      "authorizations": [
+        "oAuth2"
+      ],
       "backends": [
         {
           "host": [
@@ -1075,16 +1078,13 @@
           ],
           "endpoint": "/product/brief/:productId",
           "method": "GET",
-          "authorizations": [
-            "oAuth2"
-          ],
           "forward-headers": [
             "*"
           ],
           "headers": [
             {
               "scope": [
-                "request"
+                "REQUEST"
               ],
               "action": "SET",
               "key": "Api-Key",
@@ -1092,7 +1092,7 @@
             },
             {
               "scope": [
-                "request"
+                "REQUEST"
               ],
               "action": "SET",
               "key": "Authorization",
@@ -1107,9 +1107,6 @@
           "endpoint": "/product/payment/summary/:productId",
           "group": "paymentSummary",
           "method": "GET",
-          "authorizations": [
-            "oAuth2"
-          ],
           "forward-headers": [
             "*"
           ],
@@ -1120,7 +1117,7 @@
           "headers": [
             {
               "scope": [
-                "request"
+                "REQUEST"
               ],
               "action": "SET",
               "key": "Api-Key",
@@ -1128,7 +1125,7 @@
             },
             {
               "scope": [
-                "request"
+                "REQUEST"
               ],
               "action": "SET",
               "key": "Authorization",
@@ -1142,6 +1139,9 @@
       "@comment": "Feature: PAYMENT GetProductPaymentSummary",
       "endpoint": "/product/payment/summary/:productId",
       "method": "GET",
+      "authorizations": [
+        "oAuth2"
+      ],
       "backends": [
         {
           "host": [
@@ -1149,9 +1149,6 @@
           ],
           "endpoint": "/product/payment/summary/:productId",
           "method": "GET",
-          "authorizations": [
-            "oAuth2"
-          ],
           "forward-headers": [
             "*"
           ],
@@ -1162,7 +1159,7 @@
           "headers": [
             {
               "scope": [
-                "request"
+                "REQUEST"
               ],
               "action": "SET",
               "key": "Api-Key",
@@ -1170,7 +1167,7 @@
             },
             {
               "scope": [
-                "request"
+                "REQUEST"
               ],
               "action": "SET",
               "key": "Authorization",
@@ -1184,6 +1181,9 @@
       "@comment": "Feature: PAYMENT GetProductPaymentMethods",
       "endpoint": "/product/payment/methods/:productId",
       "method": "GET",
+      "authorizations": [
+        "oAuth2"
+      ],
       "backends": [
         {
           "host": [
@@ -1191,16 +1191,13 @@
           ],
           "endpoint": "/product/payment/methods/:productId",
           "method": "GET",
-          "authorizations": [
-            "oAuth2"
-          ],
           "forward-headers": [
             "*"
           ],
           "headers": [
             {
               "scope": [
-                "request"
+                "REQUEST"
               ],
               "action": "SET",
               "key": "Api-Key",
@@ -1208,7 +1205,7 @@
             },
             {
               "scope": [
-                "request"
+                "REQUEST"
               ],
               "action": "SET",
               "key": "Authorization",

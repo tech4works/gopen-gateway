@@ -35,12 +35,13 @@ func (e endpoint) Execute(ctx *gin.Context) {
 			helper.Equals(endpointIndex.Endpoint, ctx.FullPath())) &&
 			helper.Equals(endpointIndex.Method, ctx.Request.Method) {
 			executeOutput, err := e.endpointUseCase.Execute(ctx, usecase.ExecuteInput{
-				Config:   dto.Martini{},
-				Endpoint: dto.Endpoint{},
-				Header:   ctx.Request.Header,
-				Query:    ctx.Request.URL.Query(),
-				Params:   e.getRequestParams(ctx),
-				Body:     e.getRequestBody(ctx),
+				Martini:       e.martini,
+				Endpoint:      endpointIndex,
+				XForwardedFor: ctx.ClientIP(),
+				Header:        ctx.Request.Header,
+				Query:         ctx.Request.URL.Query(),
+				Params:        e.getRequestParams(ctx),
+				Body:          e.getRequestBody(ctx),
 			})
 			if errors.Contains(err, usecase.ErrBadGateway) {
 				util.RespondCodeWithError(ctx, http.StatusBadGateway, err)

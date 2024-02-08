@@ -9,7 +9,6 @@ type Backend struct {
 	Group          string
 	HideResponse   bool
 	ForwardHeaders []string
-	Authorizations []string
 	Query          []string
 	Headers        []Modifier
 	Params         []Modifier
@@ -25,7 +24,6 @@ func BuildBackend(backend dto.Backend) Backend {
 		Group:          backend.Group,
 		HideResponse:   backend.HideResponse,
 		ForwardHeaders: backend.ForwardHeaders,
-		Authorizations: backend.Authorizations,
 		Query:          backend.Query,
 		Headers:        BuildModifiers(backend.Headers),
 		Params:         BuildModifiers(backend.Params),

@@ -3,10 +3,11 @@ package service
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/martini-gateway/internal/domain/model/valueobject"
-	"github.com/ohler55/ojg/oj"
+	"github.com/iancoleman/orderedmap"
 	"io"
 	"net/http"
 	"net/url"
@@ -138,11 +139,20 @@ func (b backend) closeBodyResponse(response *http.Response) {
 
 func (b backend) readResponseBody(resp *http.Response) (result any) {
 	bodyBytes, err := io.ReadAll(resp.Body)
-	if helper.IsGreaterThan(bodyBytes, 0) {
-		result, err = oj.ParseString(helper.SimpleConvertToString(bodyBytes))
+	bodyStr := string(bodyBytes)
+	if helper.IsNil(err) {
+		_ = json.Unmarshal(bodyBytes, &result)
 	}
-	if helper.IsNotNil(err) {
-		result = string(bodyBytes)
+	if helper.IsMap(result) {
+		var orderedMap orderedmap.OrderedMap
+		_ = json.Unmarshal(bodyBytes, &orderedMap)
+		result = orderedMap
+	} else if helper.IsSlice(result) {
+		var sliceOrderedMap []orderedmap.OrderedMap
+		_ = json.Unmarshal(bodyBytes, &sliceOrderedMap)
+		result = sliceOrderedMap
+	} else if helper.IsNotEmpty(bodyStr) {
+		result = bodyStr
 	}
 	return result
 }

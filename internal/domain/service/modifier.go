@@ -74,7 +74,7 @@ func NewModifier() Modifier {
 }
 
 func (m modifier) ExecuteRequestScope(input ExecuteRequestScopeInput) (*ModifierRequest, error) {
-	input.RequestHistory = append([]ModifierRequest{input.Request}, input.RequestHistory...)
+	input.RequestHistory = append(input.RequestHistory, input.Request)
 	inputExecModifier := executeModifierInput{
 		Scope:     enum.ModifierScopeRequest,
 		Headers:   input.Headers,
@@ -93,7 +93,7 @@ func (m modifier) ExecuteRequestScope(input ExecuteRequestScopeInput) (*Modifier
 }
 
 func (m modifier) ExecuteResponseScope(input ExecuteResponseScopeInput) (*ModifierResponse, error) {
-	input.ResponseHistory = append([]ModifierResponse{input.Response}, input.ResponseHistory...)
+	input.ResponseHistory = append(input.ResponseHistory, input.Response)
 	inputExecModifier := executeModifierInput{
 		Scope:     enum.ModifierScopeResponse,
 		Headers:   input.Headers,
@@ -294,20 +294,20 @@ func (m modifier) modifierBodyString(modifier valueobject.Modifier, body *any, v
 	return nil
 }
 
-func (m modifier) getValueEval(valueModifier string, requests, responses any) any {
+func (m modifier) getValueEval(valueModifier string, requests []ModifierRequest, responses []ModifierResponse) any {
 	regex := regexp.MustCompile(`\B#[a-zA-Z0-9_.\[\]]+`)
 	find := regex.FindAllString(valueModifier, -1)
 	for _, word := range find {
-		evalValue := strings.ReplaceAll(word, "#", "") //responses[0].body.token or //requests[0].body.auth.token
-		splitDot := strings.Split(evalValue, ".")
+		eval := strings.ReplaceAll(word, "#", "") //responses[0].body.token or //requests[0].body.auth.token
+		splitDot := strings.Split(eval, ".")
 		if helper.IsEmpty(splitDot) {
 			continue
 		}
 		var valueGet any
-		if helper.Contains(splitDot[0], "responses") {
-			valueGet = m.getValueByStruct(responses, strings.Replace(evalValue, "responses", "", 1))
-		} else if helper.Contains(splitDot[0], "requests") {
-			valueGet = m.getValueByStruct(requests, strings.Replace(evalValue, "requests", "", 1))
+		if helper.Contains(splitDot[0], "requests") {
+			valueGet = m.getRequestsValueByEval(requests, strings.Replace(eval, "requests", "", 1))
+		} else if helper.Contains(splitDot[0], "responses") {
+			valueGet = m.getResponsesValueByEval(responses, strings.Replace(eval, "responses", "", 1))
 		}
 		if helper.IsNil(valueGet) {
 			continue
@@ -330,15 +330,50 @@ func (m modifier) getValueEval(valueModifier string, requests, responses any) an
 	return valueModifier
 }
 
-func (m modifier) getValueByStruct(v any, eval string) any {
+func (m modifier) getRequestsValueByEval(requests []ModifierRequest, eval string) any {
 	x, err := jp.ParseString(eval)
 	if helper.IsNil(err) {
-		resultJsonPath := x.Get(v)
+		var requestsEval []ModifierRequest
+		for _, request := range requests {
+			request.Body = m.convertBodyToEval(request.Body)
+			requestsEval = append(requestsEval, request)
+		}
+		resultJsonPath := x.Get(requestsEval)
 		if helper.IsNotEmpty(resultJsonPath) {
 			return resultJsonPath[0]
 		}
 	}
 	return nil
+}
+
+func (m modifier) getResponsesValueByEval(responses []ModifierResponse, eval string) any {
+	x, err := jp.ParseString(eval)
+	if helper.IsNil(err) {
+		var responsesEval []ModifierResponse
+		for _, response := range responses {
+			response.Body = m.convertBodyToEval(response.Body)
+			responsesEval = append(responsesEval, response)
+		}
+		resultJsonPath := x.Get(responsesEval)
+		if helper.IsNotEmpty(resultJsonPath) {
+			return resultJsonPath[0]
+		}
+	}
+	return nil
+}
+
+func (m modifier) convertBodyToEval(body any) any {
+	if helper.IsNil(body) {
+		return nil
+	}
+	var valueAny any
+	if helper.IsJson(body) {
+		bodyBytes := helper.SimpleConvertToBytes(body)
+		_ = json.Unmarshal(bodyBytes, &valueAny)
+	} else {
+		valueAny = body
+	}
+	return valueAny
 }
 
 func (m modifier) getCurrentRequest(requests []ModifierRequest) ModifierRequest {

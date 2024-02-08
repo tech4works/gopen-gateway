@@ -1,5 +1,5 @@
-github.com/GabrielHCataldo/go-errors v1.1.3 h1:VkEgry7UQkONGuDopF7Gm2zvWcQc2Ji1ngUaUZAucIc=
-github.com/GabrielHCataldo/go-errors v1.1.3/go.mod h1:tJH0y1gLoR8uJS5SeuMpBzmcasZpI00j/PnH4HXTHpE=
+github.com/GabrielHCataldo/go-errors v1.1.9 h1:80KPlIfyV8b3n/K0r/YRYSgS73HKMn37Kv6E5noiQXg=
+github.com/GabrielHCataldo/go-errors v1.1.9/go.mod h1:tJH0y1gLoR8uJS5SeuMpBzmcasZpI00j/PnH4HXTHpE=
 github.com/GabrielHCataldo/go-helper v1.4.3 h1:TiZeFo6EBV8Pig+qhH1U5uPFeYhuYgP6QsRyZbImbDs=
 github.com/GabrielHCataldo/go-helper v1.4.3/go.mod h1:+whI36aUg1BfvLpZWJ8j81+d5iPuxl58ApOJqTIliCU=
 github.com/GabrielHCataldo/go-logger v1.2.4 h1:a0IrcAdBa0dh4UUvQEy2kGbif3gGzpvjmPA4nIJOEVA=

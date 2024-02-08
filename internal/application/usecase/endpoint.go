@@ -11,7 +11,6 @@ import (
 	"github.com/iancoleman/orderedmap"
 	"net/http"
 	"net/url"
-	"strconv"
 	"strings"
 )
 
@@ -35,12 +34,13 @@ type Response struct {
 }
 
 type ExecuteInput struct {
-	Config   dto.Martini
-	Endpoint dto.Endpoint
-	Header   http.Header
-	Query    url.Values
-	Params   map[string]string
-	Body     any
+	Martini       dto.Martini
+	Endpoint      dto.Endpoint
+	XForwardedFor string
+	Header        http.Header
+	Query         url.Values
+	Params        map[string]string
+	Body          any
 }
 
 type ExecuteOutput struct {
@@ -68,29 +68,30 @@ func NewEndpoint(backendService service.Backend, modifierService service.Modifie
 func (e endpoint) Execute(ctx context.Context, input ExecuteInput) (*ExecuteOutput, error) {
 	var requests []Request
 	var responses []Response
-	for _, backend := range input.Endpoint.Backends {
-		// primeiro processamos as requisições de autorização configuradas
-		for _, authKey := range backend.Authorizations {
-			authBackend, ok := input.Config.ExtraConfig.Authorizations[authKey]
-			if !ok {
-				return nil, errors.New("authorization", authKey, "not configured on extra-config.authorizations")
-			}
-			// montamos a request com base no authBackend
-			request, err := e.buildBackendRequest(authBackend, input, requests, responses)
-			if helper.IsNotNil(err) {
-				return nil, err
-			}
-			requests = append(requests, *request)
-			// processamos o backend de autorização
-			response, err := e.makeBackendRequest(ctx, authBackend, *request, requests, responses)
-			//qualquer erro na requisição de autorização ja paramos e retornamos o mesmo
-			if helper.IsNotNil(err) {
-				return nil, err
-			} else if helper.IsNotEqualTo(response.StatusCode, http.StatusOK) {
-				return e.buildExecuteOutput(input.Endpoint, []Response{*response})
-			}
-			responses = append(responses, *response)
+	// primeiro processamos as requisições de autorização configuradas
+	for _, authorizationKey := range input.Endpoint.Authorizations {
+		authBackend, ok := input.Martini.ExtraConfig.Authorizations[authorizationKey]
+		if !ok {
+			return nil, errors.New("authorization", authorizationKey, "not configured on extra-config.authorizations")
 		}
+		// montamos a request com base no authBackend
+		request, err := e.buildBackendRequest(authBackend, input, requests, responses)
+		if helper.IsNotNil(err) {
+			return nil, err
+		}
+		requests = append(requests, *request)
+		// processamos o backend de autorização
+		response, err := e.makeBackendRequest(ctx, authBackend, *request, requests, responses)
+		//qualquer erro na requisição de autorização ja paramos e retornamos o mesmo
+		if helper.IsNotNil(err) {
+			return nil, err
+		} else if helper.IsNotEqualTo(response.StatusCode, http.StatusOK) {
+			return e.buildExecuteOutput(input.Endpoint, []Response{*response})
+		}
+		responses = append(responses, *response)
+	}
+	// em seguida executamos o backend
+	for _, backend := range input.Endpoint.Backends {
 		// montamos a request com base no authBackend
 		request, err := e.buildBackendRequest(backend, input, requests, responses)
 		if helper.IsNotNil(err) {
@@ -139,6 +140,9 @@ func (e endpoint) buildBackendRequest(
 	if helper.IsNotNil(err) {
 		return nil, err
 	}
+	//aqui forcamos o X-Forwarded-For no header da requisição
+	request.Header.Set("X-Forwarded-For", input.XForwardedFor)
+	//retornamos o objeto completo, pronto para prosseguir com a requisição
 	return &Request{
 		Host:     request.Host,
 		Endpoint: request.Endpoint,
@@ -153,14 +157,14 @@ func (e endpoint) buildBackendRequest(
 
 func (e endpoint) makeBackendRequest(
 	ctx context.Context,
-	authBackend dto.Backend,
+	backend dto.Backend,
 	request Request,
 	requests []Request,
 	responses []Response,
 ) (*Response, error) {
 	//executamos a requisição backend
 	backendResponse, err := e.backendService.Execute(ctx, service.ExecuteBackendInput{
-		Backend: valueobject.BuildBackend(authBackend),
+		Backend: valueobject.BuildBackend(backend),
 		BackendRequest: service.BackendRequest{
 			Host:     request.Host,
 			Endpoint: request.Endpoint,
@@ -176,7 +180,7 @@ func (e endpoint) makeBackendRequest(
 		return nil, errBadGateway(err)
 	}
 	//modificamos a response no escopo response no domínio modifier
-	response, err := e.modifierResponse(authBackend, *backendResponse, requests, responses)
+	response, err := e.modifierResponse(backend, *backendResponse, requests, responses)
 	if helper.IsNotNil(err) {
 		return nil, err
 	}
@@ -184,8 +188,8 @@ func (e endpoint) makeBackendRequest(
 		StatusCode: response.StatusCode,
 		Header:     response.Header,
 		Body:       response.Body,
-		Group:      authBackend.Group,
-		Hide:       true,
+		Group:      backend.Group,
+		Hide:       backend.HideResponse,
 	}, nil
 }
 
@@ -238,8 +242,7 @@ func (e endpoint) buildExecuteOutput(endpoint dto.Endpoint, responses []Response
 		statusCode = responsesFiltered[0].StatusCode
 		body = responsesFiltered[0].Body
 	} else {
-		gatewayCompleted = false
-		statusCode = http.StatusInternalServerError
+		return nil, errors.New("endpoint is not response nothing:", endpoint.Endpoint, "method:", endpoint.Method)
 	}
 	return &ExecuteOutput{
 		StatusCode: statusCode,
@@ -281,29 +284,38 @@ func (e endpoint) buildHeaderResponse(gatewayCompleted bool, responses []Respons
 func (e endpoint) buildAggregateResponsesBody(responses []Response) *orderedmap.OrderedMap {
 	result := orderedmap.New()
 	for index, response := range responses {
-		if response.Body == nil {
+		if helper.IsNil(response.Body) {
 			continue
 		}
-		genericKey := "response" + strconv.Itoa(index)
+		genericKey := fmt.Sprint("response", index)
 		if helper.IsSlice(response.Body) {
 			key := genericKey
 			if helper.IsNotEmpty(response.Group) {
 				key = response.Group
 			}
 			result.Set(key, response.Body)
-		} else if helper.IsJson(response.Body) {
-			bodyResult := orderedmap.New()
-			for k, v := range response.Body.(map[string]any) {
-				if _, ok := result.Get(k); ok {
-					bodyResult.Set(fmt.Sprint(k, index), v)
-				} else {
-					bodyResult.Set(k, v)
-				}
-			}
+		} else if helper.IsStruct(response.Body) { //todo -> pq ele ta como map e nao como ordered?
+			body := response.Body.(orderedmap.OrderedMap)
 			if helper.IsNotEmpty(response.Group) {
+				bodyResult := orderedmap.New()
+				for _, k := range body.Keys() {
+					v, ok := body.Get(k)
+					if ok {
+						bodyResult.Set(k, v)
+					}
+				}
 				result.Set(response.Group, bodyResult)
 			} else {
-				result = bodyResult
+				for _, k := range body.Keys() {
+					if v, ok := result.Get(k); ok {
+						result.Set(fmt.Sprint(k, index), v)
+					} else {
+						v, ok := body.Get(k)
+						if ok {
+							result.Set(k, v)
+						}
+					}
+				}
 			}
 		} else if helper.IsString(response.Body) {
 			key := genericKey

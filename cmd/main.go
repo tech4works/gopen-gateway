@@ -27,14 +27,14 @@ func main() {
 	if helper.IsGreaterThan(os.Args, 1) {
 		env = os.Args[1]
 	}
-	envUri := fmt.Sprint("config/", env, ".martini.env")
+	envUri := fmt.Sprint("martini/", env, ".martini.env")
 	logger.Info("Loading envs from file:", envUri)
 	if err := godotenv.Load(envUri); helper.IsNotNil(err) {
 		logger.Error("Error load env from file:", envUri, "err:", err)
 		return
 	}
 
-	martiniFileJsonUri := fmt.Sprint("config/", env, ".martini.json")
+	martiniFileJsonUri := fmt.Sprint("martini/", env, ".martini.json")
 	logger.Info("Loading martini config from file json:", martiniFileJsonUri)
 	var martini dto.Martini
 	martiniBytes, err := os.ReadFile(martiniFileJsonUri)

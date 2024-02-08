@@ -45,6 +45,7 @@ type Endpoint struct {
 	Cacheable          bool      `json:"cacheable,omitempty"`
 	AggregateResponses bool      `json:"aggregate-responses,omitempty"`
 	AbortSequential    bool      `json:"abort-sequential,omitempty"`
+	Authorizations     []string  `json:"authorizations,omitempty"`
 	Backends           []Backend `json:"backends,omitempty" validate:"required"`
 }
 
@@ -56,7 +57,6 @@ type Backend struct {
 	DontSendBody   bool       `json:"dont-send-body,omitempty"`
 	HideResponse   bool       `json:"hide-response,omitempty"`
 	ForwardHeaders []string   `json:"forward-headers,omitempty" validate:"required,min=1"`
-	Authorizations []string   `json:"authorizations,omitempty"`
 	Query          []string   `json:"query,omitempty"`
 	Headers        []Modifier `json:"headers,omitempty"`
 	Params         []Modifier `json:"params,omitempty"`
