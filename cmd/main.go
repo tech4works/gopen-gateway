@@ -44,7 +44,7 @@ func main() {
 	}
 	logger.Info("Start filling environment variables with $word syntax!")
 	martiniBytes = fillEnvValues(martiniBytes)
-	err = json.Unmarshal(martiniBytes, &martini)
+	err = helper.ConvertToDest(martiniBytes, &martini)
 	if helper.IsNotNil(err) {
 		logger.Error("Error parse martini config file to DTO:", err)
 		return

@@ -70,7 +70,7 @@ func (e endpoint) getRequestBody(ctx *gin.Context) (bodyResult any) {
 	ctx.Request.Body = io.NopCloser(bytes.NewBuffer(bytesBody))
 	if helper.IsNil(err) && helper.ContainsIgnoreCase(ctx.GetHeader("Content-Type"), "application/json") {
 		bodyResult, _ = oj.Parse(bytesBody)
-	} else {
+	} else if helper.IsNotEmpty(bytesBody) {
 		bodyResult = string(bytesBody)
 	}
 	return bodyResult

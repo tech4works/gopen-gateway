@@ -3,7 +3,6 @@ package service
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/martini-gateway/internal/domain/model/valueobject"
@@ -138,21 +137,18 @@ func (b backend) closeBodyResponse(response *http.Response) {
 }
 
 func (b backend) readResponseBody(resp *http.Response) (result any) {
-	bodyBytes, err := io.ReadAll(resp.Body)
-	bodyStr := string(bodyBytes)
-	if helper.IsNil(err) {
-		_ = json.Unmarshal(bodyBytes, &result)
-	}
-	if helper.IsMap(result) {
-		var orderedMap orderedmap.OrderedMap
-		_ = json.Unmarshal(bodyBytes, &orderedMap)
+	bodyBytes, _ := io.ReadAll(resp.Body)
+	if helper.IsStringMap(bodyBytes) {
+		orderedMap := orderedmap.New()
+		helper.SimpleConvertToDest(bodyBytes, orderedMap)
 		result = orderedMap
-	} else if helper.IsSlice(result) {
-		var sliceOrderedMap []orderedmap.OrderedMap
-		_ = json.Unmarshal(bodyBytes, &sliceOrderedMap)
+	} else if helper.IsStringSlice(bodyBytes) {
+		var sliceOrderedMap []*orderedmap.OrderedMap
+		helper.SimpleConvertToDest(bodyBytes, &sliceOrderedMap)
 		result = sliceOrderedMap
-	} else if helper.IsNotEmpty(bodyStr) {
-		result = bodyStr
+	} else if helper.IsNotEmpty(bodyBytes) {
+		bodyString := string(bodyBytes)
+		result = &bodyString
 	}
 	return result
 }

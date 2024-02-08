@@ -6,7 +6,7 @@ toolchain go1.21.4
 
 require (
 	github.com/GabrielHCataldo/go-errors v1.1.9
-	github.com/GabrielHCataldo/go-helper v1.4.3
+	github.com/GabrielHCataldo/go-helper v1.4.6
 	github.com/GabrielHCataldo/go-logger v1.2.4
 	github.com/chenyahui/gin-cache v1.9.0
 	github.com/gin-gonic/gin v1.9.1

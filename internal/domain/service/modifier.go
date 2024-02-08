@@ -7,6 +7,7 @@ import (
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/martini-gateway/internal/application/model/enum"
 	"github.com/GabrielHCataldo/martini-gateway/internal/domain/model/valueobject"
+	"github.com/iancoleman/orderedmap"
 	"github.com/ohler55/ojg/jp"
 	"net/http"
 	"net/url"
@@ -116,22 +117,13 @@ func (m modifier) executeModifier(input executeModifierInput) error {
 		m.modifierHeader(input.Scope, modifierHeader, input.Requests, input.Responses)
 	}
 	for _, modifierParam := range input.Params {
-		err := m.modifierParams(input.Scope, modifierParam, input.Requests, input.Responses)
-		if helper.IsNotNil(err) {
-			return err
-		}
+		m.modifierParams(input.Scope, modifierParam, input.Requests, input.Responses)
 	}
 	for _, modifierQuery := range input.Queries {
-		err := m.modifierQueries(input.Scope, modifierQuery, input.Requests, input.Responses)
-		if helper.IsNotNil(err) {
-			return err
-		}
+		m.modifierQueries(input.Scope, modifierQuery, input.Requests, input.Responses)
 	}
 	for _, modifierBody := range input.Body {
-		err := m.modifierBody(input.Scope, modifierBody, input.Requests, input.Responses)
-		if helper.IsNotNil(err) {
-			return err
-		}
+		m.modifierBody(input.Scope, modifierBody, input.Requests, input.Responses)
 	}
 	return nil
 }
@@ -169,11 +161,11 @@ func (m modifier) modifierHeader(scope enum.ModifierScope, modifier valueobject.
 }
 
 func (m modifier) modifierParams(scope enum.ModifierScope, modifier valueobject.Modifier, requests []ModifierRequest,
-	responses []ModifierResponse) error {
+	responses []ModifierResponse) {
 	if helper.NotContains(modifier.Scope, scope) && helper.NotContains(modifier.Scope, "*") {
-		return nil
+		return
 	} else if helper.IsNotEqualTo(scope, enum.ModifierScopeRequest) && helper.IsNotEqualTo(scope, "*") {
-		return errors.New("params modifier not allow on scope:", scope)
+		panic(errors.New("params modifier not allow on scope:", scope))
 	}
 	var value string
 	if helper.IsNotEqualTo(modifier.Action, enum.ModifierActionDel) {
@@ -189,15 +181,14 @@ func (m modifier) modifierParams(scope enum.ModifierScope, modifier valueobject.
 		request.Endpoint = strings.Replace(request.Endpoint, rKey, "", 1)
 		request.Url = fmt.Sprint(request.Host, request.Endpoint)
 	}
-	return nil
 }
 
 func (m modifier) modifierQueries(scope enum.ModifierScope, modifier valueobject.Modifier, requests []ModifierRequest,
-	responses []ModifierResponse) error {
+	responses []ModifierResponse) {
 	if helper.NotContains(modifier.Scope, scope) && helper.NotContains(modifier.Scope, "*") {
-		return nil
+		return
 	} else if helper.IsNotEqualTo(scope, enum.ModifierScopeRequest) && helper.IsNotEqualTo(scope, "*") {
-		return errors.New("queries modifier not allow on scope:" + scope)
+		panic(errors.New("queries modifier not allow on scope:" + scope))
 	}
 	var value string
 	if helper.IsNotEqualTo(modifier.Action, enum.ModifierActionDel) {
@@ -216,64 +207,84 @@ func (m modifier) modifierQueries(scope enum.ModifierScope, modifier valueobject
 		request.Query.Del(modifier.Key)
 		break
 	}
-	return nil
 }
 
 func (m modifier) modifierBody(scope enum.ModifierScope, modifier valueobject.Modifier, requests []ModifierRequest,
-	responses []ModifierResponse) error {
+	responses []ModifierResponse) {
 	if helper.NotContains(modifier.Scope, scope) && helper.NotContains(modifier.Scope, "*") {
-		return nil
+		return
 	}
 	var value any
-	if helper.IsNotEqualTo(modifier.Action, enum.ModifierActionDel) {
+	if helper.IsNotEqualTo(modifier.Action, enum.ModifierActionDel) &&
+		helper.IsNotEqualTo(modifier.Action, enum.ModifierActionReplace) {
 		value = m.getValueEval(modifier.Value, requests, responses)
 	}
-	var bodyToModifier *any
+	var body any
+	var bodyToModifier any
 	switch scope {
 	case enum.ModifierScopeRequest:
-		reqBody := m.getCurrentRequest(requests).Body
-		bodyToModifier = &reqBody
+		requestsEval := m.convertRequestsToEval(requests)
+		reqBodyEval := m.getCurrentRequest(requestsEval).Body
+		bodyToModifier = reqBodyEval
+		body = m.getCurrentRequest(requests).Body
 		break
 	case enum.ModifierScopeResponse:
-		resBody := m.getCurrentResponse(responses).Body
-		bodyToModifier = &resBody
+		responsesEval := m.convertResponsesToEval(responses)
+		resBodyEval := m.getCurrentResponse(responsesEval).Body
+		bodyToModifier = resBodyEval
+		body = m.getCurrentResponse(responses).Body
 		break
 	}
 	if helper.IsJson(bodyToModifier) {
-		return m.modifierBodyJson(modifier, bodyToModifier, value)
+		m.modifierBodyJson(modifier, body, bodyToModifier, value)
 	} else if helper.IsNotNil(bodyToModifier) {
-		return m.modifierBodyString(modifier, bodyToModifier, value)
+		m.modifierBodyString(modifier, bodyToModifier, value)
 	}
-	return nil
 }
 
-func (m modifier) modifierBodyJson(modifier valueobject.Modifier, body *any, value any) error {
+func (m modifier) modifierBodyJson(modifier valueobject.Modifier, body, bodyToModifier any, value any) {
 	x, err := jp.ParseString(modifier.Key)
 	if helper.IsNotNil(err) {
-		return err
+		return
 	}
 	switch modifier.Action {
 	case enum.ModifierActionSet, enum.ModifierActionAdd:
-		_ = x.Set(body, value)
+		_ = x.Set(bodyToModifier, value)
 		break
 	case enum.ModifierActionDel:
-		_ = x.Del(body)
+		_ = x.Del(bodyToModifier)
 		break
 	case enum.ModifierActionReplace:
-		results := x.Get(body)
+		results := x.Get(bodyToModifier)
 		if helper.IsNotEmpty(results) {
 			y, err := jp.ParseString(modifier.Value)
 			if helper.IsNil(err) {
-				_ = x.Del(body)
-				_ = y.Set(body, results[0])
+				_ = x.Del(bodyToModifier)
+				_ = y.Set(bodyToModifier, results[0])
 			}
 		}
 		break
 	}
-	return nil
+	//aqui modificamos o body real e mantemos a ordem
+	if helper.IsStruct(body) {
+		bodyOrderedMap := body.(*orderedmap.OrderedMap)
+		bodyModified := bodyToModifier.(map[string]any)
+		m.modifierBodyMapByModifiedMap(modifier.Key, bodyOrderedMap, bodyModified)
+	} else if helper.IsSlice(body) {
+		bodySliceOrderedMap := body.([]*orderedmap.OrderedMap)
+		bodySliceModified := bodyToModifier.([]map[string]any)
+		for i, itemBody := range bodySliceOrderedMap {
+			for i2, itemBodyModifier := range bodySliceModified {
+				if helper.Equals(i, i2) {
+					m.modifierBodyMapByModifiedMap(modifier.Key, itemBody, itemBodyModifier)
+					break
+				}
+			}
+		}
+	}
 }
 
-func (m modifier) modifierBodyString(modifier valueobject.Modifier, body *any, value any) error {
+func (m modifier) modifierBodyString(modifier valueobject.Modifier, body any, value any) {
 	modifierValue := helper.SimpleConvertToString(value)
 	valueToReplace := helper.SimpleConvertToString(body)
 	switch modifier.Action {
@@ -290,8 +301,7 @@ func (m modifier) modifierBodyString(modifier valueobject.Modifier, body *any, v
 		valueToReplace = modifierValue
 		break
 	}
-	*body = valueToReplace
-	return nil
+	helper.SimpleConvertToDest(value, body)
 }
 
 func (m modifier) getValueEval(valueModifier string, requests []ModifierRequest, responses []ModifierResponse) any {
@@ -333,11 +343,7 @@ func (m modifier) getValueEval(valueModifier string, requests []ModifierRequest,
 func (m modifier) getRequestsValueByEval(requests []ModifierRequest, eval string) any {
 	x, err := jp.ParseString(eval)
 	if helper.IsNil(err) {
-		var requestsEval []ModifierRequest
-		for _, request := range requests {
-			request.Body = m.convertBodyToEval(request.Body)
-			requestsEval = append(requestsEval, request)
-		}
+		requestsEval := m.convertRequestsToEval(requests)
 		resultJsonPath := x.Get(requestsEval)
 		if helper.IsNotEmpty(resultJsonPath) {
 			return resultJsonPath[0]
@@ -349,11 +355,7 @@ func (m modifier) getRequestsValueByEval(requests []ModifierRequest, eval string
 func (m modifier) getResponsesValueByEval(responses []ModifierResponse, eval string) any {
 	x, err := jp.ParseString(eval)
 	if helper.IsNil(err) {
-		var responsesEval []ModifierResponse
-		for _, response := range responses {
-			response.Body = m.convertBodyToEval(response.Body)
-			responsesEval = append(responsesEval, response)
-		}
+		responsesEval := m.convertResponsesToEval(responses)
 		resultJsonPath := x.Get(responsesEval)
 		if helper.IsNotEmpty(resultJsonPath) {
 			return resultJsonPath[0]
@@ -362,18 +364,64 @@ func (m modifier) getResponsesValueByEval(responses []ModifierResponse, eval str
 	return nil
 }
 
+func (m modifier) convertRequestsToEval(requests []ModifierRequest) []ModifierRequest {
+	var requestsEval []ModifierRequest
+	for _, request := range requests {
+		request.Body = m.convertBodyToEval(request.Body)
+		requestsEval = append(requestsEval, request)
+	}
+	return requestsEval
+}
+
+func (m modifier) convertResponsesToEval(responses []ModifierResponse) []ModifierResponse {
+	var responsesEval []ModifierResponse
+	for _, response := range responses {
+		response.Body = m.convertBodyToEval(response.Body)
+		responsesEval = append(responsesEval, response)
+	}
+	return responsesEval
+}
+
 func (m modifier) convertBodyToEval(body any) any {
 	if helper.IsNil(body) {
 		return nil
 	}
 	var valueAny any
 	if helper.IsJson(body) {
-		bodyBytes := helper.SimpleConvertToBytes(body)
-		_ = json.Unmarshal(bodyBytes, &valueAny)
+		helper.SimpleConvertToDest(body, &valueAny)
 	} else {
 		valueAny = body
 	}
 	return valueAny
+}
+
+func (m modifier) modifierBodyMapByModifiedMap(
+	modifierKey string,
+	body *orderedmap.OrderedMap,
+	mMap map[string]any,
+) {
+	// alteramos oq ja tem
+	for _, k := range body.Keys() {
+		v, ok := mMap[k]
+		if !ok {
+			v, ok = mMap[modifierKey]
+			if ok {
+				k = modifierKey
+				body.Delete(k)
+			}
+		}
+		if ok {
+			body.Set(k, v)
+		} else {
+			body.Delete(k)
+		}
+	}
+	// adicionamos oq nao tem
+	for k, v := range mMap {
+		if _, ok := body.Get(k); !ok {
+			body.Set(k, v)
+		}
+	}
 }
 
 func (m modifier) getCurrentRequest(requests []ModifierRequest) ModifierRequest {
