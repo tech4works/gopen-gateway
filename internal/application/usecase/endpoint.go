@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/GabrielHCataldo/go-errors/errors"
 	"github.com/GabrielHCataldo/go-helper/helper"
+	"github.com/GabrielHCataldo/go-logger/logger"
 	"github.com/GabrielHCataldo/martini-gateway/internal/application/model/dto"
 	"github.com/GabrielHCataldo/martini-gateway/internal/domain/model/valueobject"
 	"github.com/GabrielHCataldo/martini-gateway/internal/domain/service"
@@ -34,13 +35,12 @@ type Response struct {
 }
 
 type ExecuteInput struct {
-	Martini       dto.Martini
-	Endpoint      dto.Endpoint
-	XForwardedFor string
-	Header        http.Header
-	Query         url.Values
-	Params        map[string]string
-	Body          any
+	Martini  dto.Martini
+	Endpoint dto.Endpoint
+	Header   http.Header
+	Query    url.Values
+	Params   map[string]string
+	Body     any
 }
 
 type ExecuteOutput struct {
@@ -66,6 +66,9 @@ func NewEndpoint(backendService service.Backend, modifierService service.Modifie
 }
 
 func (e endpoint) Execute(ctx context.Context, input ExecuteInput) (*ExecuteOutput, error) {
+	countAuths := helper.Len(input.Endpoint.Authorizations)
+	countBackends := helper.Len(input.Endpoint.Backends)
+	logger.Debug("Starting endpoint execute! authorizations:", countAuths, "backends:", countBackends)
 	var requests []Request
 	var responses []Response
 	// primeiro processamos as requisições de autorização configuradas
@@ -140,8 +143,6 @@ func (e endpoint) buildBackendRequest(
 	if helper.IsNotNil(err) {
 		return nil, err
 	}
-	//aqui forcamos o X-Forwarded-For no header da requisição
-	request.Header.Set("X-Forwarded-For", input.XForwardedFor)
 	//retornamos o objeto completo, pronto para prosseguir com a requisição
 	return &Request{
 		Host:     request.Host,

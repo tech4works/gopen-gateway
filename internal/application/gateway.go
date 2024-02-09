@@ -18,6 +18,8 @@ import (
 type gateway struct {
 	martini            dto.Martini
 	redisStore         *persist.RedisStore
+	headerMiddleware   middleware.Header
+	logMiddleware      middleware.Log
 	timeoutMiddleware  middleware.Timeout
 	limiterMiddleware  middleware.Limiter
 	corsMiddleware     middleware.Cors
@@ -31,6 +33,8 @@ type Gateway interface {
 func NewGateway(
 	martini dto.Martini,
 	redisStore *persist.RedisStore,
+	headerMiddleware middleware.Header,
+	logMiddleware middleware.Log,
 	timeoutMiddleware middleware.Timeout,
 	limiterMiddleware middleware.Limiter,
 	corsMiddleware middleware.Cors,
@@ -39,6 +43,8 @@ func NewGateway(
 	return gateway{
 		martini:            martini,
 		redisStore:         redisStore,
+		headerMiddleware:   headerMiddleware,
+		logMiddleware:      logMiddleware,
 		timeoutMiddleware:  timeoutMiddleware,
 		limiterMiddleware:  limiterMiddleware,
 		corsMiddleware:     corsMiddleware,
@@ -46,20 +52,21 @@ func NewGateway(
 	}
 }
 
-func (a gateway) Run() {
+func (g gateway) Run() {
 	logger.Info("Starting gateway application!")
 
 	ginEngine := gin.New()
 
-	logger.Info("Configuring middleware!")
+	logger.Info("Configuring middlewares!")
 	ginEngine.Use(gin.Recovery())
-	ginEngine.Use(gin.Logger())
-	ginEngine.Use(a.timeoutMiddleware.PreHandlerRequest)
-	ginEngine.Use(a.limiterMiddleware.PreHandlerRequest)
-	ginEngine.Use(a.corsMiddleware.PreHandlerRequest)
+	ginEngine.Use(g.headerMiddleware.PreHandlerRequest)
+	ginEngine.Use(g.logMiddleware.PreHandlerRequest)
+	ginEngine.Use(g.timeoutMiddleware.PreHandlerRequest)
+	ginEngine.Use(g.limiterMiddleware.PreHandlerRequest)
+	ginEngine.Use(g.corsMiddleware.PreHandlerRequest)
 
 	logger.Info("Setting cache duration by martini.cache!")
-	cacheDuration, err := time.ParseDuration(a.martini.Cache)
+	cacheDuration, err := time.ParseDuration(g.martini.Cache)
 	if helper.IsNotNil(err) {
 		panic(errors.New("Error parse config.cache duration:", err))
 	}
@@ -68,8 +75,8 @@ func (a gateway) Run() {
 	ginEngine.GET("/ping", func(ctx *gin.Context) {
 		ctx.String(http.StatusOK, "%s", "Pong!")
 	})
-	for _, endpoint := range a.martini.Endpoints {
-		if helper.NotContains(a.martini.ExtraConfig.SecurityCors.AllowMethods, endpoint.Method) {
+	for _, endpoint := range g.martini.Endpoints {
+		if helper.NotContains(g.martini.ExtraConfig.SecurityCors.AllowMethods, endpoint.Method) {
 			panic(errors.New("Error method:", endpoint.Method, "not allowed on security-cors allow-methods"))
 		}
 		for _, route := range ginEngine.Routes() {
@@ -84,35 +91,35 @@ func (a gateway) Run() {
 		if endpoint.Cacheable {
 			cacheDurationEndpoint = cacheDuration
 		}
-		cacheGinHandler := infra.CacheHandler(a.redisStore, cacheDurationEndpoint)
+		cacheGinHandler := infra.CacheHandler(g.redisStore, cacheDurationEndpoint)
 		switch endpoint.Method {
 		case http.MethodPost:
-			ginEngine.POST(endpoint.Endpoint, cacheGinHandler, a.endpointController.Execute)
+			ginEngine.POST(endpoint.Endpoint, cacheGinHandler, g.endpointController.Execute)
 			break
 		case http.MethodGet:
-			ginEngine.GET(endpoint.Endpoint, cacheGinHandler, a.endpointController.Execute)
+			ginEngine.GET(endpoint.Endpoint, cacheGinHandler, g.endpointController.Execute)
 			break
 		case http.MethodPut:
-			ginEngine.PUT(endpoint.Endpoint, cacheGinHandler, a.endpointController.Execute)
+			ginEngine.PUT(endpoint.Endpoint, cacheGinHandler, g.endpointController.Execute)
 			break
 		case http.MethodPatch:
-			ginEngine.PATCH(endpoint.Endpoint, cacheGinHandler, a.endpointController.Execute)
+			ginEngine.PATCH(endpoint.Endpoint, cacheGinHandler, g.endpointController.Execute)
 			break
 		case http.MethodDelete:
-			ginEngine.DELETE(endpoint.Endpoint, cacheGinHandler, a.endpointController.Execute)
+			ginEngine.DELETE(endpoint.Endpoint, cacheGinHandler, g.endpointController.Execute)
 			break
 		default:
 			panic(errors.New("Error method: ", endpoint.Method, "not found on valid methods (POST, GET, PUT, PATCH, DELETE)"))
 		}
 	}
 
-	if helper.IsEmpty(a.martini.Limiter.MaxSizeRequestHeader) {
-		a.martini.Limiter.MaxSizeRequestHeader = "1MB"
+	if helper.IsEmpty(g.martini.Limiter.MaxSizeRequestHeader) {
+		g.martini.Limiter.MaxSizeRequestHeader = "1MB"
 	}
-	if helper.IsEmpty(a.martini.Limiter.MaxSizeMultipartMemory) {
-		a.martini.Limiter.MaxSizeMultipartMemory = "5MB"
+	if helper.IsEmpty(g.martini.Limiter.MaxSizeMultipartMemory) {
+		g.martini.Limiter.MaxSizeMultipartMemory = "5MB"
 	}
-	maxSizeRequestHeader, err := helper.ConvertMegaByteUnit(a.martini.Limiter.MaxSizeRequestHeader)
+	maxSizeRequestHeader, err := helper.ConvertMegaByteUnit(g.martini.Limiter.MaxSizeRequestHeader)
 	if err != nil {
 		panic(errors.New("Error parse megabyte unit limiter.maxSizeRequestHeader field:", err))
 		return
@@ -121,26 +128,26 @@ func (a gateway) Run() {
 	var readHeaderTimeout time.Duration
 	var readTimeout time.Duration
 	var writeTimeout time.Duration
-	if helper.IsNotEmpty(a.martini.Timeout.ReadHeader) {
-		readHeaderTimeout, err = time.ParseDuration(a.martini.Timeout.ReadHeader)
+	if helper.IsNotEmpty(g.martini.Timeout.ReadHeader) {
+		readHeaderTimeout, err = time.ParseDuration(g.martini.Timeout.ReadHeader)
 		if helper.IsNotNil(err) {
 			panic(errors.New("Error parse duration timeout.readHeader field:", err))
 		}
 	}
-	if helper.IsNotEmpty(a.martini.Timeout.Read) {
-		readTimeout, err = time.ParseDuration(a.martini.Timeout.Read)
+	if helper.IsNotEmpty(g.martini.Timeout.Read) {
+		readTimeout, err = time.ParseDuration(g.martini.Timeout.Read)
 		if helper.IsNotNil(err) {
 			panic(errors.New("Error parse duration timeout.read field:", err))
 		}
 	}
-	if helper.IsNotEmpty(a.martini.Timeout.Write) {
-		writeTimeout, err = time.ParseDuration(a.martini.Timeout.Write)
+	if helper.IsNotEmpty(g.martini.Timeout.Write) {
+		writeTimeout, err = time.ParseDuration(g.martini.Timeout.Write)
 		if helper.IsNotNil(err) {
 			panic(errors.New("Error parse duration timeout.write field:", err))
 		}
 	}
 
-	address := fmt.Sprint(":", a.martini.Port)
+	address := fmt.Sprint(":", g.martini.Port)
 	s := &http.Server{
 		Addr:              address,
 		Handler:           ginEngine,

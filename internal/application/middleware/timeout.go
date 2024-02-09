@@ -3,8 +3,8 @@ package middleware
 import (
 	"github.com/GabrielHCataldo/go-errors/errors"
 	"github.com/GabrielHCataldo/go-helper/helper"
+	"github.com/GabrielHCataldo/martini-gateway/internal/application/handler"
 	"github.com/GabrielHCataldo/martini-gateway/internal/application/usecase"
-	"github.com/GabrielHCataldo/martini-gateway/internal/application/util"
 	"github.com/gin-gonic/gin"
 	"net/http"
 )
@@ -28,8 +28,8 @@ func (t timeout) PreHandlerRequest(ctx *gin.Context) {
 		ctx.Next()
 	})
 	if errors.Contains(err, usecase.ErrGatewayTimeout) {
-		util.RespondCodeWithError(ctx, http.StatusGatewayTimeout, err)
+		handler.RespondCodeWithError(ctx, http.StatusGatewayTimeout, err)
 	} else if helper.IsNotNil(err) {
-		util.RespondCodeWithError(ctx, http.StatusInternalServerError, err)
+		handler.RespondCodeWithError(ctx, http.StatusInternalServerError, err)
 	}
 }

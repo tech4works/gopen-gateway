@@ -265,23 +265,7 @@ func (m modifier) modifierBodyJson(modifier valueobject.Modifier, body, bodyToMo
 		}
 		break
 	}
-	//aqui modificamos o body real e mantemos a ordem
-	if helper.IsStruct(body) {
-		bodyOrderedMap := body.(*orderedmap.OrderedMap)
-		bodyModified := bodyToModifier.(map[string]any)
-		m.modifierBodyMapByModifiedMap(modifier.Key, bodyOrderedMap, bodyModified)
-	} else if helper.IsSlice(body) {
-		bodySliceOrderedMap := body.([]*orderedmap.OrderedMap)
-		bodySliceModified := bodyToModifier.([]map[string]any)
-		for i, itemBody := range bodySliceOrderedMap {
-			for i2, itemBodyModifier := range bodySliceModified {
-				if helper.Equals(i, i2) {
-					m.modifierBodyMapByModifiedMap(modifier.Key, itemBody, itemBodyModifier)
-					break
-				}
-			}
-		}
-	}
+	m.persistModifierOnBody(modifier, body, bodyToModifier)
 }
 
 func (m modifier) modifierBodyString(modifier valueobject.Modifier, body any, value any) {
@@ -393,6 +377,26 @@ func (m modifier) convertBodyToEval(body any) any {
 		valueAny = body
 	}
 	return valueAny
+}
+
+func (m modifier) persistModifierOnBody(modifier valueobject.Modifier, body, bodyToModifier any) {
+	//aqui modificamos o body real e mantemos a ordem
+	if helper.IsStruct(body) {
+		bodyOrderedMap := body.(*orderedmap.OrderedMap)
+		bodyModified := bodyToModifier.(map[string]any)
+		m.modifierBodyMapByModifiedMap(modifier.Key, bodyOrderedMap, bodyModified)
+	} else if helper.IsSlice(body) {
+		bodySliceOrderedMap := body.([]*orderedmap.OrderedMap)
+		bodySliceModified := bodyToModifier.([]map[string]any)
+		for i, itemBody := range bodySliceOrderedMap {
+			for i2, itemBodyModifier := range bodySliceModified {
+				if helper.Equals(i, i2) {
+					m.modifierBodyMapByModifiedMap(modifier.Key, itemBody, itemBodyModifier)
+					break
+				}
+			}
+		}
+	}
 }
 
 func (m modifier) modifierBodyMapByModifiedMap(

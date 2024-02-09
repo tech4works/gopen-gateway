@@ -6,11 +6,12 @@ toolchain go1.21.4
 
 require (
 	github.com/GabrielHCataldo/go-errors v1.1.9
-	github.com/GabrielHCataldo/go-helper v1.4.6
-	github.com/GabrielHCataldo/go-logger v1.2.4
+	github.com/GabrielHCataldo/go-helper v1.4.7
+	github.com/GabrielHCataldo/go-logger v1.2.7
 	github.com/chenyahui/gin-cache v1.9.0
 	github.com/gin-gonic/gin v1.9.1
 	github.com/go-redis/redis/v8 v8.11.5
+	github.com/google/uuid v1.6.0
 	github.com/iancoleman/orderedmap v0.3.0
 	github.com/joho/godotenv v1.5.1
 	github.com/ohler55/ojg v1.19.2

@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/GabrielHCataldo/go-helper/helper"
+	"github.com/GabrielHCataldo/martini-gateway/internal/application/model/enum"
 	"github.com/GabrielHCataldo/martini-gateway/internal/domain/model/valueobject"
 	"github.com/iancoleman/orderedmap"
 	"io"
@@ -62,7 +63,9 @@ func (b backend) BuildBackendRequest(input BuildBackendRequestInput) (*BackendRe
 	//removemos todos os headers nao mapeados no backend.forward-headers
 	if helper.NotContains(input.Backend.ForwardHeaders, "*") {
 		for key := range input.Header {
-			if helper.NotContains(input.Backend.ForwardHeaders, key) {
+			if helper.NotContains(input.Backend.ForwardHeaders, key) &&
+				helper.IsNotEqualToIgnoreCase(key, enum.XForwardedFor) &&
+				helper.IsNotEqualToIgnoreCase(key, enum.XTraceId) {
 				input.Header.Del(key)
 			}
 		}

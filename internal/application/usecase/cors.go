@@ -4,6 +4,7 @@ import (
 	"github.com/GabrielHCataldo/go-errors/errors"
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/martini-gateway/internal/application/model/dto"
+	"github.com/GabrielHCataldo/martini-gateway/internal/application/model/enum"
 	"net/http"
 	"strings"
 )
@@ -48,7 +49,9 @@ func (c cors) ValidateHeaders(header http.Header) (err error) {
 	}
 	var headerNotContains []string
 	for key := range header {
-		if helper.NotContains(c.securityCors.AllowHeaders, key) {
+		if helper.NotContains(c.securityCors.AllowHeaders, key) &&
+			helper.IsNotEqualToIgnoreCase(key, enum.XForwardedFor) &&
+			helper.IsNotEqualToIgnoreCase(key, enum.XTraceId) {
 			headerNotContains = append(headerNotContains, key)
 		}
 	}

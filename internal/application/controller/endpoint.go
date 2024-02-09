@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"github.com/GabrielHCataldo/go-errors/errors"
 	"github.com/GabrielHCataldo/go-helper/helper"
+	"github.com/GabrielHCataldo/martini-gateway/internal/application/handler"
 	"github.com/GabrielHCataldo/martini-gateway/internal/application/model/dto"
 	"github.com/GabrielHCataldo/martini-gateway/internal/application/usecase"
-	"github.com/GabrielHCataldo/martini-gateway/internal/application/util"
 	"github.com/gin-gonic/gin"
 	"github.com/ohler55/ojg/oj"
 	"io"
@@ -35,18 +35,17 @@ func (e endpoint) Execute(ctx *gin.Context) {
 			helper.Equals(endpointIndex.Endpoint, ctx.FullPath())) &&
 			helper.Equals(endpointIndex.Method, ctx.Request.Method) {
 			executeOutput, err := e.endpointUseCase.Execute(ctx, usecase.ExecuteInput{
-				Martini:       e.martini,
-				Endpoint:      endpointIndex,
-				XForwardedFor: ctx.ClientIP(),
-				Header:        ctx.Request.Header,
-				Query:         ctx.Request.URL.Query(),
-				Params:        e.getRequestParams(ctx),
-				Body:          e.getRequestBody(ctx),
+				Martini:  e.martini,
+				Endpoint: endpointIndex,
+				Header:   ctx.Request.Header,
+				Query:    ctx.Request.URL.Query(),
+				Params:   e.getRequestParams(ctx),
+				Body:     e.getRequestBody(ctx),
 			})
 			if errors.Contains(err, usecase.ErrBadGateway) {
-				util.RespondCodeWithError(ctx, http.StatusBadGateway, err)
+				handler.RespondCodeWithError(ctx, http.StatusBadGateway, err)
 			} else if helper.IsNotNil(err) {
-				util.RespondCodeWithError(ctx, http.StatusInternalServerError, err)
+				handler.RespondCodeWithError(ctx, http.StatusInternalServerError, err)
 			} else {
 				e.replyGateway(ctx, executeOutput.StatusCode, executeOutput.Header, executeOutput.Body)
 			}
@@ -54,7 +53,7 @@ func (e endpoint) Execute(ctx *gin.Context) {
 		}
 	}
 	err := errors.New("endpoint is not response nothing:", ctx.Request.RequestURI, "method:", ctx.Request.Method)
-	util.RespondCodeWithError(ctx, http.StatusInternalServerError, err)
+	handler.RespondCodeWithError(ctx, http.StatusInternalServerError, err)
 }
 
 func (e endpoint) getRequestParams(ctx *gin.Context) map[string]string {
@@ -84,8 +83,8 @@ func (e endpoint) replyGateway(ctx *gin.Context, statusCode int, header map[stri
 		ctx.Header(k, v)
 	}
 	if helper.IsNotEmpty(body) {
-		util.RespondCodeWithBody(ctx, statusCode, body)
+		handler.RespondCodeWithBody(ctx, statusCode, body)
 	} else {
-		util.RespondCode(ctx, statusCode)
+		handler.RespondCode(ctx, statusCode)
 	}
 }

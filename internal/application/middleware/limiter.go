@@ -3,8 +3,8 @@ package middleware
 import (
 	"bytes"
 	"github.com/GabrielHCataldo/go-helper/helper"
+	"github.com/GabrielHCataldo/martini-gateway/internal/application/handler"
 	"github.com/GabrielHCataldo/martini-gateway/internal/application/usecase"
-	"github.com/GabrielHCataldo/martini-gateway/internal/application/util"
 	"github.com/gin-gonic/gin"
 	"io"
 	"net/http"
@@ -27,7 +27,7 @@ func NewLimiter(limiterUseCase usecase.Limiter) Limiter {
 func (l limiter) PreHandlerRequest(ctx *gin.Context) {
 	// checa rate limite de requisição pelo ip
 	if err := l.limiterUseCase.ValidateRate(ctx.ClientIP()); helper.IsNotNil(err) {
-		util.RespondCodeWithError(ctx, http.StatusTooManyRequests, err)
+		handler.RespondCodeWithError(ctx, http.StatusTooManyRequests, err)
 		return
 	}
 	// checa tamanho do body da requisição
@@ -35,7 +35,7 @@ func (l limiter) PreHandlerRequest(ctx *gin.Context) {
 	body := ctx.Request.Body
 	bodyBytes, err := l.limiterUseCase.ValidateRequestSize(headerContentType, body)
 	if helper.IsNotNil(err) {
-		util.RespondCodeWithError(ctx, http.StatusTooManyRequests, err)
+		handler.RespondCodeWithError(ctx, http.StatusTooManyRequests, err)
 		return
 	}
 	ctx.Request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))

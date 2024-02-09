@@ -83,6 +83,8 @@ func main() {
 	modifierService := service.NewModifier()
 	backendService := service.NewBackend()
 
+	traceUseCase := usecase.NewTrace()
+	logUseCase := usecase.NewLogger()
 	timeoutUseCase := usecase.NewTimeout(handlerTimeout)
 	limiterUseCase := usecase.NewLimiter(
 		maxSizeRequestBody,
@@ -92,6 +94,8 @@ func main() {
 	corsUseCase := usecase.NewCors(martini.ExtraConfig.SecurityCors)
 	endpointUseCase := usecase.NewEndpoint(backendService, modifierService)
 
+	headerMiddleware := middleware.NewHeader(traceUseCase)
+	logMiddleware := middleware.NewLog(logUseCase)
 	limiterMiddleware := middleware.NewLimiter(limiterUseCase)
 	timeoutMiddleware := middleware.NewTimeout(timeoutUseCase)
 	corsMiddleware := middleware.NewCors(corsUseCase)
@@ -101,6 +105,8 @@ func main() {
 	app := application.NewGateway(
 		martini,
 		memoryStore,
+		headerMiddleware,
+		logMiddleware,
 		limiterMiddleware,
 		timeoutMiddleware,
 		corsMiddleware,
@@ -115,6 +121,7 @@ func main() {
 	signal.Notify(c, os.Interrupt)
 	select {
 	case <-c:
+		logger.ResetOptionsToDefault()
 		logger.Info("Stop application!")
 	}
 }
