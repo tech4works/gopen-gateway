@@ -82,7 +82,7 @@ func (l log) getAfterPrefixText(traceId, ip, uri, method string) string {
 	textTrace := l.getTextTraceId(traceId)
 	textMethod := l.getTextMethod(method)
 	textUri := l.getTextUri(uri)
-	return fmt.Sprint(textTrace, " | ", ip, " |", textMethod, "| ", textUri, ":")
+	return fmt.Sprint("(", textTrace, " | ", ip, " |", textMethod, "| ", textUri, ")")
 }
 
 func (l log) getTextMethod(method string) string {
