@@ -43,14 +43,12 @@ func (l log) PrintLogResponse(request *http.Request, responseWriter handler.Resp
 	textLatency := latency.String()
 	textBody := string(responseWriter.Body.Bytes())
 	text.WriteString(textStatusCode)
-	text.WriteString(logger.StyleBold)
 	text.WriteString(" • ")
-	text.WriteString(logger.StyleReset)
 	text.WriteString(textLatency)
+	text.WriteString(" ")
+	text.WriteString(logger.StyleReset)
 	if helper.IsNotEmpty(textBody) {
-		text.WriteString(logger.StyleBold)
-		text.WriteString(": ")
-		text.WriteString(logger.StyleReset)
+		text.WriteString(" ")
 		text.WriteString(textBody)
 	}
 	logger.Info("Finish!", l.replaceAllBreakLine(text.String()))
@@ -81,24 +79,22 @@ func (l log) getTextTraceId(traceId string) string {
 }
 
 func (l log) getAfterPrefixText(traceId, ip, uri, method string) string {
-	div := fmt.Sprint(" ", l.divText(), " ")
-	doubleDot := fmt.Sprint(logger.StyleBold, ":", logger.StyleReset)
 	textTrace := l.getTextTraceId(traceId)
 	textMethod := l.getTextMethod(method)
 	textUri := l.getTextUri(uri)
-	return fmt.Sprint(textTrace, div, ip, div, textMethod, div, textUri, doubleDot)
+	return fmt.Sprint(textTrace, " | ", ip, " |", textMethod, "| ", textUri, ":")
 }
 
 func (l log) getTextMethod(method string) string {
-	return fmt.Sprint(l.getMethodColorTextLogger(method), method, logger.StyleReset)
+	return fmt.Sprint(l.getMethodColorTextLogger(method), " ", method, " ", logger.StyleReset)
 }
 
 func (l log) getTextUri(uri string) string {
-	return uri
+	return fmt.Sprint("\"", uri, "\"")
 }
 
 func (l log) getTextStatusCode(statusCode int) string {
-	return fmt.Sprint(l.getStatusCodeColorTextLogger(statusCode), statusCode, logger.StyleReset)
+	return fmt.Sprint(l.getStatusCodeColorTextLogger(statusCode), " ", statusCode)
 }
 
 func (l log) divText() string {
