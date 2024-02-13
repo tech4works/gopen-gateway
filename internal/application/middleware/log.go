@@ -23,11 +23,10 @@ func NewLog(loggerUseCase usecase.Log) Log {
 }
 
 func (l log) PreHandlerRequest(ctx *gin.Context) {
+	startTime := time.Now()
 	writer := &handler.ResponseWriter{Body: &bytes.Buffer{}, ResponseWriter: ctx.Writer}
 	ctx.Writer = writer
-
-	startTime := time.Now()
 	l.logUseCase.PrintLogRequest(ctx.Request)
 	ctx.Next()
-	l.logUseCase.PrintLogResponse(ctx.Request, *writer, startTime)
+	l.logUseCase.PrintLogResponse(*writer, startTime)
 }

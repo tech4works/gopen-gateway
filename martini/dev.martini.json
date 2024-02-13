@@ -657,33 +657,6 @@
       ]
     },
     {
-      "@comment": "Feature: USER ExistsUserByDocument",
-      "endpoint": "/user/exists/by-document/:document",
-      "method": "GET",
-      "backends": [
-        {
-          "host": [
-            "$BASE_API_USER_URL"
-          ],
-          "endpoint": "/user/exists/by-document/:document",
-          "method": "GET",
-          "forward-headers": [
-            "*"
-          ],
-          "headers": [
-            {
-              "scope": [
-                "REQUEST"
-              ],
-              "action": "SET",
-              "key": "Api-Key",
-              "value": "$API_USER_KEY"
-            }
-          ]
-        }
-      ]
-    },
-    {
       "@comment": "Feature: USER ExistsUserByContact",
       "endpoint": "/user/exists/by-contact",
       "method": "GET",
@@ -698,7 +671,7 @@
             "*"
           ],
           "query": [
-            "userID",
+            "userId",
             "email",
             "phone"
           ],

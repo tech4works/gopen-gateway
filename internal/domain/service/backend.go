@@ -76,7 +76,7 @@ func (b backend) BuildBackendRequest(input BuildBackendRequestInput) (*BackendRe
 			input.Query.Del(key)
 		}
 	}
-	//substituímos os parâmetros no endpoint pelo valor do parâmetro por exemplo find/user/:userID para find/user/2
+	//substituímos os parâmetros no endpoint pelo valor do parâmetro por exemplo find/user/:userId para find/user/2
 	endpoint := input.Backend.Endpoint
 	for key, value := range input.Params {
 		rKey := fmt.Sprint(":", key)

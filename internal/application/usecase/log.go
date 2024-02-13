@@ -18,7 +18,7 @@ type log struct {
 
 type Log interface {
 	PrintLogRequest(request *http.Request)
-	PrintLogResponse(request *http.Request, responseWriter handler.ResponseWriter, startTime time.Time)
+	PrintLogResponse(responseWriter handler.ResponseWriter, startTime time.Time)
 }
 
 func NewLogger() Log {
@@ -34,10 +34,9 @@ func (l log) PrintLogRequest(request *http.Request) {
 	logger.Info("Start!", l.replaceAllBreakLine(body))
 }
 
-func (l log) PrintLogResponse(request *http.Request, responseWriter handler.ResponseWriter, startTime time.Time) {
+func (l log) PrintLogResponse(responseWriter handler.ResponseWriter, startTime time.Time) {
 	responseTime := time.Now()
 	latency := responseTime.Sub(startTime)
-	l.initializeLoggerOptions(request)
 	var text strings.Builder
 	textStatusCode := l.getTextStatusCode(responseWriter.Status())
 	textLatency := latency.String()
@@ -65,6 +64,13 @@ func (l log) initializeLoggerOptions(request *http.Request) {
 	})
 }
 
+func (l log) getAfterPrefixText(traceId, ip, uri, method string) string {
+	textTrace := l.getTextTraceId(traceId)
+	textMethod := l.getTextMethod(method)
+	textUri := l.getTextUri(uri)
+	return fmt.Sprint("(", textTrace, " | ", ip, " |", textMethod, "| ", textUri, ")")
+}
+
 func (l log) getRequestUri(request *http.Request) (uri string) {
 	uri = request.URL.Path
 	raw := request.URL.RawQuery
@@ -76,13 +82,6 @@ func (l log) getRequestUri(request *http.Request) (uri string) {
 
 func (l log) getTextTraceId(traceId string) string {
 	return fmt.Sprint(logger.StyleBold, traceId, logger.StyleReset)
-}
-
-func (l log) getAfterPrefixText(traceId, ip, uri, method string) string {
-	textTrace := l.getTextTraceId(traceId)
-	textMethod := l.getTextMethod(method)
-	textUri := l.getTextUri(uri)
-	return fmt.Sprint("(", textTrace, " | ", ip, " |", textMethod, "| ", textUri, ")")
 }
 
 func (l log) getTextMethod(method string) string {
