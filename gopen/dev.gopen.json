@@ -1,0 +1,1204 @@
+{
+  "port": 8090,
+  "timeout": "3600s",
+  "cache": {
+    "duration": "30s",
+    "strategy-headers": [
+      "X-Forwarded-For",
+      "Device"
+    ],
+    "allow-cache-control": true
+  },
+  "limiter": {
+    "max-header-size": "1MB",
+    "max-body-size": "3MB",
+    "max-multipart-memory-size": "10MB",
+    "rate": {
+      "capacity": 50,
+      "every": "1s"
+    }
+  },
+  "security-cors": {
+    "allow-countries": [
+      "*"
+    ],
+    "allow-origins": [
+      "*"
+    ],
+    "allow-methods": [
+      "POST",
+      "GET",
+      "PUT",
+      "PATCH",
+      "DELETE"
+    ],
+    "allow-headers": [
+      "User-Agent",
+      "Authorization",
+      "Content-Type",
+      "Device",
+      "Accept",
+      "Accept-Encoding",
+      "Accept-Language",
+      "Cache-Control",
+      "Connection",
+      "Content-Length",
+      "Host",
+      "Postman-Token",
+      "X-Forwarded-For",
+      "Device-Emulator",
+      "Device-Name",
+      "App-Version",
+      "System-Version",
+      "X-Without-Cache"
+    ]
+  },
+  "middlewares": {
+    "save-device": {
+      "host": [
+        "$BASE_API_DEVICE_URL"
+      ],
+      "path": "/devices",
+      "method": "PUT",
+      "forward-headers": [
+        "*"
+      ],
+      "modifier": {
+        "header": [
+          {
+            "context": "RESPONSE",
+            "scope": "GLOBAL",
+            "action": "SET",
+            "key": "X-Device-Id",
+            "value": "#response.body.id"
+          }
+        ]
+      },
+      "extra-config": {
+        "omit-request-body": true
+      }
+    },
+    "validate-token": {
+      "host": [
+        "$BASE_API_AUTH_URL"
+      ],
+      "path": "/auths/token",
+      "method": "POST",
+      "forward-headers": [
+        "Authorizations"
+      ],
+      "modifier": {
+        "headers": [
+          {
+            "context": "RESPONSE",
+            "scope": "GLOBAL",
+            "action": "SET",
+            "key": "X-User-Id",
+            "value": "#response.body.userId"
+          }
+        ]
+      },
+      "extra-config": {
+        "omit-request-body": true
+      }
+    }
+  },
+  "endpoints": [
+    {
+      "@comment": "Feature: AUTH LoginAuthorization",
+      "path": "/login",
+      "method": "POST",
+      "backends": [
+        {
+          "host": [
+            "$BASE_API_AUTH_URL"
+          ],
+          "path": "/login",
+          "method": "POST",
+          "forward-headers": [
+            "*"
+          ],
+          "headers": [
+            {
+              "scope": [
+                "REQUEST"
+              ],
+              "action": "SET",
+              "key": "Api-Key",
+              "value": "$API_AUTH_KEY"
+            },
+            {
+              "scope": [
+                "REQUEST"
+              ],
+              "action": "SET",
+              "key": "Client-Id",
+              "value": "$API_AUTH_CLIENT_ID"
+            },
+            {
+              "scope": [
+                "REQUEST"
+              ],
+              "action": "SET",
+              "key": "Secret-Key",
+              "value": "$API_AUTH_CLIENT_SECRET_KEY"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "@comment": "Feature: AUTH LoginSocialAuthorization",
+      "path": "/login/social",
+      "method": "POST",
+      "backends": [
+        {
+          "host": [
+            "$BASE_API_AUTH_URL"
+          ],
+          "path": "/login/social",
+          "method": "POST",
+          "forward-headers": [
+            "*"
+          ],
+          "headers": [
+            {
+              "scope": [
+                "REQUEST"
+              ],
+              "action": "SET",
+              "key": "Api-Key",
+              "value": "$API_AUTH_KEY"
+            },
+            {
+              "scope": [
+                "REQUEST"
+              ],
+              "action": "SET",
+              "key": "Client-Id",
+              "value": "$API_AUTH_CLIENT_ID"
+            },
+            {
+              "scope": [
+                "REQUEST"
+              ],
+              "action": "SET",
+              "key": "Secret-Key",
+              "value": "$API_AUTH_CLIENT_SECRET_KEY"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "@comment": "Feature: AUTH GetUserBySearchKey",
+      "path": "/login/find/user/:key",
+      "cacheable": true,
+      "method": "GET",
+      "backends": [
+        {
+          "host": [
+            "$BASE_API_AUTH_URL"
+          ],
+          "path": "/login/find/user/:key",
+          "method": "GET",
+          "forward-headers": [
+            "*"
+          ],
+          "headers": [
+            {
+              "scope": [
+                "REQUEST"
+              ],
+              "action": "SET",
+              "key": "Api-Key",
+              "value": "$API_AUTH_KEY"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "@comment": "Feature: AUTH SendAccessCode",
+      "path": "/login/send/access-code",
+      "method": "POST",
+      "backends": [
+        {
+          "host": [
+            "$BASE_API_AUTH_URL"
+          ],
+          "path": "/login/send/access-code",
+          "method": "POST",
+          "forward-headers": [
+            "*"
+          ],
+          "headers": [
+            {
+              "scope": [
+                "REQUEST"
+              ],
+              "action": "SET",
+              "key": "Api-Key",
+              "value": "$API_AUTH_KEY"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "@comment": "Feature: AUTH ValidateAccessCode",
+      "path": "/login/access-code",
+      "method": "POST",
+      "backends": [
+        {
+          "host": [
+            "$BASE_API_AUTH_URL"
+          ],
+          "path": "/login/access-code",
+          "method": "POST",
+          "forward-headers": [
+            "*"
+          ],
+          "headers": [
+            {
+              "scope": [
+                "REQUEST"
+              ],
+              "action": "SET",
+              "key": "Api-Key",
+              "value": "$API_AUTH_KEY"
+            },
+            {
+              "scope": [
+                "REQUEST"
+              ],
+              "action": "SET",
+              "key": "Client-Id",
+              "value": "$API_AUTH_CLIENT_ID"
+            },
+            {
+              "scope": [
+                "REQUEST"
+              ],
+              "action": "SET",
+              "key": "Secret-Key",
+              "value": "$API_AUTH_CLIENT_SECRET_KEY"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "@comment": "Feature: AUTH RefreshToken",
+      "path": "/token/refresh",
+      "method": "POST",
+      "backends": [
+        {
+          "host": [
+            "$BASE_API_AUTH_URL"
+          ],
+          "path": "/token/refresh",
+          "method": "POST",
+          "forward-headers": [
+            "*"
+          ],
+          "headers": [
+            {
+              "scope": [
+                "REQUEST"
+              ],
+              "action": "SET",
+              "key": "Api-Key",
+              "value": "$API_AUTH_KEY"
+            },
+            {
+              "scope": [
+                "REQUEST"
+              ],
+              "action": "SET",
+              "key": "Client-Id",
+              "value": "$API_AUTH_CLIENT_ID"
+            },
+            {
+              "scope": [
+                "REQUEST"
+              ],
+              "action": "SET",
+              "key": "Secret-Key",
+              "value": "$API_AUTH_CLIENT_SECRET_KEY"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "@comment": "Feature: AUTH ValidatePassword",
+      "path": "/login/password/validate",
+      "method": "POST",
+      "backends": [
+        {
+          "host": [
+            "$BASE_API_AUTH_URL"
+          ],
+          "path": "/login/password/validate",
+          "method": "POST",
+          "forward-headers": [
+            "*"
+          ],
+          "headers": [
+            {
+              "scope": [
+                "REQUEST"
+              ],
+              "action": "SET",
+              "key": "Api-Key",
+              "value": "$API_AUTH_KEY"
+            },
+            {
+              "scope": [
+                "REQUEST"
+              ],
+              "action": "SET",
+              "key": "Client-Id",
+              "value": "$API_AUTH_CLIENT_ID"
+            },
+            {
+              "scope": [
+                "REQUEST"
+              ],
+              "action": "SET",
+              "key": "Secret-Key",
+              "value": "$API_AUTH_CLIENT_SECRET_KEY"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "@comment": "Feature: USER CreateUser",
+      "path": "/user",
+      "method": "POST",
+      "backends": [
+        {
+          "host": [
+            "$BASE_API_USER_URL"
+          ],
+          "path": "/user",
+          "method": "POST",
+          "forward-headers": [
+            "*"
+          ],
+          "headers": [
+            {
+              "scope": [
+                "REQUEST"
+              ],
+              "action": "SET",
+              "key": "Api-Key",
+              "value": "$API_USER_KEY"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "@comment": "Feature: USER UpdateUserPassword",
+      "path": "/user/password",
+      "method": "PUT",
+      "beforewares": [
+        "save-device",
+        "validate-token"
+      ],
+      "backends": [
+        {
+          "host": [
+            "$BASE_API_USER_URL"
+          ],
+          "path": "/user/password",
+          "method": "PUT",
+          "forward-headers": [
+            "*"
+          ],
+          "headers": [
+            {
+              "scope": [
+                "REQUEST"
+              ],
+              "action": "SET",
+              "key": "Api-Key",
+              "value": "$API_USER_KEY"
+            },
+            {
+              "scope": [
+                "REQUEST"
+              ],
+              "action": "SET",
+              "key": "Authorization",
+              "value": "Bearer #responses[0].body.token"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "@comment": "Feature: USER UpdateUserAccountStatus",
+      "path": "/user/status",
+      "method": "PUT",
+      "middlewares": [
+        "oAuth2"
+      ],
+      "backends": [
+        {
+          "host": [
+            "$BASE_API_USER_URL"
+          ],
+          "path": "/user/status",
+          "method": "PUT",
+          "forward-headers": [
+            "*"
+          ],
+          "headers": [
+            {
+              "scope": [
+                "REQUEST"
+              ],
+              "action": "SET",
+              "key": "Api-Key",
+              "value": "$API_USER_KEY"
+            },
+            {
+              "scope": [
+                "REQUEST"
+              ],
+              "action": "SET",
+              "key": "Authorization",
+              "value": "Bearer #responses[0].body.token"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "@comment": "Feature: USER UpdateUserAccountCurrentPage",
+      "path": "/user/current-page",
+      "method": "PUT",
+      "middlewares": [
+        "oAuth2"
+      ],
+      "backends": [
+        {
+          "host": [
+            "$BASE_API_USER_URL"
+          ],
+          "path": "/user/current-page",
+          "method": "PUT",
+          "forward-headers": [
+            "*"
+          ],
+          "headers": [
+            {
+              "scope": [
+                "REQUEST"
+              ],
+              "action": "SET",
+              "key": "Api-Key",
+              "value": "$API_USER_KEY"
+            },
+            {
+              "scope": [
+                "REQUEST"
+              ],
+              "action": "SET",
+              "key": "Authorization",
+              "value": "Bearer #responses[0].body.token"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "@comment": "Feature: USER UpdateUserPersonalData",
+      "path": "/user/personal-data",
+      "method": "PUT",
+      "middlewares": [
+        "oAuth2"
+      ],
+      "backends": [
+        {
+          "host": [
+            "$BASE_API_USER_URL"
+          ],
+          "path": "/user/personal-data",
+          "method": "PUT",
+          "forward-headers": [
+            "*"
+          ],
+          "headers": [
+            {
+              "scope": [
+                "REQUEST"
+              ],
+              "action": "SET",
+              "key": "Api-Key",
+              "value": "$API_USER_KEY"
+            },
+            {
+              "scope": [
+                "REQUEST"
+              ],
+              "action": "SET",
+              "key": "Authorization",
+              "value": "Bearer #responses[0].body.token"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "@comment": "Feature: USER UpdateUserContact",
+      "path": "/user/contact",
+      "method": "PUT",
+      "middlewares": [
+        "oAuth2"
+      ],
+      "backends": [
+        {
+          "host": [
+            "$BASE_API_USER_URL"
+          ],
+          "path": "/user/contact",
+          "method": "PUT",
+          "forward-headers": [
+            "*"
+          ],
+          "headers": [
+            {
+              "scope": [
+                "REQUEST"
+              ],
+              "action": "SET",
+              "key": "Api-Key",
+              "value": "$API_USER_KEY"
+            },
+            {
+              "scope": [
+                "REQUEST"
+              ],
+              "action": "SET",
+              "key": "Authorization",
+              "value": "Bearer #responses[0].body.token"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "@comment": "Feature: USER UploadUserPicture",
+      "path": "/user/image",
+      "method": "POST",
+      "middlewares": [
+        "oAuth2"
+      ],
+      "backends": [
+        {
+          "host": [
+            "$BASE_API_USER_URL"
+          ],
+          "path": "/user/image",
+          "method": "POST",
+          "forward-headers": [
+            "*"
+          ],
+          "headers": [
+            {
+              "scope": [
+                "REQUEST"
+              ],
+              "action": "SET",
+              "key": "Api-Key",
+              "value": "$API_USER_KEY"
+            },
+            {
+              "scope": [
+                "REQUEST"
+              ],
+              "action": "SET",
+              "key": "Authorization",
+              "value": "Bearer #responses[0].body.token"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "@comment": "Feature: USER DeleteUserPicture",
+      "path": "/user/image",
+      "method": "DELETE",
+      "middlewares": [
+        "oAuth2"
+      ],
+      "backends": [
+        {
+          "host": [
+            "$BASE_API_USER_URL"
+          ],
+          "path": "/user/image",
+          "method": "DELETE",
+          "forward-headers": [
+            "*"
+          ],
+          "headers": [
+            {
+              "scope": [
+                "REQUEST"
+              ],
+              "action": "SET",
+              "key": "Api-Key",
+              "value": "$API_USER_KEY"
+            },
+            {
+              "scope": [
+                "REQUEST"
+              ],
+              "action": "SET",
+              "key": "Authorization",
+              "value": "Bearer #responses[0].body.token"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "@comment": "Feature: USER ExistsUserByContact",
+      "path": "/user/exists/by-contact",
+      "method": "GET",
+      "backends": [
+        {
+          "host": [
+            "$BASE_API_USER_URL"
+          ],
+          "path": "/user/exists/by-contact",
+          "method": "GET",
+          "forward-headers": [
+            "*"
+          ],
+          "query": [
+            "userId",
+            "email",
+            "phone"
+          ],
+          "headers": [
+            {
+              "scope": [
+                "REQUEST"
+              ],
+              "action": "SET",
+              "key": "Api-Key",
+              "value": "$API_USER_KEY"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "@comment": "Feature: SOCIAL CreatePost",
+      "path": "/post",
+      "method": "POST",
+      "middlewares": [
+        "oAuth2"
+      ],
+      "backends": [
+        {
+          "host": [
+            "$BASE_API_SOCIAL_URL"
+          ],
+          "path": "/post",
+          "method": "POST",
+          "forward-headers": [
+            "*"
+          ],
+          "headers": [
+            {
+              "scope": [
+                "REQUEST"
+              ],
+              "action": "SET",
+              "key": "Api-Key",
+              "value": "$API_SOCIAL_KEY"
+            },
+            {
+              "scope": [
+                "REQUEST"
+              ],
+              "action": "SET",
+              "key": "Authorization",
+              "value": "Bearer #responses[0].body.token"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "@comment": "Feature: SOCIAL CreateLike",
+      "path": "/like",
+      "method": "POST",
+      "middlewares": [
+        "oAuth2"
+      ],
+      "backends": [
+        {
+          "host": [
+            "$BASE_API_SOCIAL_URL"
+          ],
+          "path": "/like",
+          "method": "POST",
+          "forward-headers": [
+            "*"
+          ],
+          "headers": [
+            {
+              "scope": [
+                "REQUEST"
+              ],
+              "action": "SET",
+              "key": "Api-Key",
+              "value": "$API_SOCIAL_KEY"
+            },
+            {
+              "scope": [
+                "REQUEST"
+              ],
+              "action": "SET",
+              "key": "Authorization",
+              "value": "Bearer #responses[0].body.token"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "@comment": "Feature: SOCIAL UpdatePostByID",
+      "path": "/post",
+      "method": "PATCH",
+      "middlewares": [
+        "oAuth2"
+      ],
+      "backends": [
+        {
+          "host": [
+            "$BASE_API_SOCIAL_URL"
+          ],
+          "path": "/post",
+          "method": "PATCH",
+          "forward-headers": [
+            "*"
+          ],
+          "headers": [
+            {
+              "scope": [
+                "REQUEST"
+              ],
+              "action": "SET",
+              "key": "Api-Key",
+              "value": "$API_SOCIAL_KEY"
+            },
+            {
+              "scope": [
+                "REQUEST"
+              ],
+              "action": "SET",
+              "key": "Authorization",
+              "value": "Bearer #responses[0].body.token"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "@comment": "Feature: SOCIAL UpdatePostStatusByID",
+      "path": "/post/status",
+      "method": "PUT",
+      "middlewares": [
+        "oAuth2"
+      ],
+      "backends": [
+        {
+          "host": [
+            "$BASE_API_SOCIAL_URL"
+          ],
+          "path": "/post/status",
+          "method": "PUT",
+          "forward-headers": [
+            "*"
+          ],
+          "headers": [
+            {
+              "scope": [
+                "REQUEST"
+              ],
+              "action": "SET",
+              "key": "Api-Key",
+              "value": "$API_SOCIAL_KEY"
+            },
+            {
+              "scope": [
+                "REQUEST"
+              ],
+              "action": "SET",
+              "key": "Authorization",
+              "value": "Bearer #responses[0].body.token"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "@comment": "Feature: SOCIAL DeletePostByID",
+      "path": "/post/:postId",
+      "method": "DELETE",
+      "middlewares": [
+        "oAuth2"
+      ],
+      "backends": [
+        {
+          "host": [
+            "$BASE_API_SOCIAL_URL"
+          ],
+          "path": "/post/:postId",
+          "method": "DELETE",
+          "forward-headers": [
+            "*"
+          ],
+          "headers": [
+            {
+              "scope": [
+                "REQUEST"
+              ],
+              "action": "SET",
+              "key": "Api-Key",
+              "value": "$API_SOCIAL_KEY"
+            },
+            {
+              "scope": [
+                "REQUEST"
+              ],
+              "action": "SET",
+              "key": "Authorization",
+              "value": "Bearer #responses[0].body.token"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "@comment": "Feature: SOCIAL DeleteLikeByToID",
+      "path": "/like/:toId",
+      "method": "DELETE",
+      "middlewares": [
+        "oAuth2"
+      ],
+      "backends": [
+        {
+          "host": [
+            "$BASE_API_SOCIAL_URL"
+          ],
+          "path": "/like/:toId",
+          "method": "DELETE",
+          "forward-headers": [
+            "*"
+          ],
+          "headers": [
+            {
+              "scope": [
+                "REQUEST"
+              ],
+              "action": "SET",
+              "key": "Api-Key",
+              "value": "$API_SOCIAL_KEY"
+            },
+            {
+              "scope": [
+                "REQUEST"
+              ],
+              "action": "SET",
+              "key": "Authorization",
+              "value": "Bearer #responses[0].body.token"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "@comment": "Feature: SOCIAL GetAllPosts",
+      "path": "/post/all/:page",
+      "cacheable": true,
+      "method": "GET",
+      "middlewares": [
+        "oAuth2"
+      ],
+      "backends": [
+        {
+          "host": [
+            "$BASE_API_SOCIAL_URL"
+          ],
+          "path": "/post/all/:page",
+          "method": "GET",
+          "forward-headers": [
+            "*"
+          ],
+          "query": [
+            "status",
+            "sort"
+          ],
+          "headers": [
+            {
+              "scope": [
+                "REQUEST"
+              ],
+              "action": "SET",
+              "key": "Api-Key",
+              "value": "$API_SOCIAL_KEY"
+            },
+            {
+              "scope": [
+                "REQUEST"
+              ],
+              "action": "SET",
+              "key": "Authorization",
+              "value": "Bearer #responses[0].body.token"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "@comment": "Feature: SOCIAL CreateView",
+      "path": "/view",
+      "method": "POST",
+      "middlewares": [
+        "oAuth2"
+      ],
+      "backends": [
+        {
+          "host": [
+            "$BASE_API_SOCIAL_URL"
+          ],
+          "path": "/view",
+          "method": "POST",
+          "forward-headers": [
+            "*"
+          ],
+          "headers": [
+            {
+              "scope": [
+                "REQUEST"
+              ],
+              "action": "SET",
+              "key": "Api-Key",
+              "value": "$API_SOCIAL_KEY"
+            },
+            {
+              "scope": [
+                "REQUEST"
+              ],
+              "action": "SET",
+              "key": "Authorization",
+              "value": "Bearer #responses[0].body.token"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "@comment": "Feature: PRODUCT GetAllProducts",
+      "path": "/product/all",
+      "method": "GET",
+      "middlewares": [
+        "oAuth2"
+      ],
+      "backends": [
+        {
+          "host": [
+            "$BASE_API_PRODUCT_URL"
+          ],
+          "path": "/product/all",
+          "method": "GET",
+          "forward-headers": [
+            "*"
+          ],
+          "headers": [
+            {
+              "scope": [
+                "REQUEST"
+              ],
+              "action": "SET",
+              "key": "Api-Key",
+              "value": "$API_PRODUCT_KEY"
+            },
+            {
+              "scope": [
+                "REQUEST"
+              ],
+              "action": "SET",
+              "key": "Authorization",
+              "value": "Bearer #responses[0].body.token"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "@comment": "Feature: PRODUCT/PAYMENT GetProductBriefByID",
+      "path": "/product/brief/:productId",
+      "aggregate-responses": true,
+      "abort-sequential": true,
+      "method": "GET",
+      "middlewares": [
+        "oAuth2"
+      ],
+      "backends": [
+        {
+          "host": [
+            "$BASE_API_PRODUCT_URL"
+          ],
+          "path": "/product/brief/:productId",
+          "method": "GET",
+          "forward-headers": [
+            "*"
+          ],
+          "headers": [
+            {
+              "scope": [
+                "REQUEST"
+              ],
+              "action": "SET",
+              "key": "Api-Key",
+              "value": "$API_PRODUCT_KEY"
+            },
+            {
+              "scope": [
+                "REQUEST"
+              ],
+              "action": "SET",
+              "key": "Authorization",
+              "value": "Bearer #responses[0].body.token"
+            }
+          ]
+        },
+        {
+          "host": [
+            "$BASE_API_PAYMENT_URL"
+          ],
+          "path": "/product/payment/summary/:productId",
+          "group": "paymentSummary",
+          "method": "GET",
+          "forward-headers": [
+            "*"
+          ],
+          "query": [
+            "paymentMethod",
+            "installmentSelected"
+          ],
+          "headers": [
+            {
+              "scope": [
+                "REQUEST"
+              ],
+              "action": "SET",
+              "key": "Api-Key",
+              "value": "$API_PAYMENT_KEY"
+            },
+            {
+              "scope": [
+                "REQUEST"
+              ],
+              "action": "SET",
+              "key": "Authorization",
+              "value": "Bearer #responses[0].body.token"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "@comment": "Feature: PAYMENT GetProductPaymentSummary",
+      "path": "/product/payment/summary/:productId",
+      "method": "GET",
+      "middlewares": [
+        "oAuth2"
+      ],
+      "backends": [
+        {
+          "host": [
+            "$BASE_API_PAYMENT_URL"
+          ],
+          "path": "/product/payment/summary/:productId",
+          "method": "GET",
+          "forward-headers": [
+            "*"
+          ],
+          "query": [
+            "paymentMethod",
+            "installmentSelected"
+          ],
+          "headers": [
+            {
+              "scope": [
+                "REQUEST"
+              ],
+              "action": "SET",
+              "key": "Api-Key",
+              "value": "$API_PAYMENT_KEY"
+            },
+            {
+              "scope": [
+                "REQUEST"
+              ],
+              "action": "SET",
+              "key": "Authorization",
+              "value": "Bearer #responses[0].body.token"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "@comment": "Feature: PAYMENT GetProductPaymentMethods",
+      "path": "/product/payment/methods/:productId",
+      "method": "GET",
+      "middlewares": [
+        "oAuth2"
+      ],
+      "backends": [
+        {
+          "host": [
+            "$BASE_API_PAYMENT_URL"
+          ],
+          "path": "/product/payment/methods/:productId",
+          "method": "GET",
+          "forward-headers": [
+            "*"
+          ],
+          "headers": [
+            {
+              "scope": [
+                "REQUEST"
+              ],
+              "action": "SET",
+              "key": "Api-Key",
+              "value": "$API_PAYMENT_KEY"
+            },
+            {
+              "scope": [
+                "REQUEST"
+              ],
+              "action": "SET",
+              "key": "Authorization",
+              "value": "Bearer #responses[0].body.token"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

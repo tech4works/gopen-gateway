@@ -1,157 +1,96 @@
 package service
 
 import (
-	"bytes"
 	"context"
-	"fmt"
 	"github.com/GabrielHCataldo/go-helper/helper"
-	"github.com/GabrielHCataldo/martini-gateway/internal/application/model/enum"
-	"github.com/GabrielHCataldo/martini-gateway/internal/domain/model/valueobject"
-	"github.com/iancoleman/orderedmap"
-	"io"
+	"github.com/GabrielHCataldo/go-logger/logger"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
 	"net/http"
-	"net/url"
-	"strings"
 )
 
-type BackendRequest struct {
-	Host     string
-	Endpoint string
-	Url      string
-	Method   string
-	Header   http.Header
-	Query    url.Values
-	Params   map[string]string
-	Body     any
-}
-
-type BackendResponse struct {
-	StatusCode int
-	Header     http.Header
-	Body       any
-	Group      string
-	Hide       bool
-}
-
-type BuildBackendRequestInput struct {
-	Backend valueobject.Backend
-	Host    string
-	Header  http.Header
-	Query   url.Values
-	Params  map[string]string
-	Body    any
-}
-
-type ExecuteBackendInput struct {
-	Backend        valueobject.Backend
-	BackendRequest BackendRequest
-}
-
 type backend struct {
+	modifierService Modifier
+	restTemplate    RestTemplate
 }
 
 type Backend interface {
-	BuildBackendRequest(input BuildBackendRequestInput) (*BackendRequest, error)
-	Execute(ctx context.Context, input ExecuteBackendInput) (*BackendResponse, error)
+	Execute(ctx context.Context, executeData vo.ExecuteBackend) (vo.Request, vo.Response)
 }
 
-func NewBackend() Backend {
-	return backend{}
+func NewBackend(modifierService Modifier, restTemplate RestTemplate) Backend {
+	return backend{
+		modifierService: modifierService,
+		restTemplate:    restTemplate,
+	}
 }
 
-func (b backend) BuildBackendRequest(input BuildBackendRequestInput) (*BackendRequest, error) {
-	//removemos todos os headers nao mapeados no backend.forward-headers
-	if helper.NotContains(input.Backend.ForwardHeaders, "*") {
-		for key := range input.Header {
-			if helper.NotContains(input.Backend.ForwardHeaders, key) &&
-				helper.IsNotEqualToIgnoreCase(key, enum.XForwardedFor) &&
-				helper.IsNotEqualToIgnoreCase(key, enum.XTraceId) {
-				input.Header.Del(key)
-			}
-		}
-	}
-	//removemos os queryParams nao mapeados no backend
-	for key := range input.Query {
-		if helper.NotContains(input.Backend.Query, key) {
-			input.Query.Del(key)
-		}
-	}
-	//substituímos os parâmetros no endpoint pelo valor do parâmetro por exemplo find/user/:userId para find/user/2
-	endpoint := input.Backend.Endpoint
-	for key, value := range input.Params {
-		rKey := fmt.Sprint(":", key)
-		if helper.Contains(input.Backend.Endpoint, rKey) {
-			endpoint = strings.ReplaceAll(input.Backend.Endpoint, rKey, value)
-		}
-	}
-	return &BackendRequest{
-		Host:     input.Host,
-		Endpoint: input.Backend.Endpoint,
-		Url:      fmt.Sprint(input.Host, endpoint),
-		Method:   input.Backend.Method,
-		Header:   input.Header,
-		Query:    input.Query,
-		Params:   input.Params,
-		Body:     input.Body,
-	}, nil
-}
+func (b backend) Execute(ctx context.Context, executeData vo.ExecuteBackend) (vo.Request, vo.Response) {
+	// instanciamos o objeto de valor de resposta
+	responseVO := executeData.Response()
 
-func (b backend) Execute(ctx context.Context, input ExecuteBackendInput) (*BackendResponse, error) {
-	response, err := b.makeRequest(ctx, input.BackendRequest)
+	// construímos o backend request
+	requestVO := b.buildBackendRequest(executeData)
+
+	// locamos o objeto de valor
+	backendRequestVO := executeData.Request().CurrentBackendRequest()
+
+	// montamos o http request com o context
+	httpRequest, err := backendRequestVO.Http(ctx)
+	// caso ocorra um erro na montagem, retornamos
 	if helper.IsNotNil(err) {
-		return nil, err
+		return requestVO, executeData.Response().Err(requestVO.Url(), err)
 	}
-	defer b.closeBodyResponse(response)
-	return &BackendResponse{
-		Header:     response.Header,
-		StatusCode: response.StatusCode,
-		Body:       b.readResponseBody(response),
-		Group:      input.Backend.Group,
-		Hide:       input.Backend.HideResponse,
-	}, nil
+
+	// chamamos a interface de infra para chamar a conexão http e tratar a resposta
+	httpResponse, err := b.restTemplate.MakeRequest(httpRequest)
+	// caso ocorra um erro, retornamos o response como abort = true e a resposta formatada
+	if helper.IsNotNil(err) {
+		return requestVO, responseVO.Err(requestVO.Url(), err)
+	}
+	// chamamos para fechar o body assim que possível
+	defer b.closeBodyResponse(httpResponse)
+
+	// construímos o objeto de valor de resposta do backend
+	responseVO = b.buildBackendResponse(executeData, httpResponse)
+
+	// retornamos o requestVO e responseVO gerados e utilizados
+	return requestVO, responseVO
 }
 
-func (b backend) makeRequest(ctx context.Context, backendRequest BackendRequest) (*http.Response, error) {
-	var bodyToSend io.ReadCloser
-	if helper.IsNotNil(backendRequest.Body) {
-		bodyBytes, err := helper.ConvertToBytes(backendRequest.Body)
-		if helper.IsNotNil(err) {
-			return nil, err
-		}
-		bodyToSend = io.NopCloser(bytes.NewReader(bodyBytes))
-	}
-	client := &http.Client{}
-	request, err := http.NewRequestWithContext(
-		ctx,
-		backendRequest.Method,
-		backendRequest.Url,
-		bodyToSend,
-	)
-	if helper.IsNotNil(err) {
-		return nil, err
-	}
-	request.Header = backendRequest.Header
-	request.URL.RawQuery = backendRequest.Query.Encode()
-	return client.Do(request)
+func (b backend) buildBackendRequest(executeData vo.ExecuteBackend) vo.Request {
+	// instanciamos o objeto de valor de request
+	requestVO := executeData.Request()
+
+	// instanciamos o objeto de valor backend
+	backendVO := executeData.Backend()
+
+	// obtemos o host do backend todo: ter um sub-dominio de balancer
+	balancedHost := backendVO.Host()
+
+	// montamos o objeto de valor com os dados montados no meu serviço de domínio
+	backendRequestVO := vo.NewBackendRequest(backendVO, balancedHost, executeData.Request())
+
+	// criamos um novo objeto de valor de solicitação com o novo backendRequestVO e substituímos a request vo atual
+	requestVO = requestVO.Append(backendRequestVO)
+
+	// chamamos o sub-dominio para modificar as requisições tanto de backend como a request global
+	return b.modifierService.ExecuteInRequestContext(vo.NewExecuteModifierInRequestContext(executeData, requestVO))
 }
 
 func (b backend) closeBodyResponse(response *http.Response) {
-	_ = response.Body.Close()
+	err := response.Body.Close()
+	if helper.IsNotNil(err) {
+		logger.WarningSkipCaller(2, "Error close http response:", err)
+	}
 }
 
-func (b backend) readResponseBody(resp *http.Response) (result any) {
-	bodyBytes, _ := io.ReadAll(resp.Body)
-	if helper.IsStringMap(bodyBytes) {
-		orderedMap := orderedmap.New()
-		helper.SimpleConvertToDest(bodyBytes, orderedMap)
-		result = orderedMap
-	} else if helper.IsStringSlice(bodyBytes) {
-		var sliceOrderedMap []*orderedmap.OrderedMap
-		helper.SimpleConvertToDest(bodyBytes, &sliceOrderedMap)
-		result = sliceOrderedMap
-	} else if helper.IsNotEmpty(bodyBytes) {
-		bodyString := string(bodyBytes)
-		result = &bodyString
-	}
-	return result
+func (b backend) buildBackendResponse(executeData vo.ExecuteBackend, httpResponse *http.Response) vo.Response {
+	// construímos o novo objeto de valor da resposta do backend
+	backendResponseVO := vo.NewBackendResponse(executeData.Backend(), httpResponse)
+
+	// adicionamos o novo backend request no objeto de valor de resposta
+	responseVO := executeData.Response().Append(backendResponseVO)
+
+	// chamamos o sub-dominio para modificar a resposta do backend
+	return b.modifierService.ExecuteInResponseContext(vo.NewExecuteModifierInResponseContext(executeData, responseVO))
 }

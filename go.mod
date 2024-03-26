@@ -1,13 +1,11 @@
-module github.com/GabrielHCataldo/martini-gateway
+module github.com/GabrielHCataldo/gopen-gateway
 
-go 1.21.3
-
-toolchain go1.21.4
+go 1.22
 
 require (
 	github.com/GabrielHCataldo/go-errors v1.1.9
-	github.com/GabrielHCataldo/go-helper v1.4.7
-	github.com/GabrielHCataldo/go-logger v1.2.7
+	github.com/GabrielHCataldo/go-helper v1.6.3
+	github.com/GabrielHCataldo/go-logger v1.2.8
 	github.com/chenyahui/gin-cache v1.9.0
 	github.com/gin-gonic/gin v1.9.1
 	github.com/go-redis/redis/v8 v8.11.5
@@ -15,7 +13,7 @@ require (
 	github.com/iancoleman/orderedmap v0.3.0
 	github.com/joho/godotenv v1.5.1
 	github.com/ohler55/ojg v1.19.2
-	golang.org/x/time v0.3.0
+	golang.org/x/time v0.5.0
 )
 
 require (

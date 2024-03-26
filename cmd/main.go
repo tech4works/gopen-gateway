@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/go-logger/logger"
-	"github.com/GabrielHCataldo/martini-gateway/internal/application"
-	"github.com/GabrielHCataldo/martini-gateway/internal/application/controller"
-	"github.com/GabrielHCataldo/martini-gateway/internal/application/middleware"
-	"github.com/GabrielHCataldo/martini-gateway/internal/application/model/dto"
-	"github.com/GabrielHCataldo/martini-gateway/internal/application/usecase"
-	"github.com/GabrielHCataldo/martini-gateway/internal/domain/service"
-	"github.com/GabrielHCataldo/martini-gateway/internal/infra"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/app"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/app/controller"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/app/middleware"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/app/model/dto"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/app/usecase"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/service"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/infra"
 	"github.com/chenyahui/gin-cache/persist"
 	"github.com/joho/godotenv"
 	"os"
@@ -83,7 +83,7 @@ func main() {
 	modifierService := service.NewModifier()
 	backendService := service.NewBackend()
 
-	traceUseCase := usecase.NewTrace()
+	traceUseCase := service.NewTrace()
 	logUseCase := usecase.NewLogger()
 	timeoutUseCase := usecase.NewTimeout(handlerTimeout)
 	limiterUseCase := usecase.NewLimiter(
@@ -92,17 +92,17 @@ func main() {
 		martini.Limiter.MaxIpRequestPerSeconds,
 	)
 	corsUseCase := usecase.NewCors(martini.ExtraConfig.SecurityCors)
-	endpointUseCase := usecase.NewEndpoint(backendService, modifierService)
+	endpointUseCase := service.NewEndpoint(backendService, modifierService)
 
-	headerMiddleware := middleware.NewHeader(traceUseCase)
+	headerMiddleware := service.NewHeader(traceUseCase)
 	logMiddleware := middleware.NewLog(logUseCase)
 	limiterMiddleware := middleware.NewLimiter(limiterUseCase)
 	timeoutMiddleware := middleware.NewTimeout(timeoutUseCase)
-	corsMiddleware := middleware.NewCors(corsUseCase)
+	corsMiddleware := middleware.NewSecurityCors(corsUseCase)
 
 	endpointController := controller.NewEndpoint(martini, endpointUseCase)
 
-	app := application.NewGateway(
+	app := app.NewGateway(
 		martini,
 		memoryStore,
 		headerMiddleware,
