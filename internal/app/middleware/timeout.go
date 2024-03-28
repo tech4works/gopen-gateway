@@ -74,15 +74,3 @@ func (t timeout) Do(timeoutDuration time.Duration) gin.HandlerFunc {
 		}
 	}
 }
-
-//func (t timeout) buildTimeoutDuration(timeoutDuration time.Duration) time.Duration {
-//	// caso o valor padrão não tenha sido informado, setamos 30s como
-//	if helper.IsLessThanOrEqual(t.timeoutDurationDefault, 0) {
-//		t.timeoutDurationDefault = 30 * time.Second
-//	}
-//	// caso timeout no DTO do endpoint seja vazio, usamos o valor padrão
-//	if helper.IsLessThanOrEqual(timeoutDuration, 0) {
-//		return t.timeoutDurationDefault
-//	}
-//	return timeoutDuration
-//}

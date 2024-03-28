@@ -3,7 +3,6 @@ package vo
 import (
 	"fmt"
 	"github.com/GabrielHCataldo/go-helper/helper"
-	"strings"
 )
 
 type Params map[string]string
@@ -12,16 +11,17 @@ func NewParams(params map[string]string) Params {
 	return params
 }
 
-func NewParamsByPath(path string, parentParams Params) (p string, r Params) {
-	//substituímos os parâmetros do path pelo valor do parâmetro, por exemplo, find/user/:userId para find/user/2
+func NewParamsByPath(path string, parentParams Params) Params {
+	r := Params{}
+
+	// filtramos os params que contem no path passado
 	for key, value := range parentParams {
 		paramKey := fmt.Sprint(":", key)
 		if helper.ContainsIgnoreCase(path, paramKey) {
 			r[key] = value
-			p = strings.ReplaceAll(path, paramKey, value)
 		}
 	}
-	return p, r
+	return r
 }
 
 func (p Params) Set(key, value string) (r Params) {
@@ -42,6 +42,7 @@ func (p Params) Get(key string) string {
 }
 
 func (p Params) copy() (r Params) {
+	r = Params{}
 	for key, value := range p {
 		r[key] = value
 	}

@@ -1,11 +1,14 @@
 package util
 
 import (
-	"bytes"
-	"fmt"
+	"github.com/GabrielHCataldo/go-errors/errors"
 	"github.com/GabrielHCataldo/go-helper/helper"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/app/model/dto"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/enum"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
 	"github.com/gin-gonic/gin"
-	"io"
+	"gopkg.in/yaml.v3"
+	"time"
 )
 
 func RespondCode(ctx *gin.Context, code int) {
@@ -16,53 +19,52 @@ func RespondCode(ctx *gin.Context, code int) {
 	ctx.Abort()
 }
 
-func RespondCodeWithBody(ctx *gin.Context, code int, body any) {
+func RespondCodeWithBody(ctx *gin.Context, encode enum.ResponseEncode, code int, body vo.Body) {
 	if ctx.IsAborted() {
 		return
 	}
-	if helper.IsJson(body) {
-		ctx.JSON(code, body)
-	} else {
+
+	switch encode {
+	case enum.ResponseEncodeText:
 		ctx.String(code, "%s", body)
+		break
+	case enum.ResponseEncodeJson:
+		ctx.JSON(code, body)
+		break
+	case enum.ResponseEncodeXml:
+		ctx.XML(code, body)
+		break
+	case enum.ResponseEncodeYaml:
+		v, _ := yaml.Marshal(body.Interface())
+		ctx.YAML(code, string(v))
+		break
+	default:
+		if helper.IsJsonType(body) {
+			ctx.JSON(code, body)
+		} else {
+			ctx.String(code, "%s", body)
+		}
+		break
 	}
+
 	ctx.Abort()
 }
 
-func GetRequestUri(ctx *gin.Context) (uri string) {
-	uri = ctx.Request.URL.Path
-	raw := ctx.Request.URL.RawQuery
-	if helper.IsNotEmpty(raw) {
-		uri = fmt.Sprint(uri, "?", raw)
+func RespondCodeWithError(ctx *gin.Context, code int, err error) {
+	if ctx.IsAborted() {
+		return
 	}
-	return uri
+	ctx.JSON(code, buildErrorViewDTO(ctx.Request.URL.String(), err))
+	ctx.Abort()
 }
 
-func GetRequestParams(ctx *gin.Context) map[string]string {
-	result := map[string]string{}
-	for _, param := range ctx.Params {
-		result[param.Key] = param.Value
+func buildErrorViewDTO(requestUrl string, err error) dto.ErrorView {
+	errDetails := errors.Details(err)
+	return dto.ErrorView{
+		File:      errDetails.GetFile(),
+		Line:      errDetails.GetLine(),
+		Endpoint:  requestUrl,
+		Message:   errDetails.GetMessage(),
+		Timestamp: time.Now(),
 	}
-	return result
-}
-
-func GetRequestBody(ctx *gin.Context) any {
-	bytesBody, _ := io.ReadAll(ctx.Request.Body)
-	ctx.Request.Body = io.NopCloser(bytes.NewBuffer(bytesBody))
-
-	// se vazio, retornamos nil
-	if helper.IsEmpty(bytesBody) {
-		return nil
-	}
-
-	// se ele for json, verificamos se body é um map ou slice para manter ordenado
-	if helper.ContainsIgnoreCase(ctx.GetHeader("Content-Type"), "application/json") {
-		// convertemos os bytes do body em uma interface de objeto
-		var dest any
-		helper.SimpleConvertToDest(bytesBody, dest)
-		return dest
-	}
-	//todo: futuramente podemos trabalhar com o XML e o FORM-DATA com o modifier e envio
-
-	// no pior das hipóteses retornamos uma string do body
-	return string(bytesBody)
 }

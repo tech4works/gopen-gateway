@@ -4,8 +4,8 @@ import (
 	berrors "errors"
 	"github.com/GabrielHCataldo/go-errors/errors"
 	"github.com/GabrielHCataldo/go-helper/helper"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/interfaces"
 	domainmapper "github.com/GabrielHCataldo/gopen-gateway/internal/domain/mapper"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/service"
 	"net/http"
 	"net/url"
 	"syscall"
@@ -14,7 +14,7 @@ import (
 type restTemplate struct {
 }
 
-func NewRestTemplate() service.RestTemplate {
+func NewRestTemplate() interfaces.RestTemplate {
 	return restTemplate{}
 }
 

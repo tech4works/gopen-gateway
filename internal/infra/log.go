@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/go-logger/logger"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/app/external"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/app/interfaces"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/app/model/dto"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/app/util"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/consts"
 	"github.com/gin-gonic/gin"
 	"io"
 	"net/http"
@@ -18,15 +18,15 @@ import (
 type logProvider struct {
 }
 
-func NewLogProvider() external.LogProvider {
+func NewLogProvider() interfaces.LogProvider {
 	return logProvider{}
 }
 
 func (l logProvider) InitializeLoggerOptions(ctx *gin.Context) {
 	// obtemos os valores para imprimir nos logs da requisição atual
-	traceId := ctx.GetHeader("X-Trace-Id")
-	ip := ctx.GetHeader("X-Forwarded-For")
-	uri := util.GetRequestUri(ctx)
+	traceId := ctx.GetHeader(consts.XTraceId)
+	ip := ctx.GetHeader(consts.XForwardedFor)
+	uri := ctx.Request.URL.String()
 	method := ctx.Request.Method
 
 	// setamos as opções globais de log
@@ -50,9 +50,17 @@ func (l logProvider) BuildInitialRequestMessage(ctx *gin.Context) string {
 		ctx.Request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 		// convertemos esses bytes para o any inicializado
 		helper.SimpleConvertToDest(bodyBytes, &bodyInfo)
-	} else {
+	} else if helper.IsNotEmpty(bodyType, bodySize) {
+		var msg string
+		if helper.IsNotEmpty(bodyType) {
+			msg += fmt.Sprintf("content-type: %s ", bodyType)
+		}
+		if helper.IsNotEmpty(bodyType) {
+			msg += fmt.Sprintf("content-length: %s ", bodySize)
+		}
+
 		// caso não seja o json e text, imprimimos um resumo
-		bodyInfo = helper.Sprintln("body type:", bodyType, "length:", bodySize)
+		bodyInfo = msg
 	}
 
 	// convertemos em string e removemos os breaks lines

@@ -3,40 +3,44 @@ package infra
 import (
 	"bytes"
 	"github.com/GabrielHCataldo/go-helper/helper"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/app/external"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/app/model/dto"
-	appmapper "github.com/GabrielHCataldo/gopen-gateway/internal/domain/mapper"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/app/interfaces"
+	domainmapper "github.com/GabrielHCataldo/gopen-gateway/internal/domain/mapper"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
 	"io"
 	"net/http"
 )
 
 type sizeLimiterProvider struct {
-	limiterDTO dto.Limiter
+	maxHeaderSize          vo.Bytes
+	maxBodySize            vo.Bytes
+	maxMultipartMemorySize vo.Bytes
 }
 
-func NewSizeLimiterProvider(limiterDTO dto.Limiter) external.SizeLimiterProvider {
+func NewSizeLimiterProvider(maxHeaderSize, maxBodySize, maxMultipartMemorySize vo.Bytes) interfaces.SizeLimiterProvider {
 	return sizeLimiterProvider{
-		limiterDTO: limiterDTO,
+		maxHeaderSize:          maxHeaderSize,
+		maxBodySize:            maxBodySize,
+		maxMultipartMemorySize: maxMultipartMemorySize,
 	}
 }
 
 func (s sizeLimiterProvider) Allow(request *http.Request) error {
 	// checamos primeiramente o tamanho do header
 	headerSize := s.GetHeadersSize(request)
-	if helper.IsGreaterThan(s.limiterDTO.MaxHeaderSize, headerSize) {
-		return appmapper.NewErrHeaderTooLarge(s.limiterDTO.MaxHeaderSize)
+	if helper.IsGreaterThan(headerSize, s.maxHeaderSize) {
+		return domainmapper.NewErrHeaderTooLarge(s.maxHeaderSize.String())
 	}
 
 	// verificamos qual Content-Type fornecido, para obter a config real
-	maxBytesReader := s.limiterDTO.MaxBodySize
+	maxBytesReader := s.maxBodySize
 	if helper.ContainsIgnoreCase(request.Header.Get("Content-Type"), "multipart/form-data") {
-		maxBytesReader = s.limiterDTO.MaxMultipartMemorySize
+		maxBytesReader = s.maxMultipartMemorySize
 	}
 	// verificamos o tamanho utilizando o maxBytesReader, e logo em seguida se der certo, voltamos o body para requisição
 	read := http.MaxBytesReader(nil, request.Body, int64(maxBytesReader))
 	bodyBytes, err := io.ReadAll(read)
 	if helper.IsNotNil(err) {
-		return appmapper.NewErrPayloadTooLarge(maxBytesReader)
+		return domainmapper.NewErrPayloadTooLarge(maxBytesReader.String())
 	}
 	request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 

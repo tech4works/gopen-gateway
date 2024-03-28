@@ -1,6 +1,7 @@
 {
-  "port": 8090,
-  "timeout": "3600s",
+  "version": "v1.0.0",
+  "port": 8080,
+  "timeout": "5s",
   "cache": {
     "duration": "30s",
     "strategy-headers": [
@@ -14,7 +15,7 @@
     "max-body-size": "3MB",
     "max-multipart-memory-size": "10MB",
     "rate": {
-      "capacity": 50,
+      "capacity": 5,
       "every": "1s"
     }
   },
@@ -26,31 +27,10 @@
       "*"
     ],
     "allow-methods": [
-      "POST",
-      "GET",
-      "PUT",
-      "PATCH",
-      "DELETE"
+      "*"
     ],
     "allow-headers": [
-      "User-Agent",
-      "Authorization",
-      "Content-Type",
-      "Device",
-      "Accept",
-      "Accept-Encoding",
-      "Accept-Language",
-      "Cache-Control",
-      "Connection",
-      "Content-Length",
-      "Host",
-      "Postman-Token",
-      "X-Forwarded-For",
-      "Device-Emulator",
-      "Device-Name",
-      "App-Version",
-      "System-Version",
-      "X-Without-Cache"
+      "*"
     ]
   },
   "middlewares": {
@@ -63,11 +43,12 @@
       "forward-headers": [
         "*"
       ],
-      "modifier": {
+      "modifiers": {
         "header": [
           {
             "context": "RESPONSE",
-            "scope": "GLOBAL",
+            "scope": "REQUEST",
+            "global": true,
             "action": "SET",
             "key": "X-Device-Id",
             "value": "#response.body.id"
@@ -87,11 +68,12 @@
       "forward-headers": [
         "Authorizations"
       ],
-      "modifier": {
-        "headers": [
+      "modifiers": {
+        "header": [
           {
             "context": "RESPONSE",
-            "scope": "GLOBAL",
+            "scope": "REQUEST",
+            "global": true,
             "action": "SET",
             "key": "X-User-Id",
             "value": "#response.body.userId"
@@ -191,30 +173,23 @@
       ]
     },
     {
-      "@comment": "Feature: AUTH GetUserBySearchKey",
-      "path": "/login/find/user/:key",
-      "cacheable": true,
+      "@comment": "Feature: USER FindUserByKey",
+      "path": "/users/find/:key",
+      "cache": {
+        "duration": "30s"
+      },
       "method": "GET",
+      "response-encode": "JSON",
+      "beforeware": [
+        "save-device"
+      ],
       "backends": [
         {
           "host": [
-            "$BASE_API_AUTH_URL"
+            "$BASE_API_USER_URL"
           ],
-          "path": "/login/find/user/:key",
-          "method": "GET",
-          "forward-headers": [
-            "*"
-          ],
-          "headers": [
-            {
-              "scope": [
-                "REQUEST"
-              ],
-              "action": "SET",
-              "key": "Api-Key",
-              "value": "$API_AUTH_KEY"
-            }
-          ]
+          "path": "/users/find/:key",
+          "method": "GET"
         }
       ]
     },

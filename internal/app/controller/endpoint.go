@@ -10,7 +10,7 @@ import (
 )
 
 type endpoint struct {
-	gopen           vo.Gopen
+	gopen           vo.GOpen
 	endpointService service.Endpoint
 }
 
@@ -18,7 +18,7 @@ type Endpoint interface {
 	Execute(endpointVO vo.Endpoint) gin.HandlerFunc
 }
 
-func NewEndpoint(gopenVO vo.Gopen, endpointService service.Endpoint) Endpoint {
+func NewEndpoint(gopenVO vo.GOpen, endpointService service.Endpoint) Endpoint {
 	return endpoint{
 		gopen:           gopenVO,
 		endpointService: endpointService,
@@ -30,21 +30,31 @@ func (e endpoint) Execute(endpointVO vo.Endpoint) gin.HandlerFunc {
 		// executamos o serviço de dominío para processar o endpoint
 		responseVO := e.endpointService.Execute(mapper.BuildExecuteServiceParams(ctx, e.gopen, endpointVO))
 		// respondemos o gateway
-		e.respondGateway(ctx, responseVO)
+		e.respondGateway(ctx, endpointVO, responseVO)
 	}
 }
 
-func (e endpoint) respondGateway(ctx *gin.Context, responseVO vo.Response) {
+func (e endpoint) respondGateway(ctx *gin.Context, endpointVO vo.Endpoint, responseVO vo.Response) {
 	// se ja tiver abortado não fazemos nada
 	if ctx.IsAborted() {
 		return
 	}
-	for k := range responseVO.Header() {
-		ctx.Header(k, responseVO.Header().)
+
+	// iteramos o header para responder o mesmo
+	for key := range responseVO.Header() {
+		if helper.EqualsIgnoreCase(key, "Content-Length") || helper.EqualsIgnoreCase(key, "Content-Type") ||
+			helper.EqualsIgnoreCase(key, "Date") {
+			continue
+		}
+		ctx.Header(key, responseVO.Header().Get(key))
 	}
-	if helper.IsNotEmpty(responseVO.body) {
-		util.RespondCodeWithBody(ctx, responseVO.statusCode, responseVO.body)
+
+	// verificamos se tem valor o body
+	if responseVO.Body().IsNotEmpty() {
+		util.RespondCodeWithBody(ctx, endpointVO.ResponseEncode(), responseVO.StatusCode(), responseVO.Body())
+	} else if helper.IsNotNil(responseVO.Err()) {
+		util.RespondCodeWithError(ctx, responseVO.StatusCode(), responseVO.Err())
 	} else {
-		util.RespondCode(ctx, responseVO.statusCode)
+		util.RespondCode(ctx, responseVO.StatusCode())
 	}
 }

@@ -11,48 +11,45 @@ func NewQuery(httpQuery url.Values) Query {
 	return Query(httpQuery)
 }
 
-func (h Query) Add(key, value string) (r Query) {
-	r = h.copy()
+func (q Query) Add(key, value string) (r Query) {
+	r = q.copy()
 	r[key] = append(r[key], value)
 	return r
 }
 
-func (h Query) Set(key, value string) (r Query) {
-	r = h.copy()
+func (q Query) Set(key, value string) (r Query) {
+	r = q.copy()
 	r[key] = []string{value}
 	return r
 }
 
-func (h Query) Del(key string) (r Query) {
-	r = h.copy()
+func (q Query) Del(key string) (r Query) {
+	r = q.copy()
 	delete(r, key)
 	return r
 }
 
-func (h Query) Get(key string) string {
-	values := h[key]
+func (q Query) Get(key string) string {
+	values := q[key]
 	if helper.IsNotEmpty(values) {
 		return values[len(values)-1]
 	}
 	return ""
 }
 
-func (h Query) FilterByForwarded(forwardedQueries []string) (r Query) {
-	r = h.copy()
-	for key := range h.copy() {
+func (q Query) FilterByForwarded(forwardedQueries []string) (r Query) {
+	r = q.copy()
+	for key := range q.copy() {
 		if helper.NotContains(forwardedQueries, "*") && helper.NotContains(forwardedQueries, key) {
-			r = h.Del(key)
+			r = q.Del(key)
 		}
 	}
 	return r
 }
 
-func (h Query) Aggregate(anotherHeader Header) {
-
-}
-
-func (h Query) copy() (r Query) {
-	for key, value := range h {
+func (q Query) copy() (r Query) {
+	r = Query{}
+	for key, value := range q {
 		r[key] = value
 	}
 	return r

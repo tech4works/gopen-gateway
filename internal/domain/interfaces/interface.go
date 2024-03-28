@@ -1,4 +1,4 @@
-package service
+package interfaces
 
 import "net/http"
 

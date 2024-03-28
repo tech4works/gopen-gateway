@@ -9,7 +9,7 @@ import (
 	"github.com/GabrielHCataldo/gopen-gateway/internal/app/controller"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/app/middleware"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/app/model/dto"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/app/usecase"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/service"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/infra"
 	"github.com/chenyahui/gin-cache/persist"
@@ -18,128 +18,144 @@ import (
 	"os/signal"
 	"regexp"
 	"strings"
-	"time"
 )
 
 func main() {
-	logger.Info("Start application!")
-	env := "dev"
-	if helper.IsGreaterThan(os.Args, 1) {
-		env = os.Args[1]
+	logger.Info("Starting GOpen..")
+
+	// inicializamos o valor env para obter como argumento de aplicação
+	var env string
+	if helper.IsLessThanOrEqual(os.Args, 1) {
+		logger.Error("Please enter ENV as second argument! ex: dev, prd")
+		return
 	}
-	envUri := fmt.Sprint("martini/", env, ".martini.env")
-	logger.Info("Loading envs from file:", envUri)
-	if err := godotenv.Load(envUri); helper.IsNotNil(err) {
-		logger.Error("Error load env from file:", envUri, "err:", err)
+	env = os.Args[1]
+
+	// carregamos as envs padrões do GOpen
+	logger.Info("Loading GOpen envs default...")
+	if err := godotenv.Load("internal/infra/config/.env"); helper.IsNotNil(err) {
+		logger.Error("Error load GOpen envs default:", err)
 		return
 	}
 
-	martiniFileJsonUri := fmt.Sprint("martini/", env, ".martini.json")
-	logger.Info("Loading martini config from file json:", martiniFileJsonUri)
-	var martini dto.Martini
-	martiniBytes, err := os.ReadFile(martiniFileJsonUri)
-	if helper.IsNotNil(err) {
-		logger.Error("Error read martini config from file json:", martiniFileJsonUri, "err:", err)
-		return
-	}
-	logger.Info("Start filling environment variables with $word syntax!")
-	martiniBytes = fillEnvValues(martiniBytes)
-	err = helper.ConvertToDest(martiniBytes, &martini)
-	if helper.IsNotNil(err) {
-		logger.Error("Error parse martini config file to DTO:", err)
-		return
-	} else if err = helper.Validate().Struct(martini); helper.IsNotNil(err) {
-		logger.Error("Error validate martini config file:", err)
+	// carregamos as envs indicada no arg
+	fileEnvUri := fmt.Sprintf("gopen/%s.env", env)
+	logger.Infof("Loading GOpen envs from uri: %s...", fileEnvUri)
+	if err := godotenv.Load(fileEnvUri); helper.IsNotNil(err) {
+		logger.Error("Error load GOpen envs from uri:", fileEnvUri, "err:", err)
 		return
 	}
 
-	redisClient := infra.ConnectRedis(os.Getenv("REDIS_URL"), os.Getenv("REDIS_PASSWORD")) //todo: passar isso para martini.json como opcional
+	// carregamos o arquivo de json de configuração do GOpen
+	fileJsonUri := fmt.Sprintf("gopen/%s.json", env)
+	logger.Infof("Loading GOpen json from file: %s...", fileJsonUri)
+	fileJsonBytes, err := os.ReadFile(fileJsonUri)
+	if helper.IsNotNil(err) {
+		logger.Error("Error read martini config from file json:", fileJsonUri, "err:", err)
+		return
+	}
+
+	// preenchemos os valores de variável de ambiente com a sintaxe pre-definida
+	logger.Info("Filling environment variables with $word syntax..")
+	fileJsonBytes = fillEnvValues(fileJsonBytes)
+
+	// convertemos o valor em bytes em DTO
+	var gopenDTO dto.GOpen
+	err = helper.ConvertToDest(fileJsonBytes, &gopenDTO)
+	if helper.IsNotNil(err) {
+		logger.Errorf("Error parse GOpen json file to DTO: %s!", err)
+		return
+	} else if err = helper.Validate().Struct(gopenDTO); helper.IsNotNil(err) {
+		logger.Errorf("Error validate GOpen json file: %s!", err)
+		return
+	}
+
+	// configuramos o cache store
+	logger.Info("Configuring cache store...")
+
+	//todo: passar isso para martini.json como opcional
+	//todo: isso tem que vim a configuração config json
+	redisClient := infra.ConnectRedis(os.Getenv("REDIS_URL"), os.Getenv("REDIS_PASSWORD"))
 	defer infra.DisconnectRedis()
-	memoryStore := persist.NewRedisStore(redisClient) //todo: isso tem que vim a configuração config json
 
-	logger.Info("Converting martini timeout and limiter!")
-	handlerTimeout, err := time.ParseDuration(martini.Timeout.Handler)
-	if err != nil {
-		logger.Error("Error parse duration timeout.handler field:", err)
-		return
-	}
-	if helper.IsEmpty(martini.Limiter.MaxSizeRequestBody) {
-		martini.Limiter.MaxSizeRequestBody = "3MB"
-	}
-	maxSizeRequestBody, err := helper.ConvertByteUnit(martini.Limiter.MaxSizeRequestBody)
-	if err != nil {
-		logger.Error("Error parse byte unit limiter.max-size-request-body field:", err)
-		return
-	}
-	if helper.IsEmpty(martini.Limiter.MaxSizeMultipartMemory) {
-		martini.Limiter.MaxSizeMultipartMemory = "5MB"
-	}
-	maxSizeMultipartMemory, err := helper.ConvertByteUnit(martini.Limiter.MaxSizeMultipartMemory)
-	if err != nil {
-		logger.Error("Error parse byte unit limiter.max-size-multipart-memory field:", err)
-		return
-	}
+	cacheStore := persist.NewRedisStore(redisClient)
+
+	// construímos os objetos de valores a partir do dto gopen
+	logger.Info("Instantiating value objects..")
+	gopenVO := vo.NewGOpen(env, gopenDTO, cacheStore)
+
+	logger.Info("Instantiating domain services..")
+	restTemplate := infra.NewRestTemplate()
+	traceProvider := infra.NewTraceProvider()
+	logProvider := infra.NewLogProvider()
 
 	modifierService := service.NewModifier()
-	backendService := service.NewBackend()
+	backendService := service.NewBackend(modifierService, restTemplate)
+	endpointService := service.NewEndpoint(backendService)
 
-	traceUseCase := service.NewTrace()
-	logUseCase := usecase.NewLogger()
-	timeoutUseCase := usecase.NewTimeout(handlerTimeout)
-	limiterUseCase := usecase.NewLimiter(
-		maxSizeRequestBody,
-		maxSizeMultipartMemory,
-		martini.Limiter.MaxIpRequestPerSeconds,
-	)
-	corsUseCase := usecase.NewCors(martini.ExtraConfig.SecurityCors)
-	endpointUseCase := service.NewEndpoint(backendService, modifierService)
+	traceMiddleware := middleware.NewTrace(traceProvider)
+	logMiddleware := middleware.NewLog(logProvider)
+	securityCorsMiddleware := middleware.NewSecurityCors(gopenVO.SecurityCors())
+	limiterMiddleware := middleware.NewLimiter()
+	timeoutMiddleware := middleware.NewTimeout()
+	cacheMiddleware := middleware.NewCache()
 
-	headerMiddleware := service.NewHeader(traceUseCase)
-	logMiddleware := middleware.NewLog(logUseCase)
-	limiterMiddleware := middleware.NewLimiter(limiterUseCase)
-	timeoutMiddleware := middleware.NewTimeout(timeoutUseCase)
-	corsMiddleware := middleware.NewSecurityCors(corsUseCase)
+	staticController := controller.NewStatic(gopenDTO)
+	endpointController := controller.NewEndpoint(gopenVO, endpointService)
 
-	endpointController := controller.NewEndpoint(martini, endpointUseCase)
+	// inicializamos a aplicação
+	gopenApplication := app.NewGOpen(gopenDTO, gopenVO, traceMiddleware, logMiddleware, securityCorsMiddleware,
+		timeoutMiddleware, limiterMiddleware, cacheMiddleware, staticController, endpointController)
+	// chamamos o lister and server para continuar
+	go gopenApplication.ListerAndServer()
 
-	app := app.NewGateway(
-		martini,
-		memoryStore,
-		headerMiddleware,
-		logMiddleware,
-		limiterMiddleware,
-		timeoutMiddleware,
-		corsMiddleware,
-		endpointController,
-	)
-	go app.Run()
+	// salvamos o gopenDTO resultante
+	gopenBytes, err := json.MarshalIndent(gopenDTO, "", "\t")
+	if helper.IsNil(err) {
+		err = os.WriteFile("gopen.json", gopenBytes, 0644)
+	}
+	if helper.IsNotNil(err) {
+		logger.Warning("Error write file gopen.json result:", err)
+	}
 
-	fileBytes, _ := json.MarshalIndent(martini, "", "\t")
-	_ = os.WriteFile("martini.json", fileBytes, 0644)
-
+	// seguramos a goroutine principal esperando que aplicação seja interrompida
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 	select {
 	case <-c:
 		logger.ResetOptionsToDefault()
-		logger.Info("Stop application!")
+		logger.Info("Stop GOpen!")
 	}
 }
 
-func fillEnvValues(bytesJson []byte) []byte {
-	stringJson := helper.SimpleConvertToString(bytesJson)
+func fillEnvValues(gopenBytesJson []byte) []byte {
+	// convertemos os bytes do gopen json em string
+	gopenStrJson := helper.SimpleConvertToString(gopenBytesJson)
+
+	// compilamos o regex indicando um valor de env $API_KEY por exemplo
 	regex := regexp.MustCompile(`\$\w+`)
-	resultFind := regex.FindAllString(stringJson, -1)
-	logger.Info(len(resultFind), "environment variable values were found to fill in!")
-	countProcessed := 0
-	for _, word := range resultFind {
-		envJsonValue := strings.ReplaceAll(word, "$", "")
-		envValue := os.Getenv(envJsonValue)
+	// damos o find pelo regex
+	words := regex.FindAllString(gopenStrJson, -1)
+
+	// imprimimos todas as palavras encontradas a ser preenchidas
+	logger.Info(len(words), "environment variable values were found to fill in!")
+
+	// inicializamos o contador de valores processados
+	count := 0
+	for _, word := range words {
+		// replace do valor padrão $
+		envKey := strings.ReplaceAll(word, "$", "")
+		// obtemos o valor da env pela chave indicada
+		envValue := os.Getenv(envKey)
+		// caso valor encontrado, damos o replace da palavra encontrada pelo valor
 		if helper.IsNotEmpty(envValue) {
-			stringJson = strings.ReplaceAll(stringJson, word, envValue)
-			countProcessed++
+			gopenStrJson = strings.ReplaceAll(gopenStrJson, word, envValue)
+			count++
 		}
 	}
-	logger.Info(countProcessed, "environment variables successfully filled!")
-	return helper.SimpleConvertToBytes(stringJson)
+	// imprimimos a quantidade de envs preenchidas
+	logger.Info(count, "environment variables successfully filled!")
+
+	// convertemos esse novo
+	return helper.SimpleConvertToBytes(gopenStrJson)
 }

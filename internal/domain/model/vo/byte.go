@@ -5,6 +5,10 @@ import "github.com/GabrielHCataldo/go-helper/helper"
 type Bytes int64
 type MegaBytes int64
 
+func NewBytes(bytesUnit string) Bytes {
+	return Bytes(helper.SimpleConvertByteUnitStrToFloat(bytesUnit))
+}
+
 func (b *Bytes) UnmarshalJSON(v []byte) error {
 	s := string(v)
 	if helper.IsNotEmpty(v) {

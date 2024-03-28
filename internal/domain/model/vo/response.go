@@ -5,30 +5,25 @@ import (
 	"github.com/GabrielHCataldo/go-errors/errors"
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/mapper"
+	"github.com/iancoleman/orderedmap"
 	"net/http"
-	"time"
 )
 
 type responseHistory []backendResponse
 
-type aggregateBody map[string]any
+type aggregateBody struct {
+	value orderedmap.OrderedMap
+}
 
 type Response struct {
 	endpoint   Endpoint
 	completed  bool
 	statusCode int
 	header     Header
-	body       any
+	body       Body
+	err        error
 	abort      bool
 	history    responseHistory
-}
-
-type BodyErrorResponse struct {
-	File      string    `json:"file,omitempty"`
-	Line      int       `json:"line,omitempty"`
-	Endpoint  string    `json:"endpoint,omitempty"`
-	Message   string    `json:"message,omitempty"`
-	Timestamp time.Time `json:"timestamp,omitempty"`
 }
 
 func NewResponse(endpointVO Endpoint) Response {
@@ -38,34 +33,75 @@ func NewResponse(endpointVO Endpoint) Response {
 	}
 }
 
-func NewBodyErrorResponse(endpoint string, err error) BodyErrorResponse {
-	errDetails := errors.Details(err)
-	return BodyErrorResponse{
-		File:      errDetails.GetFile(),
-		Line:      errDetails.GetLine(),
-		Endpoint:  endpoint,
-		Message:   errDetails.GetMessage(),
-		Timestamp: time.Now(),
-	}
-}
-
 func newAggregateBody(index int, backendResponseVO backendResponse) aggregateBody {
+	value := orderedmap.New()
+	value.Set("ok", backendResponseVO.Ok())
+	value.Set("code", backendResponseVO.StatusCode())
+
 	newInstance := aggregateBody{
-		"ok":   backendResponseVO.Ok(),
-		"code": backendResponseVO.statusCode,
+		value: *value,
 	}
 	newInstance.aggregate(index, backendResponseVO)
 	return newInstance
 }
 
-func (r Response) Modify(statusCode int, header Header, body any, backendResponseVO backendResponse) Response {
+func (r Response) ModifyStatusCode(statusCode int, backendResponseVO backendResponse) Response {
 	history := r.history
 	history[len(history)-1] = backendResponseVO
+
+	// se o valor vindo do parâmetro vir igual, damos prioridade ao local
+	if helper.Equals(r.statusCode, statusCode) {
+		// atualizamos os dados a partir do histórico alterado
+		return r.notify(history)
+	}
+
 	return Response{
 		endpoint:   r.endpoint,
 		completed:  r.completed,
 		statusCode: statusCode,
+		header:     r.header,
+		body:       r.body,
+		abort:      r.abort,
+		history:    history,
+	}
+}
+
+func (r Response) ModifyHeader(header Header, backendResponseVO backendResponse) Response {
+	history := r.history
+	history[len(history)-1] = backendResponseVO
+
+	// se o valor vindo do parâmetro vir igual, damos prioridade ao local
+	if helper.Equals(r.header, header) {
+		// atualizamos os dados a partir do histórico alterado
+		return r.notify(history)
+	}
+
+	return Response{
+		endpoint:   r.endpoint,
+		completed:  r.completed,
+		statusCode: r.statusCode,
 		header:     header,
+		body:       r.body,
+		abort:      r.abort,
+		history:    history,
+	}
+}
+
+func (r Response) ModifyBody(body Body, backendResponseVO backendResponse) Response {
+	history := r.history
+	history[len(history)-1] = backendResponseVO
+
+	// se o valor vindo do parâmetro vir igual, damos prioridade ao local
+	if helper.Equals(r.body, body) {
+		// atualizamos os dados a partir do histórico alterado
+		return r.notify(history)
+	}
+
+	return Response{
+		endpoint:   r.endpoint,
+		completed:  r.completed,
+		statusCode: r.statusCode,
+		header:     r.header,
 		body:       body,
 		abort:      r.abort,
 		history:    history,
@@ -77,6 +113,11 @@ func (r Response) Append(backendResponseVO backendResponse) Response {
 	history := r.history
 	history = append(history, backendResponseVO)
 
+	// atualizamos os dados a partir do histórico alterado
+	return r.notify(history)
+}
+
+func (r Response) notify(history responseHistory) Response {
 	// checamos se ele chegou ao final para o valor padrão
 	completed := r.endpoint.Completed(history.Size())
 
@@ -105,7 +146,7 @@ func (r Response) Append(backendResponseVO backendResponse) Response {
 	}
 }
 
-func (r Response) Err(requestUrl string, err error) Response {
+func (r Response) Error(err error) Response {
 	// construímos o statusCode de resposta a partir do erro recebido
 	statusCode := http.StatusInternalServerError
 	if errors.Contains(err, mapper.ErrBadGateway) {
@@ -118,13 +159,17 @@ func (r Response) Err(requestUrl string, err error) Response {
 	return Response{
 		statusCode: statusCode,
 		header:     newResponseHeaderFailed(),
-		body:       NewBodyErrorResponse(requestUrl, err),
+		err:        err,
 		abort:      true,
 		history:    r.history,
 	}
 }
 
-func (r Response) Abort() *Response {
+func (r Response) Abort() bool {
+	return r.abort
+}
+
+func (r Response) AbortResponse() *Response {
 	if r.abort {
 		// caso a resposta vem como abort true, retornamos o mesmo, isso acontece, pois ocorreu um erro
 		return &r
@@ -147,6 +192,9 @@ func (r Response) abortEndpoint() *Response {
 }
 
 func (r Response) LastBackendResponse() backendResponse {
+	if helper.IsEmpty(r.history) {
+		return backendResponse{}
+	}
 	return r.history[len(r.history)-1]
 }
 
@@ -158,8 +206,20 @@ func (r Response) Header() Header {
 	return r.header
 }
 
-func (r Response) Body() any {
+func (r Response) Body() Body {
 	return r.body
+}
+
+func (r Response) Err() error {
+	return r.err
+}
+
+func (r Response) Eval() map[string]any {
+	return map[string]any{
+		"statusCode": r.statusCode,
+		"header":     r.header,
+		"body":       r.body.Interface(),
+	}
 }
 
 func (r responseHistory) Size() int {
@@ -221,7 +281,7 @@ func (r responseHistory) Header() (h Header) {
 	return h
 }
 
-func (r responseHistory) Body(aggregateResponses bool) any {
+func (r responseHistory) Body(aggregateResponses bool) (b Body) {
 	if r.MultipleResponse() {
 		if aggregateResponses {
 			return r.aggregateBody()
@@ -232,28 +292,30 @@ func (r responseHistory) Body(aggregateResponses bool) any {
 		return r[0].body
 	}
 
-	return nil
+	return b
 }
 
-func (r responseHistory) aggregateBody() (body aggregateBody) {
+func (r responseHistory) aggregateBody() Body {
+	// instanciamos primeiro o aggregate body para retornar
+	var bodyHistory aggregateBody
+
 	for index, backendResponseVO := range r {
 		// se tiver nil pulamos para o próximo
 		if helper.IsNil(backendResponseVO.body) {
 			continue
 		}
 		// agregamos o backendResponse
-		body.aggregate(index, backendResponseVO)
+		bodyHistory.aggregate(index, backendResponseVO)
 	}
 
-	// se o agregado for vazio, retornamos nil
-	if helper.IsEmpty(body) {
-		return nil
-	}
 	// se tudo ocorreu bem retornamos o corpo agregado
-	return body
+	return newBodyByAny(bodyHistory.value)
 }
 
-func (r responseHistory) aggregatedBodies() (bodies []aggregateBody) {
+func (r responseHistory) aggregatedBodies() Body {
+	// instanciamos o valor a ser construído
+	var bodies []orderedmap.OrderedMap
+
 	for index, backendResponseVO := range r {
 		// se tiver nil pulamos para o próximo
 		if helper.IsNil(backendResponseVO.body) {
@@ -264,14 +326,18 @@ func (r responseHistory) aggregatedBodies() (bodies []aggregateBody) {
 		bodyGateway := newAggregateBody(index, backendResponseVO)
 
 		// inserimos na lista de retorno
-		bodies = append(bodies, bodyGateway)
+		bodies = append(bodies, bodyGateway.value)
 	}
 	// se tudo ocorrer bem, teremos o body agregado
-	return bodies
+	return newBodyByAny(bodies)
+}
+
+func (a aggregateBody) IsEmpty() bool {
+	return helper.IsEmpty(a.value.Keys())
 }
 
 func (a aggregateBody) exists(key string) bool {
-	_, ok := a[key]
+	_, ok := a.value.Get(key)
 	return ok
 }
 
@@ -302,27 +368,26 @@ func (a aggregateBody) uniqueKey(key string) string {
 
 func (a aggregateBody) append(key string, value any) {
 	// chamamos o generateKey para gerar uma chave a partir da informada que nao existe no body ainda
-	a[a.uniqueKey(key)] = value
+	a.value.Set(a.uniqueKey(key), value)
 }
 
 func (a aggregateBody) aggregate(index int, backendResponseVO backendResponse) {
 	// obtemos a chave do backendResponse pelo index
 	key := backendResponseVO.Key(index)
 
-	// agregamos pelo tipo de dado que o body é
-	if helper.IsSlice(backendResponseVO.body) || helper.IsString(backendResponseVO.body) {
+	// agregamos pelo tipo de dado que o body é ou forcamos se o groupResponse for true
+	if backendResponseVO.groupResponse || helper.IsSliceType(backendResponseVO.Body().Value()) ||
+		helper.IsStringType(backendResponseVO.Body().Value()) {
 		// se o body de resposta for um slice ou string, agrupamos
-		a.append(key, backendResponseVO.body)
-	} else if helper.IsJson(backendResponseVO.body) {
-		// se o body for um map
-		bodyMap := backendResponseVO.body.(map[string]any)
-		// se ele quer agrupar a resposta, então fazemos isso
-		if backendResponseVO.groupResponse {
-			a.append(key, bodyMap)
-		} else {
-			// iteramos para agregar no corpo principal
-			for mKey, value := range bodyMap {
-				a.append(mKey, value)
+		a.append(key, backendResponseVO.Body().Value())
+	} else if helper.IsStructType(backendResponseVO.Body().Value()) {
+		// se o body for uma estrutura quer dizer que ele é um ordered map
+		orderedMap := backendResponseVO.Body().OrderedMap()
+		// iteramos para agregar no corpo principal mantendo a ordem
+		for _, orderedKey := range orderedMap.Keys() {
+			valueToAppend, exists := orderedMap.Get(orderedKey)
+			if exists {
+				a.append(orderedKey, valueToAppend)
 			}
 		}
 	}

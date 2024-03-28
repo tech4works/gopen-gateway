@@ -4,14 +4,20 @@ type ModifierContext string
 type ModifierScope string
 type ModifierAction string
 type CacheControl string
+type ResponseEncode string
 
 const (
-	CacheControlNoCache CacheControl = "no-cache"
+	ResponseEncodeText ResponseEncode = "TEXT"
+	ResponseEncodeJson ResponseEncode = "JSON"
+	ResponseEncodeXml  ResponseEncode = "XML"
+	ResponseEncodeYaml ResponseEncode = "YAML"
 )
-
 const (
-	ModifierScopeLocal  ModifierScope = "LOCAL"
-	ModifierScopeGlobal ModifierScope = "GLOBAL"
+	CacheControlNoStore CacheControl = "no-store"
+)
+const (
+	ModifierScopeRequest  ModifierScope = "REQUEST"
+	ModifierScopeResponse ModifierScope = "RESPONSE"
 )
 const (
 	ModifierContextRequest  ModifierContext = "REQUEST"
@@ -27,7 +33,7 @@ const (
 
 func (m ModifierScope) IsEnumValid() bool {
 	switch m {
-	case ModifierScopeLocal, ModifierScopeGlobal:
+	case ModifierScopeRequest, ModifierScopeResponse:
 		return true
 	}
 	return false
@@ -51,7 +57,15 @@ func (m ModifierAction) IsEnumValid() bool {
 
 func (c CacheControl) IsEnumValid() bool {
 	switch c {
-	case CacheControlNoCache:
+	case CacheControlNoStore:
+		return true
+	}
+	return false
+}
+
+func (r ResponseEncode) IsEnumValid() bool {
+	switch r {
+	case ResponseEncodeText, ResponseEncodeJson, ResponseEncodeXml:
 		return true
 	}
 	return false

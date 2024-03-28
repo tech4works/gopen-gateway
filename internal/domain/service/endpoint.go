@@ -8,18 +8,16 @@ import (
 )
 
 type endpoint struct {
-	backendService  Backend
-	modifierService Modifier
+	backendService Backend
 }
 
 type Endpoint interface {
 	Execute(ctx context.Context, executeData vo.ExecuteEndpoint) vo.Response
 }
 
-func NewEndpoint(backendService Backend, modifierService Modifier) Endpoint {
+func NewEndpoint(backendService Backend) Endpoint {
 	return endpoint{
-		backendService:  backendService,
-		modifierService: modifierService,
+		backendService: backendService,
 	}
 }
 
@@ -34,7 +32,7 @@ func (e endpoint) Execute(ctx context.Context, executeData vo.ExecuteEndpoint) v
 	// iteramos o beforeware, chaves configuradas para middlewares antes das requisições principais
 	for _, beforewareKey := range endpointVO.Beforeware() {
 		// verificamos se essa chave foram configuradas no campo middlewares
-		beforewareVO, ok := executeData.Middleware(beforewareKey)
+		beforewareVO, ok := executeData.Gopen().Middleware(beforewareKey)
 		if !ok {
 			logger.Warning("beforeware", beforewareKey, "not configured on middlewares field!")
 			continue
@@ -44,26 +42,26 @@ func (e endpoint) Execute(ctx context.Context, executeData vo.ExecuteEndpoint) v
 		requestVO, responseVO = e.backendService.Execute(ctx, vo.NewExecuteBackend(beforewareVO, requestVO, responseVO))
 
 		// verificamos a resposta precisa ser abortada
-		if abortResponseVO := responseVO.Abort(); helper.IsNotNil(abortResponseVO) {
+		if abortResponseVO := responseVO.AbortResponse(); helper.IsNotNil(abortResponseVO) {
 			return *abortResponseVO
 		}
 	}
 
 	// iteramos os backends principais para executa-las
-	for _, backendVO := range executeData.Backends() {
+	for _, backendVO := range endpointVO.Backends() {
 		// processamos o backend principal iterado
 		requestVO, responseVO = e.backendService.Execute(ctx, vo.NewExecuteBackend(backendVO, requestVO, responseVO))
 
 		// verificamos a resposta precisa ser abortada
-		if abortResponseVO := responseVO.Abort(); helper.IsNotNil(abortResponseVO) {
+		if abortResponseVO := responseVO.AbortResponse(); helper.IsNotNil(abortResponseVO) {
 			return *abortResponseVO
 		}
 	}
 
 	// iteramos o afterware, chaves configuradas para middlewares depois das requisições principais
-	for _, afterwareKey := range endpointVO.Beforeware() {
+	for _, afterwareKey := range endpointVO.Afterware() {
 		// verificamos se essa chave foram configuradas no campo middlewares
-		afterwareVO, ok := executeData.Middleware(afterwareKey)
+		afterwareVO, ok := executeData.Gopen().Middleware(afterwareKey)
 		if !ok {
 			logger.Warning("afterware", afterwareKey, "not configured on middlewares field!")
 			continue
@@ -73,7 +71,7 @@ func (e endpoint) Execute(ctx context.Context, executeData vo.ExecuteEndpoint) v
 		requestVO, responseVO = e.backendService.Execute(ctx, vo.NewExecuteBackend(afterwareVO, requestVO, responseVO))
 
 		// verificamos a resposta precisa ser abortada
-		if abortResponseVO := responseVO.Abort(); helper.IsNotNil(abortResponseVO) {
+		if abortResponseVO := responseVO.AbortResponse(); helper.IsNotNil(abortResponseVO) {
 			return *abortResponseVO
 		}
 	}

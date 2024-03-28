@@ -24,4 +24,4 @@ go.work
 .idea
 
 # Martini result json
-martini.json
+gopen.json

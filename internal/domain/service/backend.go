@@ -4,20 +4,21 @@ import (
 	"context"
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/go-logger/logger"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/interfaces"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
 	"net/http"
 )
 
 type backend struct {
 	modifierService Modifier
-	restTemplate    RestTemplate
+	restTemplate    interfaces.RestTemplate
 }
 
 type Backend interface {
 	Execute(ctx context.Context, executeData vo.ExecuteBackend) (vo.Request, vo.Response)
 }
 
-func NewBackend(modifierService Modifier, restTemplate RestTemplate) Backend {
+func NewBackend(modifierService Modifier, restTemplate interfaces.RestTemplate) Backend {
 	return backend{
 		modifierService: modifierService,
 		restTemplate:    restTemplate,
@@ -25,39 +26,33 @@ func NewBackend(modifierService Modifier, restTemplate RestTemplate) Backend {
 }
 
 func (b backend) Execute(ctx context.Context, executeData vo.ExecuteBackend) (vo.Request, vo.Response) {
-	// instanciamos o objeto de valor de resposta
-	responseVO := executeData.Response()
-
-	// construímos o backend request
-	requestVO := b.buildBackendRequest(executeData)
+	// construímos o backend request, junto pode vir uma possível alteração no response pelo modifier
+	requestVO, responseVO := b.buildBackendRequest(executeData)
 
 	// locamos o objeto de valor
-	backendRequestVO := executeData.Request().CurrentBackendRequest()
+	backendRequestVO := requestVO.CurrentBackendRequest()
 
 	// montamos o http request com o context
 	httpRequest, err := backendRequestVO.Http(ctx)
 	// caso ocorra um erro na montagem, retornamos
 	if helper.IsNotNil(err) {
-		return requestVO, executeData.Response().Err(requestVO.Url(), err)
+		return requestVO, responseVO.Error(err)
 	}
 
 	// chamamos a interface de infra para chamar a conexão http e tratar a resposta
 	httpResponse, err := b.restTemplate.MakeRequest(httpRequest)
 	// caso ocorra um erro, retornamos o response como abort = true e a resposta formatada
 	if helper.IsNotNil(err) {
-		return requestVO, responseVO.Err(requestVO.Url(), err)
+		return requestVO, responseVO.Error(err)
 	}
 	// chamamos para fechar o body assim que possível
 	defer b.closeBodyResponse(httpResponse)
 
-	// construímos o objeto de valor de resposta do backend
-	responseVO = b.buildBackendResponse(executeData, httpResponse)
-
-	// retornamos o requestVO e responseVO gerados e utilizados
-	return requestVO, responseVO
+	// construímos o objeto de valor de resposta do backend, junto pode vir uma possível alteração no request pelo modifier
+	return b.buildBackendResponse(executeData.Backend(), requestVO, responseVO, httpResponse)
 }
 
-func (b backend) buildBackendRequest(executeData vo.ExecuteBackend) vo.Request {
+func (b backend) buildBackendRequest(executeData vo.ExecuteBackend) (vo.Request, vo.Response) {
 	// instanciamos o objeto de valor de request
 	requestVO := executeData.Request()
 
@@ -74,7 +69,7 @@ func (b backend) buildBackendRequest(executeData vo.ExecuteBackend) vo.Request {
 	requestVO = requestVO.Append(backendRequestVO)
 
 	// chamamos o sub-dominio para modificar as requisições tanto de backend como a request global
-	return b.modifierService.ExecuteInRequestContext(vo.NewExecuteModifierInRequestContext(executeData, requestVO))
+	return b.modifierService.Execute(vo.NewExecuteRequestModifier(executeData.Backend(), requestVO, executeData.Response()))
 }
 
 func (b backend) closeBodyResponse(response *http.Response) {
@@ -84,13 +79,19 @@ func (b backend) closeBodyResponse(response *http.Response) {
 	}
 }
 
-func (b backend) buildBackendResponse(executeData vo.ExecuteBackend, httpResponse *http.Response) vo.Response {
+func (b backend) buildBackendResponse(backendVO vo.Backend, requestVO vo.Request, responseVO vo.Response,
+	httpResponse *http.Response) (vo.Request, vo.Response) {
 	// construímos o novo objeto de valor da resposta do backend
-	backendResponseVO := vo.NewBackendResponse(executeData.Backend(), httpResponse)
+	backendResponseVO := vo.NewBackendResponse(backendVO, httpResponse)
 
 	// adicionamos o novo backend request no objeto de valor de resposta
-	responseVO := executeData.Response().Append(backendResponseVO)
+	responseVO = responseVO.Append(backendResponseVO)
+
+	// se resposta é para abortar retornamos
+	if responseVO.Abort() {
+		return requestVO, responseVO
+	}
 
 	// chamamos o sub-dominio para modificar a resposta do backend
-	return b.modifierService.ExecuteInResponseContext(vo.NewExecuteModifierInResponseContext(executeData, responseVO))
+	return b.modifierService.Execute(vo.NewExecuteResponseModifier(backendVO, requestVO, responseVO))
 }

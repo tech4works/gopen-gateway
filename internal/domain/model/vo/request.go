@@ -6,11 +6,11 @@ type Request struct {
 	header  Header
 	params  Params
 	query   Query
-	body    any
+	body    Body
 	history []backendRequest
 }
 
-func newRequest(url, method string, header Header, params Params, query Query, body any) Request {
+func newRequest(url, method string, header Header, params Params, query Query, body Body) Request {
 	return Request{
 		url:    url,
 		method: method,
@@ -21,8 +21,7 @@ func newRequest(url, method string, header Header, params Params, query Query, b
 	}
 }
 
-func (r Request) Modify(header Header, params Params, query Query, body any, backendRequestVO backendRequest,
-) Request {
+func (r Request) ModifyHeader(header Header, backendRequestVO backendRequest) Request {
 	history := r.history
 	history[len(history)-1] = backendRequestVO
 
@@ -30,8 +29,53 @@ func (r Request) Modify(header Header, params Params, query Query, body any, bac
 		url:     r.url,
 		method:  r.method,
 		header:  header,
+		params:  r.params,
+		query:   r.query,
+		body:    r.body,
+		history: history,
+	}
+}
+
+func (r Request) ModifyParams(params Params, backendRequestVO backendRequest) Request {
+	history := r.history
+	history[len(history)-1] = backendRequestVO
+
+	return Request{
+		url:     r.url,
+		method:  r.method,
+		header:  r.header,
 		params:  params,
+		query:   r.query,
+		body:    r.body,
+		history: history,
+	}
+}
+
+func (r Request) ModifyQuery(query Query, backendRequestVO backendRequest) Request {
+	history := r.history
+	history[len(history)-1] = backendRequestVO
+
+	return Request{
+		url:     r.url,
+		method:  r.method,
+		header:  r.header,
+		params:  r.params,
 		query:   query,
+		body:    r.body,
+		history: history,
+	}
+}
+
+func (r Request) ModifyBody(body Body, backendRequestVO backendRequest) Request {
+	history := r.history
+	history[len(history)-1] = backendRequestVO
+
+	return Request{
+		url:     r.url,
+		method:  r.method,
+		header:  r.header,
+		params:  r.params,
+		query:   r.query,
 		body:    body,
 		history: history,
 	}
@@ -69,6 +113,15 @@ func (r Request) Query() Query {
 	return r.query
 }
 
-func (r Request) Body() any {
+func (r Request) Body() Body {
 	return r.body
+}
+
+func (r Request) Eval() map[string]any {
+	return map[string]any{
+		"header": r.header,
+		"params": r.params,
+		"query":  r.query,
+		"body":   r.body.Interface(),
+	}
 }

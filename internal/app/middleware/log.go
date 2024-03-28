@@ -1,23 +1,26 @@
 package middleware
 
 import (
+	"bytes"
 	"github.com/GabrielHCataldo/go-logger/logger"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/app/external"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/app/mapper"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/app/interfaces"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/app/model/dto"
 	"github.com/gin-gonic/gin"
 	"time"
 )
 
 type log struct {
-	logProvider external.LogProvider
+	logProvider interfaces.LogProvider
 }
 
 type Log interface {
 	Do(ctx *gin.Context)
 }
 
-func NewLog() Log {
-	return log{}
+func NewLog(logProvider interfaces.LogProvider) Log {
+	return log{
+		logProvider: logProvider,
+	}
 }
 
 func (l log) Do(ctx *gin.Context) {
@@ -25,7 +28,10 @@ func (l log) Do(ctx *gin.Context) {
 	startTime := time.Now()
 
 	// inicializamos o writer de resposta
-	responseWriter := mapper.BuildResponseWriter(ctx)
+	responseWriter := &dto.ResponseWriter{
+		Body:           &bytes.Buffer{},
+		ResponseWriter: ctx.Writer,
+	}
 	ctx.Writer = responseWriter
 
 	// inicializamos a logger options global, com o traceId e XForwardedFor

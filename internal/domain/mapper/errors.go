@@ -2,7 +2,6 @@ package mapper
 
 import (
 	"github.com/GabrielHCataldo/go-errors/errors"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
 	"time"
 )
 
@@ -33,13 +32,13 @@ func NewErrGatewayTimeoutByErr(err error) error {
 	return ErrGatewayTimeout
 }
 
-func NewErrPayloadTooLarge(limit vo.Bytes) error {
-	ErrPayloadTooLarge = errors.NewSkipCaller(2, MsgErrPayloadTooLarge, "permitted limit is", limit.String())
+func NewErrPayloadTooLarge(limit string) error {
+	ErrPayloadTooLarge = errors.NewSkipCaller(2, MsgErrPayloadTooLarge, "permitted limit is", limit)
 	return ErrPayloadTooLarge
 }
 
-func NewErrHeaderTooLarge(limit vo.Bytes) error {
-	ErrHeaderTooLarge = errors.NewSkipCaller(2, MsgErrHeaderTooLarge, "permitted limit is", limit.String())
+func NewErrHeaderTooLarge(limit string) error {
+	ErrHeaderTooLarge = errors.NewSkipCaller(2, MsgErrHeaderTooLarge, "permitted limit is", limit)
 	return ErrHeaderTooLarge
 }
 

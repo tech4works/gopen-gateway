@@ -2,19 +2,20 @@ package middleware
 
 import (
 	"github.com/GabrielHCataldo/go-helper/helper"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/app/external"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/app/interfaces"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/consts"
 	"github.com/gin-gonic/gin"
 )
 
 type trace struct {
-	traceProvider external.TraceProvider
+	traceProvider interfaces.TraceProvider
 }
 
 type Trace interface {
 	Do(ctx *gin.Context)
 }
 
-func NewTrace(traceProvider external.TraceProvider) Trace {
+func NewTrace(traceProvider interfaces.TraceProvider) Trace {
 	return trace{
 		traceProvider: traceProvider,
 	}
@@ -22,10 +23,10 @@ func NewTrace(traceProvider external.TraceProvider) Trace {
 
 func (t trace) Do(ctx *gin.Context) {
 	// adicionamos na requisição o X-Forwarded-For
-	ctx.Request.Header.Add("X-Forwarded-For", ctx.ClientIP())
+	ctx.Request.Header.Add(consts.XForwardedFor, ctx.ClientIP())
 	// caso não tenha trace id informado, setamos
-	if helper.IsEmpty(ctx.GetHeader("X-Trace-Id")) {
-		ctx.Request.Header.Set("X-Trace-Id", t.traceProvider.GenerateTraceId())
+	if helper.IsEmpty(ctx.GetHeader(consts.XTraceId)) {
+		ctx.Request.Header.Set(consts.XTraceId, t.traceProvider.GenerateTraceId())
 	}
 	// seguimos para a próxima func da requisição
 	ctx.Next()

@@ -4,31 +4,36 @@ import (
 	"bytes"
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/enum"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
 	"github.com/gin-gonic/gin"
-	"time"
 )
 
-type Gopen struct {
+type GOpen struct {
+	Version      string             `json:"version,omitempty"`
 	Port         int                `json:"port,omitempty" validate:"required"`
-	Timeout      time.Duration      `json:"timeout,omitempty" validate:"required"`
-	Cache        time.Duration      `json:"cache,omitempty"`
-	Limiter      Limiter            `json:"limiter,omitempty"`
-	SecurityCors SecurityCors       `json:"security-cors,omitempty"`
+	Timeout      string             `json:"timeout,omitempty"`
+	Limiter      *Limiter           `json:"limiter,omitempty"`
+	Cache        *Cache             `json:"cache,omitempty"`
+	SecurityCors *SecurityCors      `json:"security-cors,omitempty"`
 	Middlewares  map[string]Backend `json:"middlewares,omitempty"`
 	Endpoints    []Endpoint         `json:"endpoints,omitempty" validate:"required"`
 }
 
+type Cache struct {
+	Duration          string   `json:"duration,omitempty"`
+	StrategyHeaders   []string `json:"strategyHeaders,omitempty"`
+	AllowCacheControl *bool    `json:"allowCacheControl,omitempty"`
+}
+
 type Limiter struct {
-	MaxHeaderSize          vo.Bytes `json:"max-header-size,omitempty"`
-	MaxBodySize            vo.Bytes `json:"max-body-size,omitempty"`
-	MaxMultipartMemorySize vo.Bytes `json:"max-multipart-memory-size,omitempty"`
-	Rate                   Rate     `json:"rate,omitempty"`
+	MaxHeaderSize          string `json:"max-header-size,omitempty"`
+	MaxBodySize            string `json:"max-body-size,omitempty"`
+	MaxMultipartMemorySize string `json:"max-multipart-memory-size,omitempty"`
+	Rate                   *Rate  `json:"rate,omitempty"`
 }
 
 type Rate struct {
-	Capacity int           `json:"capacity,omitempty"`
-	Every    time.Duration `json:"every,omitempty"`
+	Capacity int    `json:"capacity,omitempty"`
+	Every    string `json:"every,omitempty"`
 }
 
 type SecurityCors struct {
@@ -39,46 +44,50 @@ type SecurityCors struct {
 }
 
 type Endpoint struct {
-	Path               string        `json:"path,omitempty" validate:"required,url"`
-	Method             string        `json:"method,omitempty" validate:"required"`
-	Cache              time.Duration `json:"cache,omitempty"`
-	Timeout            time.Duration `json:"timeout,omitempty"`
-	Limiter            Limiter       `json:"limiter,omitempty"`
-	AggregateResponses bool          `json:"aggregate-responses,omitempty"`
-	AbortIfErrorOccurs bool          `json:"abort-if-error-occurs,omitempty"`
-	Beforeware         []string      `json:"beforeware,omitempty"`
-	Afterware          []string      `json:"afterware,omitempty"`
-	Backends           []Backend     `json:"backends,omitempty" validate:"required"`
+	Path               string              `json:"path,omitempty" validate:"required,url"`
+	Method             string              `json:"method,omitempty" validate:"required"`
+	Timeout            string              `json:"timeout,omitempty"`
+	Limiter            *Limiter            `json:"limiter,omitempty"`
+	Cache              *Cache              `json:"cache,omitempty"`
+	ResponseEncode     enum.ResponseEncode `json:"response-encode,omitempty"`
+	AggregateResponses bool                `json:"aggregate-responses,omitempty"`
+	AbortIfStatusCodes []int               `json:"abort-if-status-codes,omitempty"`
+	Beforeware         []string            `json:"beforeware,omitempty"`
+	Afterware          []string            `json:"afterware,omitempty"`
+	Backends           []Backend           `json:"backends,omitempty" validate:"required"`
 }
 
 type Backend struct {
-	Host           []string           `json:"host,omitempty" validate:"required"`
-	Path           string             `json:"path,omitempty" validate:"required,url"`
-	Method         string             `json:"method,omitempty" validate:"required"`
-	ForwardHeaders []string           `json:"forward-headers,omitempty"`
-	ForwardQueries []string           `json:"forward-queries,omitempty"`
-	Modifier       BackendModifier    `json:"modifiers,omitempty"`
-	ExtraConfig    BackendExtraConfig `json:"extra-config,omitempty"`
+	Name           string              `json:"name,omitempty"`
+	Host           []string            `json:"host,omitempty" validate:"required"`
+	Path           string              `json:"path,omitempty" validate:"required,url"`
+	Method         string              `json:"method,omitempty" validate:"required"`
+	ForwardHeaders []string            `json:"forward-headers,omitempty"`
+	ForwardQueries []string            `json:"forward-queries,omitempty"`
+	Modifiers      *BackendModifiers   `json:"modifiers,omitempty"`
+	ExtraConfig    *BackendExtraConfig `json:"extra-config,omitempty"`
 }
 
-type BackendModifier struct {
-	Headers []Modifier `json:"headers,omitempty"`
-	Params  []Modifier `json:"params,omitempty"`
-	Queries []Modifier `json:"queries,omitempty"`
-	Body    []Modifier `json:"body,omitempty"`
+type BackendModifiers struct {
+	StatusCode *Modifier  `json:"status-code,omitempty"`
+	Header     []Modifier `json:"header,omitempty"`
+	Params     []Modifier `json:"params,omitempty"`
+	Query      []Modifier `json:"query,omitempty"`
+	Body       []Modifier `json:"body,omitempty"`
 }
 
 type BackendExtraConfig struct {
-	ResponseGroupName string `json:"response-group-name,omitempty"`
-	OmitRequestBody   bool   `json:"omit-request-body,omitempty"`
-	OmitResponse      bool   `json:"omit-response,omitempty"`
+	GroupResponse   bool `json:"group-response,omitempty"`
+	OmitRequestBody bool `json:"omit-request-body,omitempty"`
+	OmitResponse    bool `json:"omit-response,omitempty"`
 }
 
 type Modifier struct {
-	Context enum.ModifierContext `json:"context,omitempty" validate:"required,enum"`
-	Scope   enum.ModifierScope   `json:"scope,omitempty" validate:"required,enum"`
-	Action  enum.ModifierAction  `json:"action,omitempty" validate:"required,enum"`
-	Key     string               `json:"key,omitempty" validate:"required"`
+	Context enum.ModifierContext `json:"context,omitempty" validate:"omitempty,enum"`
+	Scope   enum.ModifierScope   `json:"scope,omitempty" validate:"omitempty,enum"`
+	Action  enum.ModifierAction  `json:"action,omitempty" validate:"omitempty,enum"`
+	Global  bool                 `json:"global,omitempty"`
+	Key     string               `json:"key,omitempty"`
 	Value   string               `json:"value,omitempty" validate:"required"`
 }
 
@@ -87,7 +96,64 @@ type ResponseWriter struct {
 	Body *bytes.Buffer
 }
 
-func (e Endpoint) IsCurrentRequest(ctx *gin.Context) bool {
-	return (helper.Equals(e.Path, ctx.Request.URL.Path) || helper.Equals(e.Path, ctx.FullPath())) &&
-		helper.Equals(e.Method, ctx.Request.Method)
+func (g GOpen) CountMiddlewares() int {
+	return len(g.Middlewares)
+}
+
+func (g GOpen) CountEndpoints() int {
+	return len(g.Endpoints)
+}
+
+func (g GOpen) CountBackends() (count int) {
+	count += g.CountMiddlewares()
+	for _, endpointDTO := range g.Endpoints {
+		count += endpointDTO.CountBackends()
+	}
+	return count
+}
+
+func (g GOpen) CountModifiers() (count int) {
+	for _, middlewareBackend := range g.Middlewares {
+		count += middlewareBackend.CountModifiers()
+	}
+	for _, endpointDTO := range g.Endpoints {
+		count += endpointDTO.CountModifiers()
+	}
+	return count
+}
+
+func (e Endpoint) CountBackends() int {
+	return len(e.Backends)
+}
+
+func (e Endpoint) CountModifiers() (count int) {
+	for _, backendDTO := range e.Backends {
+		count += backendDTO.CountModifiers()
+	}
+	return count
+}
+
+func (b Backend) CountModifiers() int {
+	if helper.IsNotNil(b.Modifiers) {
+		return b.Modifiers.CountAll()
+	}
+	return 0
+}
+
+func (m BackendModifiers) CountAll() (count int) {
+	if helper.IsNotNil(m.StatusCode) {
+		count++
+	}
+	count += len(m.Header) + len(m.Params) + len(m.Query) + len(m.Body)
+	return count
+}
+
+func (r ResponseWriter) Write(b []byte) (int, error) {
+	r.Body.Write(b)
+	return r.ResponseWriter.Write(b)
+}
+
+func (r ResponseWriter) WriteString(s string) (n int, err error) {
+	r.Body.WriteString(s)
+	return r.ResponseWriter.WriteString(s)
 }

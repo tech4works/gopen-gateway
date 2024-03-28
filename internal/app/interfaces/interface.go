@@ -1,4 +1,4 @@
-package external
+package interfaces
 
 import (
 	"github.com/GabrielHCataldo/gopen-gateway/internal/app/model/dto"
@@ -23,8 +23,4 @@ type RateLimiterProvider interface {
 
 type SizeLimiterProvider interface {
 	Allow(request *http.Request) error
-}
-
-type CacheProvider interface {
-	CacheStrategyHandler() gin.HandlerFunc
 }
