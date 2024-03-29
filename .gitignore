@@ -25,3 +25,6 @@ go.work
 
 # Martini result json
 gopen.json
+
+# Air files
+tmp/

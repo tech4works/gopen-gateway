@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/GabrielHCataldo/go-errors/errors"
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/go-logger/logger"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/app"
@@ -26,24 +27,21 @@ func main() {
 	// inicializamos o valor env para obter como argumento de aplicação
 	var env string
 	if helper.IsLessThanOrEqual(os.Args, 1) {
-		logger.Error("Please enter ENV as second argument! ex: dev, prd")
-		return
+		panic(errors.New("Please enter ENV as second argument! ex: dev, prd"))
 	}
 	env = os.Args[1]
 
 	// carregamos as envs padrões do GOpen
 	logger.Info("Loading GOpen envs default...")
 	if err := godotenv.Load("internal/infra/config/.env"); helper.IsNotNil(err) {
-		logger.Error("Error load GOpen envs default:", err)
-		return
+		panic(errors.New("Error load GOpen envs default:", err))
 	}
 
 	// carregamos as envs indicada no arg
 	fileEnvUri := fmt.Sprintf("gopen/%s.env", env)
 	logger.Infof("Loading GOpen envs from uri: %s...", fileEnvUri)
 	if err := godotenv.Load(fileEnvUri); helper.IsNotNil(err) {
-		logger.Error("Error load GOpen envs from uri:", fileEnvUri, "err:", err)
-		return
+		logger.Warning("Error load GOpen envs from uri:", fileEnvUri, "err:", err)
 	}
 
 	// carregamos o arquivo de json de configuração do GOpen
@@ -51,8 +49,7 @@ func main() {
 	logger.Infof("Loading GOpen json from file: %s...", fileJsonUri)
 	fileJsonBytes, err := os.ReadFile(fileJsonUri)
 	if helper.IsNotNil(err) {
-		logger.Error("Error read martini config from file json:", fileJsonUri, "err:", err)
-		return
+		panic(errors.New("Error read martini config from file json:", fileJsonUri, "err:", err))
 	}
 
 	// preenchemos os valores de variável de ambiente com a sintaxe pre-definida
@@ -63,11 +60,9 @@ func main() {
 	var gopenDTO dto.GOpen
 	err = helper.ConvertToDest(fileJsonBytes, &gopenDTO)
 	if helper.IsNotNil(err) {
-		logger.Errorf("Error parse GOpen json file to DTO: %s!", err)
-		return
+		panic(errors.New("Error parse GOpen json file to DTO:", err))
 	} else if err = helper.Validate().Struct(gopenDTO); helper.IsNotNil(err) {
-		logger.Errorf("Error validate GOpen json file: %s!", err)
-		return
+		panic(errors.New("Error validate GOpen json file:", err))
 	}
 
 	// configuramos o cache store

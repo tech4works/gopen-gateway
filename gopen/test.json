@@ -1,0 +1,56 @@
+{
+  "version": "v1.0.0",
+  "port": 8080,
+  "timeout": "5s",
+  "cache": {
+    "duration": "30s",
+    "strategy-headers": [
+      "X-Forwarded-For",
+      "Device"
+    ],
+    "allow-cache-control": true
+  },
+  "limiter": {
+    "max-header-size": "1MB",
+    "max-body-size": "3MB",
+    "max-multipart-memory-size": "10MB",
+    "rate": {
+      "capacity": 5,
+      "every": "1s"
+    }
+  },
+  "security-cors": {
+    "allow-countries": [
+      "*"
+    ],
+    "allow-origins": [
+      "*"
+    ],
+    "allow-methods": [
+      "*"
+    ],
+    "allow-headers": [
+      "*"
+    ]
+  },
+  "endpoints": [
+    {
+      "@comment": "Feature: USER FindUserByKey",
+      "path": "/users/find/:key",
+      "cache": {
+        "duration": "30s"
+      },
+      "method": "GET",
+      "response-encode": "JSON",
+      "backends": [
+        {
+          "host": [
+            "http://192.168.1.5:8090"
+          ],
+          "path": "/users/find/:key",
+          "method": "GET"
+        }
+      ]
+    }
+  ]
+}

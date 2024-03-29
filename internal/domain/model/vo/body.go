@@ -219,7 +219,7 @@ func (b Body) MarshalJSON() ([]byte, error) {
 	return json.Marshal(b.value)
 }
 
-func (b Body) MarshalXML(e *xml.Encoder, start xml.StartElement) (err error) {
+func (b Body) MarshalXML(e *xml.Encoder, _ xml.StartElement) (err error) {
 	return b.encodeXML(e, "body", b.value)
 }
 

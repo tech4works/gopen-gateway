@@ -7,7 +7,6 @@ import (
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/enum"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
 	"github.com/gin-gonic/gin"
-	"gopkg.in/yaml.v3"
 	"time"
 )
 
@@ -24,6 +23,22 @@ func RespondCodeWithBody(ctx *gin.Context, encode enum.ResponseEncode, code int,
 		return
 	}
 
+	respondCodeByEncode(ctx, encode, code, body)
+
+	ctx.Abort()
+}
+
+func RespondCodeWithError(ctx *gin.Context, encode enum.ResponseEncode, code int, err error) {
+	if ctx.IsAborted() {
+		return
+	}
+
+	respondCodeByEncode(ctx, encode, code, buildErrorViewDTO(ctx.Request.URL.String(), err))
+
+	ctx.Abort()
+}
+
+func respondCodeByEncode(ctx *gin.Context, encode enum.ResponseEncode, code int, body any) {
 	switch encode {
 	case enum.ResponseEncodeText:
 		ctx.String(code, "%s", body)
@@ -35,8 +50,7 @@ func RespondCodeWithBody(ctx *gin.Context, encode enum.ResponseEncode, code int,
 		ctx.XML(code, body)
 		break
 	case enum.ResponseEncodeYaml:
-		v, _ := yaml.Marshal(body.Interface())
-		ctx.YAML(code, string(v))
+		ctx.YAML(code, body)
 		break
 	default:
 		if helper.IsJsonType(body) {
@@ -46,16 +60,6 @@ func RespondCodeWithBody(ctx *gin.Context, encode enum.ResponseEncode, code int,
 		}
 		break
 	}
-
-	ctx.Abort()
-}
-
-func RespondCodeWithError(ctx *gin.Context, code int, err error) {
-	if ctx.IsAborted() {
-		return
-	}
-	ctx.JSON(code, buildErrorViewDTO(ctx.Request.URL.String(), err))
-	ctx.Abort()
 }
 
 func buildErrorViewDTO(requestUrl string, err error) dto.ErrorView {

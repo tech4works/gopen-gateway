@@ -6,6 +6,7 @@ import (
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/go-logger/logger"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/app/util"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"runtime/debug"
@@ -16,14 +17,14 @@ type timeout struct {
 }
 
 type Timeout interface {
-	Do(timeoutDuration time.Duration) gin.HandlerFunc
+	Do(endpointVO vo.Endpoint, timeoutDuration time.Duration) gin.HandlerFunc
 }
 
 func NewTimeout() Timeout {
 	return timeout{}
 }
 
-func (t timeout) Do(timeoutDuration time.Duration) gin.HandlerFunc {
+func (t timeout) Do(endpointVO vo.Endpoint, timeoutDuration time.Duration) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		// inicializamos o context com timeout fornecido na config do gateway
 		timeoutContext, cancel := context.WithTimeout(ctx.Request.Context(), timeoutDuration)
@@ -70,7 +71,7 @@ func (t timeout) Do(timeoutDuration time.Duration) gin.HandlerFunc {
 
 		// caso tenha passado nos dois fluxos de timeout ou de erro, respondemos à requisição
 		if helper.IsGreaterThan(statusCode, 0) {
-			util.RespondCodeWithError(ctx, statusCode, err)
+			util.RespondCodeWithError(ctx, endpointVO.ResponseEncode(), statusCode, err)
 		}
 	}
 }

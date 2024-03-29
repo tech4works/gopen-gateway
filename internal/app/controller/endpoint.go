@@ -53,7 +53,7 @@ func (e endpoint) respondGateway(ctx *gin.Context, endpointVO vo.Endpoint, respo
 	if responseVO.Body().IsNotEmpty() {
 		util.RespondCodeWithBody(ctx, endpointVO.ResponseEncode(), responseVO.StatusCode(), responseVO.Body())
 	} else if helper.IsNotNil(responseVO.Err()) {
-		util.RespondCodeWithError(ctx, responseVO.StatusCode(), responseVO.Err())
+		util.RespondCodeWithError(ctx, endpointVO.ResponseEncode(), responseVO.StatusCode(), responseVO.Err())
 	} else {
 		util.RespondCode(ctx, responseVO.StatusCode())
 	}

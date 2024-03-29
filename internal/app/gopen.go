@@ -78,6 +78,8 @@ func (g gopen) ListerAndServer() {
 			}
 		}
 
+		// configuramos o handler do security cors como o middleware
+		securityCorsHandler := g.securityCorsMiddleware.Do(endpointVO)
 		// configuramos o handler do timeout do endpoint como o middleware
 		timeoutHandler := g.buildTimeoutMiddlewareHandler(endpointVO)
 		// configuramos o handler do limiter do endpoint como o middleware
@@ -86,10 +88,18 @@ func (g gopen) ListerAndServer() {
 		cacheHandler := g.buildCacheMiddlewareHandler(endpointVO)
 
 		// configuramos o handler do endpoint como controlador
-		handler := g.endpointController.Execute(endpointVO)
+		endpointHandler := g.endpointController.Execute(endpointVO)
 
 		// cadastramos as rotas no gin engine
-		engine.Handle(endpointVO.Method(), endpointVO.Path(), timeoutHandler, limiterHandler, cacheHandler, handler)
+		engine.Handle(
+			endpointVO.Method(),
+			endpointVO.Path(),
+			securityCorsHandler,
+			timeoutHandler,
+			limiterHandler,
+			cacheHandler,
+			endpointHandler,
+		)
 	}
 
 	// montamos o endereço com a porta configurada
@@ -111,7 +121,6 @@ func (g gopen) buildStaticMiddlewares(engine *gin.Engine) {
 	// setamos em ordem os middlewares estáticos
 	engine.Use(g.traceMiddleware.Do)
 	engine.Use(g.logMiddleware.Do)
-	engine.Use(g.securityCorsMiddleware.Do)
 }
 
 func (g gopen) buildStaticRoutes(engine *gin.Engine) {
@@ -133,7 +142,7 @@ func (g gopen) buildTimeoutMiddlewareHandler(endpointVO vo.Endpoint) gin.Handler
 		timeoutDuration = endpointVO.Timeout()
 	}
 	// retornamos o manipulador com o timeout configura
-	return g.timeoutMiddleware.Do(timeoutDuration)
+	return g.timeoutMiddleware.Do(endpointVO, timeoutDuration)
 }
 
 func (g gopen) buildLimiterMiddlewareHandler(endpointVO vo.Endpoint) gin.HandlerFunc {
@@ -178,7 +187,7 @@ func (g gopen) buildLimiterMiddlewareHandler(endpointVO vo.Endpoint) gin.Handler
 	sizeLimiterProvider := infra.NewSizeLimiterProvider(maxHeaderSize, maxBodySize, maxMultipartForm)
 
 	// construímos a chamada limiter
-	return g.limiterMiddleware.Do(rateLimiterProvider, sizeLimiterProvider)
+	return g.limiterMiddleware.Do(endpointVO, rateLimiterProvider, sizeLimiterProvider)
 }
 
 func (g gopen) buildCacheMiddlewareHandler(endpointVO vo.Endpoint) gin.HandlerFunc {

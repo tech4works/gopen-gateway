@@ -43,7 +43,9 @@ func (l logProvider) BuildInitialRequestMessage(ctx *gin.Context) string {
 	// obtemos o tipo do body e size do mesmo
 	bodyType := ctx.GetHeader("Content-Type")
 	bodySize := ctx.GetHeader("Content-Length")
-	if helper.ContainsIgnoreCase(bodyType, "application/json") || helper.ContainsIgnoreCase(bodyType, "plain/text") {
+	if helper.ContainsIgnoreCase(bodyType, "application/json") ||
+		helper.ContainsIgnoreCase(bodyType, "application/xml") ||
+		helper.ContainsIgnoreCase(bodyType, "plain/text") {
 		// caso ele seja json ou texto obtemos o mesmo para imprimir
 		bodyBytes, _ := io.ReadAll(ctx.Request.Body)
 		// voltamos para requisição, ja que podemos precisar nos handles futuros

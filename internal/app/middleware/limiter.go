@@ -7,6 +7,7 @@ import (
 	"github.com/GabrielHCataldo/gopen-gateway/internal/app/util"
 	domainmapper "github.com/GabrielHCataldo/gopen-gateway/internal/domain/mapper"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/consts"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
 	"github.com/gin-gonic/gin"
 	"net/http"
 )
@@ -15,30 +16,34 @@ type limiter struct {
 }
 
 type Limiter interface {
-	Do(rateLimiterProvider interfaces.RateLimiterProvider, sizeLimiterProvider interfaces.SizeLimiterProvider) gin.HandlerFunc
+	Do(endpointVO vo.Endpoint, rateLimiterProvider interfaces.RateLimiterProvider,
+		sizeLimiterProvider interfaces.SizeLimiterProvider) gin.HandlerFunc
 }
 
 func NewLimiter() Limiter {
 	return limiter{}
 }
 
-func (l limiter) Do(rateLimiterProvider interfaces.RateLimiterProvider, sizeLimiterProvider interfaces.SizeLimiterProvider,
+func (l limiter) Do(
+	endpointVO vo.Endpoint,
+	rateLimiterProvider interfaces.RateLimiterProvider,
+	sizeLimiterProvider interfaces.SizeLimiterProvider,
 ) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		// aqui ja verificamos se a chave hoje sendo ela o IP está permitida
 		err := rateLimiterProvider.Allow(ctx.GetHeader(consts.XForwardedFor))
 		if helper.IsNotNil(err) {
-			util.RespondCodeWithError(ctx, http.StatusTooManyRequests, err)
+			util.RespondCodeWithError(ctx, endpointVO.ResponseEncode(), http.StatusTooManyRequests, err)
 			return
 		}
 
 		// verificamos o tamanho da requisição, e tratamos o erro logo em seguida
 		err = sizeLimiterProvider.Allow(ctx.Request)
 		if errors.Contains(err, domainmapper.ErrHeaderTooLarge) {
-			util.RespondCodeWithError(ctx, http.StatusRequestHeaderFieldsTooLarge, err)
+			util.RespondCodeWithError(ctx, endpointVO.ResponseEncode(), http.StatusRequestHeaderFieldsTooLarge, err)
 			return
 		} else if helper.IsNotNil(err) {
-			util.RespondCodeWithError(ctx, http.StatusRequestEntityTooLarge, err)
+			util.RespondCodeWithError(ctx, endpointVO.ResponseEncode(), http.StatusRequestEntityTooLarge, err)
 			return
 		}
 
