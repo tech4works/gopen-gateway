@@ -10,7 +10,7 @@ type ExecuteBackend struct {
 
 type ExecuteModifier struct {
 	context         enum.ModifierContext
-	backendModifier backendModifiers
+	backendModifier BackendModifiers
 	request         Request
 	response        Response
 }
