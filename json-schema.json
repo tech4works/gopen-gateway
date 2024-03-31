@@ -1,0 +1,339 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "definitions": {
+    "byteUnit": {
+      "type": "string",
+      "pattern": "^\\d+(B|KB|MB|GB|TB|PB|EB|ZB|YB)$"
+    },
+    "duration": {
+      "type": "string",
+      "pattern": "^[0-9]+(\\.[0-9]*)?[nsµumh]$"
+    },
+    "path": {
+      "type": "string",
+      "pattern": "^/([^/\\s]*)+(/[^/\\s]+)*$"
+    },
+    "http-method": {
+      "type": "string",
+      "enum": [
+        "POST",
+        "PUT",
+        "PATCH",
+        "DELETE",
+        "GET"
+      ]
+    },
+    "response-encode": {
+      "type": "string",
+      "enum": [
+        "JSON",
+        "XML",
+        "TEXT"
+      ]
+    },
+    "store": {
+      "type": "object",
+      "properties": {
+        "redis": {
+          "type": "object",
+          "properties": {
+            "address": {
+              "type": "string",
+              "format": "uri"
+            },
+            "password": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "address",
+            "password"
+          ]
+        }
+      },
+      "required": [
+        "redis"
+      ]
+    },
+    "cache": {
+      "type": "object",
+      "properties": {
+        "duration": {
+          "$ref": "#/definitions/duration"
+        },
+        "strategy-headers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "allow-cache-control": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "duration"
+      ]
+    },
+    "limiter": {
+      "type": "object",
+      "properties": {
+        "max-header-size": {
+          "$ref": "#/definitions/byteUnit"
+        },
+        "max-body-size": {
+          "$ref": "#/definitions/byteUnit"
+        },
+        "max-multipart-memory-size": {
+          "$ref": "#/definitions/byteUnit"
+        },
+        "rate": {
+          "type": "object",
+          "properties": {
+            "capacity": {
+              "type": "number",
+              "minimum": 1
+            },
+            "every": {
+              "$ref": "#/definitions/duration"
+            }
+          }
+        }
+      }
+    },
+    "security-cors": {
+      "type": "object",
+      "properties": {
+        "allow-origins": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "allow-methods": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "*",
+              "POST",
+              "PUT",
+              "PATCH",
+              "DELETE",
+              "GET"
+            ]
+          }
+        },
+        "allow-headers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "endpoint": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "$ref": "#/definitions/path"
+        },
+        "cache": {
+          "$ref": "#/definitions/cache"
+        },
+        "method": {
+          "$ref": "#/definitions/http-method"
+        },
+        "response-encode": {
+          "$ref": "#/definitions/response-encode"
+        },
+        "beforeware": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "backends": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/backend"
+          }
+        }
+      },
+      "required": [
+        "path",
+        "method",
+        "backends"
+      ]
+    },
+    "backend": {
+      "type": "object",
+      "properties": {
+        "host": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uri"
+          }
+        },
+        "path": {
+          "$ref": "#/definitions/path"
+        },
+        "method": {
+          "$ref": "#/definitions/http-method"
+        },
+        "forward-headers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "forward-queries": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "modifiers": {
+          "$ref": "#/definitions/backend-modifiers"
+        },
+        "extra-config": {
+          "$ref": "#/definitions/backend-extra-config"
+        }
+      },
+      "required": [
+        "host",
+        "path",
+        "method"
+      ]
+    },
+    "backend-modifiers": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "$ref": "#/definitions/modifier"
+        },
+        "header": {
+          "$ref": "#/definitions/modifiers"
+        },
+        "params": {
+          "$ref": "#/definitions/modifiers"
+        },
+        "query": {
+          "$ref": "#/definitions/modifiers"
+        },
+        "body": {
+          "$ref": "#/definitions/modifiers"
+        }
+      }
+    },
+    "backend-extra-config": {
+      "type": "object",
+      "properties": {
+        "group-response": {
+          "type": "string"
+        },
+        "omit-response": {
+          "type": "boolean"
+        },
+        "omit-request-body": {
+          "type": "boolean"
+        }
+      }
+    },
+    "modifiers": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/modifier"
+      }
+    },
+    "modifier": {
+      "type": "object",
+      "properties": {
+        "context": {
+          "type": "string",
+          "enum": [
+            "REQUEST",
+            "RESPONSE"
+          ]
+        },
+        "scope": {
+          "type": "string",
+          "enum": [
+            "REQUEST",
+            "RESPONSE"
+          ]
+        },
+        "global": {
+          "type": "boolean"
+        },
+        "action": {
+          "type": "string",
+          "enum": [
+            "SET",
+            "ADD",
+            "DEL",
+            "REPLACE",
+            "RENAME"
+          ]
+        },
+        "key": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "context",
+        "action",
+        "key",
+        "value"
+      ]
+    }
+  },
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "string"
+    },
+    "port": {
+      "type": "number"
+    },
+    "hot-reload": {
+      "type": "boolean"
+    },
+    "timeout": {
+      "type": "string"
+    },
+    "store": {
+      "$ref": "#/definitions/store"
+    },
+    "cache": {
+      "$ref": "#/definitions/cache"
+    },
+    "limiter": {
+      "$ref": "#/definitions/limiter"
+    },
+    "security-cors": {
+      "$ref": "#/definitions/security-cors"
+    },
+    "middlewares": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/backend"
+      }
+    },
+    "endpoints": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/endpoint"
+      }
+    }
+  },
+  "required": [
+    "version",
+    "port",
+    "endpoints"
+  ]
+}

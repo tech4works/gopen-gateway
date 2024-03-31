@@ -10,7 +10,7 @@ type GOpen struct {
 	Version      string             `json:"version,omitempty"`
 	Port         int                `json:"port,omitempty" validate:"required"`
 	HotReload    bool               `json:"hot-reload,omitempty"`
-	Timeout      string             `json:"timeout,omitempty"`
+	Timeout      string             `json:"timeout,omitempty" validate:"omitempty,duration"`
 	Store        *Store             `json:"store,omitempty"`
 	Limiter      *Limiter           `json:"limiter,omitempty"`
 	Cache        *Cache             `json:"cache,omitempty"`
@@ -32,37 +32,36 @@ type GOpenView struct {
 }
 
 type Store struct {
-	Redis *Redis `json:"redis,omitempty"`
+	Redis Redis `json:"redis,omitempty" validate:"required"`
 }
 
 type Redis struct {
-	Address  string `json:"address,omitempty"`
-	Password string `json:"password,omitempty"`
-}
-
-type Limiter struct {
-	MaxHeaderSize          string `json:"max-header-size,omitempty"`
-	MaxBodySize            string `json:"max-body-size,omitempty"`
-	MaxMultipartMemorySize string `json:"max-multipart-memory-size,omitempty"`
-	Rate                   *Rate  `json:"rate,omitempty"`
+	Address  string `json:"address,omitempty" validate:"required,url"`
+	Password string `json:"password,omitempty" validate:"required"`
 }
 
 type Cache struct {
-	Duration          string   `json:"duration,omitempty"`
+	Duration          string   `json:"duration,omitempty" validate:"required,duration"`
 	StrategyHeaders   []string `json:"strategyHeaders,omitempty"`
 	AllowCacheControl *bool    `json:"allowCacheControl,omitempty"`
 }
 
+type Limiter struct {
+	MaxHeaderSize          string `json:"max-header-size,omitempty" validate:"omitempty,byte_unit"`
+	MaxBodySize            string `json:"max-body-size,omitempty" validate:"omitempty,byte_unit"`
+	MaxMultipartMemorySize string `json:"max-multipart-memory-size,omitempty" validate:"omitempty,byte_unit"`
+	Rate                   *Rate  `json:"rate,omitempty"`
+}
+
 type Rate struct {
-	Capacity int    `json:"capacity,omitempty"`
-	Every    string `json:"every,omitempty"`
+	Capacity int    `json:"capacity,omitempty" validate:"omitempty,gte=1"`
+	Every    string `json:"every,omitempty" validate:"omitempty,duration"`
 }
 
 type SecurityCors struct {
-	AllowCountries []string `json:"allow-countries,omitempty"`
-	AllowOrigins   []string `json:"allow-origins,omitempty"`
-	AllowMethods   []string `json:"allow-methods,omitempty"`
-	AllowHeaders   []string `json:"allow-headers,omitempty"`
+	AllowOrigins []string `json:"allow-origins,omitempty"`
+	AllowMethods []string `json:"allow-methods,omitempty"`
+	AllowHeaders []string `json:"allow-headers,omitempty"`
 }
 
 type Endpoint struct {
@@ -105,11 +104,11 @@ type BackendExtraConfig struct {
 }
 
 type Modifier struct {
-	Context enum.ModifierContext `json:"context,omitempty" validate:"omitempty,enum"`
+	Context enum.ModifierContext `json:"context,omitempty" validate:"required,enum"`
 	Scope   enum.ModifierScope   `json:"scope,omitempty" validate:"omitempty,enum"`
-	Action  enum.ModifierAction  `json:"action,omitempty" validate:"omitempty,enum"`
+	Action  enum.ModifierAction  `json:"action,omitempty" validate:"required,enum"`
 	Global  bool                 `json:"global,omitempty"`
-	Key     string               `json:"key,omitempty"`
+	Key     string               `json:"key,omitempty" validate:"required"`
 	Value   string               `json:"value,omitempty" validate:"required"`
 }
 

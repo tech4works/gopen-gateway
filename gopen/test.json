@@ -1,10 +1,17 @@
 {
+  "$schema": "../json-schema.json",
   "version": "v1.0.0",
   "port": 8080,
   "hot-reload": true,
-  "timeout": "5s",
+  "timeout": "5m",
+  "store": {
+    "redis": {
+      "address": "$REDIS_URL",
+      "password": "$REDIS_PASSWORD"
+    }
+  },
   "cache": {
-    "duration": "30s",
+    "duration": "1m",
     "strategy-headers": [
       "X-Forwarded-For",
       "Device"
@@ -21,9 +28,6 @@
     }
   },
   "security-cors": {
-    "allow-countries": [
-      "*"
-    ],
     "allow-origins": [
       "*"
     ],

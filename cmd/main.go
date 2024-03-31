@@ -149,7 +149,7 @@ func fillEnvValues(gopenBytesJson []byte) []byte {
 func buildCacheStore(storeDTO *dto.Store) interfaces.CacheStore {
 	printInfoLog("Configuring cache store...")
 
-	if helper.IsNotNil(storeDTO) && helper.IsNotNil(storeDTO.Redis) {
+	if helper.IsNotNil(storeDTO) {
 		return infra.NewRedisStore(storeDTO.Redis.Address, storeDTO.Redis.Password)
 	}
 
