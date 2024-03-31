@@ -49,12 +49,14 @@
           "required": [
             "address",
             "password"
-          ]
+          ],
+          "additionalProperties": false
         }
       },
       "required": [
         "redis"
-      ]
+      ],
+      "additionalProperties": false
     },
     "cache": {
       "type": "object",
@@ -74,7 +76,8 @@
       },
       "required": [
         "duration"
-      ]
+      ],
+      "additionalProperties": false
     },
     "limiter": {
       "type": "object",
@@ -100,7 +103,8 @@
             }
           }
         }
-      }
+      },
+      "additionalProperties": false
     },
     "security-cors": {
       "type": "object",
@@ -131,11 +135,15 @@
             "type": "string"
           }
         }
-      }
+      },
+      "additionalProperties": false
     },
     "endpoint": {
       "type": "object",
       "properties": {
+        "@comment": {
+          "type": "string"
+        },
         "path": {
           "$ref": "#/definitions/path"
         },
@@ -165,7 +173,8 @@
         "path",
         "method",
         "backends"
-      ]
+      ],
+      "additionalProperties": false
     },
     "backend": {
       "type": "object",
@@ -206,7 +215,8 @@
         "host",
         "path",
         "method"
-      ]
+      ],
+      "additionalProperties": false
     },
     "backend-modifiers": {
       "type": "object",
@@ -226,7 +236,8 @@
         "body": {
           "$ref": "#/definitions/modifiers"
         }
-      }
+      },
+      "additionalProperties": false
     },
     "backend-extra-config": {
       "type": "object",
@@ -240,7 +251,8 @@
         "omit-request-body": {
           "type": "boolean"
         }
-      }
+      },
+      "additionalProperties": false
     },
     "modifiers": {
       "type": "array",
@@ -290,16 +302,24 @@
         "action",
         "key",
         "value"
-      ]
+      ],
+      "additionalProperties": false
     }
   },
   "type": "object",
   "properties": {
+    "$schema": {
+      "type": "string",
+      "enum": [
+        "https://raw.githubusercontent.com/GabrielHCataldo/gopen-gateway/main/json-schema.json"
+      ]
+    },
     "version": {
       "type": "string"
     },
     "port": {
-      "type": "number"
+      "type": "number",
+      "minimum": 1
     },
     "hot-reload": {
       "type": "boolean"
@@ -336,5 +356,6 @@
     "version",
     "port",
     "endpoints"
-  ]
+  ],
+  "additionalProperties": false
 }

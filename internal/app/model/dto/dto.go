@@ -8,7 +8,7 @@ import (
 
 type GOpen struct {
 	Version      string             `json:"version,omitempty"`
-	Port         int                `json:"port,omitempty" validate:"required"`
+	Port         int                `json:"port,omitempty" validate:"required,gte=1"`
 	HotReload    bool               `json:"hot-reload,omitempty"`
 	Timeout      string             `json:"timeout,omitempty" validate:"omitempty,duration"`
 	Store        *Store             `json:"store,omitempty"`
@@ -21,14 +21,14 @@ type GOpen struct {
 
 type GOpenView struct {
 	Version      string             `json:"version,omitempty"`
-	Port         int                `json:"port,omitempty" validate:"required"`
+	Port         int                `json:"port,omitempty"`
 	HotReload    bool               `json:"hot-reload,omitempty"`
 	Timeout      string             `json:"timeout,omitempty"`
 	Limiter      *Limiter           `json:"limiter,omitempty"`
 	Cache        *Cache             `json:"cache,omitempty"`
 	SecurityCors *SecurityCors      `json:"security-cors,omitempty"`
 	Middlewares  map[string]Backend `json:"middlewares,omitempty"`
-	Endpoints    []Endpoint         `json:"endpoints,omitempty" validate:"required"`
+	Endpoints    []Endpoint         `json:"endpoints,omitempty"`
 }
 
 type Store struct {
@@ -65,7 +65,7 @@ type SecurityCors struct {
 }
 
 type Endpoint struct {
-	Path               string              `json:"path,omitempty" validate:"required,url"`
+	Path               string              `json:"path,omitempty" validate:"required,url_path"`
 	Method             string              `json:"method,omitempty" validate:"required"`
 	Timeout            string              `json:"timeout,omitempty"`
 	Limiter            *Limiter            `json:"limiter,omitempty"`
@@ -80,8 +80,8 @@ type Endpoint struct {
 
 type Backend struct {
 	Name           string              `json:"name,omitempty"`
-	Host           []string            `json:"host,omitempty" validate:"required"`
-	Path           string              `json:"path,omitempty" validate:"required,url"`
+	Host           []string            `json:"host,omitempty" validate:"required,url"`
+	Path           string              `json:"path,omitempty" validate:"required,url_path"`
 	Method         string              `json:"method,omitempty" validate:"required"`
 	ForwardHeaders []string            `json:"forward-headers,omitempty"`
 	ForwardQueries []string            `json:"forward-queries,omitempty"`

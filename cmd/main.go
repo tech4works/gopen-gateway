@@ -17,6 +17,7 @@ import (
 	"github.com/GabrielHCataldo/gopen-gateway/internal/infra"
 	"github.com/fsnotify/fsnotify"
 	"github.com/joho/godotenv"
+	"github.com/xeipuuv/gojsonschema"
 	"os"
 	"os/signal"
 	"regexp"
@@ -25,6 +26,7 @@ import (
 )
 
 const gopenJsonResultName = "./gopen.json"
+const gopenJsonSchema = "file://./json-schema.json"
 
 var loggerOptions = logger.Options{
 	CustomAfterPrefixText: "CMD",
@@ -98,16 +100,23 @@ func loadGOpenJson(env string) dto.GOpen {
 	}
 
 	// preenchemos os valores de variável de ambiente com a sintaxe pre-definida
-	printInfoLog("Filling environment variables with $word syntax..")
 	fileJsonBytes = fillEnvValues(fileJsonBytes)
+
+	// validamos o schema
+	if err = validateJsonSchema(fileJsonUri, fileJsonBytes); helper.IsNotNil(err) {
+		panic(err)
+	}
 
 	// convertemos o valor em bytes em DTO
 	var gopenDTO dto.GOpen
 	err = helper.ConvertToDest(fileJsonBytes, &gopenDTO)
 	if helper.IsNotNil(err) {
 		panic(errors.New("Error parse GOpen json file to DTO:", err))
-	} else if err = helper.Validate().Struct(gopenDTO); helper.IsNotNil(err) {
-		panic(errors.New("Error validate GOpen json file:", err))
+	}
+
+	// temos um double-check de validação da estrutura
+	if err = helper.Validate().Struct(gopenDTO); helper.IsNotNil(err) {
+		panic(errors.New("Error validate GOpenDTO:", err))
 	}
 
 	// retornamos o DTO que é a configuração do GOpen
@@ -115,6 +124,8 @@ func loadGOpenJson(env string) dto.GOpen {
 }
 
 func fillEnvValues(gopenBytesJson []byte) []byte {
+	printInfoLog("Filling environment variables with $word syntax..")
+
 	// convertemos os bytes do gopen json em string
 	gopenStrJson := helper.SimpleConvertToString(gopenBytesJson)
 
@@ -144,6 +155,31 @@ func fillEnvValues(gopenBytesJson []byte) []byte {
 
 	// convertemos esse novo
 	return helper.SimpleConvertToBytes(gopenStrJson)
+}
+
+func validateJsonSchema(fileJsonUri string, fileJsonBytes []byte) error {
+	printInfoLogf("Validating the %s file schema...", fileJsonUri)
+
+	// carregamos o schema e o documento
+	schemaLoader := gojsonschema.NewReferenceLoader(gopenJsonSchema)
+	documentLoader := gojsonschema.NewBytesLoader(fileJsonBytes)
+
+	// chamamos o validate
+	result, err := gojsonschema.Validate(schemaLoader, documentLoader)
+	if helper.IsNotNil(err) {
+		panic(errors.New("Error validate schema:", err))
+	}
+
+	// checamos se valido, caso nao seja formatamos a mensagem
+	if !result.Valid() {
+		errorMsg := fmt.Sprintf("Json %s poorly formatted!\n", fileJsonUri)
+		for _, desc := range result.Errors() {
+			errorMsg += fmt.Sprintf("- %s\n", desc)
+		}
+		return errors.New(errorMsg)
+	}
+	// se tudo ocorrem bem retornamos nil
+	return nil
 }
 
 func buildCacheStore(storeDTO *dto.Store) interfaces.CacheStore {

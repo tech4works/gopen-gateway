@@ -95,10 +95,9 @@ func BuildSecurityCorsDTO(gopenVO vo.GOpen) *dto.SecurityCors {
 		return nil
 	}
 	return &dto.SecurityCors{
-		AllowCountries: gopenVO.SecurityCors().AllowCountriesData(),
-		AllowOrigins:   gopenVO.SecurityCors().AllowOriginsData(),
-		AllowMethods:   gopenVO.SecurityCors().AllowMethodsData(),
-		AllowHeaders:   gopenVO.SecurityCors().AllowHeadersData(),
+		AllowOrigins: gopenVO.SecurityCors().AllowOriginsData(),
+		AllowMethods: gopenVO.SecurityCors().AllowMethodsData(),
+		AllowHeaders: gopenVO.SecurityCors().AllowHeadersData(),
 	}
 }
 

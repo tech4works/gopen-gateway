@@ -48,10 +48,9 @@ type Cache struct {
 }
 
 type SecurityCors struct {
-	allowCountries []string
-	allowOrigins   []string
-	allowMethods   []string
-	allowHeaders   []string
+	allowOrigins []string
+	allowMethods []string
+	allowHeaders []string
 }
 
 type Endpoint struct {
@@ -141,10 +140,9 @@ func newCache(cacheDTO dto.Cache) Cache {
 
 func newSecurityCors(securityCorsDTO dto.SecurityCors) SecurityCors {
 	return SecurityCors{
-		allowCountries: securityCorsDTO.AllowCountries,
-		allowOrigins:   securityCorsDTO.AllowOrigins,
-		allowMethods:   securityCorsDTO.AllowMethods,
-		allowHeaders:   securityCorsDTO.AllowHeaders,
+		allowOrigins: securityCorsDTO.AllowOrigins,
+		allowMethods: securityCorsDTO.AllowMethods,
+		allowHeaders: securityCorsDTO.AllowHeaders,
 	}
 }
 
@@ -551,10 +549,6 @@ func (m Modifier) Value() string {
 
 func (m Modifier) Valid() bool {
 	return helper.IsNotEmpty(m) && helper.IsNotEmpty(m.value)
-}
-
-func (s SecurityCors) AllowCountriesData() []string {
-	return s.allowOrigins
 }
 
 func (s SecurityCors) AllowOriginsData() []string {
