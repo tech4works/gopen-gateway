@@ -1,5 +1,5 @@
 {
-  "$schema": "https://raw.githubusercontent.com/GabrielHCataldo/gopen-gateway/main/json-schema.json",
+  "$schema": "https://raw.githubusercontent.com/GabrielHCataldo/gopen-gateway/main/GOpen-schema.json",
   "version": "v1.0.0",
   "port": 8080,
   "hot-reload": true,
