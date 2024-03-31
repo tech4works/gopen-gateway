@@ -2,7 +2,6 @@ package dto
 
 import (
 	"bytes"
-	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/enum"
 	"github.com/gin-gonic/gin"
 )
@@ -10,6 +9,20 @@ import (
 type GOpen struct {
 	Version      string             `json:"version,omitempty"`
 	Port         int                `json:"port,omitempty" validate:"required"`
+	HotReload    bool               `json:"hot-reload,omitempty"`
+	Timeout      string             `json:"timeout,omitempty"`
+	Store        *Store             `json:"store,omitempty"`
+	Limiter      *Limiter           `json:"limiter,omitempty"`
+	Cache        *Cache             `json:"cache,omitempty"`
+	SecurityCors *SecurityCors      `json:"security-cors,omitempty"`
+	Middlewares  map[string]Backend `json:"middlewares,omitempty"`
+	Endpoints    []Endpoint         `json:"endpoints,omitempty" validate:"required"`
+}
+
+type GOpenView struct {
+	Version      string             `json:"version,omitempty"`
+	Port         int                `json:"port,omitempty" validate:"required"`
+	HotReload    bool               `json:"hot-reload,omitempty"`
 	Timeout      string             `json:"timeout,omitempty"`
 	Limiter      *Limiter           `json:"limiter,omitempty"`
 	Cache        *Cache             `json:"cache,omitempty"`
@@ -18,10 +31,13 @@ type GOpen struct {
 	Endpoints    []Endpoint         `json:"endpoints,omitempty" validate:"required"`
 }
 
-type Cache struct {
-	Duration          string   `json:"duration,omitempty"`
-	StrategyHeaders   []string `json:"strategyHeaders,omitempty"`
-	AllowCacheControl *bool    `json:"allowCacheControl,omitempty"`
+type Store struct {
+	Redis *Redis `json:"redis,omitempty"`
+}
+
+type Redis struct {
+	Address  string `json:"address,omitempty"`
+	Password string `json:"password,omitempty"`
 }
 
 type Limiter struct {
@@ -29,6 +45,12 @@ type Limiter struct {
 	MaxBodySize            string `json:"max-body-size,omitempty"`
 	MaxMultipartMemorySize string `json:"max-multipart-memory-size,omitempty"`
 	Rate                   *Rate  `json:"rate,omitempty"`
+}
+
+type Cache struct {
+	Duration          string   `json:"duration,omitempty"`
+	StrategyHeaders   []string `json:"strategyHeaders,omitempty"`
+	AllowCacheControl *bool    `json:"allowCacheControl,omitempty"`
 }
 
 type Rate struct {
@@ -94,58 +116,6 @@ type Modifier struct {
 type ResponseWriter struct {
 	gin.ResponseWriter
 	Body *bytes.Buffer
-}
-
-func (g GOpen) CountMiddlewares() int {
-	return len(g.Middlewares)
-}
-
-func (g GOpen) CountEndpoints() int {
-	return len(g.Endpoints)
-}
-
-func (g GOpen) CountBackends() (count int) {
-	count += g.CountMiddlewares()
-	for _, endpointDTO := range g.Endpoints {
-		count += endpointDTO.CountBackends()
-	}
-	return count
-}
-
-func (g GOpen) CountModifiers() (count int) {
-	for _, middlewareBackend := range g.Middlewares {
-		count += middlewareBackend.CountModifiers()
-	}
-	for _, endpointDTO := range g.Endpoints {
-		count += endpointDTO.CountModifiers()
-	}
-	return count
-}
-
-func (e Endpoint) CountBackends() int {
-	return len(e.Backends)
-}
-
-func (e Endpoint) CountModifiers() (count int) {
-	for _, backendDTO := range e.Backends {
-		count += backendDTO.CountModifiers()
-	}
-	return count
-}
-
-func (b Backend) CountModifiers() int {
-	if helper.IsNotNil(b.Modifiers) {
-		return b.Modifiers.CountAll()
-	}
-	return 0
-}
-
-func (m BackendModifiers) CountAll() (count int) {
-	if helper.IsNotNil(m.StatusCode) {
-		count++
-	}
-	count += len(m.Header) + len(m.Params) + len(m.Query) + len(m.Body)
-	return count
 }
 
 func (r ResponseWriter) Write(b []byte) (int, error) {

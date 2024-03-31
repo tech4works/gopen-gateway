@@ -13,6 +13,7 @@ const (
 	ResponseEncodeYaml ResponseEncode = "YAML"
 )
 const (
+	CacheControlNoCache CacheControl = "no-cache"
 	CacheControlNoStore CacheControl = "no-store"
 )
 const (
@@ -57,7 +58,7 @@ func (m ModifierAction) IsEnumValid() bool {
 
 func (c CacheControl) IsEnumValid() bool {
 	switch c {
-	case CacheControlNoStore:
+	case CacheControlNoCache, CacheControlNoStore:
 		return true
 	}
 	return false

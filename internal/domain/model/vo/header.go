@@ -13,19 +13,19 @@ func NewHeader(httpHeader http.Header) Header {
 	return Header(httpHeader)
 }
 
+func NewHeaderFailed() Header {
+	return Header{
+		consts.XGOpenCache:    {"false"},
+		consts.XGOpenComplete: {"false"},
+		consts.XGOpenSuccess:  {"false"},
+	}
+}
+
 func newResponseHeader(complete, success bool) Header {
 	return Header{
 		consts.XGOpenCache:    {"false"},
 		consts.XGOpenComplete: {helper.SimpleConvertToString(complete)},
 		consts.XGOpenSuccess:  {helper.SimpleConvertToString(success)},
-	}
-}
-
-func newResponseHeaderFailed() Header {
-	return Header{
-		consts.XGOpenCache:    {"false"},
-		consts.XGOpenComplete: {"false"},
-		consts.XGOpenSuccess:  {"false"},
 	}
 }
 

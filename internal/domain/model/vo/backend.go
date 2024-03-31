@@ -19,11 +19,11 @@ type Backend struct {
 	method         string
 	forwardHeaders []string
 	forwardQueries []string
-	modifiers      backendModifiers
+	modifiers      BackendModifiers
 	extraConfig    backendExtraConfig
 }
 
-type backendModifiers struct {
+type BackendModifiers struct {
 	statusCode Modifier
 	header     []Modifier
 	params     []Modifier
@@ -83,7 +83,7 @@ func newMiddlewareBackend(backendVO Backend, backendExtraConfigVO backendExtraCo
 	}
 }
 
-func newBackendModifier(backendModifierDTO dto.BackendModifiers) backendModifiers {
+func newBackendModifier(backendModifierDTO dto.BackendModifiers) BackendModifiers {
 	var header []Modifier
 	for _, modifierDTO := range backendModifierDTO.Header {
 		header = append(header, newModifier(modifierDTO))
@@ -101,7 +101,7 @@ func newBackendModifier(backendModifierDTO dto.BackendModifiers) backendModifier
 		body = append(body, newModifier(modifierDTO))
 	}
 
-	return backendModifiers{
+	return BackendModifiers{
 		statusCode: newModifier(helper.IfNilReturns(backendModifierDTO.StatusCode, dto.Modifier{})),
 		header:     header,
 		params:     params,
@@ -162,13 +162,76 @@ func NewBackendResponse(backendVO Backend, httpResponse *http.Response) backendR
 	}
 }
 
-func (b Backend) Host() string {
+func (b Backend) Name() string {
+	return b.name
+}
+
+func (b Backend) Host() []string {
+	return b.host
+}
+
+func (b Backend) BalancedHost() string {
 	// todo: aqui obtemos o host (correto é criar um domínio chamado balancer aonde ele vai retornar o host
 	//  disponível pegando como base, se ele esta de pé ou não, e sua config de porcentagem)
 	if helper.EqualsLen(b.host, 1) {
 		return b.host[0]
 	}
 	return b.host[helper.RandomNumber(0, len(b.host)-1)]
+}
+
+func (b Backend) Path() string {
+	return b.path
+}
+
+func (b Backend) Method() string {
+	return b.method
+}
+
+func (b Backend) ForwardHeaders() []string {
+	return b.forwardHeaders
+}
+
+func (b Backend) ForwardQueries() []string {
+	return b.forwardQueries
+}
+
+func (b Backend) BackendModifiers() BackendModifiers {
+	return b.modifiers
+}
+
+func (b Backend) CountModifiers() int {
+	if helper.IsNotNil(b.modifiers) {
+		return b.modifiers.CountAll()
+	}
+	return 0
+}
+
+func (b BackendModifiers) StatusCode() Modifier {
+	return b.statusCode
+}
+
+func (b BackendModifiers) Header() []Modifier {
+	return b.header
+}
+
+func (b BackendModifiers) Params() []Modifier {
+	return b.params
+}
+
+func (b BackendModifiers) Query() []Modifier {
+	return b.query
+}
+
+func (b BackendModifiers) Body() []Modifier {
+	return b.body
+}
+
+func (b BackendModifiers) CountAll() (count int) {
+	if helper.IsNotNil(b.statusCode) {
+		count++
+	}
+	count += len(b.header) + len(b.params) + len(b.query) + len(b.body)
+	return count
 }
 
 func (b backendRequest) ModifyHeader(header Header) backendRequest {

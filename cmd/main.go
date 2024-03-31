@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/GabrielHCataldo/go-errors/errors"
@@ -8,21 +9,33 @@ import (
 	"github.com/GabrielHCataldo/go-logger/logger"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/app"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/app/controller"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/app/interfaces"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/app/middleware"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/app/model/dto"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/service"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/infra"
-	"github.com/chenyahui/gin-cache/persist"
+	"github.com/fsnotify/fsnotify"
 	"github.com/joho/godotenv"
 	"os"
 	"os/signal"
 	"regexp"
 	"strings"
+	"time"
 )
 
+const gopenJsonResultName = "./gopen.json"
+
+var loggerOptions = logger.Options{
+	CustomAfterPrefixText: "CMD",
+}
+
+var gopenApp app.GOpen
+
+var countListerAndServer = 1
+
 func main() {
-	logger.Info("Starting GOpen..")
+	printInfoLog("Starting..")
 
 	// inicializamos o valor env para obter como argumento de aplicação
 	var env string
@@ -31,29 +44,61 @@ func main() {
 	}
 	env = os.Args[1]
 
+	// carregamos as variáveis de ambiente padrão da app
+	loadGOpenDefaultEnvs()
+
+	// carregamos as variáveis de ambiente indicada
+	loadGOpenEnvs(env)
+
+	// construímos o dto de configuração do GOpen
+	gopenDTO := loadGOpenJson(env)
+
+	// salvamos o gopenDTO resultante
+	writeGOpenJsonResult(gopenDTO)
+
+	// inicializamos a aplicação
+	go startApp(env, gopenDTO)
+
+	// seguramos a goroutine principal esperando que aplicação seja interrompida
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	select {
+	case <-c:
+		// removemos o arquivo json que foi usado
+		removeGOpenJsonResult()
+		// imprimimos que a aplicação foi interrompida
+		logger.Info("GOpen Stopped!")
+	}
+}
+
+func loadGOpenDefaultEnvs() {
 	// carregamos as envs padrões do GOpen
-	logger.Info("Loading GOpen envs default...")
-	if err := godotenv.Load("internal/infra/config/.env"); helper.IsNotNil(err) {
+	printInfoLog("Loading GOpen envs default...")
+	if err := godotenv.Load("./internal/infra/config/.env"); helper.IsNotNil(err) {
 		panic(errors.New("Error load GOpen envs default:", err))
 	}
+}
 
+func loadGOpenEnvs(env string) {
 	// carregamos as envs indicada no arg
-	fileEnvUri := fmt.Sprintf("gopen/%s.env", env)
-	logger.Infof("Loading GOpen envs from uri: %s...", fileEnvUri)
+	fileEnvUri := getFileEnvUri(env)
+	printInfoLogf("Loading GOpen envs from uri: %s...", fileEnvUri)
 	if err := godotenv.Load(fileEnvUri); helper.IsNotNil(err) {
-		logger.Warning("Error load GOpen envs from uri:", fileEnvUri, "err:", err)
+		printWarningLog("Error load GOpen envs from uri:", fileEnvUri, "err:", err)
 	}
+}
 
+func loadGOpenJson(env string) dto.GOpen {
 	// carregamos o arquivo de json de configuração do GOpen
-	fileJsonUri := fmt.Sprintf("gopen/%s.json", env)
-	logger.Infof("Loading GOpen json from file: %s...", fileJsonUri)
+	fileJsonUri := getFileJsonUri(env)
+	printInfoLogf("Loading GOpen json from file: %s...", fileJsonUri)
 	fileJsonBytes, err := os.ReadFile(fileJsonUri)
 	if helper.IsNotNil(err) {
 		panic(errors.New("Error read martini config from file json:", fileJsonUri, "err:", err))
 	}
 
 	// preenchemos os valores de variável de ambiente com a sintaxe pre-definida
-	logger.Info("Filling environment variables with $word syntax..")
+	printInfoLog("Filling environment variables with $word syntax..")
 	fileJsonBytes = fillEnvValues(fileJsonBytes)
 
 	// convertemos o valor em bytes em DTO
@@ -65,62 +110,8 @@ func main() {
 		panic(errors.New("Error validate GOpen json file:", err))
 	}
 
-	// configuramos o cache store
-	logger.Info("Configuring cache store...")
-
-	//todo: passar isso para martini.json como opcional
-	//todo: isso tem que vim a configuração config json
-	redisClient := infra.ConnectRedis(os.Getenv("REDIS_URL"), os.Getenv("REDIS_PASSWORD"))
-	defer infra.DisconnectRedis()
-
-	cacheStore := persist.NewRedisStore(redisClient)
-
-	// construímos os objetos de valores a partir do dto gopen
-	logger.Info("Instantiating value objects..")
-	gopenVO := vo.NewGOpen(env, gopenDTO, cacheStore)
-
-	logger.Info("Instantiating domain services..")
-	restTemplate := infra.NewRestTemplate()
-	traceProvider := infra.NewTraceProvider()
-	logProvider := infra.NewLogProvider()
-
-	modifierService := service.NewModifier()
-	backendService := service.NewBackend(modifierService, restTemplate)
-	endpointService := service.NewEndpoint(backendService)
-
-	traceMiddleware := middleware.NewTrace(traceProvider)
-	logMiddleware := middleware.NewLog(logProvider)
-	securityCorsMiddleware := middleware.NewSecurityCors(gopenVO.SecurityCors())
-	limiterMiddleware := middleware.NewLimiter()
-	timeoutMiddleware := middleware.NewTimeout()
-	cacheMiddleware := middleware.NewCache()
-
-	staticController := controller.NewStatic(gopenDTO)
-	endpointController := controller.NewEndpoint(gopenVO, endpointService)
-
-	// inicializamos a aplicação
-	gopenApplication := app.NewGOpen(gopenDTO, gopenVO, traceMiddleware, logMiddleware, securityCorsMiddleware,
-		timeoutMiddleware, limiterMiddleware, cacheMiddleware, staticController, endpointController)
-	// chamamos o lister and server para continuar
-	go gopenApplication.ListerAndServer()
-
-	// salvamos o gopenDTO resultante
-	gopenBytes, err := json.MarshalIndent(gopenDTO, "", "\t")
-	if helper.IsNil(err) {
-		err = os.WriteFile("gopen.json", gopenBytes, 0644)
-	}
-	if helper.IsNotNil(err) {
-		logger.Warning("Error write file gopen.json result:", err)
-	}
-
-	// seguramos a goroutine principal esperando que aplicação seja interrompida
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt)
-	select {
-	case <-c:
-		logger.ResetOptionsToDefault()
-		logger.Info("Stop GOpen!")
-	}
+	// retornamos o DTO que é a configuração do GOpen
+	return gopenDTO
 }
 
 func fillEnvValues(gopenBytesJson []byte) []byte {
@@ -133,7 +124,7 @@ func fillEnvValues(gopenBytesJson []byte) []byte {
 	words := regex.FindAllString(gopenStrJson, -1)
 
 	// imprimimos todas as palavras encontradas a ser preenchidas
-	logger.Info(len(words), "environment variable values were found to fill in!")
+	printInfoLog(len(words), "environment variable values were found to fill in!")
 
 	// inicializamos o contador de valores processados
 	count := 0
@@ -149,8 +140,233 @@ func fillEnvValues(gopenBytesJson []byte) []byte {
 		}
 	}
 	// imprimimos a quantidade de envs preenchidas
-	logger.Info(count, "environment variables successfully filled!")
+	printInfoLog(count, "environment variables successfully filled!")
 
 	// convertemos esse novo
 	return helper.SimpleConvertToBytes(gopenStrJson)
+}
+
+func buildCacheStore(storeDTO *dto.Store) interfaces.CacheStore {
+	printInfoLog("Configuring cache store...")
+
+	if helper.IsNotNil(storeDTO) && helper.IsNotNil(storeDTO.Redis) {
+		return infra.NewRedisStore(storeDTO.Redis.Address, storeDTO.Redis.Password)
+	}
+
+	return infra.NewMemoryStore()
+}
+
+func listerAndServer(gopenVO vo.GOpen) {
+	printInfoLog("Building infra..")
+	restTemplate := infra.NewRestTemplate()
+	traceProvider := infra.NewTraceProvider()
+	logProvider := infra.NewLogProvider()
+
+	printInfoLog("Building domain..")
+	modifierService := service.NewModifier()
+	backendService := service.NewBackend(modifierService, restTemplate)
+	endpointService := service.NewEndpoint(backendService)
+
+	printInfoLog("Building middlewares..")
+	writerMiddleware := middleware.NewWriter()
+	traceMiddleware := middleware.NewTrace(traceProvider)
+	logMiddleware := middleware.NewLog(logProvider)
+	securityCorsMiddleware := middleware.NewSecurityCors(gopenVO.SecurityCors())
+	limiterMiddleware := middleware.NewLimiter()
+	timeoutMiddleware := middleware.NewTimeout()
+	cacheMiddleware := middleware.NewCache()
+
+	printInfoLog("Building controllers..")
+	staticController := controller.NewStatic(gopenVO)
+	endpointController := controller.NewEndpoint(gopenVO, endpointService)
+
+	printInfoLog("Building application..")
+	// inicializamos a aplicação
+	gopenApp = app.NewGOpen(
+		gopenVO,
+		writerMiddleware,
+		traceMiddleware,
+		logMiddleware,
+		securityCorsMiddleware,
+		timeoutMiddleware,
+		limiterMiddleware,
+		cacheMiddleware,
+		staticController,
+		endpointController,
+	)
+
+	// chamamos o lister and server da aplicação
+	gopenApp.ListerAndServer()
+
+	printInfoLogf("Lister and server on %c goroutine stopped!", countListerAndServer)
+
+	countListerAndServer++
+}
+
+func writeGOpenJsonResult(gopenDTO dto.GOpen) {
+	gopenBytes, err := json.MarshalIndent(gopenDTO, "", "\t")
+	if helper.IsNil(err) {
+		err = os.WriteFile(gopenJsonResultName, gopenBytes, 0644)
+	}
+	if helper.IsNotNil(err) {
+		printWarningLog("Error write file gopen.json result:", err)
+	}
+}
+
+func configureWatcher(env string, gopenDTO dto.GOpen) *fsnotify.Watcher {
+	if !gopenDTO.HotReload {
+		return nil
+	}
+
+	printInfoLog("Configuring watcher...")
+
+	// instânciamos o novo watcher
+	watcher, err := fsnotify.NewWatcher()
+	if helper.IsNotNil(err) {
+		printWarningLog("Error configure watcher:", err)
+	}
+
+	// inicializamos o novo goroutine de ouvinte de eventos
+	go watchEvents(env, watcher)
+
+	// adicionamos os arquivos a serem observados
+	fileEnvUri := getFileEnvUri(env)
+	fileJsonUri := getFileJsonUri(env)
+
+	// primeiro tentamos adicionar o .env
+	err = watcher.Add(fileEnvUri)
+	if helper.IsNotNil(err) {
+		printWarningLogf("Error add watcher on file: %s err: %s", fileEnvUri, err)
+	}
+	// depois tentamos adicionar o .json
+	err = watcher.Add(fileJsonUri)
+	if helper.IsNotNil(err) {
+		printWarningLogf("Error add watcher on file: %s err: %s", fileJsonUri, err)
+	}
+
+	return watcher
+}
+
+func watchEvents(env string, watcher *fsnotify.Watcher) {
+	// abrimos um for infinito para sempre ouvir os eventos do watcher
+	for {
+		// prendemos o loop atual aguardando o canal ser notificado de watcher
+		select {
+		case event, ok := <-watcher.Events:
+			// chamamos a função que executa o evento
+			executeEvent(env, event, ok)
+			break
+		case err, ok := <-watcher.Errors:
+			// chamamos a função que executa o evento de erro
+			executeErrorEvent(err, ok)
+		}
+		// aguardamos até a próxima
+		//time.Sleep(1000)
+	}
+}
+
+func executeEvent(env string, event fsnotify.Event, ok bool) {
+	if !ok {
+		return
+	}
+	printInfoLogf("File modification event %s on file %s triggered!", event.Op.String(), event.Name)
+	restartApp(env)
+}
+
+func executeErrorEvent(err error, ok bool) {
+	if !ok {
+		return
+	}
+	logger.Debug("error:", err)
+}
+
+func startApp(env string, gopenDTO dto.GOpen) {
+	// configuramos o store interface
+	cacheStore := buildCacheStore(gopenDTO.Store)
+	defer closeCacheStore(cacheStore)
+
+	// configuramos o watch para ouvir mudanças do json de configuração
+	watcher := configureWatcher(env, gopenDTO)
+	defer closeWatcher(watcher)
+
+	// construímos os objetos de valores a partir do dto gopen
+	printInfoLog("Building value objects..")
+	gopenVO := vo.NewGOpen(env, gopenDTO, cacheStore)
+
+	// chamamos o lister and server, ele ira segurar a goroutine, depois que ele é parado, as linhas seguintes vão ser chamados
+	listerAndServer(gopenVO)
+}
+
+func restartApp(env string) {
+	// print log
+	printInfoLog("---------- RESTART ----------")
+
+	// inicializamos um contexto de timeout para ter um tempo de limite de tentativa
+	ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
+	defer cancel()
+
+	// paramos a aplicação, para começar com o novo DTO e as novas envs
+	printInfoLog("Shutting down current server...")
+	err := gopenApp.Shutdown(ctx)
+	if helper.IsNotNil(err) {
+		printWarningLogf("Error shutdown app: %s!", err)
+		return
+	}
+
+	// carregamos as variáveis de ambiente indicada
+	loadGOpenEnvs(env)
+
+	// lemos o novo DTO
+	gopenDTO := loadGOpenJson(env)
+
+	// começamos um novo app listener com as informações alteradas
+	go startApp(env, gopenDTO)
+}
+
+func removeGOpenJsonResult() {
+	err := os.Remove(gopenJsonResultName)
+	if helper.IsNotNil(err) {
+		printWarningLogf("Error remove %s err: %s", gopenJsonResultName, err)
+		return
+	}
+}
+
+func closeWatcher(watcher *fsnotify.Watcher) {
+	if helper.IsNotNil(watcher) {
+		err := watcher.Close()
+		if helper.IsNotNil(err) {
+			printWarningLogf("Error close watcher: %s", err)
+		}
+	}
+}
+
+func closeCacheStore(store interfaces.CacheStore) {
+	err := store.Close()
+	if helper.IsNotNil(err) {
+		printWarningLog("Error close cache store:", err)
+	}
+}
+
+func getFileEnvUri(env string) string {
+	return fmt.Sprintf("gopen/%s.env", env)
+}
+
+func getFileJsonUri(env string) string {
+	return fmt.Sprintf("gopen/%s.json", env)
+}
+
+func printInfoLog(msg ...any) {
+	logger.InfoOpts(loggerOptions, msg...)
+}
+
+func printInfoLogf(format string, msg ...any) {
+	logger.InfoOptsf(format, loggerOptions, msg...)
+}
+
+func printWarningLog(msg ...any) {
+	logger.WarningOpts(loggerOptions, msg...)
+}
+
+func printWarningLogf(format string, msg ...any) {
+	logger.WarningOptsf(format, loggerOptions, msg...)
 }

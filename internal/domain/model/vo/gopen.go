@@ -5,10 +5,10 @@ import (
 	"github.com/GabrielHCataldo/go-errors/errors"
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/go-logger/logger"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/app/interfaces"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/app/model/dto"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/consts"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/enum"
-	"github.com/chenyahui/gin-cache/persist"
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"strings"
@@ -18,11 +18,12 @@ import (
 type GOpen struct {
 	env          string
 	version      string
+	hotReload    bool
 	port         int
 	timeout      time.Duration
+	cacheStore   interfaces.CacheStore
 	limiter      Limiter
 	cache        Cache
-	cacheStore   persist.CacheStore
 	securityCors SecurityCors
 	middlewares  Middlewares
 	endpoints    []Endpoint
@@ -67,7 +68,7 @@ type Endpoint struct {
 	backends           []Backend
 }
 
-func NewGOpen(env string, gopenDTO dto.GOpen, cacheStore persist.CacheStore) GOpen {
+func NewGOpen(env string, gopenDTO dto.GOpen, cacheStore interfaces.CacheStore) GOpen {
 	var endpoints []Endpoint
 	for _, endpointDTO := range gopenDTO.Endpoints {
 		endpoints = append(endpoints, newEndpoint(endpointDTO))
@@ -86,10 +87,10 @@ func NewGOpen(env string, gopenDTO dto.GOpen, cacheStore persist.CacheStore) GOp
 		env:          env,
 		version:      gopenDTO.Version,
 		port:         gopenDTO.Port,
+		cacheStore:   cacheStore,
 		timeout:      timeout,
 		limiter:      newLimiter(helper.IfNilReturns(gopenDTO.Limiter, dto.Limiter{})),
 		cache:        newCache(helper.IfNilReturns(gopenDTO.Cache, dto.Cache{})),
-		cacheStore:   cacheStore,
 		securityCors: newSecurityCors(helper.IfNilReturns(gopenDTO.SecurityCors, dto.SecurityCors{})),
 		middlewares:  newMiddlewares(gopenDTO.Middlewares),
 		endpoints:    endpoints,
@@ -189,6 +190,10 @@ func (g GOpen) Port() int {
 	return g.port
 }
 
+func (g GOpen) HotReload() bool {
+	return g.hotReload
+}
+
 func (g GOpen) Version() string {
 	return g.version
 }
@@ -218,7 +223,7 @@ func (g GOpen) LimiterMaxBodySize() Bytes {
 	return NewBytes("3MB")
 }
 
-func (g GOpen) LimiterMaxMultipartFormSize() Bytes {
+func (g GOpen) LimiterMaxMultipartMemorySize() Bytes {
 	if helper.IsGreaterThan(g.limiter.maxMultipartMemorySize, 0) {
 		return g.limiter.maxMultipartMemorySize
 	}
@@ -251,7 +256,7 @@ func (g GOpen) AllowCacheControl() bool {
 	return helper.IfNilReturns(g.cache.allowCacheControl, false)
 }
 
-func (g GOpen) CacheStore() persist.CacheStore {
+func (g GOpen) CacheStore() interfaces.CacheStore {
 	return g.cacheStore
 }
 
@@ -275,8 +280,22 @@ func (g GOpen) CountBackends() (count int) {
 	return count
 }
 
+func (g GOpen) CountModifiers() (count int) {
+	for _, middlewareBackend := range g.middlewares {
+		count += middlewareBackend.CountModifiers()
+	}
+	for _, endpointDTO := range g.endpoints {
+		count += endpointDTO.CountModifiers()
+	}
+	return count
+}
+
 func (g GOpen) Middleware(key string) (Backend, bool) {
 	return g.middlewares.Get(key)
+}
+
+func (g GOpen) Middlewares() Middlewares {
+	return g.middlewares
 }
 
 func (e Endpoint) Path() string {
@@ -300,6 +319,10 @@ func (e Endpoint) HasTimeout() bool {
 
 func (e Endpoint) Timeout() time.Duration {
 	return e.timeout
+}
+
+func (e Endpoint) HasLimiter() bool {
+	return helper.IsNotEmpty(e.limiter)
 }
 
 func (e Endpoint) HasLimiterRateCapacity() bool {
@@ -338,8 +361,12 @@ func (e Endpoint) HasLimiterMaxMultipartFormSize() bool {
 	return helper.IsGreaterThan(e.limiter.maxMultipartMemorySize, 0)
 }
 
-func (e Endpoint) LimiterMaxMultipartFormSize() Bytes {
+func (e Endpoint) LimiterMaxMultipartMemorySize() Bytes {
 	return e.limiter.maxMultipartMemorySize
+}
+
+func (e Endpoint) HasCache() bool {
+	return helper.IsNotEmpty(e.cache)
 }
 
 func (e Endpoint) HasCacheDuration() bool {
@@ -386,6 +413,13 @@ func (e Endpoint) CountBackends() int {
 	return len(e.backends)
 }
 
+func (e Endpoint) CountModifiers() (count int) {
+	for _, backendDTO := range e.backends {
+		count += backendDTO.CountModifiers()
+	}
+	return count
+}
+
 func (e Endpoint) Completed(responseHistorySize int) bool {
 	return helper.Equals(responseHistorySize, e.CountAllBackends())
 }
@@ -401,25 +435,60 @@ func (e Endpoint) ResponseEncode() enum.ResponseEncode {
 	return e.responseEncode
 }
 
+func (e Endpoint) AggregateResponses() bool {
+	return e.aggregateResponses
+}
+
+func (e Endpoint) AbortIfStatusCodes() []int {
+	return e.abortIfStatusCodes
+}
+
 func (c Cache) Duration() time.Duration {
 	return c.duration
 }
 
-func (c Cache) ShouldCache(ctx *gin.Context) bool {
-	// se não tem duração, ja retornamos false
-	if helper.IsLessThanOrEqual(c.duration, 0) {
+func (c Cache) Enabled() bool {
+	return helper.IsGreaterThan(c.duration, 0)
+}
+
+func (c Cache) Disabled() bool {
+	return !c.Enabled()
+}
+
+func (c Cache) CanRead(ctx *gin.Context) bool {
+	// verificamos se ta ativo
+	if c.Disabled() {
 		return false
 	}
 
-	// obtemos o Cache-Control para verificar se ele quer o resultado fresco, se o allow estiver como true
-	var cacheControl enum.CacheControl
+	// obtemos o cache control enum do ctx de requisição
+	cacheControl := c.CacheControlEnum(ctx)
+
+	// verificamos se no Cache-Control enviado veio como "no-cache" e se o método da requisição é GET
+	return helper.IsNotEqualTo(enum.CacheControlNoCache, cacheControl) &&
+		helper.Equals(ctx.Request.Method, http.MethodGet)
+}
+
+func (c Cache) CanWrite(ctx *gin.Context) bool {
+	// verificamos se ta ativo
+	if c.Disabled() {
+		return false
+	}
+
+	// obtemos o cache control enum do ctx de requisição
+	cacheControl := c.CacheControlEnum(ctx)
+
+	// verificamos se no Cache-Control enviado veio como "no-store" e se o método da requisição é GET
+	return helper.IsNotEqualTo(enum.CacheControlNoStore, cacheControl) &&
+		helper.Equals(ctx.Request.Method, http.MethodGet)
+}
+
+func (c Cache) CacheControlEnum(ctx *gin.Context) (cacheControl enum.CacheControl) {
 	// caso esteja permitido o cache control obtemos do header
 	if helper.IsNotNil(c.allowCacheControl) && *c.allowCacheControl {
 		cacheControl = enum.CacheControl(ctx.GetHeader("Cache-Control"))
 	}
-
-	// verificamos se no Cache-Control enviado veio como "no-store" e se o método da requisição é GET
-	return helper.Equals(enum.CacheControlNoStore, cacheControl) && helper.Equals(ctx.Request.Method, http.MethodGet)
+	return cacheControl
 }
 
 func (c Cache) StrategyKey(ctx *gin.Context) string {
@@ -428,7 +497,7 @@ func (c Cache) StrategyKey(ctx *gin.Context) string {
 	method := ctx.Request.Method
 
 	// construímos a chave inicialmente com os valores de requisição
-	key := fmt.Sprintf("%s:%s", requestUri, method)
+	key := fmt.Sprintf("%s:%s", method, requestUri)
 
 	var strategyValues []string
 	// iteramos as chaves para obter os valores
@@ -460,8 +529,44 @@ func (m Modifier) Context() enum.ModifierContext {
 	return m.context
 }
 
+func (m Modifier) Scope() enum.ModifierScope {
+	return m.scope
+}
+
+func (m Modifier) Action() enum.ModifierAction {
+	return m.action
+}
+
+func (m Modifier) Global() bool {
+	return m.global
+}
+
+func (m Modifier) Key() string {
+	return m.key
+}
+
+func (m Modifier) Value() string {
+	return m.value
+}
+
 func (m Modifier) Valid() bool {
 	return helper.IsNotEmpty(m) && helper.IsNotEmpty(m.value)
+}
+
+func (s SecurityCors) AllowCountriesData() []string {
+	return s.allowOrigins
+}
+
+func (s SecurityCors) AllowOriginsData() []string {
+	return s.allowOrigins
+}
+
+func (s SecurityCors) AllowMethodsData() []string {
+	return s.allowMethods
+}
+
+func (s SecurityCors) AllowHeadersData() []string {
+	return s.allowHeaders
 }
 
 func (s SecurityCors) AllowOrigins(ip string) (err error) {

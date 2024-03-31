@@ -1,6 +1,7 @@
 {
   "version": "v1.0.0",
   "port": 8080,
+  "hot-reload": true,
   "timeout": "5s",
   "cache": {
     "duration": "30s",
@@ -15,7 +16,7 @@
     "max-body-size": "3MB",
     "max-multipart-memory-size": "10MB",
     "rate": {
-      "capacity": 5,
+      "capacity": 1,
       "every": "1s"
     }
   },
@@ -33,6 +34,33 @@
       "*"
     ]
   },
+  "middlewares": {
+    "save-device": {
+      "host": [
+        "http://192.168.1.2:8051"
+      ],
+      "path": "/devices",
+      "method": "PUT",
+      "forward-headers": [
+        "*"
+      ],
+      "modifiers": {
+        "header": [
+          {
+            "context": "RESPONSE",
+            "scope": "REQUEST",
+            "global": true,
+            "action": "SET",
+            "key": "X-Device-Id",
+            "value": "#response.body.id"
+          }
+        ]
+      },
+      "extra-config": {
+        "omit-request-body": true
+      }
+    }
+  },
   "endpoints": [
     {
       "@comment": "Feature: USER FindUserByKey",
@@ -42,13 +70,33 @@
       },
       "method": "GET",
       "response-encode": "JSON",
+      "beforeware": [
+        "save-device"
+      ],
       "backends": [
         {
           "host": [
-            "http://192.168.1.5:8090"
+            "http://192.168.1.2:8090"
           ],
           "path": "/users/find/:key",
           "method": "GET"
+        }
+      ]
+    },
+    {
+      "@comment": "Feature: USER CreateUser",
+      "path": "/users",
+      "method": "POST",
+      "beforeware": [
+        "save-device"
+      ],
+      "backends": [
+        {
+          "host": [
+            "http://192.168.1.2:8090"
+          ],
+          "path": "/users",
+          "method": "POST"
         }
       ]
     }

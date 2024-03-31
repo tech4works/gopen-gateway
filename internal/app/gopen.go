@@ -1,21 +1,27 @@
 package app
 
 import (
+	"context"
 	"fmt"
-	"github.com/GabrielHCataldo/go-errors/errors"
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/go-logger/logger"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/app/controller"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/app/middleware"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/app/model/dto"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/infra"
 	"github.com/gin-gonic/gin"
+	"net/http"
 )
 
+var loggerOptions = logger.Options{
+	CustomAfterPrefixText: "CMD",
+}
+
+var httpServer *http.Server
+
 type gopen struct {
-	gopenDTO               dto.GOpen
 	gopenVO                vo.GOpen
+	writerMiddleware       middleware.Writer
 	traceMiddleware        middleware.Trace
 	logMiddleware          middleware.Log
 	securityCorsMiddleware middleware.SecurityCors
@@ -28,11 +34,12 @@ type gopen struct {
 
 type GOpen interface {
 	ListerAndServer()
+	Shutdown(ctx context.Context) error
 }
 
 func NewGOpen(
-	gopenDTO dto.GOpen,
 	gopenVO vo.GOpen,
+	writerMiddleware middleware.Writer,
 	traceMiddleware middleware.Trace,
 	logMiddleware middleware.Log,
 	securityCorsMiddleware middleware.SecurityCors,
@@ -43,8 +50,8 @@ func NewGOpen(
 	endpointController controller.Endpoint,
 ) GOpen {
 	return gopen{
-		gopenDTO:               gopenDTO,
 		gopenVO:                gopenVO,
+		writerMiddleware:       writerMiddleware,
 		traceMiddleware:        traceMiddleware,
 		logMiddleware:          logMiddleware,
 		timeoutMiddleware:      timeoutMiddleware,
@@ -57,7 +64,7 @@ func NewGOpen(
 }
 
 func (g gopen) ListerAndServer() {
-	logger.Info("Starting lister and server!")
+	printInfoLog("Starting lister and server...")
 
 	// instanciamos o gin engine
 	engine := gin.New()
@@ -68,7 +75,7 @@ func (g gopen) ListerAndServer() {
 	// configuramos rotas estáticas
 	g.buildStaticRoutes(engine)
 
-	logger.Info("Starting to read endpoints to register routes!")
+	printInfoLog("Starting to read endpoints to register routes...")
 	// iteramos os endpoints para cadastrar as rotas
 	for _, endpointVO := range g.gopenVO.Endpoints() {
 		// verificamos se ja existe esse endpoint cadastrado
@@ -106,32 +113,43 @@ func (g gopen) ListerAndServer() {
 	address := fmt.Sprint(":", g.gopenVO.Port())
 
 	// rodamos o gin engine
-	logger.Info("Listening and serving HTTP on", address)
-	err := engine.Run(address)
-	if helper.IsNotNil(err) {
-		panic(errors.New("Error start gateway listen and serve on address:", address, "err:", err))
+	printInfoLogf("Listening and serving HTTP on %s!", address)
+
+	// construímos o http server do go com o handler gin
+	httpServer = &http.Server{
+		Addr:    address,
+		Handler: engine,
 	}
 
-	logger.Info("GOpen started!")
+	// chamamos o lister and server
+	_ = httpServer.ListenAndServe()
+}
+
+func (g gopen) Shutdown(ctx context.Context) error {
+	if helper.IsNil(httpServer) {
+		return nil
+	}
+	return httpServer.Shutdown(ctx)
 }
 
 func (g gopen) buildStaticMiddlewares(engine *gin.Engine) {
 	// imprimimos o log cmd
-	logger.Info("Configuring static middlewares!")
+	printInfoLog("Configuring static middlewares...")
 	// setamos em ordem os middlewares estáticos
+	engine.Use(g.writerMiddleware.Do)
 	engine.Use(g.traceMiddleware.Do)
 	engine.Use(g.logMiddleware.Do)
 }
 
 func (g gopen) buildStaticRoutes(engine *gin.Engine) {
 	// imprimimos o log cmd
-	logger.Info("Configuring static routes!")
+	printInfoLog("Configuring static routes...")
 	// ping route
 	engine.GET("/ping", g.staticController.Ping)
 	// version
 	engine.GET("/version", g.staticController.Version)
 	// gopen config infos
-	engine.GET("/config", g.staticController.Config)
+	engine.GET("/settings", g.staticController.Settings)
 }
 
 func (g gopen) buildTimeoutMiddlewareHandler(endpointVO vo.Endpoint) gin.HandlerFunc {
@@ -175,10 +193,10 @@ func (g gopen) buildLimiterMiddlewareHandler(endpointVO vo.Endpoint) gin.Handler
 	}
 
 	// por padrão obtemos o limiter.max-multipart-form-size configurado na raiz, caso não informado um valor padrão é retornado
-	maxMultipartForm := g.gopenVO.LimiterMaxMultipartFormSize()
+	maxMultipartForm := g.gopenVO.LimiterMaxMultipartMemorySize()
 	// caso informado no endpoint damos prioridade
 	if endpointVO.HasLimiterMaxMultipartFormSize() {
-		maxMultipartForm = endpointVO.LimiterMaxMultipartFormSize()
+		maxMultipartForm = endpointVO.LimiterMaxMultipartMemorySize()
 	}
 
 	// inicializamos o limitador de taxa
@@ -215,5 +233,13 @@ func (g gopen) buildCacheMiddlewareHandler(endpointVO vo.Endpoint) gin.HandlerFu
 	cacheVO := vo.NewCacheFromEndpoint(cacheDuration, cacheStrategyHeaders, allowCacheControl)
 
 	// construímos a chamada de cache middleware para o endpoint
-	return g.cacheMiddleware.Do(g.gopenVO.CacheStore(), cacheVO)
+	return g.cacheMiddleware.Do(g.gopenVO.CacheStore(), endpointVO, cacheVO)
+}
+
+func printInfoLog(msg ...any) {
+	logger.InfoOpts(loggerOptions, msg...)
+}
+
+func printInfoLogf(format string, msg ...any) {
+	logger.InfoOptsf(format, loggerOptions, msg...)
 }

@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"strings"
 	"time"
+	"unicode"
 )
 
 type logProvider struct {
@@ -51,7 +52,7 @@ func (l logProvider) BuildInitialRequestMessage(ctx *gin.Context) string {
 		// voltamos para requisição, ja que podemos precisar nos handles futuros
 		ctx.Request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 		// convertemos esses bytes para o any inicializado
-		helper.SimpleConvertToDest(bodyBytes, &bodyInfo)
+		bodyInfo = string(bodyBytes)
 	} else if helper.IsNotEmpty(bodyType, bodySize) {
 		var msg string
 		if helper.IsNotEmpty(bodyType) {
@@ -102,15 +103,6 @@ func (l logProvider) buildLoggerAfterPrefixText(traceId, ip, uri, method string)
 	textMethod := l.getLoggerTextMethod(method)
 	textUri := l.getLoggerTextUri(uri)
 	return fmt.Sprint("(", textTrace, " | ", ip, " |", textMethod, "| ", textUri, ")")
-}
-
-func (l logProvider) getRequestUri(request *http.Request) (uri string) {
-	uri = request.URL.Path
-	raw := request.URL.RawQuery
-	if helper.IsNotEmpty(raw) {
-		uri = fmt.Sprint(uri, "?", raw)
-	}
-	return uri
 }
 
 func (l logProvider) getLoggerTextTraceId(traceId string) string {
@@ -164,6 +156,12 @@ func (l logProvider) getMethodColorTextLogger(method string) string {
 
 func (l logProvider) replaceAllBreakLineLogger(a any) string {
 	s := helper.SimpleConvertToString(a)
-	s = strings.ReplaceAll(s, "\n", " \\n ")
-	return s
+	return strings.Map(func(r rune) rune {
+		if unicode.IsSpace(r) {
+			// se for um espaço, substitua por -1 para excluir da string
+			return -1
+		}
+		// se não for um espaço, mantenha o valor original
+		return r
+	}, s)
 }

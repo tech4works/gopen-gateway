@@ -1,10 +1,9 @@
 package middleware
 
 import (
-	"bytes"
 	"github.com/GabrielHCataldo/go-logger/logger"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/app/interfaces"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/app/model/dto"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/app/util"
 	"github.com/gin-gonic/gin"
 	"time"
 )
@@ -27,13 +26,6 @@ func (l log) Do(ctx *gin.Context) {
 	// mantemos o tempo que a requisição começou
 	startTime := time.Now()
 
-	// inicializamos o writer de resposta
-	responseWriter := &dto.ResponseWriter{
-		Body:           &bytes.Buffer{},
-		ResponseWriter: ctx.Writer,
-	}
-	ctx.Writer = responseWriter
-
 	// inicializamos a logger options global, com o traceId e XForwardedFor
 	l.logProvider.InitializeLoggerOptions(ctx)
 
@@ -44,5 +36,5 @@ func (l log) Do(ctx *gin.Context) {
 	ctx.Next()
 
 	// imprimimos o log de finish
-	logger.Info("Finish!", l.logProvider.BuildFinishRequestMessage(*responseWriter, startTime))
+	logger.Info("Finish!", l.logProvider.BuildFinishRequestMessage(util.GetResponseWriter(ctx), startTime))
 }

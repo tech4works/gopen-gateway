@@ -71,7 +71,7 @@ func (t timeout) Do(endpointVO vo.Endpoint, timeoutDuration time.Duration) gin.H
 
 		// caso tenha passado nos dois fluxos de timeout ou de erro, respondemos à requisição
 		if helper.IsGreaterThan(statusCode, 0) {
-			util.RespondCodeWithError(ctx, endpointVO.ResponseEncode(), statusCode, err)
+			util.RespondGatewayError(ctx, endpointVO.ResponseEncode(), statusCode, err)
 		}
 	}
 }

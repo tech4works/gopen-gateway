@@ -60,7 +60,7 @@ func (b backend) buildBackendRequest(executeData vo.ExecuteBackend) (vo.Request,
 	backendVO := executeData.Backend()
 
 	// obtemos o host do backend todo: ter um sub-dominio de balancer
-	balancedHost := backendVO.Host()
+	balancedHost := backendVO.BalancedHost()
 
 	// montamos o objeto de valor com os dados montados no meu serviço de domínio
 	backendRequestVO := vo.NewBackendRequest(backendVO, balancedHost, executeData.Request())

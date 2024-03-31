@@ -27,17 +27,17 @@ func (c securityCors) Do(endpointVO vo.Endpoint) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		// chamamos o objeto de valor para validar se o ip de origem é permitida a partir do objeto de valor fornecido
 		if err := c.securityCorsVO.AllowOrigins(ctx.GetHeader(consts.XForwardedFor)); helper.IsNotNil(err) {
-			util.RespondCodeWithError(ctx, endpointVO.ResponseEncode(), http.StatusForbidden, err)
+			util.RespondGatewayError(ctx, endpointVO.ResponseEncode(), http.StatusForbidden, err)
 			return
 		}
 		// chamamos o objeto de valor para validar se o method é permitida a partir do objeto de valor fornecido
 		if err := c.securityCorsVO.AllowMethods(ctx.Request.Method); helper.IsNotNil(err) {
-			util.RespondCodeWithError(ctx, endpointVO.ResponseEncode(), http.StatusForbidden, err)
+			util.RespondGatewayError(ctx, endpointVO.ResponseEncode(), http.StatusForbidden, err)
 			return
 		}
 		// chamamos o domínio para validar se o headers fornecido estão permitidas a partir do objeto de valor fornecido
 		if err := c.securityCorsVO.AllowHeaders(ctx.Request.Header); helper.IsNotNil(err) {
-			util.RespondCodeWithError(ctx, endpointVO.ResponseEncode(), http.StatusForbidden, err)
+			util.RespondGatewayError(ctx, endpointVO.ResponseEncode(), http.StatusForbidden, err)
 			return
 		}
 

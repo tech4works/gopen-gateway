@@ -38,35 +38,12 @@ func newBodyByAny(value any) Body {
 	return newBody(helper.SimpleConvertToBytes(value))
 }
 
-func newBody(bytes []byte) Body {
-	// convertemos pelo tipo de bytes, se for slice de mapas, e se for um mapa convertemos mantendo a ordenação
-	if helper.IsMap(bytes) {
-		var orderedMap orderedmap.OrderedMap
-		err := json.Unmarshal(bytes, &orderedMap)
-		if helper.IsNil(err) {
-			return Body{value: orderedMap}
-		}
-	} else if helper.IsSliceOfMaps(bytes) {
-		// verificamos se é um slice de map
-		var sliceOfOrderedMaps []orderedmap.OrderedMap
-		err := json.Unmarshal(bytes, &sliceOfOrderedMaps)
-		if helper.IsNil(err) {
-			return Body{value: sliceOfOrderedMaps}
-		}
-	}
-
-	// caso os bytes não contem um map retornamos ele normalmente
-	var dest any
-	err := json.Unmarshal(bytes, &dest)
-	if helper.IsNil(err) {
-		return Body{value: dest}
-	}
-
-	// se tudo deu errado
-	return Body{}
+func newBody(bytes []byte) (b Body) {
+	_ = json.Unmarshal(bytes, &b)
+	return b
 }
 
-func (b Body) copyOrderedMap(orderedMap orderedmap.OrderedMap) orderedmap.OrderedMap {
+func (b *Body) copyOrderedMap(orderedMap orderedmap.OrderedMap) orderedmap.OrderedMap {
 	c := orderedmap.New()
 	for _, key := range orderedMap.Keys() {
 		valueByKey, exists := orderedMap.Get(key)
@@ -77,7 +54,7 @@ func (b Body) copyOrderedMap(orderedMap orderedmap.OrderedMap) orderedmap.Ordere
 	return *c
 }
 
-func (b Body) Value() any {
+func (b *Body) Value() any {
 	if b.isOrderedMap() {
 		return b.OrderedMap()
 	} else if b.isSliceOfOrderedMaps() {
@@ -86,21 +63,21 @@ func (b Body) Value() any {
 	return b.value
 }
 
-func (b Body) isOrderedMap() bool {
+func (b *Body) isOrderedMap() bool {
 	_, ok := b.value.(orderedmap.OrderedMap)
 	return ok
 }
 
-func (b Body) isSliceOfOrderedMaps() bool {
+func (b *Body) isSliceOfOrderedMaps() bool {
 	_, ok := b.value.([]orderedmap.OrderedMap)
 	return ok
 }
 
-func (b Body) OrderedMap() orderedmap.OrderedMap {
+func (b *Body) OrderedMap() orderedmap.OrderedMap {
 	return b.copyOrderedMap(b.value.(orderedmap.OrderedMap))
 }
 
-func (b Body) SliceOfOrderedMaps() (copy []orderedmap.OrderedMap) {
+func (b *Body) SliceOfOrderedMaps() (copy []orderedmap.OrderedMap) {
 	slicesOfOrderedMaps := b.value.([]orderedmap.OrderedMap)
 	for _, orderedMap := range slicesOfOrderedMaps {
 		copy = append(copy, b.copyOrderedMap(orderedMap))
@@ -108,7 +85,7 @@ func (b Body) SliceOfOrderedMaps() (copy []orderedmap.OrderedMap) {
 	return copy
 }
 
-func (b Body) Interface() any {
+func (b *Body) Interface() any {
 	// verificamos qual o tipo do valor para converter em interface
 	if b.isOrderedMap() {
 		orderedMap := b.OrderedMap()
@@ -127,7 +104,7 @@ func (b Body) Interface() any {
 	return b.value
 }
 
-func (b Body) Modify(key string, value any) Body {
+func (b *Body) Modify(key string, value any) Body {
 	// verificamos se o valor é algum tipo de map para ser ordenado
 	if helper.IsMapType(value) {
 		return b.modifyMap(key, value.(map[string]any))
@@ -138,12 +115,12 @@ func (b Body) Modify(key string, value any) Body {
 	return Body{value: value}
 }
 
-func (b Body) modifyMap(key string, value map[string]any) Body {
+func (b *Body) modifyMap(key string, value map[string]any) Body {
 	// chamamos o modify do mapa ordenado passando o mapa modificado
 	return Body{value: b.modifyOrderedMap(b.OrderedMap(), key, value)}
 }
 
-func (b Body) modifySliceOfMaps(key string, values []map[string]any) Body {
+func (b *Body) modifySliceOfMaps(key string, values []map[string]any) Body {
 	// inicializamos o resultado ordenado do map
 	var resultSliceOfOrderedMap []orderedmap.OrderedMap
 
@@ -166,7 +143,7 @@ func (b Body) modifySliceOfMaps(key string, values []map[string]any) Body {
 	return Body{value: resultSliceOfOrderedMap}
 }
 
-func (b Body) modifyOrderedMap(orderedMap orderedmap.OrderedMap, key string, value map[string]any) orderedmap.OrderedMap {
+func (b *Body) modifyOrderedMap(orderedMap orderedmap.OrderedMap, key string, value map[string]any) orderedmap.OrderedMap {
 	// inicializamos o resultado ordenado do map
 	resultOrderedMap := orderedmap.New()
 
@@ -201,7 +178,7 @@ func (b Body) modifyOrderedMap(orderedMap orderedmap.OrderedMap, key string, val
 	return *resultOrderedMap
 }
 
-func (b Body) IsNotEmpty() bool {
+func (b *Body) IsNotEmpty() bool {
 	if b.isOrderedMap() {
 		orderedMap := b.OrderedMap()
 		return helper.IsNotEmpty(orderedMap.Keys())
@@ -211,7 +188,7 @@ func (b Body) IsNotEmpty() bool {
 	return helper.IsNotNil(b.value) && helper.IsNotEmpty(b.value)
 }
 
-func (b Body) String() string {
+func (b *Body) String() string {
 	return helper.SimpleConvertToString(b.value)
 }
 
@@ -219,11 +196,43 @@ func (b Body) MarshalJSON() ([]byte, error) {
 	return json.Marshal(b.value)
 }
 
-func (b Body) MarshalXML(e *xml.Encoder, _ xml.StartElement) (err error) {
+func (b *Body) UnmarshalJSON(bytes []byte) error {
+	// convertemos pelo tipo de bytes, se for slice de mapas, e se for um mapa convertemos mantendo a ordenação
+	if helper.IsMap(bytes) {
+		var orderedMap orderedmap.OrderedMap
+		err := json.Unmarshal(bytes, &orderedMap)
+		if helper.IsNil(err) {
+			*b = Body{value: orderedMap}
+			return nil
+		}
+	} else if helper.IsSliceOfMaps(bytes) {
+		// verificamos se é um slice de map
+		var sliceOfOrderedMaps []orderedmap.OrderedMap
+		err := json.Unmarshal(bytes, &sliceOfOrderedMaps)
+		if helper.IsNil(err) {
+			*b = Body{value: sliceOfOrderedMaps}
+			return nil
+		}
+	}
+
+	// caso os bytes não contem um map retornamos ele como interface normalmente
+	var dest any
+	err := json.Unmarshal(bytes, &dest)
+	if helper.IsNil(err) {
+		*b = Body{value: dest}
+		return nil
+	}
+
+	// se tudo deu errado
+	*b = Body{}
+	return nil
+}
+
+func (b *Body) MarshalXML(e *xml.Encoder, _ xml.StartElement) (err error) {
 	return b.encodeXML(e, "body", b.value)
 }
 
-func (b Body) orderedMapXML(e *xml.Encoder, orderedMap orderedmap.OrderedMap) error {
+func (b *Body) orderedMapXML(e *xml.Encoder, orderedMap orderedmap.OrderedMap) error {
 	for _, orderedKey := range orderedMap.Keys() {
 		valueByKey, exists := orderedMap.Get(orderedKey)
 		if !exists {
@@ -237,7 +246,7 @@ func (b Body) orderedMapXML(e *xml.Encoder, orderedMap orderedmap.OrderedMap) er
 	return nil
 }
 
-func (b Body) orderedMapWithKeyXML(e *xml.Encoder, key string, orderedMap orderedmap.OrderedMap) error {
+func (b *Body) orderedMapWithKeyXML(e *xml.Encoder, key string, orderedMap orderedmap.OrderedMap) error {
 	field := xml.StartElement{Name: xml.Name{Local: key}}
 	err := e.EncodeToken(field)
 	if helper.IsNotNil(err) {
@@ -252,7 +261,7 @@ func (b Body) orderedMapWithKeyXML(e *xml.Encoder, key string, orderedMap ordere
 	return e.EncodeToken(field.End())
 }
 
-func (b Body) sliceOfOrderedMapXML(e *xml.Encoder, key string, slice []orderedmap.OrderedMap) error {
+func (b *Body) sliceOfOrderedMapXML(e *xml.Encoder, key string, slice []orderedmap.OrderedMap) error {
 	field := xml.StartElement{Name: xml.Name{Local: key}}
 	err := e.EncodeToken(field)
 	if helper.IsNotNil(err) {
@@ -280,7 +289,7 @@ func (b Body) sliceOfOrderedMapXML(e *xml.Encoder, key string, slice []orderedma
 	return e.EncodeToken(field.End())
 }
 
-func (b Body) interfaceXML(e *xml.Encoder, key string, value any) error {
+func (b *Body) interfaceXML(e *xml.Encoder, key string, value any) error {
 	reflectValue := reflect.ValueOf(value)
 	if reflectValue.Kind() == reflect.Slice {
 		field := xml.StartElement{Name: xml.Name{Local: key}}
@@ -315,12 +324,12 @@ func (b Body) interfaceXML(e *xml.Encoder, key string, value any) error {
 	return e.EncodeElement(value, field)
 }
 
-func (b Body) encodeWithoutKeyXML(e *xml.Encoder, value any) error {
+func (b *Body) encodeWithoutKeyXML(e *xml.Encoder, value any) error {
 	key := strings.ToLower(reflect.TypeOf(value).String())
 	return b.encodeXML(e, key, value)
 }
 
-func (b Body) encodeXML(e *xml.Encoder, key string, value any) (err error) {
+func (b *Body) encodeXML(e *xml.Encoder, key string, value any) (err error) {
 	if orderedMapCast, ok := value.(orderedmap.OrderedMap); ok {
 		return b.orderedMapWithKeyXML(e, key, orderedMapCast)
 	} else if slice, ok := value.([]orderedmap.OrderedMap); ok {

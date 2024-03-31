@@ -33,17 +33,17 @@ func (l limiter) Do(
 		// aqui ja verificamos se a chave hoje sendo ela o IP está permitida
 		err := rateLimiterProvider.Allow(ctx.GetHeader(consts.XForwardedFor))
 		if helper.IsNotNil(err) {
-			util.RespondCodeWithError(ctx, endpointVO.ResponseEncode(), http.StatusTooManyRequests, err)
+			util.RespondGatewayError(ctx, endpointVO.ResponseEncode(), http.StatusTooManyRequests, err)
 			return
 		}
 
 		// verificamos o tamanho da requisição, e tratamos o erro logo em seguida
 		err = sizeLimiterProvider.Allow(ctx.Request)
 		if errors.Contains(err, domainmapper.ErrHeaderTooLarge) {
-			util.RespondCodeWithError(ctx, endpointVO.ResponseEncode(), http.StatusRequestHeaderFieldsTooLarge, err)
+			util.RespondGatewayError(ctx, endpointVO.ResponseEncode(), http.StatusRequestHeaderFieldsTooLarge, err)
 			return
 		} else if helper.IsNotNil(err) {
-			util.RespondCodeWithError(ctx, endpointVO.ResponseEncode(), http.StatusRequestEntityTooLarge, err)
+			util.RespondGatewayError(ctx, endpointVO.ResponseEncode(), http.StatusRequestEntityTooLarge, err)
 			return
 		}
 

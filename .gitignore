@@ -28,3 +28,6 @@ gopen.json
 
 # Air files
 tmp/
+
+# Env
+*.env

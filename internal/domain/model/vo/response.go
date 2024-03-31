@@ -4,15 +4,26 @@ import (
 	"fmt"
 	"github.com/GabrielHCataldo/go-errors/errors"
 	"github.com/GabrielHCataldo/go-helper/helper"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/app/model/dto"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/mapper"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/consts"
 	"github.com/iancoleman/orderedmap"
 	"net/http"
+	"time"
 )
 
 type responseHistory []backendResponse
 
 type aggregateBody struct {
 	value orderedmap.OrderedMap
+}
+
+type CacheResponse struct {
+	StatusCode int           `json:"statusCode"`
+	Header     Header        `json:"header"`
+	Body       Body          `json:"body"`
+	Duration   time.Duration `json:"duration"`
+	CreatedAt  time.Time     `json:"createdAt"`
 }
 
 type Response struct {
@@ -30,6 +41,28 @@ func NewResponse(endpointVO Endpoint) Response {
 	return Response{
 		endpoint:   endpointVO,
 		statusCode: http.StatusNoContent,
+	}
+}
+
+func NewResponseByCache(endpointVO Endpoint, cacheResponseVO CacheResponse) Response {
+	header := cacheResponseVO.Header
+	header = header.Set(consts.XGOpenCache, helper.SimpleConvertToString(true))
+	header = header.Set(consts.XGOpenCacheTTL, cacheResponseVO.TTL())
+	return Response{
+		endpoint:   endpointVO,
+		statusCode: cacheResponseVO.StatusCode,
+		header:     header,
+		body:       cacheResponseVO.Body,
+	}
+}
+
+func NewCacheResponse(writer dto.ResponseWriter, duration time.Duration) CacheResponse {
+	return CacheResponse{
+		StatusCode: writer.Status(),
+		Header:     NewHeader(writer.Header()),
+		Body:       newBody(writer.Body.Bytes()),
+		Duration:   duration,
+		CreatedAt:  time.Now(),
 	}
 }
 
@@ -158,7 +191,7 @@ func (r Response) Error(err error) Response {
 	// construímos a resposta de erro padrão do gateway
 	return Response{
 		statusCode: statusCode,
-		header:     newResponseHeaderFailed(),
+		header:     NewHeaderFailed(),
 		err:        err,
 		abort:      true,
 		history:    r.history,
@@ -185,7 +218,7 @@ func (r Response) abortEndpoint() *Response {
 	lastBackendResponseVO := r.LastBackendResponse()
 	return &Response{
 		statusCode: lastBackendResponseVO.statusCode,
-		header:     newResponseHeaderFailed(),
+		header:     lastBackendResponseVO.header,
 		body:       lastBackendResponseVO.body,
 		history:    r.history,
 	}
@@ -196,6 +229,10 @@ func (r Response) LastBackendResponse() backendResponse {
 		return backendResponse{}
 	}
 	return r.history[len(r.history)-1]
+}
+
+func (r Response) Endpoint() Endpoint {
+	return r.endpoint
 }
 
 func (r Response) StatusCode() int {
@@ -220,6 +257,11 @@ func (r Response) Eval() map[string]any {
 		"header":     r.header,
 		"body":       r.body.Interface(),
 	}
+}
+
+func (c CacheResponse) TTL() string {
+	sub := c.CreatedAt.Add(c.Duration).Sub(time.Now())
+	return sub.String()
 }
 
 func (r responseHistory) Size() int {
@@ -376,13 +418,14 @@ func (a aggregateBody) aggregate(index int, backendResponseVO backendResponse) {
 	key := backendResponseVO.Key(index)
 
 	// agregamos pelo tipo de dado que o body é ou forcamos se o groupResponse for true
-	if backendResponseVO.groupResponse || helper.IsSliceType(backendResponseVO.Body().Value()) ||
-		helper.IsStringType(backendResponseVO.Body().Value()) {
+	body := backendResponseVO.Body()
+	bodyValue := body.Value()
+	if backendResponseVO.groupResponse || helper.IsSliceType(bodyValue) || helper.IsStringType(bodyValue) {
 		// se o body de resposta for um slice ou string, agrupamos
-		a.append(key, backendResponseVO.Body().Value())
-	} else if helper.IsStructType(backendResponseVO.Body().Value()) {
+		a.append(key, bodyValue)
+	} else if helper.IsStructType(bodyValue) {
 		// se o body for uma estrutura quer dizer que ele é um ordered map
-		orderedMap := backendResponseVO.Body().OrderedMap()
+		orderedMap := body.OrderedMap()
 		// iteramos para agregar no corpo principal mantendo a ordem
 		for _, orderedKey := range orderedMap.Keys() {
 			valueToAppend, exists := orderedMap.Get(orderedKey)

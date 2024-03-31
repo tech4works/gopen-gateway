@@ -1,30 +1,47 @@
 package infra
 
 import (
+	"context"
+	"github.com/GabrielHCataldo/go-errors/errors"
 	"github.com/GabrielHCataldo/go-helper/helper"
-	"github.com/GabrielHCataldo/go-logger/logger"
-	"github.com/go-redis/redis/v8"
+	"github.com/GabrielHCataldo/go-redis-template/redis"
+	"github.com/GabrielHCataldo/go-redis-template/redis/option"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/app/interfaces"
+	appmapper "github.com/GabrielHCataldo/gopen-gateway/internal/app/mapper"
+	"time"
 )
 
-var clientRedis *redis.Client
-
-func ConnectRedis(url, password string) *redis.Client {
-	clientRedis = redis.NewClient(&redis.Options{
-		Addr:     url,
-		Password: password,
-		DB:       0, // use default DB
-	})
-	return clientRedis
+type redisStore struct {
+	redisTemplate *redis.Template
 }
 
-func DisconnectRedis() {
-	if clientRedis == nil {
-		return
+func NewRedisStore(address, password string) interfaces.CacheStore {
+	return &redisStore{
+		redisTemplate: redis.NewTemplate(option.Client{
+			Addr:     address,
+			Password: password,
+		}),
 	}
-	err := clientRedis.Close()
-	if helper.IsNotNil(err) {
-		logger.Error("Error disconnect Redis:", err)
-		return
+}
+
+func (r redisStore) Set(ctx context.Context, key string, value any, expire time.Duration) error {
+	return r.redisTemplate.Set(ctx, key, value, option.NewSet().SetTTL(expire))
+}
+
+func (r redisStore) Del(ctx context.Context, key string) error {
+	return r.redisTemplate.Del(ctx, key)
+}
+
+func (r redisStore) Get(ctx context.Context, key string, dest any) error {
+	err := r.redisTemplate.Get(ctx, key, dest)
+	if errors.Is(err, redis.ErrKeyNotFound) {
+		return appmapper.NewErrCacheNotFound()
+	} else if helper.IsNotNil(err) {
+		return err
 	}
-	logger.Info("Connection to Redis closed.")
+	return nil
+}
+
+func (r redisStore) Close() error {
+	return r.redisTemplate.Disconnect()
 }
