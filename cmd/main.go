@@ -266,6 +266,17 @@ func listerAndServer(cacheStore infra.CacheStore, gopenVO vo.GOpen) {
 	gopenApp.ListerAndServer()
 }
 
+// writeGOpenJsonResult takes in gopenDTO which is a dto.GOpen object,
+// marshals it into a JSON bytes array in a human-friendly tab-indented format,
+// and then tries to write it into a file defined by the gopenJsonResult path.
+// If any error occurs during the process, such as marshaling failure or file writing error,
+// it logs the warning with the error detail.
+//
+// Parameters:
+// gopenDTO: A dto.GOpen object to be written to a file in JSON format.
+//
+// Returns:
+// This function doesn't return any value.
 func writeGOpenJsonResult(gopenDTO dto.GOpen) {
 	gopenBytes, err := json.MarshalIndent(gopenDTO, "", "\t")
 	if helper.IsNil(err) {
