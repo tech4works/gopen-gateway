@@ -21,6 +21,11 @@ func NewEndpoint(backendService Backend) Endpoint {
 	}
 }
 
+// Execute executes the endpoint operation with the given executeData and returns the response.
+// It processes the beforeware, main backends, and afterware in order.
+// The beforeware and afterware are configured as middleware keys in the endpointVO.
+// If the response needs to be aborted, it returns the abortResponseVO.
+// Otherwise, it returns the final responseVO.
 func (e endpoint) Execute(ctx context.Context, executeData vo.ExecuteEndpoint) vo.Response {
 	// instanciamos o objeto de valor do endpoint
 	endpointVO := executeData.Endpoint()
@@ -32,7 +37,7 @@ func (e endpoint) Execute(ctx context.Context, executeData vo.ExecuteEndpoint) v
 	// iteramos o beforeware, chaves configuradas para middlewares antes das requisições principais
 	for _, beforewareKey := range endpointVO.Beforeware() {
 		// verificamos se essa chave foram configuradas no campo middlewares
-		beforewareVO, ok := executeData.Gopen().Middleware(beforewareKey)
+		beforewareVO, ok := executeData.GOpen().Middleware(beforewareKey)
 		if !ok {
 			logger.Warning("beforeware", beforewareKey, "not configured on middlewares field!")
 			continue
@@ -61,7 +66,7 @@ func (e endpoint) Execute(ctx context.Context, executeData vo.ExecuteEndpoint) v
 	// iteramos o afterware, chaves configuradas para middlewares depois das requisições principais
 	for _, afterwareKey := range endpointVO.Afterware() {
 		// verificamos se essa chave foram configuradas no campo middlewares
-		afterwareVO, ok := executeData.Gopen().Middleware(afterwareKey)
+		afterwareVO, ok := executeData.GOpen().Middleware(afterwareKey)
 		if !ok {
 			logger.Warning("afterware", afterwareKey, "not configured on middlewares field!")
 			continue

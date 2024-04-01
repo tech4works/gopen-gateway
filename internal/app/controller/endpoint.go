@@ -20,6 +20,11 @@ func NewEndpoint(endpointService service.Endpoint) Endpoint {
 	}
 }
 
+// Execute executes the service to process the endpoint.
+// It takes a pointer to api.Request as an argument.
+// It builds the service parameters using mapper.BuildExecuteServiceParams.
+// It invokes the endpointService.Execute method passing the built parameters.
+// It writes the response to the request using req.Write method.
 func (e endpoint) Execute(req *api.Request) {
 	// executamos o serviço de dominío para processar o endpoint
 	responseVO := e.endpointService.Execute(mapper.BuildExecuteServiceParams(req))

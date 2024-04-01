@@ -7,6 +7,8 @@ import (
 	"os"
 )
 
+// BuildSettingViewDTO builds a `SettingView` DTO object using the provided `GOpen` object as input.
+// It retrieves various properties from the `GOpen` object and sets them on the `SettingView` object.
 func BuildSettingViewDTO(gopenVO vo.GOpen) dto.SettingView {
 	return dto.SettingView{
 		Version:     os.Getenv("VERSION"),
@@ -21,6 +23,8 @@ func BuildSettingViewDTO(gopenVO vo.GOpen) dto.SettingView {
 	}
 }
 
+// BuildGOpenViewDTO builds a `GOpenView` DTO object using the provided `GOpen` object as input.
+// It retrieves various properties from the `GOpen` object and sets them on the `GOpenView` object.
 func BuildGOpenViewDTO(gopenVO vo.GOpen) dto.GOpenView {
 	return dto.GOpenView{
 		Version:      gopenVO.Version(),
@@ -35,6 +39,8 @@ func BuildGOpenViewDTO(gopenVO vo.GOpen) dto.GOpenView {
 	}
 }
 
+// BuildLimiterDTOFromGOpenVO builds a `Limiter` DTO object using the provided `GOpen` object as input.
+// It retrieves various properties from the `GOpen` object and sets them on the `Limiter` object.
 func BuildLimiterDTOFromGOpenVO(gopenVO vo.GOpen) *dto.Limiter {
 	maxHeaderSize := gopenVO.LimiterMaxHeaderSize()
 	maxBodySize := gopenVO.LimiterMaxBodySize()
@@ -51,6 +57,11 @@ func BuildLimiterDTOFromGOpenVO(gopenVO vo.GOpen) *dto.Limiter {
 	}
 }
 
+// BuildLimiterDTOFromEndpointVO builds a `Limiter` DTO object using the provided `Endpoint` object as input.
+// If the `Endpoint` object does not have a limiter, it returns nil.
+// It retrieves various properties from the `Endpoint` object and sets them on the `Limiter` object.
+// It also sets the `Rate` property by creating a new `Rate` object and setting its properties using the `Endpoint` object.
+// The `MaxHeaderSize`, `MaxBodySize`, and `MaxMultipartMemorySize` properties are converted to string format using the `String` method.
 func BuildLimiterDTOFromEndpointVO(endpointVO vo.Endpoint) *dto.Limiter {
 	if !endpointVO.HasLimiter() {
 		return nil
@@ -71,6 +82,9 @@ func BuildLimiterDTOFromEndpointVO(endpointVO vo.Endpoint) *dto.Limiter {
 	}
 }
 
+// BuildCacheDTOFromGOpenVO builds a `Cache` DTO object using the provided `GOpen` object as input.
+// It retrieves the cache duration, cache strategy headers, and allow cache control properties from the `GOpen` object
+// and sets them on the `Cache` object.
 func BuildCacheDTOFromGOpenVO(gopenVO vo.GOpen) *dto.Cache {
 	return &dto.Cache{
 		Duration:          gopenVO.CacheDuration().String(),
@@ -79,6 +93,10 @@ func BuildCacheDTOFromGOpenVO(gopenVO vo.GOpen) *dto.Cache {
 	}
 }
 
+// BuildCacheDTOFromEndpointVO builds a `Cache` DTO object using the provided `Endpoint` object as input.
+// It retrieves various properties from the `Endpoint` object and sets them on the `Cache` object.
+// If the `Endpoint` object does not have any cache, it returns nil.
+// It returns a pointer to the `Cache` object.
 func BuildCacheDTOFromEndpointVO(endpointVO vo.Endpoint) *dto.Cache {
 	if !endpointVO.HasCache() {
 		return nil
@@ -90,6 +108,10 @@ func BuildCacheDTOFromEndpointVO(endpointVO vo.Endpoint) *dto.Cache {
 	}
 }
 
+// BuildSecurityCorsDTO builds a `SecurityCors` DTO object using the provided `GOpen` object as input.
+// It checks if the `SecurityCors` object from `GOpen` is empty. If not, it retrieves the `allowOriginsData`,
+// `allowMethodsData`, and `allowHeadersData` properties from the `SecurityCors` object and sets them on the
+// `SecurityCors` DTO object.
 func BuildSecurityCorsDTO(gopenVO vo.GOpen) *dto.SecurityCors {
 	if helper.IsEmpty(gopenVO.SecurityCors()) {
 		return nil
@@ -101,6 +123,10 @@ func BuildSecurityCorsDTO(gopenVO vo.GOpen) *dto.SecurityCors {
 	}
 }
 
+// BuildMiddlewaresDTO builds a map of `Backend` DTO objects using the provided `GOpen` object as input.
+// It iterates through the `Middlewares` in the `GOpen` object and calls the `BuildBackendDTO` function to build the `Backend` DTO for each one.
+// The resulting `Backend` DTO objects are then added to the `result` map with the key being the key of the `Middleware` in the `GOpen` object.
+// The `result` map is returned as the output of the function.
 func BuildMiddlewaresDTO(gopenVO vo.GOpen) map[string]dto.Backend {
 	result := map[string]dto.Backend{}
 	for key, backendVO := range gopenVO.Middlewares() {
@@ -109,6 +135,9 @@ func BuildMiddlewaresDTO(gopenVO vo.GOpen) map[string]dto.Backend {
 	return result
 }
 
+// BuildEndpointsDTO builds a slice of `Endpoint` DTO objects using the provided `[]Endpoint` as input.
+// It iterates over each `Endpoint` object and calls `BuildEndpointDTO` to build the individual `Endpoint` DTO object.
+// The resulting DTO objects are then appended to the `result` slice and returned.
 func BuildEndpointsDTO(endpoints []vo.Endpoint) (result []dto.Endpoint) {
 	for _, endpointVO := range endpoints {
 		result = append(result, BuildEndpointDTO(endpointVO))
@@ -116,6 +145,8 @@ func BuildEndpointsDTO(endpoints []vo.Endpoint) (result []dto.Endpoint) {
 	return result
 }
 
+// BuildEndpointDTO builds a `Endpoint` DTO object using the provided `Endpoint` object as input.
+// It retrieves various properties from the `Endpoint` object and sets them on the `Endpoint` DTO object.
 func BuildEndpointDTO(endpointVO vo.Endpoint) dto.Endpoint {
 	timeout := ""
 	if endpointVO.HasTimeout() {
@@ -137,6 +168,9 @@ func BuildEndpointDTO(endpointVO vo.Endpoint) dto.Endpoint {
 	}
 }
 
+// BuildBackendsDTO builds an array of `Backend` DTO objects using the provided array of `Backend` objects as input.
+// It iterates over each `Backend` in the input array and calls the `BuildBackendDTO` function to build the corresponding `Backend` DTO.
+// The resulting DTOs are appended to the `result` array and returned.
 func BuildBackendsDTO(backends []vo.Backend) (result []dto.Backend) {
 	for _, backendVO := range backends {
 		result = append(result, BuildBackendDTO(backendVO))
@@ -144,6 +178,8 @@ func BuildBackendsDTO(backends []vo.Backend) (result []dto.Backend) {
 	return result
 }
 
+// BuildBackendDTO builds a `Backend` DTO object using the provided `Backend` object as input.
+// It retrieves various properties from the `Backend` object and sets them on the `Backend` DTO object.
 func BuildBackendDTO(backendVO vo.Backend) dto.Backend {
 	return dto.Backend{
 		Name:           backendVO.Name(),
@@ -157,6 +193,8 @@ func BuildBackendDTO(backendVO vo.Backend) dto.Backend {
 	}
 }
 
+// BuildBackendModifiersDTO builds a `BackendModifiers` DTO object using the provided `BackendModifiers` object as input.
+// It retrieves various properties from the `BackendModifiers` object and sets them on the `BackendModifiers` object.
 func BuildBackendModifiersDTO(backendModifiersVO vo.BackendModifiers) *dto.BackendModifiers {
 	if helper.IsEmpty(backendModifiersVO) {
 		return nil
@@ -170,6 +208,9 @@ func BuildBackendModifiersDTO(backendModifiersVO vo.BackendModifiers) *dto.Backe
 	}
 }
 
+// BuildModifiersDTO builds a slice of `Modifier` DTO objects using the provided slice of `Modifier` objects as input.
+// It iterates over each `Modifier` in the `modifiers` slice and calls `BuildModifierDTO` to create the DTO object.
+// The DTO object is then appended to the `result` slice and finally returned.
 func BuildModifiersDTO(modifiers []vo.Modifier) (result []dto.Modifier) {
 	for _, modifierVO := range modifiers {
 		result = append(result, *BuildModifierDTO(modifierVO))
@@ -177,6 +218,10 @@ func BuildModifiersDTO(modifiers []vo.Modifier) (result []dto.Modifier) {
 	return result
 }
 
+// BuildModifierDTO builds a `Modifier` DTO object using the provided `Modifier` object as input.
+// It checks if the input `Modifier` object is valid and returns `nil` if it is not.
+// Otherwise, it creates a new `Modifier` object and sets its properties based on the input `Modifier` object.
+// The created `Modifier` object is then returned as a pointer.
 func BuildModifierDTO(modifierVO vo.Modifier) *dto.Modifier {
 	if !modifierVO.Valid() {
 		return nil

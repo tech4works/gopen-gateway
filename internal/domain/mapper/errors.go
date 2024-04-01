@@ -22,11 +22,6 @@ func NewErrBadGateway(err error) error {
 	return ErrBadGateway
 }
 
-func NewErrGatewayTimeout(duration time.Duration) error {
-	ErrGatewayTimeout = errors.NewSkipCaller(2, MsgErrGatewayTimeout, duration.String())
-	return ErrGatewayTimeout
-}
-
 func NewErrGatewayTimeoutByErr(err error) error {
 	ErrGatewayTimeout = errors.NewSkipCaller(2, MsgErrGatewayTimeout, err)
 	return ErrGatewayTimeout
