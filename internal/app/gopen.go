@@ -15,7 +15,7 @@ import (
 )
 
 var loggerOptions = logger.Options{
-	CustomAfterPrefixText: "CMD",
+	CustomAfterPrefixText: "APP",
 }
 
 var httpServer *http.Server
@@ -65,6 +65,7 @@ func (g gopen) ListerAndServer() {
 	printInfoLog("Starting lister and server...")
 
 	// instanciamos o gin engine
+	gin.SetMode(gin.ReleaseMode)
 	engine := gin.New()
 
 	// configuramos rotas estáticas
@@ -80,35 +81,14 @@ func (g gopen) ListerAndServer() {
 			}
 		}
 
-		// configuramos o handler do log como o middleware
-		logHandler := g.logMiddleware.Do
-		// configuramos o handler do trace como o middleware
-		traceHandler := g.traceMiddleware.Do
-		// configuramos o handler do security cors como o middleware
-		securityCorsHandler := g.securityCorsMiddleware.Do
-		// configuramos o handler do timeout do endpoint como o middleware
-		timeoutHandler := g.buildTimeoutMiddlewareHandler(endpointVO)
-		// configuramos o handler do limiter do endpoint como o middleware
-		limiterHandler := g.buildLimiterMiddlewareHandler(endpointVO)
-		// configuramos o handler de cache do endpoint como o middleware
-		cacheHandler := g.buildCacheMiddlewareHandler(endpointVO)
+		// configuramos os handles do endpoint
+		handles := g.buildEndpointHandles(endpointVO)
 
-		// configuramos o handler do endpoint como controlador
-		endpointHandler := g.endpointController.Execute
+		// cadastramos as rotas no nosso wrapper
+		api.Handle(engine, g.gopenVO, endpointVO, handles...)
 
-		// cadastramos as rotas no gin engine
-		api.Handle(
-			engine,
-			g.gopenVO,
-			endpointVO,
-			traceHandler,
-			logHandler,
-			securityCorsHandler,
-			timeoutHandler,
-			limiterHandler,
-			cacheHandler,
-			endpointHandler,
-		)
+		// imprimimos a informação dos endpoints cadastrado
+		printInfoLogf("registered route %s", endpointVO.Resume())
 	}
 
 	// montamos o endereço com a porta configurada
@@ -143,6 +123,33 @@ func (g gopen) buildStaticRoutes(engine *gin.Engine) {
 	engine.GET("/version", g.staticController.Version)
 	// gopen config infos
 	engine.GET("/settings", g.staticController.Settings)
+}
+
+func (g gopen) buildEndpointHandles(endpointVO vo.Endpoint) []api.HandlerFunc {
+	// configuramos o handler do log como o middleware
+	logHandler := g.logMiddleware.Do
+	// configuramos o handler do trace como o middleware
+	traceHandler := g.traceMiddleware.Do
+	// configuramos o handler do security cors como o middleware
+	securityCorsHandler := g.securityCorsMiddleware.Do
+	// configuramos o handler do timeout do endpoint como o middleware
+	timeoutHandler := g.buildTimeoutMiddlewareHandler(endpointVO)
+	// configuramos o handler do limiter do endpoint como o middleware
+	limiterHandler := g.buildLimiterMiddlewareHandler(endpointVO)
+	// configuramos o handler de cache do endpoint como o middleware
+	cacheHandler := g.buildCacheMiddlewareHandler(endpointVO)
+	// configuramos o handler do endpoint como controlador
+	endpointHandler := g.endpointController.Execute
+	// montamos a lista de manipuladores
+	return []api.HandlerFunc{
+		traceHandler,
+		logHandler,
+		securityCorsHandler,
+		timeoutHandler,
+		limiterHandler,
+		cacheHandler,
+		endpointHandler,
+	}
 }
 
 func (g gopen) buildTimeoutMiddlewareHandler(endpointVO vo.Endpoint) api.HandlerFunc {

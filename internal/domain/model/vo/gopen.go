@@ -400,6 +400,14 @@ func (e Endpoint) CountAllBackends() int {
 	return len(e.beforeware) + len(e.backends) + len(e.afterware)
 }
 
+func (e Endpoint) CountBeforewares() int {
+	return len(e.beforeware)
+}
+
+func (e Endpoint) CountAfterwares() int {
+	return len(e.afterware)
+}
+
 func (e Endpoint) CountBackends() int {
 	return len(e.backends)
 }
@@ -432,6 +440,11 @@ func (e Endpoint) AggregateResponses() bool {
 
 func (e Endpoint) AbortIfStatusCodes() []int {
 	return e.abortIfStatusCodes
+}
+
+func (e Endpoint) Resume() string {
+	return fmt.Sprintf("%s -> \"%s\" [beforeware: %v afterware: %v backends: %v modifiers: %v]", e.method, e.path,
+		e.CountBeforewares(), e.CountAfterwares(), e.CountBackends(), e.CountModifiers())
 }
 
 func (c Cache) Duration() time.Duration {
