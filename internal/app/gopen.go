@@ -117,12 +117,27 @@ func (g gopen) Shutdown(ctx context.Context) error {
 func (g gopen) buildStaticRoutes(engine *gin.Engine) {
 	// imprimimos o log cmd
 	printInfoLog("Configuring static routes...")
+
+	// format
+	formatLog := "registered route %s -> \"%s\""
+
 	// ping route
-	engine.GET("/ping", g.staticController.Ping)
+	pingMethod := http.MethodGet
+	pingPath := "/ping"
+	engine.Handle(pingMethod, pingPath, g.staticController.Ping)
+	printInfoLogf(formatLog, pingMethod, pingPath)
+
 	// version
-	engine.GET("/version", g.staticController.Version)
+	versionMethod := http.MethodGet
+	versionPath := "/version"
+	engine.Handle(versionMethod, versionPath, g.staticController.Version)
+	printInfoLogf(formatLog, versionMethod, versionPath)
+
 	// gopen config infos
-	engine.GET("/settings", g.staticController.Settings)
+	settingsMethod := http.MethodGet
+	settingsPath := "/settings"
+	engine.Handle(settingsMethod, settingsPath, g.staticController.Settings)
+	printInfoLogf(formatLog, settingsMethod, settingsPath)
 }
 
 func (g gopen) buildEndpointHandles(endpointVO vo.Endpoint) []api.HandlerFunc {
