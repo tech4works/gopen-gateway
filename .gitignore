@@ -23,7 +23,7 @@ go.work
 # Goland IDE
 .idea
 
-# Martini result json
+# GOpen result json
 gopen.json
 
 # Air files
@@ -31,3 +31,6 @@ tmp/
 
 # Env
 *.env
+
+# GOpen config
+gopen/
