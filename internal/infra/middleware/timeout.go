@@ -5,9 +5,7 @@ import (
 	"github.com/GabrielHCataldo/go-errors/errors"
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/go-logger/logger"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/app/util"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
-	"github.com/gin-gonic/gin"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/infra/api"
 	"net/http"
 	"runtime/debug"
 	"time"
@@ -17,21 +15,21 @@ type timeout struct {
 }
 
 type Timeout interface {
-	Do(endpointVO vo.Endpoint, timeoutDuration time.Duration) gin.HandlerFunc
+	Do(timeoutDuration time.Duration) api.HandlerFunc
 }
 
 func NewTimeout() Timeout {
 	return timeout{}
 }
 
-func (t timeout) Do(endpointVO vo.Endpoint, timeoutDuration time.Duration) gin.HandlerFunc {
-	return func(ctx *gin.Context) {
+func (t timeout) Do(timeoutDuration time.Duration) api.HandlerFunc {
+	return func(req *api.Request) {
 		// inicializamos o context com timeout fornecido na config do gateway
-		timeoutContext, cancel := context.WithTimeout(ctx.Request.Context(), timeoutDuration)
+		timeoutContext, cancel := context.WithTimeout(req.Context(), timeoutDuration)
 		defer cancel()
 
 		// setamos esse context na request atual para propagar para os outros manipuladores
-		ctx.Request = ctx.Request.WithContext(timeoutContext)
+		req.WithContext(timeoutContext)
 
 		// criamos os canais de alerta
 		finishChan := make(chan interface{}, 1)
@@ -46,7 +44,7 @@ func (t timeout) Do(endpointVO vo.Endpoint, timeoutDuration time.Duration) gin.H
 				}
 			}()
 			// chamamos o próximo handler na requisição
-			ctx.Next()
+			req.Next()
 			// se finalizou a tempo, chamamos o channel para seguir normalmente
 			finishChan <- struct{}{}
 		}()
@@ -63,7 +61,7 @@ func (t timeout) Do(endpointVO vo.Endpoint, timeoutDuration time.Duration) gin.H
 			statusCode = http.StatusInternalServerError
 			err = errors.New("panic error occurred")
 			break
-		case <-ctx.Done():
+		case <-req.Context().Done():
 			statusCode = http.StatusGatewayTimeout
 			err = errors.New("gateway timeout: ", timeoutDuration.String())
 			break
@@ -71,7 +69,7 @@ func (t timeout) Do(endpointVO vo.Endpoint, timeoutDuration time.Duration) gin.H
 
 		// caso tenha passado nos dois fluxos de timeout ou de erro, respondemos à requisição
 		if helper.IsGreaterThan(statusCode, 0) {
-			util.RespondGatewayError(ctx, endpointVO.ResponseEncode(), statusCode, err)
+			req.WriteError(statusCode, err)
 		}
 	}
 }

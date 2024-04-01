@@ -13,7 +13,7 @@ func NewHeader(httpHeader http.Header) Header {
 	return Header(httpHeader)
 }
 
-func NewHeaderFailed() Header {
+func newHeaderFailed() Header {
 	return Header{
 		consts.XGOpenCache:    {"false"},
 		consts.XGOpenComplete: {"false"},

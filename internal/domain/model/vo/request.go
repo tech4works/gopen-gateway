@@ -10,7 +10,7 @@ type Request struct {
 	history []backendRequest
 }
 
-func newRequest(url, method string, header Header, params Params, query Query, body Body) Request {
+func NewRequest(url, method string, header Header, params Params, query Query, body Body) Request {
 	return Request{
 		url:    url,
 		method: method,

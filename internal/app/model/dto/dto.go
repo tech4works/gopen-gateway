@@ -112,17 +112,17 @@ type Modifier struct {
 	Value   string               `json:"value,omitempty" validate:"required"`
 }
 
-type ResponseWriter struct {
+type Writer struct {
 	gin.ResponseWriter
 	Body *bytes.Buffer
 }
 
-func (r ResponseWriter) Write(b []byte) (int, error) {
+func (r Writer) Write(b []byte) (int, error) {
 	r.Body.Write(b)
 	return r.ResponseWriter.Write(b)
 }
 
-func (r ResponseWriter) WriteString(s string) (n int, err error) {
+func (r Writer) WriteString(s string) (n int, err error) {
 	r.Body.WriteString(s)
 	return r.ResponseWriter.WriteString(s)
 }

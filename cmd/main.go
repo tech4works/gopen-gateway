@@ -9,12 +9,11 @@ import (
 	"github.com/GabrielHCataldo/go-logger/logger"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/app"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/app/controller"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/app/interfaces"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/app/middleware"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/app/model/dto"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/service"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/infra"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/infra/middleware"
 	"github.com/fsnotify/fsnotify"
 	"github.com/joho/godotenv"
 	"github.com/xeipuuv/gojsonschema"
@@ -182,7 +181,7 @@ func validateJsonSchema(fileJsonUri string, fileJsonBytes []byte) error {
 	return nil
 }
 
-func buildCacheStore(storeDTO *dto.Store) interfaces.CacheStore {
+func buildCacheStore(storeDTO *dto.Store) infra.CacheStore {
 	printInfoLog("Configuring cache store...")
 
 	if helper.IsNotNil(storeDTO) {
@@ -192,7 +191,7 @@ func buildCacheStore(storeDTO *dto.Store) interfaces.CacheStore {
 	return infra.NewMemoryStore()
 }
 
-func listerAndServer(gopenVO vo.GOpen) {
+func listerAndServer(cacheStore infra.CacheStore, gopenVO vo.GOpen) {
 	printInfoLog("Building infra..")
 	restTemplate := infra.NewRestTemplate()
 	traceProvider := infra.NewTraceProvider()
@@ -204,23 +203,21 @@ func listerAndServer(gopenVO vo.GOpen) {
 	endpointService := service.NewEndpoint(backendService)
 
 	printInfoLog("Building middlewares..")
-	writerMiddleware := middleware.NewWriter()
 	traceMiddleware := middleware.NewTrace(traceProvider)
 	logMiddleware := middleware.NewLog(logProvider)
 	securityCorsMiddleware := middleware.NewSecurityCors(gopenVO.SecurityCors())
 	limiterMiddleware := middleware.NewLimiter()
 	timeoutMiddleware := middleware.NewTimeout()
-	cacheMiddleware := middleware.NewCache()
+	cacheMiddleware := middleware.NewCache(cacheStore)
 
 	printInfoLog("Building controllers..")
 	staticController := controller.NewStatic(gopenVO)
-	endpointController := controller.NewEndpoint(gopenVO, endpointService)
+	endpointController := controller.NewEndpoint(endpointService)
 
 	printInfoLog("Building application..")
 	// inicializamos a aplicação
 	gopenApp = app.NewGOpen(
 		gopenVO,
-		writerMiddleware,
 		traceMiddleware,
 		logMiddleware,
 		securityCorsMiddleware,
@@ -327,10 +324,10 @@ func startApp(env string, gopenDTO dto.GOpen) {
 
 	// construímos os objetos de valores a partir do dto gopen
 	printInfoLog("Building value objects..")
-	gopenVO := vo.NewGOpen(env, gopenDTO, cacheStore)
+	gopenVO := vo.NewGOpen(env, gopenDTO)
 
 	// chamamos o lister and server, ele ira segurar a goroutine, depois que ele é parado, as linhas seguintes vão ser chamados
-	listerAndServer(gopenVO)
+	listerAndServer(cacheStore, gopenVO)
 }
 
 func restartApp(env string) {
@@ -376,7 +373,7 @@ func closeWatcher(watcher *fsnotify.Watcher) {
 	}
 }
 
-func closeCacheStore(store interfaces.CacheStore) {
+func closeCacheStore(store infra.CacheStore) {
 	err := store.Close()
 	if helper.IsNotNil(err) {
 		printWarningLog("Error close cache store:", err)

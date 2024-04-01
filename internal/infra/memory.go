@@ -4,7 +4,6 @@ import (
 	"context"
 	"github.com/GabrielHCataldo/go-errors/errors"
 	"github.com/GabrielHCataldo/go-helper/helper"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/app/interfaces"
 	appmapper "github.com/GabrielHCataldo/gopen-gateway/internal/app/mapper"
 	"github.com/jellydator/ttlcache/v2"
 	"time"
@@ -14,7 +13,7 @@ type memoryStore struct {
 	ttlCache *ttlcache.Cache
 }
 
-func NewMemoryStore() interfaces.CacheStore {
+func NewMemoryStore() CacheStore {
 	ttlCache := ttlcache.NewCache()
 	ttlCache.SkipTTLExtensionOnHit(true)
 

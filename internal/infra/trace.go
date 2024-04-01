@@ -2,7 +2,6 @@ package infra
 
 import (
 	"fmt"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/app/interfaces"
 	"github.com/google/uuid"
 	"time"
 )
@@ -10,7 +9,11 @@ import (
 type trace struct {
 }
 
-func NewTraceProvider() interfaces.TraceProvider {
+type TraceProvider interface {
+	GenerateTraceId() string
+}
+
+func NewTraceProvider() TraceProvider {
 	return trace{}
 }
 

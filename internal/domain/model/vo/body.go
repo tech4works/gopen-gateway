@@ -29,11 +29,17 @@ func NewBodyByContentType(contentType string, bytes []byte) Body {
 	return Body{value: string(bytes)}
 }
 
+func newBodyByErr(err error) Body {
+	return Body{value: err}
+}
+
 func newBodyByAny(value any) Body {
 	if orderedMap, isOrderedMap := value.(orderedmap.OrderedMap); isOrderedMap {
 		return Body{value: orderedMap}
 	} else if sliceOfOrderedMap, isSliceOfOrderedMap := value.([]orderedmap.OrderedMap); isSliceOfOrderedMap {
 		return Body{value: sliceOfOrderedMap}
+	} else if helper.IsErrorType(value) {
+		return Body{value: value}
 	}
 	return newBody(helper.SimpleConvertToBytes(value))
 }
@@ -192,7 +198,7 @@ func (b *Body) String() string {
 	return helper.SimpleConvertToString(b.value)
 }
 
-func (b Body) MarshalJSON() ([]byte, error) {
+func (b *Body) MarshalJSON() ([]byte, error) {
 	return json.Marshal(b.value)
 }
 

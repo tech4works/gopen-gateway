@@ -6,7 +6,6 @@ import (
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/go-redis-template/redis"
 	"github.com/GabrielHCataldo/go-redis-template/redis/option"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/app/interfaces"
 	appmapper "github.com/GabrielHCataldo/gopen-gateway/internal/app/mapper"
 	"time"
 )
@@ -15,7 +14,7 @@ type redisStore struct {
 	redisTemplate *redis.Template
 }
 
-func NewRedisStore(address, password string) interfaces.CacheStore {
+func NewRedisStore(address, password string) CacheStore {
 	return &redisStore{
 		redisTemplate: redis.NewTemplate(option.Client{
 			Addr:     address,

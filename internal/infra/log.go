@@ -1,15 +1,12 @@
 package infra
 
 import (
-	"bytes"
 	"fmt"
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/go-logger/logger"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/app/interfaces"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/app/model/dto"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/consts"
-	"github.com/gin-gonic/gin"
-	"io"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/infra/api"
 	"net/http"
 	"strings"
 	"time"
@@ -19,40 +16,42 @@ import (
 type logProvider struct {
 }
 
-func NewLogProvider() interfaces.LogProvider {
+type LogProvider interface {
+	InitializeLoggerOptions(req *api.Request)
+	BuildInitialRequestMessage(req *api.Request) string
+	BuildFinishRequestMessage(writer dto.Writer, startTime time.Time) string
+}
+
+func NewLogProvider() LogProvider {
 	return logProvider{}
 }
 
-func (l logProvider) InitializeLoggerOptions(ctx *gin.Context) {
+func (l logProvider) InitializeLoggerOptions(req *api.Request) {
 	// obtemos os valores para imprimir nos logs da requisição atual
-	traceId := ctx.GetHeader(consts.XTraceId)
-	ip := ctx.GetHeader(consts.XForwardedFor)
-	uri := ctx.Request.URL.String()
-	method := ctx.Request.Method
+	traceId := req.HeaderValue(consts.XTraceId)
+	ip := req.HeaderValue(consts.XForwardedFor)
+	url := req.Url()
+	method := req.Method()
 
 	// setamos as opções globais de log
 	logger.SetOptions(&logger.Options{
 		HideArgCaller:         true,
-		CustomAfterPrefixText: l.buildLoggerAfterPrefixText(traceId, ip, uri, method),
+		CustomAfterPrefixText: l.buildLoggerAfterPrefixText(traceId, ip, url, method),
 	})
 }
 
-func (l logProvider) BuildInitialRequestMessage(ctx *gin.Context) string {
+func (l logProvider) BuildInitialRequestMessage(req *api.Request) string {
 	// inicializamos o body
 	var bodyInfo any
 
 	// obtemos o tipo do body e size do mesmo
-	bodyType := ctx.GetHeader("Content-Type")
-	bodySize := ctx.GetHeader("Content-Length")
+	bodyType := req.HeaderValue("Content-Type")
+	bodySize := req.HeaderValue("Content-Length")
 	if helper.ContainsIgnoreCase(bodyType, "application/json") ||
 		helper.ContainsIgnoreCase(bodyType, "application/xml") ||
 		helper.ContainsIgnoreCase(bodyType, "plain/text") {
-		// caso ele seja json ou texto obtemos o mesmo para imprimir
-		bodyBytes, _ := io.ReadAll(ctx.Request.Body)
-		// voltamos para requisição, ja que podemos precisar nos handles futuros
-		ctx.Request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 		// convertemos esses bytes para o any inicializado
-		bodyInfo = string(bodyBytes)
+		bodyInfo = req.BodyString()
 	} else if helper.IsNotEmpty(bodyType, bodySize) {
 		var msg string
 		if helper.IsNotEmpty(bodyType) {
@@ -61,7 +60,6 @@ func (l logProvider) BuildInitialRequestMessage(ctx *gin.Context) string {
 		if helper.IsNotEmpty(bodyType) {
 			msg += fmt.Sprintf("content-length: %s ", bodySize)
 		}
-
 		// caso não seja o json e text, imprimimos um resumo
 		bodyInfo = msg
 	}
@@ -70,7 +68,7 @@ func (l logProvider) BuildInitialRequestMessage(ctx *gin.Context) string {
 	return l.replaceAllBreakLineLogger(bodyInfo)
 }
 
-func (l logProvider) BuildFinishRequestMessage(writer dto.ResponseWriter, startTime time.Time) string {
+func (l logProvider) BuildFinishRequestMessage(writer dto.Writer, startTime time.Time) string {
 	// obtemos quanto tempo demorou a requisição
 	latency := time.Now().Sub(startTime)
 

@@ -5,7 +5,6 @@ import (
 	"github.com/GabrielHCataldo/go-errors/errors"
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/go-logger/logger"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/app/interfaces"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/app/model/dto"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/consts"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/enum"
@@ -21,7 +20,6 @@ type GOpen struct {
 	hotReload    bool
 	port         int
 	timeout      time.Duration
-	cacheStore   interfaces.CacheStore
 	limiter      Limiter
 	cache        Cache
 	securityCors SecurityCors
@@ -67,7 +65,7 @@ type Endpoint struct {
 	backends           []Backend
 }
 
-func NewGOpen(env string, gopenDTO dto.GOpen, cacheStore interfaces.CacheStore) GOpen {
+func NewGOpen(env string, gopenDTO dto.GOpen) GOpen {
 	var endpoints []Endpoint
 	for _, endpointDTO := range gopenDTO.Endpoints {
 		endpoints = append(endpoints, newEndpoint(endpointDTO))
@@ -86,7 +84,6 @@ func NewGOpen(env string, gopenDTO dto.GOpen, cacheStore interfaces.CacheStore) 
 		env:          env,
 		version:      gopenDTO.Version,
 		port:         gopenDTO.Port,
-		cacheStore:   cacheStore,
 		timeout:      timeout,
 		limiter:      newLimiter(helper.IfNilReturns(gopenDTO.Limiter, dto.Limiter{})),
 		cache:        newCache(helper.IfNilReturns(gopenDTO.Cache, dto.Cache{})),
@@ -252,10 +249,6 @@ func (g GOpen) CacheStrategyHeaders() []string {
 
 func (g GOpen) AllowCacheControl() bool {
 	return helper.IfNilReturns(g.cache.allowCacheControl, false)
-}
-
-func (g GOpen) CacheStore() interfaces.CacheStore {
-	return g.cacheStore
 }
 
 func (g GOpen) SecurityCors() SecurityCors {
@@ -453,54 +446,48 @@ func (c Cache) Disabled() bool {
 	return !c.Enabled()
 }
 
-func (c Cache) CanRead(ctx *gin.Context) bool {
+func (c Cache) CanRead(httpMethod string, header Header) bool {
 	// verificamos se ta ativo
 	if c.Disabled() {
 		return false
 	}
 
 	// obtemos o cache control enum do ctx de requisição
-	cacheControl := c.CacheControlEnum(ctx)
+	cacheControl := c.CacheControlEnum(header)
 
 	// verificamos se no Cache-Control enviado veio como "no-cache" e se o método da requisição é GET
-	return helper.IsNotEqualTo(enum.CacheControlNoCache, cacheControl) &&
-		helper.Equals(ctx.Request.Method, http.MethodGet)
+	return helper.IsNotEqualTo(enum.CacheControlNoCache, cacheControl) && helper.Equals(httpMethod, http.MethodGet)
 }
 
-func (c Cache) CanWrite(ctx *gin.Context) bool {
+func (c Cache) CanWrite(httpMethod string, header Header) bool {
 	// verificamos se ta ativo
 	if c.Disabled() {
 		return false
 	}
 
 	// obtemos o cache control enum do ctx de requisição
-	cacheControl := c.CacheControlEnum(ctx)
+	cacheControl := c.CacheControlEnum(header)
 
 	// verificamos se no Cache-Control enviado veio como "no-store" e se o método da requisição é GET
-	return helper.IsNotEqualTo(enum.CacheControlNoStore, cacheControl) &&
-		helper.Equals(ctx.Request.Method, http.MethodGet)
+	return helper.IsNotEqualTo(enum.CacheControlNoStore, cacheControl) && helper.Equals(httpMethod, http.MethodGet)
 }
 
-func (c Cache) CacheControlEnum(ctx *gin.Context) (cacheControl enum.CacheControl) {
+func (c Cache) CacheControlEnum(header Header) (cacheControl enum.CacheControl) {
 	// caso esteja permitido o cache control obtemos do header
 	if helper.IsNotNil(c.allowCacheControl) && *c.allowCacheControl {
-		cacheControl = enum.CacheControl(ctx.GetHeader("Cache-Control"))
+		cacheControl = enum.CacheControl(header.Get("Cache-Control"))
 	}
 	return cacheControl
 }
 
-func (c Cache) StrategyKey(ctx *gin.Context) string {
-	// obtemos os dados que precisamos da requisição para setar como chave de cache
-	requestUri := ctx.Request.URL.String()
-	method := ctx.Request.Method
-
+func (c Cache) StrategyKey(httpMethod string, httpUrl string, header Header) string {
 	// construímos a chave inicialmente com os valores de requisição
-	key := fmt.Sprintf("%s:%s", method, requestUri)
+	key := fmt.Sprintf("%s:%s", httpMethod, httpUrl)
 
 	var strategyValues []string
 	// iteramos as chaves para obter os valores
 	for _, strategyKey := range c.strategyHeaders {
-		valueByStrategyKey := ctx.GetHeader(strategyKey)
+		valueByStrategyKey := header.Get(strategyKey)
 		if helper.IsNotEmpty(valueByStrategyKey) {
 			strategyValues = append(strategyValues, valueByStrategyKey)
 		}
@@ -581,7 +568,7 @@ func (s SecurityCors) AllowMethods(method string) (err error) {
 	return err
 }
 
-func (s SecurityCors) AllowHeaders(header http.Header) (err error) {
+func (s SecurityCors) AllowHeaders(header Header) (err error) {
 	// verificamos se na configuração security-cors.allow-headers ta vazia, tem * para retornar ok
 	if helper.IsEmpty(s.allowHeaders) || helper.Contains(s.allowHeaders, "*") {
 		return nil

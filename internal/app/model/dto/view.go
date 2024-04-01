@@ -1,15 +1,5 @@
 package dto
 
-import "time"
-
-type ErrorView struct {
-	File      string    `json:"file,omitempty"`
-	Line      int       `json:"line,omitempty"`
-	Endpoint  string    `json:"endpoint,omitempty"`
-	Message   string    `json:"message,omitempty"`
-	Timestamp time.Time `json:"timestamp,omitempty"`
-}
-
 type SettingView struct {
 	Version     string    `json:"version,omitempty"`
 	VersionDate string    `json:"version-date,omitempty"`

@@ -1,7 +1,6 @@
 package infra
 
 import (
-	"github.com/GabrielHCataldo/gopen-gateway/internal/app/interfaces"
 	domainmapper "github.com/GabrielHCataldo/gopen-gateway/internal/domain/mapper"
 	"golang.org/x/time/rate"
 	"sync"
@@ -16,7 +15,11 @@ type rateLimiterProvider struct {
 	burst int
 }
 
-func NewRateLimiterProvider(every time.Duration, limit int) interfaces.RateLimiterProvider {
+type RateLimiterProvider interface {
+	Allow(key string) error
+}
+
+func NewRateLimiterProvider(every time.Duration, limit int) RateLimiterProvider {
 	return &rateLimiterProvider{
 		keys:  map[string]*rate.Limiter{},
 		mutex: &sync.RWMutex{},

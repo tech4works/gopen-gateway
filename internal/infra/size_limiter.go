@@ -3,7 +3,6 @@ package infra
 import (
 	"bytes"
 	"github.com/GabrielHCataldo/go-helper/helper"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/app/interfaces"
 	domainmapper "github.com/GabrielHCataldo/gopen-gateway/internal/domain/mapper"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
 	"io"
@@ -16,7 +15,11 @@ type sizeLimiterProvider struct {
 	maxMultipartMemorySize vo.Bytes
 }
 
-func NewSizeLimiterProvider(maxHeaderSize, maxBodySize, maxMultipartMemorySize vo.Bytes) interfaces.SizeLimiterProvider {
+type SizeLimiterProvider interface {
+	Allow(request *http.Request) error
+}
+
+func NewSizeLimiterProvider(maxHeaderSize, maxBodySize, maxMultipartMemorySize vo.Bytes) SizeLimiterProvider {
 	return sizeLimiterProvider{
 		maxHeaderSize:          maxHeaderSize,
 		maxBodySize:            maxBodySize,

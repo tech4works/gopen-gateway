@@ -21,12 +21,11 @@ type ExecuteEndpoint struct {
 	request  Request
 }
 
-func NewExecuteEndpoint(gopenVO GOpen, endpointVO Endpoint, url, method string, header Header, params Params,
-	query Query, body Body) ExecuteEndpoint {
+func NewExecuteEndpoint(gopenVO GOpen, endpointVO Endpoint, requestVO Request) ExecuteEndpoint {
 	return ExecuteEndpoint{
 		gopen:    gopenVO,
 		endpoint: endpointVO,
-		request:  newRequest(url, method, header, params, query, body),
+		request:  requestVO,
 	}
 }
 

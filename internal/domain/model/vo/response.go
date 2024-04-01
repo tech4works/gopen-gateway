@@ -28,11 +28,9 @@ type CacheResponse struct {
 
 type Response struct {
 	endpoint   Endpoint
-	completed  bool
 	statusCode int
 	header     Header
 	body       Body
-	err        error
 	abort      bool
 	history    responseHistory
 }
@@ -56,7 +54,16 @@ func NewResponseByCache(endpointVO Endpoint, cacheResponseVO CacheResponse) Resp
 	}
 }
 
-func NewCacheResponse(writer dto.ResponseWriter, duration time.Duration) CacheResponse {
+func NewResponseByErr(endpointVO Endpoint, statusCode int, err error) Response {
+	return Response{
+		endpoint:   endpointVO,
+		statusCode: statusCode,
+		header:     newHeaderFailed(),
+		body:       newBodyByErr(err),
+	}
+}
+
+func NewCacheResponse(writer dto.Writer, duration time.Duration) CacheResponse {
 	return CacheResponse{
 		StatusCode: writer.Status(),
 		Header:     NewHeader(writer.Header()),
@@ -90,7 +97,6 @@ func (r Response) ModifyStatusCode(statusCode int, backendResponseVO backendResp
 
 	return Response{
 		endpoint:   r.endpoint,
-		completed:  r.completed,
 		statusCode: statusCode,
 		header:     r.header,
 		body:       r.body,
@@ -111,7 +117,6 @@ func (r Response) ModifyHeader(header Header, backendResponseVO backendResponse)
 
 	return Response{
 		endpoint:   r.endpoint,
-		completed:  r.completed,
 		statusCode: r.statusCode,
 		header:     header,
 		body:       r.body,
@@ -132,7 +137,6 @@ func (r Response) ModifyBody(body Body, backendResponseVO backendResponse) Respo
 
 	return Response{
 		endpoint:   r.endpoint,
-		completed:  r.completed,
 		statusCode: r.statusCode,
 		header:     r.header,
 		body:       body,
@@ -171,7 +175,6 @@ func (r Response) notify(history responseHistory) Response {
 	// construímos o novo objeto de valor
 	return Response{
 		endpoint:   r.endpoint,
-		completed:  completed,
 		statusCode: statusCodeByHistory,
 		header:     header,
 		body:       bodyByHistory,
@@ -191,8 +194,8 @@ func (r Response) Error(err error) Response {
 	// construímos a resposta de erro padrão do gateway
 	return Response{
 		statusCode: statusCode,
-		header:     NewHeaderFailed(),
-		err:        err,
+		header:     newHeaderFailed(),
+		body:       newBodyByErr(err),
 		abort:      true,
 		history:    r.history,
 	}
@@ -245,10 +248,6 @@ func (r Response) Header() Header {
 
 func (r Response) Body() Body {
 	return r.body
-}
-
-func (r Response) Err() error {
-	return r.err
 }
 
 func (r Response) Eval() map[string]any {

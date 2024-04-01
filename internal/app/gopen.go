@@ -6,9 +6,10 @@ import (
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/go-logger/logger"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/app/controller"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/app/middleware"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/infra"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/infra/api"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/infra/middleware"
 	"github.com/gin-gonic/gin"
 	"net/http"
 )
@@ -21,7 +22,6 @@ var httpServer *http.Server
 
 type gopen struct {
 	gopenVO                vo.GOpen
-	writerMiddleware       middleware.Writer
 	traceMiddleware        middleware.Trace
 	logMiddleware          middleware.Log
 	securityCorsMiddleware middleware.SecurityCors
@@ -39,7 +39,6 @@ type GOpen interface {
 
 func NewGOpen(
 	gopenVO vo.GOpen,
-	writerMiddleware middleware.Writer,
 	traceMiddleware middleware.Trace,
 	logMiddleware middleware.Log,
 	securityCorsMiddleware middleware.SecurityCors,
@@ -51,7 +50,6 @@ func NewGOpen(
 ) GOpen {
 	return gopen{
 		gopenVO:                gopenVO,
-		writerMiddleware:       writerMiddleware,
 		traceMiddleware:        traceMiddleware,
 		logMiddleware:          logMiddleware,
 		timeoutMiddleware:      timeoutMiddleware,
@@ -69,9 +67,6 @@ func (g gopen) ListerAndServer() {
 	// instanciamos o gin engine
 	engine := gin.New()
 
-	// configuramos os middlewares estáticos
-	g.buildStaticMiddlewares(engine)
-
 	// configuramos rotas estáticas
 	g.buildStaticRoutes(engine)
 
@@ -85,8 +80,12 @@ func (g gopen) ListerAndServer() {
 			}
 		}
 
+		// configuramos o handler do log como o middleware
+		logHandler := g.logMiddleware.Do
+		// configuramos o handler do trace como o middleware
+		traceHandler := g.traceMiddleware.Do
 		// configuramos o handler do security cors como o middleware
-		securityCorsHandler := g.securityCorsMiddleware.Do(endpointVO)
+		securityCorsHandler := g.securityCorsMiddleware.Do
 		// configuramos o handler do timeout do endpoint como o middleware
 		timeoutHandler := g.buildTimeoutMiddlewareHandler(endpointVO)
 		// configuramos o handler do limiter do endpoint como o middleware
@@ -95,12 +94,15 @@ func (g gopen) ListerAndServer() {
 		cacheHandler := g.buildCacheMiddlewareHandler(endpointVO)
 
 		// configuramos o handler do endpoint como controlador
-		endpointHandler := g.endpointController.Execute(endpointVO)
+		endpointHandler := g.endpointController.Execute
 
 		// cadastramos as rotas no gin engine
-		engine.Handle(
-			endpointVO.Method(),
-			endpointVO.Path(),
+		api.Handle(
+			engine,
+			g.gopenVO,
+			endpointVO,
+			traceHandler,
+			logHandler,
 			securityCorsHandler,
 			timeoutHandler,
 			limiterHandler,
@@ -132,15 +134,6 @@ func (g gopen) Shutdown(ctx context.Context) error {
 	return httpServer.Shutdown(ctx)
 }
 
-func (g gopen) buildStaticMiddlewares(engine *gin.Engine) {
-	// imprimimos o log cmd
-	printInfoLog("Configuring static middlewares...")
-	// setamos em ordem os middlewares estáticos
-	engine.Use(g.writerMiddleware.Do)
-	engine.Use(g.traceMiddleware.Do)
-	engine.Use(g.logMiddleware.Do)
-}
-
 func (g gopen) buildStaticRoutes(engine *gin.Engine) {
 	// imprimimos o log cmd
 	printInfoLog("Configuring static routes...")
@@ -152,7 +145,7 @@ func (g gopen) buildStaticRoutes(engine *gin.Engine) {
 	engine.GET("/settings", g.staticController.Settings)
 }
 
-func (g gopen) buildTimeoutMiddlewareHandler(endpointVO vo.Endpoint) gin.HandlerFunc {
+func (g gopen) buildTimeoutMiddlewareHandler(endpointVO vo.Endpoint) api.HandlerFunc {
 	// por padrão obtemos o timeout configurado na raiz, caso não informado um valor padrão é retornado
 	timeoutDuration := g.gopenVO.Timeout()
 	// se o timeout foi informado no endpoint damos prioridade a ele
@@ -160,10 +153,10 @@ func (g gopen) buildTimeoutMiddlewareHandler(endpointVO vo.Endpoint) gin.Handler
 		timeoutDuration = endpointVO.Timeout()
 	}
 	// retornamos o manipulador com o timeout configura
-	return g.timeoutMiddleware.Do(endpointVO, timeoutDuration)
+	return g.timeoutMiddleware.Do(timeoutDuration)
 }
 
-func (g gopen) buildLimiterMiddlewareHandler(endpointVO vo.Endpoint) gin.HandlerFunc {
+func (g gopen) buildLimiterMiddlewareHandler(endpointVO vo.Endpoint) api.HandlerFunc {
 	// por padrão obtemos o limiter.rate.every configurado na raiz, caso não informado um valor padrão é retornado
 	rateEvery := g.gopenVO.LimiterRateEvery()
 	// caso informado no endpoint damos prioridade
@@ -205,10 +198,10 @@ func (g gopen) buildLimiterMiddlewareHandler(endpointVO vo.Endpoint) gin.Handler
 	sizeLimiterProvider := infra.NewSizeLimiterProvider(maxHeaderSize, maxBodySize, maxMultipartForm)
 
 	// construímos a chamada limiter
-	return g.limiterMiddleware.Do(endpointVO, rateLimiterProvider, sizeLimiterProvider)
+	return g.limiterMiddleware.Do(rateLimiterProvider, sizeLimiterProvider)
 }
 
-func (g gopen) buildCacheMiddlewareHandler(endpointVO vo.Endpoint) gin.HandlerFunc {
+func (g gopen) buildCacheMiddlewareHandler(endpointVO vo.Endpoint) api.HandlerFunc {
 	// obtemos o valor do pai
 	cacheDuration := g.gopenVO.CacheDuration()
 	// caso seja informado no endpoint, damos prioridade
@@ -233,7 +226,7 @@ func (g gopen) buildCacheMiddlewareHandler(endpointVO vo.Endpoint) gin.HandlerFu
 	cacheVO := vo.NewCacheFromEndpoint(cacheDuration, cacheStrategyHeaders, allowCacheControl)
 
 	// construímos a chamada de cache middleware para o endpoint
-	return g.cacheMiddleware.Do(g.gopenVO.CacheStore(), endpointVO, cacheVO)
+	return g.cacheMiddleware.Do(cacheVO)
 }
 
 func printInfoLog(msg ...any) {
