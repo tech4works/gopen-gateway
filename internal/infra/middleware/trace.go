@@ -15,12 +15,17 @@ type Trace interface {
 	Do(req *api.Request)
 }
 
+// NewTrace creates a new Trace instance.
 func NewTrace(traceProvider infra.TraceProvider) Trace {
 	return trace{
 		traceProvider: traceProvider,
 	}
 }
 
+// Do perform the tracing logic for the request.
+// It adds the X-Forwarded-For header to the request with the remote address,
+// and sets the X-TraceId header if it is not already specified.
+// Then it proceeds to the next function in the request.
 func (t trace) Do(req *api.Request) {
 	// adicionamos na requisição o X-Forwarded-For
 	req.AddHeader(consts.XForwardedFor, req.RemoteAddr())

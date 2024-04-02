@@ -12,12 +12,6 @@ import (
 	"time"
 )
 
-type responseHistory []backendResponse
-
-type aggregateBody struct {
-	value orderedmap.OrderedMap
-}
-
 type CacheResponse struct {
 	StatusCode int           `json:"statusCode"`
 	Header     Header        `json:"header"`
@@ -33,6 +27,20 @@ type Response struct {
 	body       Body
 	abort      bool
 	history    responseHistory
+}
+
+type responseHistory []backendResponse
+
+type aggregateBody struct {
+	value orderedmap.OrderedMap
+}
+
+type errorBody struct {
+	File      string    `json:"file,omitempty"`
+	Line      int       `json:"line,omitempty"`
+	Endpoint  string    `json:"endpoint,omitempty"`
+	Message   string    `json:"message,omitempty"`
+	Timestamp time.Time `json:"timestamp,omitempty"`
 }
 
 // NewResponse creates a new Response object with the given endpoint.
@@ -61,14 +69,15 @@ func NewResponseByCache(endpointVO Endpoint, cacheResponseVO CacheResponse) Resp
 }
 
 // NewResponseByErr creates a new Response object with the given endpoint, status code, and error.
-// The Response object has a header set to newHeaderFailed() and a body set to newBodyByErr(err).
+// The Response object has a header set to newHeaderFailed() and a body set to newErrorBody(endpointVO, err).
 // Returns the newly created Response object.
 func NewResponseByErr(endpointVO Endpoint, statusCode int, err error) Response {
+	errorResponseVO := newErrorBody(endpointVO, err)
 	return Response{
 		endpoint:   endpointVO,
 		statusCode: statusCode,
 		header:     newHeaderFailed(),
-		body:       newBodyByErr(err),
+		body:       newBodyByAny(errorResponseVO),
 	}
 }
 
@@ -86,6 +95,20 @@ func NewCacheResponse(writer dto.Writer, duration time.Duration) CacheResponse {
 		Body:       newBody(writer.Body.Bytes()),
 		Duration:   duration,
 		CreatedAt:  time.Now(),
+	}
+}
+
+func newErrorBody(endpointVO Endpoint, err error) *errorBody {
+	detailsErr := errors.Details(err)
+	if helper.IsNil(detailsErr) {
+		return nil
+	}
+	return &errorBody{
+		File:      detailsErr.GetFile(),
+		Line:      detailsErr.GetLine(),
+		Endpoint:  endpointVO.Path(),
+		Message:   detailsErr.GetMessage(),
+		Timestamp: time.Now(),
 	}
 }
 
@@ -211,12 +234,13 @@ func (r Response) Error(err error) Response {
 	} else {
 		statusCode = http.StatusInternalServerError
 	}
-
+	// construímos o body de erro padrão
+	errorResponseVO := newErrorBody(r.endpoint, err)
 	// construímos a resposta de erro padrão do gateway
 	return Response{
 		statusCode: statusCode,
 		header:     newHeaderFailed(),
-		body:       newBodyByErr(err),
+		body:       newBodyByAny(errorResponseVO),
 		abort:      true,
 	}
 }
@@ -226,6 +250,12 @@ func (r Response) Error(err error) Response {
 // Returns a boolean value representing the `abort` property.
 func (r Response) Abort() bool {
 	return r.abort
+}
+
+// IsAbortResponse if the abort field of the response structure is true or func of the AbortSequential endpoint returns
+// true, we return true, otherwise it returns false.
+func (r Response) IsAbortResponse() bool {
+	return r.abort || r.endpoint.AbortSequencial(r)
 }
 
 // AbortResponse checks if the abort flag is set to true in the Response object.

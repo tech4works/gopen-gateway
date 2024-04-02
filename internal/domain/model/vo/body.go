@@ -33,16 +33,10 @@ func NewBodyByContentType(contentType string, bytes []byte) Body {
 	return Body{value: string(bytes)}
 }
 
-// newBodyByErr returns a new Body with the error value.
-// The error value is set as the value of the Body.
-func newBodyByErr(err error) Body {
-	return Body{value: err}
-}
-
 // newBodyByAny returns a new Body based on the value type.
 // If the value is an ordered map, it returns a Body with the ordered map as the value.
 // If the value is a slice of ordered maps, it returns a Body with the slice of ordered maps as the value.
-// If the value is an error or a string, it returns a Body with the value as it is.
+// If the value is a string or a struct, it returns a Body with the value as it is.
 // Otherwise, it converts the value to bytes using helper.SimpleConvertToBytes() and returns a new Body with the
 // converted bytes as the value.
 func newBodyByAny(value any) Body {
@@ -50,7 +44,7 @@ func newBodyByAny(value any) Body {
 		return Body{value: orderedMap}
 	} else if sliceOfOrderedMap, isSliceOfOrderedMap := value.([]orderedmap.OrderedMap); isSliceOfOrderedMap {
 		return Body{value: sliceOfOrderedMap}
-	} else if helper.IsErrorType(value) || helper.IsStringType(value) {
+	} else if helper.IsStringType(value) || helper.IsStructType(value) {
 		return Body{value: value}
 	}
 	return newBody(helper.SimpleConvertToBytes(value))

@@ -18,6 +18,17 @@ type Backend interface {
 	Execute(ctx context.Context, executeData vo.ExecuteBackend) (vo.Request, vo.Response)
 }
 
+// NewBackend initializes and returns a new Backend instance.
+//
+// This function serves as a factory, accepting implementations of Modifier and interfaces.RestTemplate
+// as arguments, creating and returning an instance of the backend type that satisfies the Backend interface.
+//
+// Parameters:
+// modifierService: Provides the service for modifying backend information. Must conform to the Modifier interface.
+// restTemplate: Provides the functionality for conducting RESTful operations. Must conform to the RestTemplate interface from interfaces package.
+//
+// Returns:
+// A Backend instance with modifierService and restTemplate composed in.
 func NewBackend(modifierService Modifier, restTemplate interfaces.RestTemplate) Backend {
 	return backend{
 		modifierService: modifierService,
@@ -25,6 +36,30 @@ func NewBackend(modifierService Modifier, restTemplate interfaces.RestTemplate) 
 	}
 }
 
+// Execute sends an HTTP request to a backend based on the provided executeData.
+// The function's steps are as follows:
+//
+//  1. The function constructs the backend request. This also includes a potential response modification.
+//  2. The backend request gets converted to an HTTP request. If this operation fails then the error will be returned in
+//     the response object.
+//  3. The function performs an HTTP request by calling a REST client. If this operation fails,
+//     then the error will be returned in the response object with its abort flag set to true.
+//  4. Finally, the function creates a backend response object from the returned HTTP response.
+//     This response is again able to include a request modification.
+//
+// The function returns the updated request and response value objects.
+// An already constructed response object is returned if any error occurs during the function execution.
+//
+// If the function executes successfully, it ensures that the HTTP response body is closed.
+//
+// Parameters:
+// ctx: the execution context.
+// executeData: contains the information necessary to execute a backend request.
+//
+// Returns:
+// The function returns two value objects:
+// requestVO: the potentially modified backend request.
+// responseVO: the backend response. If an error occurred, it contains the error information.
 func (b backend) Execute(ctx context.Context, executeData vo.ExecuteBackend) (vo.Request, vo.Response) {
 	// construímos o backend request, junto pode vir uma possível alteração no response pelo modifier
 	requestVO, responseVO := b.buildBackendRequest(executeData)
@@ -52,6 +87,14 @@ func (b backend) Execute(ctx context.Context, executeData vo.ExecuteBackend) (vo
 	return b.buildBackendResponse(executeData.Backend(), requestVO, responseVO, httpResponse)
 }
 
+// buildBackendRequest is a method in the backend framework that uses executeData of type vo.ExecuteBackend.
+// 1. Instantiate a request value object from executeData
+// 2. Instantiate a backend value object from executeData
+// 3. It retrieves the balanced host from the backendVO (todo: possibly using a subdomain balancer)
+// 4. It constructs a new backendRequestVO object using backendVO, balanceHost and the initial request
+// 5. Replaces the initial requestVO with a new version that includes the backendRequestVO
+// 6. It invokes the Execute method of the modifierService to change the backend request and response and the actual request and response.
+// The method returns a request value object and a possibly changed response value object.
 func (b backend) buildBackendRequest(executeData vo.ExecuteBackend) (vo.Request, vo.Response) {
 	// instanciamos o objeto de valor de request
 	requestVO := executeData.Request()
@@ -59,7 +102,7 @@ func (b backend) buildBackendRequest(executeData vo.ExecuteBackend) (vo.Request,
 	// instanciamos o objeto de valor backend
 	backendVO := executeData.Backend()
 
-	// obtemos o host do backend todo: ter um sub-dominio de balancer
+	// obtemos o host do backend
 	balancedHost := backendVO.BalancedHost()
 
 	// montamos o objeto de valor com os dados montados no meu serviço de domínio
@@ -68,10 +111,13 @@ func (b backend) buildBackendRequest(executeData vo.ExecuteBackend) (vo.Request,
 	// criamos um novo objeto de valor de solicitação com o novo backendRequestVO e substituímos a request vo atual
 	requestVO = requestVO.Append(backendRequestVO)
 
-	// chamamos o sub-dominio para modificar as requisições tanto de backend como a request global
+	// chamamos o sub-dominio para modificar as requisições tanto de backend como a própria request e a resposta
+	// do backend e da propria response
 	return b.modifierService.Execute(vo.NewExecuteRequestModifier(executeData.Backend(), requestVO, executeData.Response()))
 }
 
+// closeBodyResponse closes the HTTP response body.
+// If there is an error while closing the body, a warning message will be logged.
 func (b backend) closeBodyResponse(response *http.Response) {
 	err := response.Body.Close()
 	if helper.IsNotNil(err) {
@@ -79,6 +125,20 @@ func (b backend) closeBodyResponse(response *http.Response) {
 	}
 }
 
+// buildBackendResponse constructs a new backend response value object based on the given parameters.
+// It adds the new backend request to the response value object.
+// If the response object indicates that the response should be aborted, it returns the current request and response.
+// Otherwise, it calls the modifierService to execute the response modifier for the backend.
+//
+// Parameters:
+// - backendVO: the backend value object.
+// - requestVO: the current request value object.
+// - responseVO: the current response value object.
+// - httpResponse: the HTTP response object received from the backend.
+//
+// Returns:
+// - requestVO: the potentially modified backend request.
+// - responseVO: the updated response value object.
 func (b backend) buildBackendResponse(backendVO vo.Backend, requestVO vo.Request, responseVO vo.Response,
 	httpResponse *http.Response) (vo.Request, vo.Response) {
 	// construímos o novo objeto de valor da resposta do backend

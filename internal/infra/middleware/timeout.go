@@ -18,10 +18,21 @@ type Timeout interface {
 	Do(timeoutDuration time.Duration) api.HandlerFunc
 }
 
+// NewTimeout returns a new instance of the `timeout` type that implements the `Timeout` interface.
 func NewTimeout() Timeout {
 	return timeout{}
 }
 
+// Do takes a timeoutDuration of type time.Duration and returns a function of type api.HandlerFunc.
+// The returned function initializes a context with the provided timeout duration from the gateway's config.
+// It sets this context in the current request to propagate it to other handlers.
+// It creates two channels for alerting - finishChan and panicChan.
+// It then spawns a goroutine that calls the panic recovery function in case of a panic and calls the next handler in the request.
+// If the request finishes before the timeout, it sends a signal to the finishChan.
+// If a panic occurs, it sends the panic value to the panicChan.
+// If the context timeout occurs before the request finishes, it sets the statusCode to http.StatusGatewayTimeout and the error to "gateway timeout: <timeoutDuration>".
+// It then waits for one of the three channels to receive a signal by using a select statement.
+// Finally, it checks whether the statusCode is greater than 0 and writes the error response using req.WriteError if true.
 func (t timeout) Do(timeoutDuration time.Duration) api.HandlerFunc {
 	return func(req *api.Request) {
 		// inicializamos o context com timeout fornecido na config do gateway

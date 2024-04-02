@@ -19,6 +19,8 @@ type SizeLimiterProvider interface {
 	Allow(request *http.Request) error
 }
 
+// NewSizeLimiterProvider returns a new SizeLimiterProvider with the specified maximum sizes for the header, body,
+// and multipart memory.
 func NewSizeLimiterProvider(maxHeaderSize, maxBodySize, maxMultipartMemorySize vo.Bytes) SizeLimiterProvider {
 	return sizeLimiterProvider{
 		maxHeaderSize:          maxHeaderSize,
@@ -27,6 +29,15 @@ func NewSizeLimiterProvider(maxHeaderSize, maxBodySize, maxMultipartMemorySize v
 	}
 }
 
+// Allow checks the size of the header and body of the request.
+// If the header size exceeds the maximum allowed size, it returns an error with
+// the message "header too large error: permitted limit is {maxHeaderSize}".
+// It then checks the "Content-Type" of the request. If it contains "multipart/form-data",
+// it uses the maxMultipartMemorySize as the maximum body size. Otherwise, it uses the maxBodySize.
+// It reads the request body using http.MaxBytesReader and checks if the read is successful.
+// If not, it returns an error with the message "error payload too large: permitted limit is {maxBytesReader}".
+// If everything goes well, it sets the request body to the read bytes using io.NopCloser.
+// Finally, it returns nil to indicate success.
 func (s sizeLimiterProvider) Allow(request *http.Request) error {
 	// checamos primeiramente o tamanho do header
 	headerSize := s.GetHeadersSize(request)
@@ -51,6 +62,11 @@ func (s sizeLimiterProvider) Allow(request *http.Request) error {
 	return nil
 }
 
+// GetHeadersSize calculates the size of the headers in the given http.Request.
+// It iterates through each header and adds the length of the name, the separating ": ", and the values.
+// Each value is separated by ", " and the last value has the trailing ", " removed.
+// It also adds "\r\n" to the end of each header line and "\r\n" at the end of all headers.
+// The total size of the headers is returned.
 func (s sizeLimiterProvider) GetHeadersSize(r *http.Request) int {
 	size := 0
 	for name, values := range r.Header {

@@ -5,11 +5,11 @@ import (
 	"time"
 )
 
-var MsgErrBadGateway = "error bad gateway:"
-var MsgErrGatewayTimeout = "error gateway timeout:"
-var MsgErrPayloadTooLarge = "error payload too large:"
-var MsgErrHeaderTooLarge = "error header too large:"
-var MsgErrTooManyRequests = "error too many requests:"
+var MsgErrBadGateway = "bad gateway error:"
+var MsgErrGatewayTimeout = "gateway timeout error:"
+var MsgErrPayloadTooLarge = "payload too large error:"
+var MsgErrHeaderTooLarge = "header too large error:"
+var MsgErrTooManyRequests = "too many requests error:"
 
 var ErrBadGateway = errors.New(MsgErrBadGateway)
 var ErrGatewayTimeout = errors.New(MsgErrGatewayTimeout)

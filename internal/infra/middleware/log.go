@@ -15,12 +15,17 @@ type Log interface {
 	Do(req *api.Request)
 }
 
+// NewLog creates a new instance of the Log interface using the provided LogProvider.
 func NewLog(logProvider infra.LogProvider) Log {
 	return log{
 		logProvider: logProvider,
 	}
 }
 
+// Do is a method that performs logging for a request.
+// It keeps track of the request start time, initializes the logger options with trace ID and XForwardedFor,
+// prints the start log, calls the next request handler, and prints the finish log.
+// It takes a *api.Request as a parameter.
 func (l log) Do(req *api.Request) {
 	// mantemos o tempo que a requisição começou
 	startTime := time.Now()

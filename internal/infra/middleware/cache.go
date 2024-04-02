@@ -18,12 +18,17 @@ type Cache interface {
 	Do(cacheVO vo.Cache) api.HandlerFunc
 }
 
+// NewCache returns a Cache implementation that uses the provided CacheStore for caching operations.
 func NewCache(cacheStore infra.CacheStore) Cache {
 	return cache{
 		cacheStore: cacheStore,
 	}
 }
 
+// Do execute the cache logic based on the provided cache value object and returns a HandlerFunc.
+// It initializes the cache key based on the strategy, checks if the cache can be read, and responds with the cached value if available.
+// If the cache cannot be read or is not found, it proceeds to the next handler.
+// After the next handler is executed, it checks if the response can be cached, sets the cache value, and logs any errors.
 func (c cache) Do(cacheVO vo.Cache) api.HandlerFunc {
 	return func(req *api.Request) {
 		// inicializamos a chave que vai ser utilizada
