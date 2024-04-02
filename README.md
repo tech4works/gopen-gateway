@@ -53,9 +53,6 @@ Usabilidade e documentação
 -----------
 ---
 
-Como baixar o projeto?
-------------
----
 
 Como contríbuir?
 ------------
