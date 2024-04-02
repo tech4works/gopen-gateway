@@ -21,7 +21,7 @@ var loggerOptions = logger.Options{
 var httpServer *http.Server
 
 type gopen struct {
-	gopenVO                vo.GOpen
+	gopenVO                vo.Gopen
 	traceMiddleware        middleware.Trace
 	logMiddleware          middleware.Log
 	securityCorsMiddleware middleware.SecurityCors
@@ -32,13 +32,13 @@ type gopen struct {
 	endpointController     controller.Endpoint
 }
 
-type GOpen interface {
+type Gopen interface {
 	ListerAndServer()
 	Shutdown(ctx context.Context) error
 }
 
 func NewGOpen(
-	gopenVO vo.GOpen,
+	gopenVO vo.Gopen,
 	traceMiddleware middleware.Trace,
 	logMiddleware middleware.Log,
 	securityCorsMiddleware middleware.SecurityCors,
@@ -47,7 +47,7 @@ func NewGOpen(
 	cacheMiddleware middleware.Cache,
 	staticController controller.Static,
 	endpointController controller.Endpoint,
-) GOpen {
+) Gopen {
 	return gopen{
 		gopenVO:                gopenVO,
 		traceMiddleware:        traceMiddleware,

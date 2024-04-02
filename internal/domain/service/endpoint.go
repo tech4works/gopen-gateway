@@ -28,7 +28,7 @@ func NewEndpoint(backendService Backend) Endpoint {
 // Otherwise, it returns the final responseVO.
 func (e endpoint) Execute(ctx context.Context, executeData vo.ExecuteEndpoint) vo.Response {
 	// instanciamos o objeto gopenVO
-	gopenVO := executeData.GOpen()
+	gopenVO := executeData.Gopen()
 	// instanciamos o objeto de valor do endpoint
 	endpointVO := executeData.Endpoint()
 	// instanciamos o objeto de valor da requisição
@@ -65,7 +65,7 @@ func (e endpoint) Execute(ctx context.Context, executeData vo.ExecuteEndpoint) v
 
 func (e endpoint) processMiddlewares(
 	ctx context.Context,
-	gopenVO vo.GOpen,
+	gopenVO vo.Gopen,
 	middlewareType string,
 	middlewareKeys []string,
 	requestVO vo.Request,

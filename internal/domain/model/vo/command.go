@@ -16,13 +16,13 @@ type ExecuteModifier struct {
 }
 
 type ExecuteEndpoint struct {
-	gopen    GOpen
+	gopen    Gopen
 	endpoint Endpoint
 	request  Request
 }
 
-// NewExecuteEndpoint creates a new ExecuteEndpoint using the provided GOpen, Endpoint, and Request objects.
-func NewExecuteEndpoint(gopenVO GOpen, endpointVO Endpoint, requestVO Request) ExecuteEndpoint {
+// NewExecuteEndpoint creates a new ExecuteEndpoint using the provided Gopen, Endpoint, and Request objects.
+func NewExecuteEndpoint(gopenVO Gopen, endpointVO Endpoint, requestVO Request) ExecuteEndpoint {
 	return ExecuteEndpoint{
 		gopen:    gopenVO,
 		endpoint: endpointVO,
@@ -63,8 +63,8 @@ func NewExecuteResponseModifier(backendVO Backend, requestVO Request, responseVO
 	}
 }
 
-// GOpen returns the GOpen object associated with the ExecuteEndpoint object.
-func (e ExecuteEndpoint) GOpen() GOpen {
+// Gopen returns the Gopen object associated with the ExecuteEndpoint object.
+func (e ExecuteEndpoint) Gopen() Gopen {
 	return e.gopen
 }
 

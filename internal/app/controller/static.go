@@ -9,7 +9,7 @@ import (
 )
 
 type static struct {
-	gopenVO vo.GOpen
+	gopenVO vo.Gopen
 }
 
 type Static interface {
@@ -18,7 +18,7 @@ type Static interface {
 	Settings(ctx *gin.Context)
 }
 
-func NewStatic(gopenVO vo.GOpen) Static {
+func NewStatic(gopenVO vo.Gopen) Static {
 	return static{
 		gopenVO: gopenVO,
 	}

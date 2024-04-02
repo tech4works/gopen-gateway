@@ -14,7 +14,7 @@ import (
 
 type Request struct {
 	framework *gin.Context
-	gopen     vo.GOpen
+	gopen     vo.Gopen
 	endpoint  vo.Endpoint
 	writer    *dto.Writer
 }
@@ -128,8 +128,8 @@ func (r *Request) Next() {
 	r.framework.Next()
 }
 
-// GOpen returns the GOpen object associated with the Request. It retrieves the GOpen value from the Request object.
-func (r *Request) GOpen() vo.GOpen {
+// Gopen returns the Gopen object associated with the Request. It retrieves the Gopen value from the Request object.
+func (r *Request) Gopen() vo.Gopen {
 	return r.gopen
 }
 

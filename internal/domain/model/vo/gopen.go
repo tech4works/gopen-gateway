@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-type GOpen struct {
+type Gopen struct {
 	env          string
 	version      string
 	hotReload    bool
@@ -20,9 +20,9 @@ type GOpen struct {
 	endpoints    []Endpoint
 }
 
-// NewGOpen creates a new instance of GOpen based on the provided environment and gopenDTO.
-// It initializes the fields of GOpen based on values from gopenDTO and sets default values for empty fields.
-func NewGOpen(env string, gopenDTO dto.GOpen) GOpen {
+// NewGOpen creates a new instance of Gopen based on the provided environment and gopenDTO.
+// It initializes the fields of Gopen based on values from gopenDTO and sets default values for empty fields.
+func NewGOpen(env string, gopenDTO dto.Gopen) Gopen {
 	var endpoints []Endpoint
 	for _, endpointDTO := range gopenDTO.Endpoints {
 		endpoints = append(endpoints, newEndpoint(endpointDTO))
@@ -37,7 +37,7 @@ func NewGOpen(env string, gopenDTO dto.GOpen) GOpen {
 		}
 	}
 
-	return GOpen{
+	return Gopen{
 		env:          env,
 		version:      gopenDTO.Version,
 		port:         gopenDTO.Port,
@@ -151,29 +151,29 @@ func newEndpoint(endpointDTO dto.Endpoint) Endpoint {
 	}
 }
 
-// Port returns the value of the port field in the GOpen struct.
-func (g GOpen) Port() int {
+// Port returns the value of the port field in the Gopen struct.
+func (g Gopen) Port() int {
 	return g.port
 }
 
-// HotReload returns the value of the hotReload field in the GOpen struct.
-func (g GOpen) HotReload() bool {
+// HotReload returns the value of the hotReload field in the Gopen struct.
+func (g Gopen) HotReload() bool {
 	return g.hotReload
 }
 
-// Version returns the value of the version field in the GOpen struct.
-func (g GOpen) Version() string {
+// Version returns the value of the version field in the Gopen struct.
+func (g Gopen) Version() string {
 	return g.version
 }
 
-// Endpoints returns the value of the endpoints field in the GOpen struct.
-func (g GOpen) Endpoints() []Endpoint {
+// Endpoints returns the value of the endpoints field in the Gopen struct.
+func (g Gopen) Endpoints() []Endpoint {
 	return g.endpoints
 }
 
-// Timeout returns the value of the timeout field in the GOpen struct. If the timeout is greater than 0,
+// Timeout returns the value of the timeout field in the Gopen struct. If the timeout is greater than 0,
 // it returns the timeout value. Otherwise, it returns a default timeout of 30 seconds
-func (g GOpen) Timeout() time.Duration {
+func (g Gopen) Timeout() time.Duration {
 	if helper.IsGreaterThan(g.timeout, 0) {
 		return g.timeout
 	}
@@ -183,27 +183,27 @@ func (g GOpen) Timeout() time.Duration {
 // LimiterMaxHeaderSize returns the value of maxHeaderSize field in the Limiter struct.
 // If the value is greater than 0, it returns the value.
 // Otherwise, it returns a newly created Bytes instance with the value "1MB".
-func (g GOpen) LimiterMaxHeaderSize() Bytes {
+func (g Gopen) LimiterMaxHeaderSize() Bytes {
 	if helper.IsGreaterThan(g.limiter.maxHeaderSize, 0) {
 		return g.limiter.maxHeaderSize
 	}
 	return NewBytes("1MB")
 }
 
-// LimiterMaxBodySize returns the maximum body size limit for the GOpen struct.
+// LimiterMaxBodySize returns the maximum body size limit for the Gopen struct.
 // It checks if the Limiter's maxBodySize field is greater than 0 and returns it.
 // If it is not greater than 0, it returns a new Bytes object initialized with the value "3MB".
-func (g GOpen) LimiterMaxBodySize() Bytes {
+func (g Gopen) LimiterMaxBodySize() Bytes {
 	if helper.IsGreaterThan(g.limiter.maxBodySize, 0) {
 		return g.limiter.maxBodySize
 	}
 	return NewBytes("3MB")
 }
 
-// LimiterMaxMultipartMemorySize returns the value of the maxMultipartMemorySize field in the Limiter struct of the GOpen object.
+// LimiterMaxMultipartMemorySize returns the value of the maxMultipartMemorySize field in the Limiter struct of the Gopen object.
 // If the value is greater than zero, it returns the value of that field.
 // Otherwise, it returns a new Bytes object initialized with a value of "5MB".
-func (g GOpen) LimiterMaxMultipartMemorySize() Bytes {
+func (g Gopen) LimiterMaxMultipartMemorySize() Bytes {
 	if helper.IsGreaterThan(g.limiter.maxMultipartMemorySize, 0) {
 		return g.limiter.maxMultipartMemorySize
 	}
@@ -213,7 +213,7 @@ func (g GOpen) LimiterMaxMultipartMemorySize() Bytes {
 // LimiterRateCapacity returns the value of the capacity field in the LimiterRateCapacity method.
 // If the capacity is greater than 0, it returns the capacity field value; otherwise, it returns 5.
 // This method is used to retrieve the rate capacity for a limiter.
-func (g GOpen) LimiterRateCapacity() int {
+func (g Gopen) LimiterRateCapacity() int {
 	if helper.IsGreaterThan(g.limiter.rate.capacity, 0) {
 		return g.limiter.rate.capacity
 	}
@@ -223,50 +223,50 @@ func (g GOpen) LimiterRateCapacity() int {
 // LimiterRateEvery returns the value of the rate.every field in the Limiter struct.
 // If the value is greater than 0, it returns the rate.every value.
 // Otherwise, it returns a default value of 1 second.
-func (g GOpen) LimiterRateEvery() time.Duration {
+func (g Gopen) LimiterRateEvery() time.Duration {
 	if helper.IsGreaterThan(g.limiter.rate.every, 0) {
 		return g.limiter.rate.every
 	}
 	return time.Second
 }
 
-// CacheDuration returns the duration of the cache field in the GOpen struct.
-func (g GOpen) CacheDuration() time.Duration {
+// CacheDuration returns the duration of the cache field in the Gopen struct.
+func (g Gopen) CacheDuration() time.Duration {
 	return g.cache.duration
 }
 
 // CacheStrategyHeaders returns the strategyHeaders field in the Cache struct, which represents the headers
 // used in cache strategy.
-func (g GOpen) CacheStrategyHeaders() []string {
+func (g Gopen) CacheStrategyHeaders() []string {
 	return g.cache.strategyHeaders
 }
 
 // AllowCacheControl checks if the caching is allowed or not.
-// It uses the 'allowCacheControl' field in the 'GOpen' structure.
+// It uses the 'allowCacheControl' field in the 'Gopen' structure.
 // In case of nil value, it defaults to 'false'.
-func (g GOpen) AllowCacheControl() bool {
+func (g Gopen) AllowCacheControl() bool {
 	return helper.IfNilReturns(g.cache.allowCacheControl, false)
 }
 
-func (g GOpen) SecurityCors() SecurityCors {
+func (g Gopen) SecurityCors() SecurityCors {
 	return g.securityCors
 }
 
-// CountMiddlewares returns the number of middlewares in the GOpen instance.
-func (g GOpen) CountMiddlewares() int {
+// CountMiddlewares returns the number of middlewares in the Gopen instance.
+func (g Gopen) CountMiddlewares() int {
 	return len(g.middlewares)
 }
 
-// CountEndpoints returns the number of endpoints in the GOpen struct.
-func (g GOpen) CountEndpoints() int {
+// CountEndpoints returns the number of endpoints in the Gopen struct.
+func (g Gopen) CountEndpoints() int {
 	return len(g.endpoints)
 }
 
-// CountBackends returns the total number of backends present in the `GOpen` struct and its nested `Endpoint` structs.
-// It calculates the count by summing the number of middlewares in `GOpen` and recursively iterating through each `Endpoint`
+// CountBackends returns the total number of backends present in the `Gopen` struct and its nested `Endpoint` structs.
+// It calculates the count by summing the number of middlewares in `Gopen` and recursively iterating through each `Endpoint`
 // to count their backends.
 // Returns an integer indicating the total count of backends.
-func (g GOpen) CountBackends() (count int) {
+func (g Gopen) CountBackends() (count int) {
 	count += g.CountMiddlewares()
 	for _, endpointVO := range g.endpoints {
 		count += endpointVO.CountBackends()
@@ -274,11 +274,11 @@ func (g GOpen) CountBackends() (count int) {
 	return count
 }
 
-// CountModifiers counts the total number of modifiers in the GOpen struct.
+// CountModifiers counts the total number of modifiers in the Gopen struct.
 // It iterates through all the middleware backends and endpoint VOs,
 // and calls the CountModifiers method on each of them to calculate the count.
 // The count is incremented for each modifier found and the final count is returned.
-func (g GOpen) CountModifiers() (count int) {
+func (g Gopen) CountModifiers() (count int) {
 	for _, middlewareBackend := range g.middlewares {
 		count += middlewareBackend.CountModifiers()
 	}
@@ -291,11 +291,11 @@ func (g GOpen) CountModifiers() (count int) {
 // Middleware retrieves a backend from the middlewares map based on the given key and returns it with a boolean
 // indicating whether it exists or not. The returned backend is wrapped in a new middleware backend with the omitResponse
 // field set to true.
-func (g GOpen) Middleware(key string) (Backend, bool) {
+func (g Gopen) Middleware(key string) (Backend, bool) {
 	return g.middlewares.Get(key)
 }
 
-// Middlewares returns the value of the middlewares field in the GOpen struct.
-func (g GOpen) Middlewares() Middlewares {
+// Middlewares returns the value of the middlewares field in the Gopen struct.
+func (g Gopen) Middlewares() Middlewares {
 	return g.middlewares
 }

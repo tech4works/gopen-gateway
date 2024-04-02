@@ -6,7 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type GOpen struct {
+type Gopen struct {
 	Version      string             `json:"version,omitempty"`
 	Port         int                `json:"port,omitempty" validate:"required,gte=1"`
 	HotReload    bool               `json:"hot-reload,omitempty"`

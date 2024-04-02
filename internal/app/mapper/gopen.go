@@ -7,9 +7,9 @@ import (
 	"os"
 )
 
-// BuildSettingViewDTO builds a `SettingView` DTO object using the provided `GOpen` object as input.
-// It retrieves various properties from the `GOpen` object and sets them on the `SettingView` object.
-func BuildSettingViewDTO(gopenVO vo.GOpen) dto.SettingView {
+// BuildSettingViewDTO builds a `SettingView` DTO object using the provided `Gopen` object as input.
+// It retrieves various properties from the `Gopen` object and sets them on the `SettingView` object.
+func BuildSettingViewDTO(gopenVO vo.Gopen) dto.SettingView {
 	return dto.SettingView{
 		Version:     os.Getenv("VERSION"),
 		VersionDate: os.Getenv("VERSION_DATE"),
@@ -23,9 +23,9 @@ func BuildSettingViewDTO(gopenVO vo.GOpen) dto.SettingView {
 	}
 }
 
-// BuildGOpenViewDTO builds a `GOpenView` DTO object using the provided `GOpen` object as input.
-// It retrieves various properties from the `GOpen` object and sets them on the `GOpenView` object.
-func BuildGOpenViewDTO(gopenVO vo.GOpen) dto.GOpenView {
+// BuildGOpenViewDTO builds a `GOpenView` DTO object using the provided `Gopen` object as input.
+// It retrieves various properties from the `Gopen` object and sets them on the `GOpenView` object.
+func BuildGOpenViewDTO(gopenVO vo.Gopen) dto.GOpenView {
 	return dto.GOpenView{
 		Version:      gopenVO.Version(),
 		Port:         gopenVO.Port(),
@@ -39,9 +39,9 @@ func BuildGOpenViewDTO(gopenVO vo.GOpen) dto.GOpenView {
 	}
 }
 
-// BuildLimiterDTOFromGOpenVO builds a `Limiter` DTO object using the provided `GOpen` object as input.
-// It retrieves various properties from the `GOpen` object and sets them on the `Limiter` object.
-func BuildLimiterDTOFromGOpenVO(gopenVO vo.GOpen) *dto.Limiter {
+// BuildLimiterDTOFromGOpenVO builds a `Limiter` DTO object using the provided `Gopen` object as input.
+// It retrieves various properties from the `Gopen` object and sets them on the `Limiter` object.
+func BuildLimiterDTOFromGOpenVO(gopenVO vo.Gopen) *dto.Limiter {
 	maxHeaderSize := gopenVO.LimiterMaxHeaderSize()
 	maxBodySize := gopenVO.LimiterMaxBodySize()
 	maxMultipartMemorySize := gopenVO.LimiterMaxMultipartMemorySize()
@@ -82,10 +82,10 @@ func BuildLimiterDTOFromEndpointVO(endpointVO vo.Endpoint) *dto.Limiter {
 	}
 }
 
-// BuildCacheDTOFromGOpenVO builds a `Cache` DTO object using the provided `GOpen` object as input.
-// It retrieves the cache duration, cache strategy headers, and allow cache control properties from the `GOpen` object
+// BuildCacheDTOFromGOpenVO builds a `Cache` DTO object using the provided `Gopen` object as input.
+// It retrieves the cache duration, cache strategy headers, and allow cache control properties from the `Gopen` object
 // and sets them on the `Cache` object.
-func BuildCacheDTOFromGOpenVO(gopenVO vo.GOpen) *dto.Cache {
+func BuildCacheDTOFromGOpenVO(gopenVO vo.Gopen) *dto.Cache {
 	return &dto.Cache{
 		Duration:          gopenVO.CacheDuration().String(),
 		StrategyHeaders:   gopenVO.CacheStrategyHeaders(),
@@ -108,11 +108,11 @@ func BuildCacheDTOFromEndpointVO(endpointVO vo.Endpoint) *dto.Cache {
 	}
 }
 
-// BuildSecurityCorsDTO builds a `SecurityCors` DTO object using the provided `GOpen` object as input.
-// It checks if the `SecurityCors` object from `GOpen` is empty. If not, it retrieves the `allowOriginsData`,
+// BuildSecurityCorsDTO builds a `SecurityCors` DTO object using the provided `Gopen` object as input.
+// It checks if the `SecurityCors` object from `Gopen` is empty. If not, it retrieves the `allowOriginsData`,
 // `allowMethodsData`, and `allowHeadersData` properties from the `SecurityCors` object and sets them on the
 // `SecurityCors` DTO object.
-func BuildSecurityCorsDTO(gopenVO vo.GOpen) *dto.SecurityCors {
+func BuildSecurityCorsDTO(gopenVO vo.Gopen) *dto.SecurityCors {
 	if helper.IsEmpty(gopenVO.SecurityCors()) {
 		return nil
 	}
@@ -123,11 +123,11 @@ func BuildSecurityCorsDTO(gopenVO vo.GOpen) *dto.SecurityCors {
 	}
 }
 
-// BuildMiddlewaresDTO builds a map of `Backend` DTO objects using the provided `GOpen` object as input.
-// It iterates through the `Middlewares` in the `GOpen` object and calls the `BuildBackendDTO` function to build the `Backend` DTO for each one.
-// The resulting `Backend` DTO objects are then added to the `result` map with the key being the key of the `Middleware` in the `GOpen` object.
+// BuildMiddlewaresDTO builds a map of `Backend` DTO objects using the provided `Gopen` object as input.
+// It iterates through the `Middlewares` in the `Gopen` object and calls the `BuildBackendDTO` function to build the `Backend` DTO for each one.
+// The resulting `Backend` DTO objects are then added to the `result` map with the key being the key of the `Middleware` in the `Gopen` object.
 // The `result` map is returned as the output of the function.
-func BuildMiddlewaresDTO(gopenVO vo.GOpen) map[string]dto.Backend {
+func BuildMiddlewaresDTO(gopenVO vo.Gopen) map[string]dto.Backend {
 	result := map[string]dto.Backend{}
 	for key, backendVO := range gopenVO.Middlewares() {
 		result[key] = BuildBackendDTO(backendVO)
