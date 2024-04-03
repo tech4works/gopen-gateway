@@ -473,13 +473,13 @@ func closeCacheStore(store infra.CacheStore) {
 // getFileEnvUri returns the file URI for the given environment.
 // The returned URI follows the format "./gopen/{env}.env".
 func getFileEnvUri(env string) string {
-	return fmt.Sprintf("./gopen/%s.env", env)
+	return fmt.Sprintf("./gopen/%s/.env", env)
 }
 
 // getFileJsonUri returns the file URI for the specified environment's JSON file.
 // The returned URI follows the format "./gopen/{env}.json".
 func getFileJsonUri(env string) string {
-	return fmt.Sprintf("./gopen/%s.json", env)
+	return fmt.Sprintf("./gopen/%s/.json", env)
 }
 
 func printInfoLog(msg ...any) {

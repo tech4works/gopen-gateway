@@ -125,6 +125,17 @@ func (m modify) headers(globalHeader, localHeader Header) (Header, Header) {
 		}
 		localHeader = localHeader.Del(m.key)
 		break
+	case enum.ModifierActionRename:
+		// se o escopo da modificação é global, modificamos o mesmo
+		if m.global {
+			valueCopy := globalHeader.Get(m.key)
+			globalHeader = globalHeader.Del(m.key)
+			globalHeader = globalHeader.Set(modifierValue, valueCopy)
+		}
+		valueCopy := localHeader.Get(m.key)
+		localHeader = localHeader.Del(m.key)
+		localHeader = localHeader.Set(modifierValue, valueCopy)
+		break
 	}
 
 	return globalHeader, localHeader
@@ -142,10 +153,11 @@ func (m modify) params(localPath string, globalParams, localParams Params) (stri
 	modifierValue := m.valueStr()
 
 	// construímos o valor do key com padrão a ser modificado caso não exista
-	paramUrl := fmt.Sprintf("/:%s", m.key)
+	paramKeyUrl := fmt.Sprintf("/:%s", m.key)
+	paramValueUrl := fmt.Sprintf("/:%s", modifierValue)
 
 	switch m.action {
-	case enum.ModifierActionSet, enum.ModifierActionAdd:
+	case enum.ModifierActionSet:
 		// se o escopo da modificação é global, modificamos o mesmo
 		if m.global {
 			globalParams = globalParams.Set(m.key, modifierValue)
@@ -153,7 +165,7 @@ func (m modify) params(localPath string, globalParams, localParams Params) (stri
 		localParams = localParams.Set(m.key, modifierValue)
 
 		// se o parâmetro não conte no path atual, adicionamos
-		if !strings.Contains(localPath, paramUrl) {
+		if !strings.Contains(localPath, paramKeyUrl) {
 			// checamos se no fim da url tem o /
 			if localPath[len(localPath)-1] == '/' {
 				localPath = fmt.Sprintf("%s:%s", localPath, m.key)
@@ -170,7 +182,35 @@ func (m modify) params(localPath string, globalParams, localParams Params) (stri
 		localParams = localParams.Del(m.key)
 
 		// removemos o param de url no backend atual
-		localPath = strings.ReplaceAll(localPath, paramUrl, "")
+		localPath = strings.ReplaceAll(localPath, paramKeyUrl, "")
+		break
+	case enum.ModifierActionRename:
+		// se o escopo da modificação é global, modificamos o mesmo
+		if m.global {
+			valueCopy := globalParams.Get(m.key)
+			if helper.IsNotEmpty(valueCopy) {
+				globalParams = globalParams.Del(m.key)
+				globalParams = globalParams.Set(modifierValue, valueCopy)
+			}
+		}
+		valueCopy := localParams.Get(m.key)
+		if helper.IsNotEmpty(valueCopy) {
+			localParams = localParams.Del(m.key)
+			localParams = localParams.Set(modifierValue, valueCopy)
+
+			// checamos se o valor do parâmetro antigo contem no path para substituir pelo pela nova chave
+			// caso nao tem, e o valor nao tem na url, adicionamos
+			if strings.Contains(localPath, paramKeyUrl) {
+				localPath = strings.ReplaceAll(localPath, paramKeyUrl, paramValueUrl)
+			} else if !strings.Contains(localPath, paramValueUrl) {
+				// checamos se no fim da url tem o /
+				if localPath[len(localPath)-1] == '/' {
+					localPath = fmt.Sprintf("%s:%s", localPath, modifierValue)
+				} else {
+					localPath = fmt.Sprintf("%s/:%s", localPath, modifierValue)
+				}
+			}
+		}
 		break
 	}
 
@@ -206,6 +246,21 @@ func (m modify) queries(globalQuery, localQuery Query) (Query, Query) {
 			globalQuery = globalQuery.Del(m.key)
 		}
 		localQuery = localQuery.Del(m.key)
+		break
+	case enum.ModifierActionRename:
+		// se o escopo da modificação é global, modificamos o mesmo
+		if m.global {
+			valueCopy := globalQuery.Get(m.key)
+			if helper.IsNotEmpty(valueCopy) {
+				globalQuery = globalQuery.Del(m.key)
+				globalQuery = globalQuery.Set(modifierValue, valueCopy)
+			}
+		}
+		valueCopy := localQuery.Get(m.key)
+		if helper.IsNotEmpty(valueCopy) {
+			localQuery = localQuery.Del(m.key)
+			localQuery = localQuery.Set(modifierValue, valueCopy)
+		}
 		break
 	}
 
@@ -260,7 +315,7 @@ func (m modify) bodyJson(body Body, modifierValue any) Body {
 
 	// abaixo verificamos qual ação desejada para modificar o valor body
 	switch m.action {
-	case enum.ModifierActionSet, enum.ModifierActionAdd, enum.ModifierActionReplace:
+	case enum.ModifierActionSet:
 		_ = expr.Set(bodyToModify, modifierValue)
 		break
 	case enum.ModifierActionDel:

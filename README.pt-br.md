@@ -54,9 +54,215 @@ veja abaixo todos os recursos disponíveis:
 - Tenha mais observabilidade com o cadastro automático do trace id no header das requisições seguintes e logs bem
   estruturados.
 
-Usabilidade e documentação
+Documentação
 -----------
 ---
+Para entender como funciona, precisamos explicar primeiro a estrutura dos ambientes dinâmicos que GOPEN aceita para sua
+configuração em json e arquivo de variáveis de ambiente, então vamos lá!
+
+### Estrutura de pastas
+
+Na estrutura do projeto, em sua raiz precisará ter uma pasta chamada "gopen" e dentro dela precisa ter as pastas
+contendo
+os nomes dos seus ambientes, você pode dar o nome que quiser, essa pasta precisará ter pelo menos o arquivo ".json"
+de configuração da API Gateway, ficará mais o menos assim, por exemplo:
+
+#### Projeto GO:
+
+    gopen-gateway
+    | - cmd
+    | - internal
+    | - gopen
+      | - dev
+      |   - .json
+      |   - .env
+      | - prd
+      |   - .json
+      |   - .env
+
+#### Projeto usando imagem docker:
+
+    nome-do-seu-projeto
+    | - docker-compose.yml
+    | - gopen
+      | - dev
+      |   - .json
+      |   - .env
+      | - prd
+      |   - .json
+      |   - .env
+
+### Json de configuração
+
+Com base nesse arquivo json de configuração obtido pela env desejada a aplicação terá seus endpoints e suas regras
+definidas, veja abaixo um exemplo simples com todos os campos possíveis e seus conceitos e regras:
+
+````json
+{
+  "$schema": "https://raw.githubusercontent.com/GabrielHCataldo/gopen-gateway/main/json-schema.json",
+  "version": "v1.0.0",
+  "port": 8080,
+  "hot-reload": true,
+  "timeout": "30s",
+  "store": {
+    "redis": {
+      "address": "$REDIS_URL",
+      "password": "$REDIS_PASSWORD"
+    }
+  },
+  "cache": {
+    "duration": "1m",
+    "strategy-headers": [
+      "X-Forwarded-For",
+      "Device"
+    ],
+    "allow-cache-control": true
+  },
+  "limiter": {
+    "max-header-size": "1MB",
+    "max-body-size": "3MB",
+    "max-multipart-memory-size": "10MB",
+    "rate": {
+      "capacity": 5,
+      "every": "1s"
+    }
+  },
+  "security-cors": {
+    "allow-origins": [
+      "*"
+    ],
+    "allow-methods": [
+      "*"
+    ],
+    "allow-headers": [
+      "*"
+    ]
+  },
+  "middlewares": {
+    "save-device": {
+      "hosts": [
+        "http://192.168.1.2:8051"
+      ],
+      "path": "/devices",
+      "method": "PUT",
+      "forward-headers": [
+        "*"
+      ],
+      "modifiers": {
+        "header": [
+          {
+            "context": "RESPONSE",
+            "scope": "REQUEST",
+            "global": true,
+            "action": "SET",
+            "key": "X-Device-Id",
+            "value": "#response.body.id"
+          }
+        ]
+      }
+    }
+  },
+  "endpoints": [
+    {
+      "@comment": "Feature: Find user by key",
+      "path": "/users/find/:key",
+      "cache": {
+        "duration": "30s"
+      },
+      "method": "GET",
+      "response-encode": "JSON",
+      "beforeware": [
+        "save-device"
+      ],
+      "backends": [
+        {
+          "hosts": [
+            "$USER_SERVICE_URL"
+          ],
+          "path": "/users/find/:key",
+          "method": "GET",
+          "forward-headers": [
+            "X-Device-Id",
+            "X-Forwarded-For",
+            "X-Trace-Id"
+          ],
+          "forward-queries": [
+            "*"
+          ],
+          "modifiers": {
+            "statusCode": {},
+            "header": [],
+            "params": [],
+            "query": [],
+            "body": []
+          },
+          "extra-config": {
+            "group-response": "",
+            "omit-request-body": false,
+            "omit-response": false
+          }
+        }
+      ]
+    }
+  ]
+}
+````
+
+- #### $schema
+
+Campo obrigatório, para o auxílio na escrita e regras do próprio json de configuração.
+
+- #### version
+
+Campo opcional, usado para retorno do endpoint estático ``/version``.
+
+- ### port
+
+Campo obrigatório, utilizado para indicar a porta a ser ouvida pela API Gateway.
+
+- ### hot-reload
+
+Campo opcional, o valor padrão é ``false``, caso seja ``true`` é utilizado para o carregamento automático quando
+houver alguma alteração no arquivo .json e .env na pasta do ambiente selecionado.
+
+- ### timeout
+
+Campo opcional, o valor padrão é 30 segundos, esse campo é responsável pelo tempo máximo de duração do processamento
+de cada requisição, caso seja informado no objeto de endpoint, damos prioridade ao valor informado, caso contrário
+seguiremos com o valor informado nesse campo.
+
+````
+- Valores aceitos:
+    - s para segundos
+    - m para minutos
+    - h para horas
+    - ms para milissegundos
+    - us (ou µs) para microssegundos
+    - ns para nanossegundos
+
+- Exemplos:
+    - 10s
+    - 5ms
+    - 1h30m
+    - 1.5h
+````
+
+- ### store
+
+Campo opcional, valor padrão é o armazenamento local em cache, caso seja informado, o campo ``redis`` passa
+a ser obrigatório e os outros dois campos que acompanham o mesmo ``address`` e ``password`` também.
+
+Caso utilize o armazenamento global de cache o Redis, é indicado que os valores de endereço e senha sejam preenchidos
+utilizando variável de ambiente, como no exemplo acima.
+
+- ### cache
+
+
+Usabilidade
+-----------
+---
+Use o projeto [playground](https://github.com/GabrielHCataldo/gopen-gateway-playground) para começar a explorar e
+utilizar na prática o GOPEN API Gateway!
 
 
 Como contríbuir?

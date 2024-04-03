@@ -183,7 +183,7 @@ func BuildBackendsDTO(backends []vo.Backend) (result []dto.Backend) {
 func BuildBackendDTO(backendVO vo.Backend) dto.Backend {
 	return dto.Backend{
 		Name:           backendVO.Name(),
-		Host:           backendVO.Host(),
+		Hosts:          backendVO.Hosts(),
 		Path:           backendVO.Path(),
 		Method:         backendVO.Method(),
 		ForwardHeaders: backendVO.ForwardHeaders(),

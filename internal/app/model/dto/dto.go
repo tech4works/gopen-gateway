@@ -80,7 +80,7 @@ type Endpoint struct {
 
 type Backend struct {
 	Name           string              `json:"name,omitempty"`
-	Host           []string            `json:"host,omitempty" validate:"required,url"`
+	Hosts          []string            `json:"hosts,omitempty" validate:"required,url"`
 	Path           string              `json:"path,omitempty" validate:"required,url_path"`
 	Method         string              `json:"method,omitempty" validate:"required"`
 	ForwardHeaders []string            `json:"forward-headers,omitempty"`

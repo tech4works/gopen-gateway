@@ -14,7 +14,7 @@ import (
 
 type Backend struct {
 	name           string
-	host           []string
+	hosts          []string
 	path           string
 	method         string
 	forwardHeaders []string
@@ -127,7 +127,7 @@ func NewBackendResponse(backendVO Backend, httpResponse *http.Response) backendR
 func newBackend(backendDTO dto.Backend) Backend {
 	return Backend{
 		name:           backendDTO.Name,
-		host:           backendDTO.Host,
+		hosts:          backendDTO.Hosts,
 		path:           backendDTO.Path,
 		method:         backendDTO.Method,
 		forwardHeaders: backendDTO.ForwardHeaders,
@@ -144,7 +144,7 @@ func newBackend(backendDTO dto.Backend) Backend {
 func newMiddlewareBackend(backendVO Backend, backendExtraConfigVO backendExtraConfig) Backend {
 	return Backend{
 		name:           backendVO.name,
-		host:           backendVO.host,
+		hosts:          backendVO.hosts,
 		path:           backendVO.path,
 		method:         backendVO.method,
 		forwardHeaders: backendVO.forwardHeaders,
@@ -201,9 +201,9 @@ func (b Backend) Name() string {
 	return b.name
 }
 
-// Host returns the host array of the Backend instance.
-func (b Backend) Host() []string {
-	return b.host
+// Hosts returns the host array of the Backend instance.
+func (b Backend) Hosts() []string {
+	return b.hosts
 }
 
 // BalancedHost returns a balanced host from the Backend instance. If there is only one host, it is returned directly.
@@ -211,10 +211,10 @@ func (b Backend) Host() []string {
 func (b Backend) BalancedHost() string {
 	// todo: aqui obtemos o host (correto é criar um domínio chamado balancer aonde ele vai retornar o host
 	//  disponível pegando como base, se ele esta de pé ou não, e sua config de porcentagem)
-	if helper.EqualsLen(b.host, 1) {
-		return b.host[0]
+	if helper.EqualsLen(b.hosts, 1) {
+		return b.hosts[0]
 	}
-	return b.host[helper.RandomNumber(0, len(b.host)-1)]
+	return b.hosts[helper.RandomNumber(0, len(b.hosts)-1)]
 }
 
 // Path returns the path of the Backend instance.
