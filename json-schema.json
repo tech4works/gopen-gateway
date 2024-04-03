@@ -469,8 +469,9 @@
       "type": "string"
     },
     "port": {
-      "type": "number",
-      "minimum": 1
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 65535
     },
     "hot-reload": {
       "type": "boolean"
