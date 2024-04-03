@@ -1,4 +1,4 @@
-<img src="logo-gateway.png" alt="">
+<img src="logo.png" alt="">
 
 [![Project status](https://img.shields.io/badge/version-v1.0.0_beta-yellow.svg)](https://github.com/GabrielHCataldo/gopen-gateway/releases/tag/v1.0.0-beta)
 [![Open Source Helpers](https://www.codetriage.com/gabrielhcataldo/gopen-gateway/badges/users.svg)](https://www.codetriage.com/gabrielhcataldo/gopen-gateway)
@@ -218,7 +218,7 @@ Campo opcional, usado para retorno do endpoint estático ``/version``.
 
 - ### port
 
-Campo obrigatório, utilizado para indicar a porta a ser ouvida pela API Gateway.
+Campo obrigatório, utilizado para indicar a porta a ser ouvida pela API Gateway, valor mínimo 1 e valor máximo 65535.
 
 - ### hot-reload
 
