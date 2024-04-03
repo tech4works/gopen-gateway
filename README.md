@@ -2,7 +2,7 @@
 
 [![Project status](https://img.shields.io/badge/version-v1.0.0_beta-yellow.svg)](https://github.com/GabrielHCataldo/gopen-gateway/releases/tag/v1.0.0-beta)
 [![Open Source Helpers](https://www.codetriage.com/gabrielhcataldo/gopen-gateway/badges/users.svg)](https://www.codetriage.com/gabrielhcataldo/gopen-gateway)
-[![TODOs](https://badgen.net/https/api.tickgit.com/badgen/github.com/GabrielHCataldo/gopen-gateway/helper)](https://www.tickgit.com/browse?repo=github.com/GabrielHCataldo/gopen-gateway)
+[![TODOs](https://badgen.net/https/api.tickgit.com/badgen/github.com/GabrielHCataldo/gopen-gateway)](https://www.tickgit.com/browse?repo=github.com/GabrielHCataldo/gopen-gateway)
 [![Go Report Card](https://goreportcard.com/badge/github.com/GabrielHCataldo/gopen-gateway)](https://goreportcard.com/report/github.com/GabrielHCataldo/gopen-gateway)
 [![GoDoc](https://godoc.org/github/GabrielHCataldo/gopen-gateway?status.svg)](https://pkg.go.dev/github.com/GabrielHCataldo/gopen-gateway/helper)
 
@@ -10,56 +10,64 @@
 
 ---
 
-O projeto GOPEN foi criado no intuito de ajudar os desenvolvedores a terem uma API Gateway robusta e de fácil manuseio,
-com a oportunidade de atuar em melhorias agregando a comunidade, e o mais importante, sem gastar nada. Ela foi
-desenvolvida, pois muitas APIs Gateway do mercado de forma gratuita, não atendem muitas necessidades minímas
-para uma aplicação, induzindo-o a fazer o upgrade.
+![Brazil](https://raw.githubusercontent.com/stevenrskelton/flag-icon/master/png/16/country-4x3/br.png "Brazil")
+[Portuguese](https://github/GabrielHCataldo/gopen-gatewat/blob/main/README.pt-br.md) |
+![Spain](https://raw.githubusercontent.com/stevenrskelton/flag-icon/master/png/16/country-4x3/es.png "Spain")
+[Spanish](https://github/GabrielHCataldo/gopen-gatewat/blob/main/README.es.md)
 
-Com essa nova API Gateway você não precisará equilibrar pratos para economizar em sua infraestrutura e arquitetura,
-veja abaixo todos os recursos disponíveis:
+The GOPEN project was created with the aim of helping developers have a robust and easy-to-use API Gateway,
+with the opportunity to work on improvements, bringing the community together, and most importantly, without spending
+anything. He was
+developed, as many API Gateways on the market for free do not meet many minimum needs
+to an application, inducing it to upgrade.
 
-- Json de configuração simplificado para múltiplos ambientes.
-- Configuração rápida de variáveis de ambiente para múltiplos ambientes.
-- Versionamento via json de configuração.
-- Execução via docker com hot reload opcional.
-- Configuração de timeout global e local para cada endpoint.
-- Configuração de cache global e local para cada endpoint, com customização da estratégia da chave de armazenamento.
-- Armazenamento de cache local ou global utilizando Redis
-- Configuração de limitador de tamanho global e local para cada endpoint, limitando o tamanho Header, Body e Multipart
+With this new API Gateway you won't need to balance your plates to save on your infrastructure and architecture,
+See below all available resources:
+
+- Simplified configuration Json for multiple environments.
+- Quick configuration of environment variables for multiple environments.
+- Versioning via configuration json.
+- Execution via docker with optional hot reload.
+- Global and local timeout configuration for each endpoint.
+- Global and local cache configuration for each endpoint, with customization of the storage key strategy.
+- Local or global cache storage using Redis
+- Configuration of global and local size limiter for each endpoint, limiting the Header, Body and Multipart size
   Memory.
-- Configuração de limitador de taxa global e local para cada endpoint, limitando pelo tempo e rajada pelo IP.
-- Configuração de segurança de CORS com validações de origens, método http e headers.
-- Configuração de global múltiplos middlewares, para serem usados posteriormente no endpoint caso indicado.
-- Filtragem personalizada de envio de headers e query para os backends do endpoint.
-- Processamento de múltiplos backends, sendo eles beforewares, principais e afterwares para o endpoint.
-- Configuração personalizada para abortar processo de execução dos backends pelo código de status retornado.
-- Modificadores para todos os conteúdos da requisição e response (Status Code, Path, Header, Params, Query, Body)
-  ao nível global (requisição/response do endpoint) e local (atual requisição/response backend) com ações de remoção,
-  adição, alteração, substituição e renomeio.
-- Obtenha o valor a ser modificado de variáveis de ambiente, da requisição atual, do histórico de respostas do endpoint,
-  ou até mesmo do valor passado na configuração.
-- Executa os modificadores no contexto que desejar, antes de uma requisição backend ou depois, você decide.
-- Faça com que as modificações reflitam em todas as requisições/respostas seguintes, usando a mesma ao nível global.
-- Omita a resposta de um backend caso necessite, a mesma não será impressa na resposta do endpoint.
-- Omita o body de requisição do seu backend caso precise.
-- Agregue suas múltiplas respostas dos backends caso deseje, podendo personalizar o nome do campo a ser alocado a
-  resposta do backend.
-- Agrupe o body de resposta do seu backend em um campo específico de resposta do endpoint.
-- Personalização do tipo de resposta do endpoint podendo ser JSON, TEXT e XML.
-- Tenha mais observabilidade com o cadastro automático do trace id no header das requisições seguintes e logs bem
-  estruturados.
+- Configuration of global and local rate limiter for each endpoint, limiting by time and burst by IP.
+- CORS security configuration with origin validations, http method and headers.
+- Global configuration of multiple middlewares, to be used later on the endpoint if indicated.
+- Customized filtering for sending headers and queries to the endpoint backends.
+- Processing of multiple backends, including beforeware, main and afterware for the endpoint.
+- Custom configuration to abort the backend execution process by the returned status code.
+- Modifiers for all request and response contents (Status Code, Path, Header, Params, Query, Body)
+  at the global level (endpoint request/response) and local level (current backend request/response) with removal
+  actions,
+  addition, change, replacement and renaming.
+- Obtain the value to be modified from environment variables, the current request, the endpoint response history,
+  or even the value passed in the configuration.
+- Execute the modifiers in the context you want, before a backend request or after, it's up to you.
+- Make the modifications reflected in all subsequent requests/responses, using the same at a global level.
+- Omit the response from a backend if necessary, it will not be printed in the endpoint response.
+- Omit the request body from your backend if necessary.
+- Aggregate your multiple responses from backends if you wish, being able to customize the name of the field to be
+  allocated to
+  backend response.
+- Group your backend response body into a specific endpoint response field.
+- Customization of the endpoint response type, which can be JSON, TEXT and XML.
+- Have more observability with the automatic registration of the trace ID in the header of subsequent requests and logs
+  as well
+  structured.
 
-Usabilidade e documentação
+Usability and documentation
 -----------
 ---
 
 
-Como contríbuir?
+How to contribute?
 ------------
 ---
 
 
-Agradecimentos
+Thanks
 ------------
 ---
-
