@@ -11,9 +11,9 @@
 ---
 
 ![United States](https://raw.githubusercontent.com/stevenrskelton/flag-icon/master/png/16/country-4x3/us.png "United States")
-[Inglés](https://github/GabrielHCataldo/gopen-gateway/blob/main/README.md) |
+[Inglés](https://github.com/GabrielHCataldo/gopen-gateway/blob/main/README.md) |
 ![Brazil](https://raw.githubusercontent.com/stevenrskelton/flag-icon/master/png/16/country-4x3/br.png "Brazil")
-[Portugués](https://github/GabrielHCataldo/gopen-gateway/blob/main/README.pt-br.md) |
+[Portugués](https://github.com/GabrielHCataldo/gopen-gateway/blob/main/README.pt-br.md) |
 
 El proyecto GOPEN fue creado con el objetivo de ayudar a los desarrolladores a tener un API Gateway robusto y fácil de usar,
 con la oportunidad de trabajar en mejoras, uniendo a la comunidad y lo más importante, sin gastar nada. Él era

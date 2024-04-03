@@ -13,7 +13,7 @@
 ![Brazil](https://raw.githubusercontent.com/stevenrskelton/flag-icon/master/png/16/country-4x3/br.png "Brazil")
 [Portuguese](https://github.com/GabrielHCataldo/gopen-gateway/blob/main/README.pt-br.md) |
 ![Spain](https://raw.githubusercontent.com/stevenrskelton/flag-icon/master/png/16/country-4x3/es.png "Spain")
-[Spanish](https://github/GabrielHCataldo/gopen-gateway/blob/main/README.es.md)
+[Spanish](https://github.com/GabrielHCataldo/gopen-gateway/blob/main/README.es.md)
 
 The GOPEN project was created with the aim of helping developers have a robust and easy-to-use API Gateway,
 with the opportunity to work on improvements, bringing the community together, and most importantly, without spending
