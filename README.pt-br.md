@@ -208,28 +208,28 @@ definidas, veja abaixo um exemplo simples com todos os campos possíveis e seus 
 }
 ````
 
-- #### $schema
+### $schema
 
 Campo obrigatório, para o auxílio na escrita e regras do próprio json de configuração.
 
-- #### version
+### version
 
 Campo opcional, usado para retorno do endpoint estático ``/version``.
 
-- ### port
+### port
 
 Campo obrigatório, utilizado para indicar a porta a ser ouvida pela API Gateway, valor mínimo 1 e valor máximo 65535.
 
-- ### hot-reload
+### hot-reload
 
 Campo opcional, o valor padrão é ``false``, caso seja ``true`` é utilizado para o carregamento automático quando
 houver alguma alteração no arquivo .json e .env na pasta do ambiente selecionado.
 
-- ### timeout
+### timeout
 
-Campo opcional, o valor padrão é 30 segundos, esse campo é responsável pelo tempo máximo de duração do processamento
+Campo opcional, o valor padrão é ``30 segundos``, esse campo é responsável pelo tempo máximo de duração do processamento
 de cada requisição, caso seja informado no objeto de endpoint, damos prioridade ao valor informado, caso contrário
-seguiremos com o valor informado nesse campo.
+seguiremos com o valor informado nesse campo na raiz do json.
 
 ````
 - Valores aceitos:
@@ -247,7 +247,7 @@ seguiremos com o valor informado nesse campo.
     - 1.5h
 ````
 
-- ### store
+### store
 
 Campo opcional, valor padrão é o armazenamento local em cache, caso seja informado, o campo ``redis`` passa
 a ser obrigatório e os outros dois campos que acompanham o mesmo ``address`` e ``password`` também.
@@ -255,8 +255,147 @@ a ser obrigatório e os outros dois campos que acompanham o mesmo ``address`` e 
 Caso utilize o armazenamento global de cache o Redis, é indicado que os valores de endereço e senha sejam preenchidos
 utilizando variável de ambiente, como no exemplo acima.
 
-- ### cache
+### cache
 
+Campo opcional, se informado, o campo ``duration`` passa a ser obrigatório!
+
+Caso o objeto seja informado na estrutura do endpoint, damos prioridade aos valores informados lá, caso contrário
+seguiremos com os valores informados nesse campo.
+
+O valor do cache é apenas gravado 1 vez a cada X duração informada.
+
+Caso a resposta não seja "fresca", ou seja, foi respondida pelo cache, o header ``X-Gopen-Cache`` terá o valor ``true``
+caso contrário o valor será ``false``.
+
+- #### duration
+
+Indica o tempo que o cache irá durar, ele é do tipo ``time.Duration``.
+
+````
+- Valores aceitos:
+    - s para segundos
+    - m para minutos
+    - h para horas
+    - ms para milissegundos
+    - us (ou µs) para microssegundos
+    - ns para nanossegundos
+
+- Exemplos:
+    - 1h
+    - 15.5ms
+    - 1h30m
+    - 1.5m
+````
+
+- #### strategy-headers
+
+Campo opcional, a estrátegia padrão de chave de cache é pela url e método da requisição tornando-o um cache global
+por endpoint, caso informado os cabeçalhos a serem usados na estrátegia eles são agregados nos valores padrões de chave,
+por exemplo, ali no exemplo foi indicado utilizar o campo ``X-Forwarded-For`` e o ``Device`` o valor final da chave
+ficaria:
+
+      GET:/users/find/479976139:177.130.228.66:95D4AF55-733D-46D7-86B9-7EF7D6634EBC
+
+a descrição da lógica por trás dessa chave é:
+
+      {método}:{url}:{X-Forwarded-For}:{Device}
+
+Nesse exemplo tornamos o cache antes global para o endpoint em espécifico, passa a ser por cliente! Lembrando que isso
+é um exemplo simples, você pode ter a estrátegia que quiser com base no header de sua aplicação.
+
+- #### allow-cache-control
+
+Campo opcional, o valor padrão é ``false``, caso seja informado como ``true`` a API Gateway irá considerar o header
+``Cache-Control`` seguindo as regras a seguir a partir do valor informado na requisição ou na resposta dos backends:
+
+``no-cache``: esse valor é apenas considerado no header da requisição, caso informado desconsideramos a leitura do cache
+e seguimos com o processo normal para obter a resposta "fresca".
+
+``no-store``: esse valor é considerado apenas na resposta escrita por seus backends, caso informado não gravamos o
+cache.
+
+### limiter
+
+Campo opcional, os valores padrões variam de campo a campo, veja:
+
+- #### max-header-size
+
+Campo opcional, ele é do tipo ``byteUnit``,  valor padrão é 1MB, é responsável por limitar o tamanho do cabeçalho de
+requisição.
+
+````
+- Valores aceitos:
+    - B para Byte
+    - KB para KiloByte
+    - MB para Megabyte
+    - GB para Gigabyte
+    - TB para Terabyte
+    - PB para Petabyte
+    - EB para Exabyte
+    - ZB para Zettabyte
+    - YB para Yottabyte
+
+- Exemplos:
+    - 1B
+    - 50KB
+    - 5MB
+    - 1.5GB
+````
+
+- #### max-body-size
+
+Campo opcional, ele é do tipo ``byteUnit``, valor padrão é 3MB, campo é responsável por limitar o tamanho do corpo
+da requisição.
+
+````
+- Valores aceitos:
+    - B para Byte
+    - KB para KiloByte
+    - MB para Megabyte
+    - GB para Gigabyte
+    - TB para Terabyte
+    - PB para Petabyte
+    - EB para Exabyte
+    - ZB para Zettabyte
+    - YB para Yottabyte
+
+- Exemplos:
+    - 1B
+    - 50KB
+    - 5MB
+    - 1.5GB
+````
+
+- #### max-multipart-memory-size
+
+Campo opcional, ele é do tipo ``byteUnit``, valor padrão é 5MB, esse campo é responsável por limitar o tamanho do 
+corpo multipart/form da requisição, geralmente utilizado para envio de arquivos, imagens, etc.
+
+````
+- Valores aceitos:
+  - B para Byte
+  - KB para KiloByte
+  - MB para Megabyte
+  - GB para Gigabyte
+  - TB para Terabyte
+  - PB para Petabyte
+  - EB para Exabyte
+  - ZB para Zettabyte
+  - YB para Yottabyte
+
+- Exemplos:
+  - 1B
+  - 50KB
+  - 5MB
+  - 1.5GB
+````
+
+- #### rate.capacity
+
+Campo opcional, caso o objeto rate seja informado, ele passa a ser obrigatório, o valor padrão é 5, 
+indica a capacidade máxima 
+
+- #### rate.every
 
 Usabilidade
 -----------
