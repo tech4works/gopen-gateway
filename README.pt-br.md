@@ -214,24 +214,31 @@ Campo obrigatório, para o auxílio na escrita e regras do próprio json de conf
 
 ### version
 
-Campo opcional, usado para retorno do endpoint estático ``/version``.
+Campo opcional, usado para retorno do endpoint estático `/version`.
 
 ### port
 
-Campo obrigatório, utilizado para indicar a porta a ser ouvida pela API Gateway, valor mínimo 1 e valor máximo 65535.
+Campo obrigatório, utilizado para indicar a porta a ser ouvida pela API Gateway, valor mínimo `1` e valor
+máximo `65535`.
 
 ### hot-reload
 
-Campo opcional, o valor padrão é ``false``, caso seja ``true`` é utilizado para o carregamento automático quando
+Campo opcional, o valor padrão é `false`, caso seja `true` é utilizado para o carregamento automático quando
 houver alguma alteração no arquivo .json e .env na pasta do ambiente selecionado.
 
 ### timeout
 
-Campo opcional, o valor padrão é ``30 segundos``, esse campo é responsável pelo tempo máximo de duração do processamento
-de cada requisição, caso seja informado no objeto de endpoint, damos prioridade ao valor informado, caso contrário
-seguiremos com o valor informado nesse campo na raiz do json.
+Campo opcional, o valor padrão é `30 segundos`, esse campo é responsável pelo tempo máximo de duração do processamento
+de cada requisição.
 
-````
+Caso a requisição ultrapasse esse tempo informado, á API Gateway irá abortar todas as transações em andamento e
+retornará
+o código de status `504 (Gateway Timeout)`.
+
+IMPORTANTE: Caso seja informado no objeto de endpoint, damos prioridade ao valor informado do endpoint, caso contrário
+seguiremos com o valor informado nesse campo, na raiz do json de configuração.
+
+```
 - Valores aceitos:
     - s para segundos
     - m para minutos
@@ -245,33 +252,33 @@ seguiremos com o valor informado nesse campo na raiz do json.
     - 5ms
     - 1h30m
     - 1.5h
-````
+```
 
 ### store
 
-Campo opcional, valor padrão é o armazenamento local em cache, caso seja informado, o campo ``redis`` passa
-a ser obrigatório e os outros dois campos que acompanham o mesmo ``address`` e ``password`` também.
+Campo opcional, valor padrão é o armazenamento local em cache, caso seja informado, o campo `redis` passa
+a ser obrigatório e os outros dois campos que acompanham o mesmo `address` e `password` também.
 
 Caso utilize o armazenamento global de cache o Redis, é indicado que os valores de endereço e senha sejam preenchidos
 utilizando variável de ambiente, como no exemplo acima.
 
 ### cache
 
-Campo opcional, se informado, o campo ``duration`` passa a ser obrigatório!
+Campo opcional, se informado, o campo `duration` passa a ser obrigatório!
 
 Caso o objeto seja informado na estrutura do endpoint, damos prioridade aos valores informados lá, caso contrário
 seguiremos com os valores informados nesse campo.
 
 O valor do cache é apenas gravado 1 vez a cada X duração informada.
 
-Caso a resposta não seja "fresca", ou seja, foi respondida pelo cache, o header ``X-Gopen-Cache`` terá o valor ``true``
-caso contrário o valor será ``false``.
+Caso a resposta não seja "fresca", ou seja, foi respondida pelo cache, o header `X-Gopen-Cache` terá o valor `true`
+caso contrário o valor será `false`.
 
 - #### duration
 
-Indica o tempo que o cache irá durar, ele é do tipo ``time.Duration``.
+Indica o tempo que o cache irá durar, ele é do tipo `time.Duration`.
 
-````
+```
 - Valores aceitos:
     - s para segundos
     - m para minutos
@@ -285,18 +292,18 @@ Indica o tempo que o cache irá durar, ele é do tipo ``time.Duration``.
     - 15.5ms
     - 1h30m
     - 1.5m
-````
+```
 
 - #### strategy-headers
 
 Campo opcional, a estrátegia padrão de chave de cache é pela url e método da requisição tornando-o um cache global
 por endpoint, caso informado os cabeçalhos a serem usados na estrátegia eles são agregados nos valores padrões de chave,
-por exemplo, ali no exemplo foi indicado utilizar o campo ``X-Forwarded-For`` e o ``Device`` o valor final da chave
+por exemplo, ali no exemplo foi indicado utilizar o campo `X-Forwarded-For` e o `Device` o valor final da chave
 ficaria:
 
       GET:/users/find/479976139:177.130.228.66:95D4AF55-733D-46D7-86B9-7EF7D6634EBC
 
-a descrição da lógica por trás dessa chave é:
+A descrição da lógica por trás dessa chave é:
 
       {método}:{url}:{X-Forwarded-For}:{Device}
 
@@ -305,25 +312,29 @@ Nesse exemplo tornamos o cache antes global para o endpoint em espécifico, pass
 
 - #### allow-cache-control
 
-Campo opcional, o valor padrão é ``false``, caso seja informado como ``true`` a API Gateway irá considerar o header
-``Cache-Control`` seguindo as regras a seguir a partir do valor informado na requisição ou na resposta dos backends:
+Campo opcional, o valor padrão é `false`, caso seja informado como `true` a API Gateway irá considerar o header
+`Cache-Control` seguindo as regras a seguir a partir do valor informado na requisição ou na resposta dos backends:
 
-``no-cache``: esse valor é apenas considerado no header da requisição, caso informado desconsideramos a leitura do cache
+`no-cache`: esse valor é apenas considerado no header da requisição, caso informado desconsideramos a leitura do cache
 e seguimos com o processo normal para obter a resposta "fresca".
 
-``no-store``: esse valor é considerado apenas na resposta escrita por seus backends, caso informado não gravamos o
+`no-store`: esse valor é considerado apenas na resposta escrita por seus backends, caso informado não gravamos o
 cache.
 
 ### limiter
 
-Campo opcional, os valores padrões variam de campo a campo, veja:
+Campo opcional, objeto responsável pelas regras de limitação da API Gateway, seja de tamanho ou taxa, os valores padrões
+variam de campo a campo, veja:
 
 - #### max-header-size
 
-Campo opcional, ele é do tipo ``byteUnit``,  valor padrão é 1MB, é responsável por limitar o tamanho do cabeçalho de
+Campo opcional, ele é do tipo `byteUnit`, valor padrão é `1MB`, é responsável por limitar o tamanho do cabeçalho de
 requisição.
 
-````
+Caso o tamanho do cabeçalho ultrapasse o valor informado, a API Gateway irá abortar a requisição com o código de status
+`431 (Request header fields too large)`.
+
+```
 - Valores aceitos:
     - B para Byte
     - KB para KiloByte
@@ -340,14 +351,17 @@ requisição.
     - 50KB
     - 5MB
     - 1.5GB
-````
+```
 
 - #### max-body-size
 
-Campo opcional, ele é do tipo ``byteUnit``, valor padrão é 3MB, campo é responsável por limitar o tamanho do corpo
+Campo opcional, ele é do tipo `byteUnit`, valor padrão é `3MB`, campo é responsável por limitar o tamanho do corpo
 da requisição.
 
-````
+Caso o tamanho do corpo ultrapasse o valor informado, a API Gateway irá abortar a requisição com o código de status
+`413 (Request entity too large)`.
+
+```
 - Valores aceitos:
     - B para Byte
     - KB para KiloByte
@@ -364,14 +378,17 @@ da requisição.
     - 50KB
     - 5MB
     - 1.5GB
-````
+```
 
 - #### max-multipart-memory-size
 
-Campo opcional, ele é do tipo ``byteUnit``, valor padrão é 5MB, esse campo é responsável por limitar o tamanho do 
+Campo opcional, ele é do tipo `byteUnit`, valor padrão é `5MB`, esse campo é responsável por limitar o tamanho do
 corpo multipart/form da requisição, geralmente utilizado para envio de arquivos, imagens, etc.
 
-````
+Caso o tamanho do corpo ultrapasse o valor informado, a API Gateway irá abortar a requisição com o código de status
+`413 (Request entity too large)`.
+
+```
 - Valores aceitos:
   - B para Byte
   - KB para KiloByte
@@ -388,14 +405,26 @@ corpo multipart/form da requisição, geralmente utilizado para envio de arquivo
   - 50KB
   - 5MB
   - 1.5GB
-````
+```
+
+- #### rate
+
+Campo opcional, caso seja informado, o campo `capacity` torna-se obrigatório, esse objeto é responsável por limitar
+a taxa de requisição pelo IP, esse limite é imposto obtendo a capacidade máxima pelo campo `capacity` por X duração,
+informado no campo `every`.
+
+Caso essa capacidade seja ultrapassada, a API Gateway por segurança abortará a requisição, retornando
+`429 (Too many requests)`.
 
 - #### rate.capacity
 
-Campo opcional, caso o objeto rate seja informado, ele passa a ser obrigatório, o valor padrão é 5, 
-indica a capacidade máxima 
+Campo opcional, caso o objeto rate seja informado, ele passa a ser obrigatório, o valor padrão é `5`, e o mínimo
+que poderá ser informado é `1`, indica a capacidade máxima de requisições.
 
 - #### rate.every
+
+Campo opcional, o valor padrão é `1 segundo`, indica o valor da duração da verificação da capacidade máxima de
+requisições.
 
 Usabilidade
 -----------

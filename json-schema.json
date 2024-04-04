@@ -101,7 +101,10 @@
             "every": {
               "$ref": "#/definitions/duration"
             }
-          }
+          },
+          "required": [
+            "capacity"
+          ]
         }
       },
       "additionalProperties": false

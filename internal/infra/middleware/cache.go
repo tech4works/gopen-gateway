@@ -52,8 +52,11 @@ func (c cache) Do(cacheVO vo.Cache) api.HandlerFunc {
 		// damos próximo no handler
 		req.Next()
 
+		// obtemos o header da resposta
+		httpHeaderResponse := req.Writer().Header()
+
 		// verificamos se podemos gravar a resposta
-		if cacheVO.CanWrite(req.Method(), req.Header()) {
+		if cacheVO.CanWrite(req.Method(), vo.NewHeader(httpHeaderResponse)) {
 			// instanciamos a duração
 			duration := cacheVO.Duration()
 
