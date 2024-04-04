@@ -547,7 +547,8 @@
     "$schema": {
       "type": "string",
       "enum": [
-        "https://raw.githubusercontent.com/GabrielHCataldo/gopen-gateway/main/json-schema.json"
+        "https://raw.githubusercontent.com/GabrielHCataldo/gopen-gateway/main/json-schema.json",
+        "../../json-schema.json"
       ]
     },
     "version": {
