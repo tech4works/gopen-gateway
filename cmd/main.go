@@ -100,8 +100,6 @@ func loadGOpenEnvs(env string) {
 // If the validation fails, the function panics with the error message.
 // Next, it converts the JSON bytes into a dto.Gopen object by using the helper.ConvertToDest function.
 // If the conversion fails, the function panics with the error message.
-// The function double-checks the structure of the dto.Gopen object by calling the helper.Validate().Struct function.
-// If the structure is invalid, the function panics with the error message.
 // Finally, the function returns the dto.Gopen object.
 func loadGOpenJson(env string) dto.Gopen {
 	// carregamos o arquivo de json de configuração do Gopen
@@ -125,11 +123,6 @@ func loadGOpenJson(env string) dto.Gopen {
 	err = helper.ConvertToDest(fileJsonBytes, &gopenDTO)
 	if helper.IsNotNil(err) {
 		panic(errors.New("Error parse Gopen json file to DTO:", err))
-	}
-
-	// temos um double-check de validação da estrutura
-	if err = helper.Validate().Struct(gopenDTO); helper.IsNotNil(err) {
-		panic(errors.New("Error validate GOpenDTO:", err))
 	}
 
 	// retornamos o DTO que é a configuração do Gopen

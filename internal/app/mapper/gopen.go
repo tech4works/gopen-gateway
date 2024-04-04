@@ -227,11 +227,11 @@ func BuildModifierDTO(modifierVO vo.Modifier) *dto.Modifier {
 		return nil
 	}
 	return &dto.Modifier{
-		Context: modifierVO.Context(),
-		Scope:   modifierVO.Scope(),
-		Action:  modifierVO.Action(),
-		Global:  modifierVO.Global(),
-		Key:     modifierVO.Key(),
-		Value:   modifierVO.Value(),
+		Context:   modifierVO.Context(),
+		Scope:     modifierVO.Scope(),
+		Action:    modifierVO.Action(),
+		Propagate: modifierVO.Propagate(),
+		Key:       modifierVO.Key(),
+		Value:     modifierVO.Value(),
 	}
 }

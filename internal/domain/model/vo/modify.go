@@ -11,13 +11,13 @@ import (
 )
 
 type modify struct {
-	action   enum.ModifierAction
-	scope    enum.ModifierScope
-	global   bool
-	key      string
-	value    string
-	request  Request
-	response Response
+	action    enum.ModifierAction
+	scope     enum.ModifierScope
+	propagate bool
+	key       string
+	value     string
+	request   Request
+	response  Response
 }
 
 type ModifierStrategy interface {
@@ -34,7 +34,7 @@ type NewModifyVOFunc func(modifierVO Modifier, requestVO Request, responseVO Res
 // Then it constructs the modify object with the following properties:
 // - action: the action from modifierVO
 // - scope: the scope determined previously
-// - global: the global flag from modifierVO
+// - propagate: the propagate flag from modifierVO
 // - key: the key from modifierVO
 // - value: the value from modifierVO
 // - request: the requestVO
@@ -56,78 +56,75 @@ func newModify(modifierVO Modifier, requestVO Request, responseVO Response) modi
 
 	// construímos o objeto de valor para modificar
 	return modify{
-		action:   modifierVO.Action(),
-		scope:    scope,
-		global:   modifierVO.Global(),
-		key:      modifierVO.Key(),
-		value:    modifierVO.Value(),
-		request:  requestVO,
-		response: responseVO,
+		action:    modifierVO.Action(),
+		scope:     scope,
+		propagate: modifierVO.Propagate(),
+		key:       modifierVO.Key(),
+		value:     modifierVO.Value(),
+		request:   requestVO,
+		response:  responseVO,
 	}
 }
 
-// statusCodes modifies and returns the global and local status codes based on the condition defined.
-// It first retrieves the value to be used for modification from the method m.valueInt().
-// If the modifierValue is empty, the function exits early, and the global and local status codes remain unchanged.
-// Else, the localStatusCode is set to the modifierValue.
-// If the scope is global (m.global), the globalStatusCode is also set to modifierValue.
-// It returns the possibly modified globalStatusCode and localStatusCode.
-func (m modify) statusCodes(globalStatusCode, localStatusCode int) (int, int) {
+// statusCodes modifies the statusCode based on the receiver 'm' of the type modify.
+// It obtains the value to be used for modification using the m.valueInt() method.
+// If the modifierValue is empty, it returns the original statusCode without any modifications.
+// Otherwise, it sets the modifierValue as the new statusCode and returns it.
+func (m modify) statusCodes(statusCode int) int {
 	// obtemos o valor a ser usado para modificar
 	modifierValue := m.valueInt()
 
 	// se nao tiver valor nao fazemos nada
 	if helper.IsEmpty(modifierValue) {
-		return globalStatusCode, localStatusCode
+		return statusCode
 	}
 
 	// setamos o valor
-	localStatusCode = modifierValue
-
-	// se for em scope global setamos o valor
-	if m.global {
-		globalStatusCode = modifierValue
-	}
-
-	return globalStatusCode, localStatusCode
+	return statusCode
 }
 
-// Function headers modifies both global and local headers based on the action.
-// It accepts two parameters - globalHeader and localHeader of type Header.
-// The function performs the action (set, add, delete) on both global and local headers based on the modifierValue.
-// The action and the key for the operation are based on the receiver 'm' of the type modifier.
-// If the global field of the receiver 'm' is true, the action is applied on the globalHeader, else only on the localHeader.
-//
-// The function returns the modified globalHeader and localHeader.
+// headers modifies the globalHeader and localHeader based on the receiver 'm' of the type modify.
+// It obtains the value to be used for modification using the m.valueStr() method.
+// It alters the headers based on the action indicated by m.action.
+// If the action is ModifierActionSet, it sets the value of the key in the localHeader.
+// If the propagate field is true, it also sets the value in the globalHeader.
+// If the action is ModifierActionAdd, it adds the value to the key in the localHeader.
+// If the propagate field is true, it also adds the value to the key in the globalHeader.
+// If the action is ModifierActionDel, it deletes the key from the localHeader.
+// If the propagate field is true, it also deletes the key from the globalHeader.
+// If the action is ModifierActionRename, it renames the key in the localHeader.
+// If the propagate field is true, it renames the key in the globalHeader as well.
+// It returns the modified globalHeader and localHeader.
 func (m modify) headers(globalHeader, localHeader Header) (Header, Header) {
 	// obtemos o valor a ser usado para modificar
 	modifierValue := m.valueStr()
 
+	// alteramos os headers conforme o action indicada
 	switch m.action {
 	case enum.ModifierActionSet:
-		// se o escopo da modificação é global, modificamos o mesmo
-		if m.global {
+		// se o modificador tiver o campo propagate como true, modificamos o valor global
+		if m.propagate {
 			globalHeader = globalHeader.Set(m.key, modifierValue)
 		}
 		localHeader = localHeader.Set(m.key, modifierValue)
 		break
 	case enum.ModifierActionAdd:
-		// se o escopo da modificação é global, modificamos o mesmo
-		if m.global {
+		// se o modificador tiver o campo propagate como true, modificamos o valor global
+		if m.propagate {
 			globalHeader = globalHeader.Add(m.key, modifierValue)
 		}
 		localHeader = localHeader.Add(m.key, modifierValue)
 		break
 	case enum.ModifierActionDel:
-		// se o escopo da modificação é global, modificamos o mesmo
-		if m.global {
+		// se o modificador tiver o campo propagate como true, modificamos o valor global
+		if m.propagate {
 			globalHeader = globalHeader.Del(m.key)
 		}
 		localHeader = localHeader.Del(m.key)
 		break
 	case enum.ModifierActionRename:
-		// se o escopo da modificação é global, modificamos o mesmo
-		if m.global {
+		// se o modificador tiver o campo propagate como true, modificamos o valor global
+		if m.propagate {
 			valueCopy := globalHeader.Get(m.key)
 			globalHeader = globalHeader.Del(m.key)
 			globalHeader = globalHeader.Set(modifierValue, valueCopy)
@@ -137,17 +134,30 @@ func (m modify) headers(globalHeader, localHeader Header) (Header, Header) {
 		localHeader = localHeader.Set(modifierValue, valueCopy)
 		break
 	}
-
+	// retornamos os objetos de valores modificados, ou não
 	return globalHeader, localHeader
 }
 
-// params is a method on the 'modify' struct which returns the modified local path, global parameters, and local parameters.
-// It modifies the parameters based on the action specified in the 'modify' struct (Set, Add, Del).
-// When the global scope is set in the modify struct, it performs the modification on the global parameters as well.
-// If the key provided in 'modify' struct does not exist in current local path, it is added to the path.
-// The method also handles the removal of keys from the path.
-// It takes in a local path (string), global parameters(map), and local parameters (map) as input.
-// It returns a string (New local path), map(global parameters), map(local parameters).
+// params alters the input path and parameters based on the action set in the modify struct.
+// It accepts a local path, and two parameters, global and local Params.
+// It returns an updated string representing the path, as well as updated global and local Params (in that order).
+//
+// The function carries out a different behavior and modifies the incoming parameters,
+// based on whether the pre-set action is Set, Del or Rename.
+// For each case, it checks a bool propagated field in the modify struct to decide whether to change the global Params.
+// The local Params and path are always updated.
+//
+// In all cases, the function returns the (possibly updated) path and the global and local Params.
+//
+// The Switch Cases:
+// - The Set case, sets a new key-value pair in the global Params and local Params based on the modify structs key and value.
+// It also updates the path by appending a new param key.
+// - The Del case deletes a key-value pair from global Params and local Params using modify structs key. It also removes the
+// param key from path.
+// - The Rename case, changes the key name of a key-value pair in the global and local Params to the value held by modify struct.
+// Depending upon the presence of old and new param keys in path, it updates path accordingly.
+//
+// If there's no action matching in modify struct, it
 func (m modify) params(localPath string, globalParams, localParams Params) (string, Params, Params) {
 	// obtemos o valor a ser usado para modificar
 	modifierValue := m.valueStr()
@@ -156,14 +166,14 @@ func (m modify) params(localPath string, globalParams, localParams Params) (stri
 	paramKeyUrl := fmt.Sprintf("/:%s", m.key)
 	paramValueUrl := fmt.Sprintf("/:%s", modifierValue)
 
+	// alteramos o path local e parâmetros local e global pela action indicada
 	switch m.action {
 	case enum.ModifierActionSet:
-		// se o escopo da modificação é global, modificamos o mesmo
-		if m.global {
+		// se o modificador tiver o campo propagate como true, modificamos o valor global
+		if m.propagate {
 			globalParams = globalParams.Set(m.key, modifierValue)
 		}
 		localParams = localParams.Set(m.key, modifierValue)
-
 		// se o parâmetro não conte no path atual, adicionamos
 		if !strings.Contains(localPath, paramKeyUrl) {
 			// checamos se no fim da url tem o /
@@ -175,18 +185,17 @@ func (m modify) params(localPath string, globalParams, localParams Params) (stri
 		}
 		break
 	case enum.ModifierActionDel:
-		// se o escopo da modificação é global, modificamos o mesmo
-		if m.global {
+		// se o modificador tiver o campo propagate como true, modificamos o valor global
+		if m.propagate {
 			globalParams = globalParams.Del(m.key)
 		}
 		localParams = localParams.Del(m.key)
-
 		// removemos o param de url no backend atual
 		localPath = strings.ReplaceAll(localPath, paramKeyUrl, "")
 		break
 	case enum.ModifierActionRename:
-		// se o escopo da modificação é global, modificamos o mesmo
-		if m.global {
+		// se o modificador tiver o campo propagate como true, modificamos o valor global
+		if m.propagate {
 			valueCopy := globalParams.Get(m.key)
 			if helper.IsNotEmpty(valueCopy) {
 				globalParams = globalParams.Del(m.key)
@@ -197,7 +206,6 @@ func (m modify) params(localPath string, globalParams, localParams Params) (stri
 		if helper.IsNotEmpty(valueCopy) {
 			localParams = localParams.Del(m.key)
 			localParams = localParams.Set(modifierValue, valueCopy)
-
 			// checamos se o valor do parâmetro antigo contem no path para substituir pelo pela nova chave
 			// caso nao tem, e o valor nao tem na url, adicionamos
 			if strings.Contains(localPath, paramKeyUrl) {
@@ -213,43 +221,46 @@ func (m modify) params(localPath string, globalParams, localParams Params) (stri
 		}
 		break
 	}
-
+	// retornamos o path possívelmente alterado, o globa e local params possívelmente alterados
 	return localPath, globalParams, localParams
 }
 
-// queries modifies the queries based on the modifier action set (set, add, del),
-// the key and value specified in the Modify object, and whether the scope is global or not.
-// If the scope of the modification is global, it also modifies the global query.
-// It returns modified global and local queries.
+// queries modifies the globalQuery and localQuery based on the receiver 'm' of the type modify.
+// It obtains the value to be used for modification using the m.valueStr() method.
+// It then modifies the globalQuery and localQuery based on the action indicated by 'm'.
+// If the modifier's propagate field is true, it modifies the corresponding field in globalQuery.
+// The switch statement handles different actions and modifies the queries accordingly.
+// Finally, it returns the modified globalQuery and localQuery.
 func (m modify) queries(globalQuery, localQuery Query) (Query, Query) {
 	// obtemos o valor a ser usado para modificar
 	modifierValue := m.valueStr()
 
+	// alteramos o query local e global pela action indicada
 	switch m.action {
 	case enum.ModifierActionSet:
-		// se o escopo da modificação é global, modificamos o mesmo
-		if m.global {
+		// se o modificador tiver o campo propagate como true, modificamos o valor global
+		if m.propagate {
 			globalQuery = globalQuery.Set(m.key, modifierValue)
 		}
 		localQuery = localQuery.Set(m.key, modifierValue)
 		break
 	case enum.ModifierActionAdd:
-		// se o escopo da modificação é global, modificamos o mesmo
-		if m.global {
+		// se o modificador tiver o campo propagate como true, modificamos o valor global
+		if m.propagate {
 			globalQuery = globalQuery.Add(m.key, modifierValue)
 		}
 		localQuery = localQuery.Add(m.key, modifierValue)
 		break
 	case enum.ModifierActionDel:
-		// se o escopo da modificação é global, modificamos o mesmo
-		if m.global {
+		// se o modificador tiver o campo propagate como true, modificamos o valor global
+		if m.propagate {
 			globalQuery = globalQuery.Del(m.key)
 		}
 		localQuery = localQuery.Del(m.key)
 		break
 	case enum.ModifierActionRename:
-		// se o escopo da modificação é global, modificamos o mesmo
-		if m.global {
+		// se o modificador tiver o campo propagate como true, modificamos o valor global
+		if m.propagate {
 			valueCopy := globalQuery.Get(m.key)
 			if helper.IsNotEmpty(valueCopy) {
 				globalQuery = globalQuery.Del(m.key)
@@ -263,16 +274,16 @@ func (m modify) queries(globalQuery, localQuery Query) (Query, Query) {
 		}
 		break
 	}
-
+	// retornamos a query global e local possivelmente alteradas
 	return globalQuery, localQuery
 }
 
-// bodies modifies the global and local bodies based on the modifier action and value.
-// It evaluates the modifier value and modifies the current body accordingly.
-// If the local body is of JSON type, it is modified using the bodyJson() method.
-// If the local body is of string type, it is modified using the bodyString() method.
-// If the scope is global, the global body is also modified in the same way.
-// The modified global and local bodies are returned.
+// bodies modifies the globalBody and localBody based on the receiver 'm' of the type modify.
+// It obtains the value to be used for modification using the m.valueEval() method.
+// If localBody is of type JSON, it calls m.bodyJson to modify localBody with the modifierValue.
+// If localBody is of type string, it calls m.bodyString to modify localBody with the modifierValue.
+// If propagate is true, it also modifies globalBody using the same logic as above.
+// The method returns the modified globalBody and localBody.
 func (m modify) bodies(globalBody, localBody Body) (Body, Body) {
 	// obtemos o valor a ser usado para modificar
 	modifierValue := m.valueEval()
@@ -284,8 +295,9 @@ func (m modify) bodies(globalBody, localBody Body) (Body, Body) {
 		localBody = m.bodyString(localBody, modifierValue)
 	}
 
-	// caso seja em um escopo global, modificamos pelo tipo de dado também
-	if m.global {
+	// caso seja em um escopo propagate, modificamos pelo tipo de dado também, OBS: no response o propagate
+	// sempre sera false
+	if m.propagate {
 		if helper.IsJsonType(globalBody) {
 			globalBody = m.bodyJson(globalBody, modifierValue)
 		} else if helper.IsStringType(globalBody) {
@@ -293,6 +305,7 @@ func (m modify) bodies(globalBody, localBody Body) (Body, Body) {
 		}
 	}
 
+	// retornamos o body global e local possivelmente alterados
 	return globalBody, localBody
 }
 
@@ -302,7 +315,7 @@ func (m modify) bodies(globalBody, localBody Body) (Body, Body) {
 // - For ModifierActionSet, ModifierActionAdd, ModifierActionReplace it sets the new value to the body.
 // - For ModifierActionDel, it deletes the key from the body.
 // - For ModifierActionRename, it changes the key of the body to the new value, retaining the original value.
-// After modification, it uses the body's Modify method to apply the changes.
+// After modification, it uses the body's ModifyLastBackendResponse method to apply the changes.
 func (m modify) bodyJson(body Body, modifierValue any) Body {
 	// damos o parse string da chave que eu quero modificar
 	expr, err := jp.ParseString(m.key)
@@ -333,7 +346,6 @@ func (m modify) bodyJson(body Body, modifierValue any) Body {
 		}
 		break
 	}
-
 	// chamamos modify do body objeto de valor para ele alterar os dados sem perder a ordenação
 	return body.Modify(m.key, bodyToModify)
 }
@@ -378,7 +390,7 @@ func (m modify) bodyString(body Body, modifierValue any) Body {
 		modifiedValue = modifierValueStr
 		break
 	}
-
+	// retornamos o novo body com o valor modificado
 	return newBodyByAny(modifiedValue)
 }
 

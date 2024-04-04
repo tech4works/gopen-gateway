@@ -153,7 +153,7 @@ definidas, veja abaixo um exemplo simples com todos os campos possíveis e seus 
           {
             "context": "RESPONSE",
             "scope": "REQUEST",
-            "global": true,
+            "propagate": true,
             "action": "SET",
             "key": "X-Device-Id",
             "value": "#response.body.id"

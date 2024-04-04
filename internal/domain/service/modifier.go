@@ -73,7 +73,7 @@ func (m modifier) Execute(executeData vo.ExecuteModifier) (vo.Request, vo.Respon
 // - context: The current context that incoming modifiers must match to be applied
 // - requestVO: Request value object that may be modified by the execution of a modifier strategy
 // - responseVO: Response value object that may be modified by the execution of a modifier strategy
-// - newModifyVO: function to create a new Modify value object (a modification strategy)
+// - newModifyVO: function to create a new ModifyLastBackendResponse value object (a modification strategy)
 //
 // Returns:
 // - vo.Request: The potentially altered request value object

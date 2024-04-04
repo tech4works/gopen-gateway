@@ -12,62 +12,50 @@ func NewModifyStatusCodes(modifierVO Modifier, requestVO Request, responseVO Res
 	}
 }
 
-// Execute executes the modifyStatusCodes by calling the executeResponseScope method and returns the modified Request
-// and Response.
+// Execute executes the modifyStatusCodes by calling the executeResponseScope method and returns the original Request
+// and modified Response.
 // It starts execution from the default scope.
 func (m modifyStatusCodes) Execute() (Request, Response) {
 	// executamos a partir do escopo padrão
 	return m.executeResponseScope()
 }
 
-// executeResponseScope executes the response scope by modifying the status codes and returning the modified request and response.
-// It first calls the statusCodes method of the modifyStatusCodes instance to get the modified global and local status codes.
-// Then it calls the modifyResponseLocal method to modify the local status code and returns the modified backendResponse.
-// Finally, it calls the modifyResponseGlobal method to modify the global status code and returns the modified response
-// with the modified backend response.
-// The modified request and response are returned as a tuple.
-// Note: This method is called within the Execute method of the modifyStatusCodes instance.
+// executeResponseScope is a method of the modifyStatusCodes structure.
+// It modifies both the local and global response status codes based on provided
+// status codes and returns both updated request and response.
+//
+// It first calls the modify method of status code with the last backend response's
+// status code, which gets modified.
+//
+// Then, it modifies the local response status code.
+// Afterward, it modifies the global response with the new backendResponseVO.
+// Finally, it returns the modified request and response.
+//
+// Returns:
+//   - Request: The original (possibly modified) request.
+//   - Response: The modified response after operations.
 func (m modifyStatusCodes) executeResponseScope() (Request, Response) {
 	// chamamos o modify de status code passando os status codes a ser modificado e o mesmo retorna modificados
-	globalStatusCode, localStatusCode := m.statusCodes(m.globalResponseStatusCode(), m.localResponseStatusCode())
+	statusCode := m.statusCodes(m.response.LastBackendResponse().StatusCode())
 
 	// modificamos o status code local
-	backendResponseVO := m.modifyResponseLocal(localStatusCode)
+	backendResponseVO := m.modifyLocalResponse(statusCode)
 
-	// modificamos o status code global e retornamos
-	return m.request, m.modifyResponseGlobal(globalStatusCode, backendResponseVO)
+	// modificamos o response global com o novo backendResponseVO
+	return m.request, m.modifyGlobalResponse(backendResponseVO)
 }
 
-// globalResponseStatusCode returns the status code of the response.
-func (m modifyStatusCodes) globalResponseStatusCode() int {
-	return m.response.StatusCode()
-}
-
-// localResponseStatusCode returns the status code of the last backend response.
-func (m modifyStatusCodes) localResponseStatusCode() int {
-	return m.response.LastBackendResponse().StatusCode()
-}
-
-// modifyResponseLocal modifies the status code of the last backend response in the history of the response object to
+// modifyLocalResponse modifies the status code of the last backend response in the history of the response object to
 // the given statusCode.
 // It returns a new backendResponse object with the modified status code.
-func (m modifyStatusCodes) modifyResponseLocal(statusCode int) backendResponse {
+func (m modifyStatusCodes) modifyLocalResponse(statusCode int) backendResponse {
 	return m.response.LastBackendResponse().ModifyStatusCode(statusCode)
 }
 
-// modifyResponseGlobal is a method of the modifyStatusCodes struct. It takes an
-// integer representing a status code and an instance of backendResponse as
-// parameters. The method will return a Response after modifying the status
-// code of the input backend response.
-//
-// Parameters:
-//
-//	statusCode - An integer representation of an HTTP status code.
-//	backendResponseVO - An instance of backendResponse containing the server response.
-//
-// Returns:
-//
-//	Response - The response with a modified status code based on the input.
-func (m modifyStatusCodes) modifyResponseGlobal(statusCode int, backendResponseVO backendResponse) Response {
-	return m.response.ModifyStatusCode(statusCode, backendResponseVO)
+// modifyGlobalResponse modifies the global Response by calling the ModifyLastBackendResponse method on the Response object.
+// It takes a backendResponseVO parameter and returns the modified Response.
+// The modified Response is obtained by calling the ModifyLastBackendResponse method on the Response object,
+// passing the backendResponseVO as the argument.
+func (m modifyStatusCodes) modifyGlobalResponse(backendResponseVO backendResponse) Response {
+	return m.response.ModifyLastBackendResponse(backendResponseVO)
 }

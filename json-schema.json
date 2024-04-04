@@ -167,6 +167,7 @@
         },
         "backends": {
           "type": "array",
+          "minItems": 1,
           "items": {
             "$ref": "#/definitions/backend"
           }
@@ -184,6 +185,7 @@
       "properties": {
         "hosts": {
           "type": "array",
+          "minItems": 1,
           "items": {
             "type": "string",
             "format": "uri"
@@ -260,9 +262,6 @@
     "status-code-modifier": {
       "type": "object",
       "properties": {
-        "global": {
-          "type": "boolean"
-        },
         "value": {
           "type": "string",
           "pattern": "^[1-5][0-9]{2}$"
@@ -290,9 +289,6 @@
             "RESPONSE"
           ]
         },
-        "global": {
-          "type": "boolean"
-        },
         "action": {
           "type": "string",
           "enum": [
@@ -307,26 +303,58 @@
         },
         "value": {
           "type": "string"
+        },
+        "propagate": {
+          "type": "boolean"
         }
       },
-      "required": [
-        "context",
-        "action",
-        "key",
-        "value"
-      ],
-      "additionalProperties": false
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "action": {
+                "const": "DEL"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "context",
+              "action",
+              "key"
+            ]
+          },
+          "else": {
+            "required": [
+              "context",
+              "action",
+              "key",
+              "value"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "scope": {
+                "const": "REQUEST"
+              }
+            }
+          },
+          "else": {
+            "not": {
+              "required": [
+                "propagate"
+              ]
+            }
+          }
+        }
+      ]
     },
     "header-modifier-array": {
       "type": "array",
       "items": {
         "$ref": "#/definitions/header-modifier"
-      }
-    },
-    "params-modifier-array": {
-      "type": "array",
-      "items": {
-        "$ref": "#/definitions/params-modifier"
       }
     },
     "params-modifier": {
@@ -339,9 +367,6 @@
             "RESPONSE"
           ]
         },
-        "global": {
-          "type": "boolean"
-        },
         "action": {
           "type": "string",
           "enum": [
@@ -350,6 +375,9 @@
             "RENAME"
           ]
         },
+        "propagate": {
+          "type": "boolean"
+        },
         "key": {
           "type": "string"
         },
@@ -357,18 +385,34 @@
           "type": "string"
         }
       },
-      "required": [
-        "context",
-        "action",
-        "key",
-        "value"
-      ],
+      "if": {
+        "properties": {
+          "action": {
+            "const": "DEL"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "context",
+          "action",
+          "key"
+        ]
+      },
+      "else": {
+        "required": [
+          "context",
+          "action",
+          "key",
+          "value"
+        ]
+      },
       "additionalProperties": false
     },
-    "query-modifier-array": {
+    "params-modifier-array": {
       "type": "array",
       "items": {
-        "$ref": "#/definitions/query-modifier"
+        "$ref": "#/definitions/params-modifier"
       }
     },
     "query-modifier": {
@@ -381,9 +425,6 @@
             "RESPONSE"
           ]
         },
-        "global": {
-          "type": "boolean"
-        },
         "action": {
           "type": "string",
           "enum": [
@@ -393,6 +434,9 @@
             "RENAME"
           ]
         },
+        "propagate": {
+          "type": "boolean"
+        },
         "key": {
           "type": "string"
         },
@@ -400,18 +444,34 @@
           "type": "string"
         }
       },
-      "required": [
-        "context",
-        "action",
-        "key",
-        "value"
-      ],
+      "if": {
+        "properties": {
+          "action": {
+            "const": "DEL"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "context",
+          "action",
+          "key"
+        ]
+      },
+      "else": {
+        "required": [
+          "context",
+          "action",
+          "key",
+          "value"
+        ]
+      },
       "additionalProperties": false
     },
-    "body-modifier-array": {
+    "query-modifier-array": {
       "type": "array",
       "items": {
-        "$ref": "#/definitions/body-modifier"
+        "$ref": "#/definitions/query-modifier"
       }
     },
     "body-modifier": {
@@ -431,9 +491,6 @@
             "RESPONSE"
           ]
         },
-        "global": {
-          "type": "boolean"
-        },
         "action": {
           "type": "string",
           "enum": [
@@ -444,6 +501,9 @@
             "RENAME"
           ]
         },
+        "propagate": {
+          "type": "boolean"
+        },
         "key": {
           "type": "string"
         },
@@ -451,13 +511,35 @@
           "type": "string"
         }
       },
-      "required": [
-        "context",
-        "action",
-        "key",
-        "value"
-      ],
+      "if": {
+        "properties": {
+          "action": {
+            "const": "DEL"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "context",
+          "action",
+          "key"
+        ]
+      },
+      "else": {
+        "required": [
+          "context",
+          "action",
+          "key",
+          "value"
+        ]
+      },
       "additionalProperties": false
+    },
+    "body-modifier-array": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/body-modifier"
+      }
     }
   },
   "type": "object",
@@ -502,6 +584,7 @@
     },
     "endpoints": {
       "type": "array",
+      "minItems": 1,
       "items": {
         "$ref": "#/definitions/endpoint"
       }

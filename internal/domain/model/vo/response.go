@@ -129,79 +129,16 @@ func newAggregateBody(index int, backendResponseVO backendResponse) aggregateBod
 	return newInstance
 }
 
-// ModifyStatusCode modifies the status code of the Response object.
-// If the statusCode parameter is equal to the current status code, gives priority to the local value and updates the
-// data by modified history. Otherwise, create a new Response object with the modified status code and the same values
-// for other properties.
-// Returns the modified Response object.
-func (r Response) ModifyStatusCode(statusCode int, backendResponseVO backendResponse) Response {
+// ModifyLastBackendResponse modifies the last backendResponse in the history list of the Response object.
+// Replaces the last backendResponse with the provided backendResponseVO.
+// Returns the modified Response object with the updated history.
+// Does not modify other properties of the Response object.
+func (r Response) ModifyLastBackendResponse(backendResponseVO backendResponse) Response {
 	history := r.history
 	history[len(history)-1] = backendResponseVO
 
-	// se o valor vindo do parâmetro vir igual, damos prioridade ao local
-	if helper.Equals(r.statusCode, statusCode) {
-		// atualizamos os dados a partir do histórico alterado
-		return r.notifyDataChanged(history)
-	}
-
-	return Response{
-		endpoint:   r.endpoint,
-		statusCode: statusCode,
-		header:     r.header,
-		body:       r.body,
-		abort:      r.abort,
-		history:    history,
-	}
-}
-
-// ModifyHeader modifies the header of the Response object.
-// If the header parameter is equal to the current header, gives priority to the local value and updates the
-// data by modified history. Otherwise, create a new Response object with the modified header and the same values
-// for other properties.
-// Returns the modified Response object.
-func (r Response) ModifyHeader(header Header, backendResponseVO backendResponse) Response {
-	history := r.history
-	history[len(history)-1] = backendResponseVO
-
-	// se o valor vindo do parâmetro vir igual, damos prioridade ao local
-	if helper.Equals(r.header, header) {
-		// atualizamos os dados a partir do histórico alterado
-		return r.notifyDataChanged(history)
-	}
-
-	return Response{
-		endpoint:   r.endpoint,
-		statusCode: r.statusCode,
-		header:     header,
-		body:       r.body,
-		abort:      r.abort,
-		history:    history,
-	}
-}
-
-// ModifyBody modifies the body property of the Response object.
-// If the body parameter is equal to the current body, gives priority to the local value and updates the
-// data by modified history. Otherwise, create a new Response object with the modified body and the same values
-// for other properties.
-// Returns the modified Response object.
-func (r Response) ModifyBody(body Body, backendResponseVO backendResponse) Response {
-	history := r.history
-	history[len(history)-1] = backendResponseVO
-
-	// se o valor vindo do parâmetro vir igual, damos prioridade ao local
-	if helper.Equals(r.body, body) {
-		// atualizamos os dados a partir do histórico alterado
-		return r.notifyDataChanged(history)
-	}
-
-	return Response{
-		endpoint:   r.endpoint,
-		statusCode: r.statusCode,
-		header:     r.header,
-		body:       body,
-		abort:      r.abort,
-		history:    history,
-	}
+	// atualizamos os dados a partir do histórico alterado
+	return r.notifyDataChanged(history)
 }
 
 // Append appends the backendResponseVO to the history list of the Response object.

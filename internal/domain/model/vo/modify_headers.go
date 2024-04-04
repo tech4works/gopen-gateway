@@ -33,42 +33,42 @@ func (m headers) Execute() (Request, Response) {
 	}
 }
 
-// executeRequestScope executes the request scope of the headers method.
-// It calls the headers method, passing the global and local request headers, and returns the modified headers.
-// Then, it modifies the local header by calling the modifyRequestLocal method.
-// Finally, it modifies the global header by calling the modifyRequestGlobal method and returns the modified global
-// header and the response.
-// Returns:
-// - Request: Modified global header and backend request object.
-// - Response: The same response object.
+// executeRequestScope modifies both the global and local request headers as well as the propagate header,
+// and returns the modified requests and the response.
+//
+// The function first calls the headers method with the global and local request header as input.
+// It then changes the local request header and modifies the propagate header based on the backendRequestVO.
+//
+// Return values:
+//
+// - Request: The modified global request, which includes the propagate header.
+//
+// - Response: The original response from the `headers` struct.
 func (m headers) executeRequestScope() (Request, Response) {
 	// chamamos o modify de headers passando o headers a ser modificado e o mesmo retorna os mesmo modificados
 	globalHeader, localHeader := m.headers(m.globalRequestHeader(), m.localRequestHeader())
 
 	// modificamos o header local
-	backendRequestVO := m.modifyRequestLocal(localHeader)
+	backendRequestVO := m.modifyLocalRequest(localHeader)
 
-	// modificamos o header global e retornamos
-	return m.modifyRequestGlobal(globalHeader, backendRequestVO), m.response
+	// modificamos o header propagate e retornamos
+	return m.modifyGlobalRequest(globalHeader, backendRequestVO), m.response
 }
 
-// executeResponseScope executes the response scope of the headers method.
-// It calls the headers method, passing the global and local response headers, and returns the modified headers.
-// Then, it modifies the local header by calling the modifyResponseLocal method.
-// Finally, it modifies the global header by calling the modifyResponseGlobal method and returns the same request and the
-// modified global header response.
-// Returns:
-// - Request: The same request object.
-// - Response: Modified global header and backend response object.
+// executeResponseScope executes the modifyHeaders functionality for the response scope.
+// It calls the headers method to get the global and local response headers.
+// It then modifies the local header using the modifyLocalResponse method.
+// Finally, it modifies the response using the modifyGlobalResponse method with the modified backendResponseVO.
+// It returns the original request and the modified response.
 func (m headers) executeResponseScope() (Request, Response) {
 	// chamamos o modify de headers passando o headers a ser modificado e o mesmo retorna os mesmo modificados
-	globalHeader, localHeader := m.headers(m.globalResponseHeader(), m.localResponseHeader())
+	_, localHeader := m.headers(m.globalResponseHeader(), m.localResponseHeader())
 
 	// modificamos o header local
-	backendResponseVO := m.modifyResponseLocal(localHeader)
+	backendResponseVO := m.modifyLocalResponse(localHeader)
 
-	// modificamos o header global e retornamos
-	return m.request, m.modifyResponseGlobal(globalHeader, backendResponseVO)
+	// modificamos a resposta vo com o novo backendResponseVO
+	return m.request, m.modifyGlobalResponse(backendResponseVO)
 }
 
 // globalRequestHeader returns the header of the request in the headers struct.
@@ -91,26 +91,27 @@ func (m headers) localResponseHeader() Header {
 	return m.response.LastBackendResponse().Header()
 }
 
-// modifyRequestLocal modifies the local request header of the backend request by applying the provided local header.
+// modifyLocalRequest modifies the local request header of the backend request by applying the provided local header.
 // It creates a new instance of the backendRequest struct with the modified header and returns it.
-func (m headers) modifyRequestLocal(localHeader Header) backendRequest {
+func (m headers) modifyLocalRequest(localHeader Header) backendRequest {
 	return m.request.CurrentBackendRequest().ModifyHeader(localHeader)
 }
 
-// modifyRequestGlobal modifies the global request by modifying the global header and the backend request.
+// modifyGlobalRequest modifies the propagate request by modifying the propagate header and the backend request.
 // It returns a new modified Request.
-func (m headers) modifyRequestGlobal(globalHeader Header, backendRequestVO backendRequest) Request {
+func (m headers) modifyGlobalRequest(globalHeader Header, backendRequestVO backendRequest) Request {
 	return m.request.ModifyHeader(globalHeader, backendRequestVO)
 }
 
-// modifyResponseLocal modifies the local header of the response by applying changes from the given localHeader.
+// modifyLocalResponse modifies the local header of the response by applying changes from the given localHeader.
 // It returns a new backendResponse object with the modified header.
-func (m headers) modifyResponseLocal(localHeader Header) backendResponse {
+func (m headers) modifyLocalResponse(localHeader Header) backendResponse {
 	return m.response.LastBackendResponse().ModifyHeader(localHeader)
 }
 
-// modifyResponseGlobal modifies the global response by applying the given global header and backend response.
-// It returns the modified response.
-func (m headers) modifyResponseGlobal(globalHeader Header, backendResponseVO backendResponse) Response {
-	return m.response.ModifyHeader(globalHeader, backendResponseVO)
+// modifyGlobalResponse modifies the global response by applying the modifications specified in the backendResponseVO.
+// It calls the ModifyLastBackendResponse method of the response with the backendResponseVO as the argument.
+// The modified response is then returned.
+func (m headers) modifyGlobalResponse(backendResponseVO backendResponse) Response {
+	return m.response.ModifyLastBackendResponse(backendResponseVO)
 }

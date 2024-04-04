@@ -7,27 +7,27 @@ import (
 )
 
 type Modifier struct {
-	context enum.ModifierContext
-	scope   enum.ModifierScope
-	action  enum.ModifierAction
-	global  bool
-	key     string
-	value   string
+	context   enum.ModifierContext
+	scope     enum.ModifierScope
+	action    enum.ModifierAction
+	propagate bool
+	key       string
+	value     string
 }
 
 // newModifier creates a new instance of Modifier struct
 // with the provided modifierDTO.
-// It sets the context, scope, action, global, key, and value fields of the Modifier struct
+// It sets the context, scope, action, propagate, key, and value fields of the Modifier struct
 // to the corresponding fields of the modifierDTO parameter.
 // Returns the created Modifier struct.
 func newModifier(modifierDTO dto.Modifier) Modifier {
 	return Modifier{
-		context: modifierDTO.Context,
-		scope:   modifierDTO.Scope,
-		action:  modifierDTO.Action,
-		global:  modifierDTO.Global,
-		key:     modifierDTO.Key,
-		value:   modifierDTO.Value,
+		context:   modifierDTO.Context,
+		scope:     modifierDTO.Scope,
+		action:    modifierDTO.Action,
+		propagate: modifierDTO.Propagate,
+		key:       modifierDTO.Key,
+		value:     modifierDTO.Value,
 	}
 }
 
@@ -58,9 +58,9 @@ func (m Modifier) Action() enum.ModifierAction {
 	return m.action
 }
 
-// Global returns the value of the global field in the Modifier struct.
-func (m Modifier) Global() bool {
-	return m.global
+// Propagate returns the value of the propagate field in the Modifier struct.
+func (m Modifier) Propagate() bool {
+	return m.propagate
 }
 
 // Key returns the value of the key field in the Modifier struct.

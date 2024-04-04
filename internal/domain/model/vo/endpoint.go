@@ -130,7 +130,7 @@ func (e Endpoint) CacheDuration() time.Duration {
 // HasCacheStrategyHeaders checks if the Endpoint has any cache strategy headers defined.
 // It returns true if there are cache strategy headers, and false otherwise.
 func (e Endpoint) HasCacheStrategyHeaders() bool {
-	return helper.IsNotEmpty(e.cache.strategyHeaders)
+	return helper.IsNotNil(e.cache.strategyHeaders)
 }
 
 // CacheStrategyHeaders returns the strategyHeaders field in the Cache struct of the Endpoint.

@@ -8,15 +8,15 @@ import (
 
 type Gopen struct {
 	Version      string             `json:"version,omitempty"`
-	Port         int                `json:"port,omitempty" validate:"required,gte=1"`
+	Port         int                `json:"port,omitempty"`
 	HotReload    bool               `json:"hot-reload,omitempty"`
-	Timeout      string             `json:"timeout,omitempty" validate:"omitempty,duration"`
+	Timeout      string             `json:"timeout,omitempty"`
 	Store        *Store             `json:"store,omitempty"`
 	Limiter      *Limiter           `json:"limiter,omitempty"`
 	Cache        *Cache             `json:"cache,omitempty"`
 	SecurityCors *SecurityCors      `json:"security-cors,omitempty"`
 	Middlewares  map[string]Backend `json:"middlewares,omitempty"`
-	Endpoints    []Endpoint         `json:"endpoints,omitempty" validate:"required"`
+	Endpoints    []Endpoint         `json:"endpoints,omitempty"`
 }
 
 type GOpenView struct {
@@ -32,30 +32,30 @@ type GOpenView struct {
 }
 
 type Store struct {
-	Redis Redis `json:"redis,omitempty" validate:"required"`
+	Redis Redis `json:"redis,omitempty"`
 }
 
 type Redis struct {
-	Address  string `json:"address,omitempty" validate:"required,url"`
-	Password string `json:"password,omitempty" validate:"required"`
+	Address  string `json:"address,omitempty"`
+	Password string `json:"password,omitempty"`
 }
 
 type Cache struct {
-	Duration          string   `json:"duration,omitempty" validate:"required,duration"`
+	Duration          string   `json:"duration,omitempty"`
 	StrategyHeaders   []string `json:"strategyHeaders,omitempty"`
 	AllowCacheControl *bool    `json:"allowCacheControl,omitempty"`
 }
 
 type Limiter struct {
-	MaxHeaderSize          string `json:"max-header-size,omitempty" validate:"omitempty,byte_unit"`
-	MaxBodySize            string `json:"max-body-size,omitempty" validate:"omitempty,byte_unit"`
-	MaxMultipartMemorySize string `json:"max-multipart-memory-size,omitempty" validate:"omitempty,byte_unit"`
+	MaxHeaderSize          string `json:"max-header-size,omitempty"`
+	MaxBodySize            string `json:"max-body-size,omitempty"`
+	MaxMultipartMemorySize string `json:"max-multipart-memory-size,omitempty"`
 	Rate                   *Rate  `json:"rate,omitempty"`
 }
 
 type Rate struct {
-	Capacity int    `json:"capacity,omitempty" validate:"omitempty,gte=1"`
-	Every    string `json:"every,omitempty" validate:"omitempty,duration"`
+	Capacity int    `json:"capacity,omitempty"`
+	Every    string `json:"every,omitempty"`
 }
 
 type SecurityCors struct {
@@ -65,8 +65,8 @@ type SecurityCors struct {
 }
 
 type Endpoint struct {
-	Path               string              `json:"path,omitempty" validate:"required,url_path"`
-	Method             string              `json:"method,omitempty" validate:"required"`
+	Path               string              `json:"path,omitempty"`
+	Method             string              `json:"method,omitempty"`
 	Timeout            string              `json:"timeout,omitempty"`
 	Limiter            *Limiter            `json:"limiter,omitempty"`
 	Cache              *Cache              `json:"cache,omitempty"`
@@ -75,14 +75,14 @@ type Endpoint struct {
 	AbortIfStatusCodes []int               `json:"abort-if-status-codes,omitempty"`
 	Beforeware         []string            `json:"beforeware,omitempty"`
 	Afterware          []string            `json:"afterware,omitempty"`
-	Backends           []Backend           `json:"backends,omitempty" validate:"required"`
+	Backends           []Backend           `json:"backends,omitempty"`
 }
 
 type Backend struct {
 	Name           string              `json:"name,omitempty"`
-	Hosts          []string            `json:"hosts,omitempty" validate:"required,url"`
-	Path           string              `json:"path,omitempty" validate:"required,url_path"`
-	Method         string              `json:"method,omitempty" validate:"required"`
+	Hosts          []string            `json:"hosts,omitempty"`
+	Path           string              `json:"path,omitempty"`
+	Method         string              `json:"method,omitempty"`
 	ForwardHeaders []string            `json:"forward-headers,omitempty"`
 	ForwardQueries []string            `json:"forward-queries,omitempty"`
 	Modifiers      *BackendModifiers   `json:"modifiers,omitempty"`
@@ -104,12 +104,12 @@ type BackendExtraConfig struct {
 }
 
 type Modifier struct {
-	Context enum.ModifierContext `json:"context,omitempty" validate:"required,enum"`
-	Scope   enum.ModifierScope   `json:"scope,omitempty" validate:"omitempty,enum"`
-	Action  enum.ModifierAction  `json:"action,omitempty" validate:"required,enum"`
-	Global  bool                 `json:"global,omitempty"`
-	Key     string               `json:"key,omitempty" validate:"required"`
-	Value   string               `json:"value,omitempty" validate:"required"`
+	Context   enum.ModifierContext `json:"context,omitempty"`
+	Scope     enum.ModifierScope   `json:"scope,omitempty"`
+	Action    enum.ModifierAction  `json:"action,omitempty"`
+	Propagate bool                 `json:"propagate,omitempty"`
+	Key       string               `json:"key,omitempty"`
+	Value     string               `json:"value,omitempty"`
 }
 
 type Writer struct {

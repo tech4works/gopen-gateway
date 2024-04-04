@@ -26,44 +26,52 @@ func (m modifyQueries) Execute() (Request, Response) {
 	return m.executeRequestScope()
 }
 
-// executeRequestScope executes the request scope by calling the modifyQueries method to modify the queries and returns the modified requests and the response.
-// It modifies the global query and the local query by calling the globalRequestQuery and localRequestParams methods respectively.
-// Then, it modifies the local query by calling the modifyRequestLocal method.
-// Finally, it modifies the global params and returns the modified request and the response by calling the modifyRequestGlobal method.
-// It returns the modified request and the response.
+// executeRequestScope makes modifications to the globalRequestQuery and the localRequestQuery.
+// It modifies the local query by calling modifyLocalRequest and the global request by calling modifyGlobalRequest.
+// It returns a modified global request and a response once the process is done.
+//
+// This method is a part of modifyQueries structure, and it encapsulates the logic to handle the execution
+// of the request in its scope.
+//
+// The queries are modified by handling the global request query and local request params according
+// to the particular requirements of the function.
+//
+// Returns:
+//  1. Request: The modified global request
+//  2. Response: The result of the executeRequestScope operation
 func (m modifyQueries) executeRequestScope() (Request, Response) {
 	// chamamos o modify de queries passando as queries a ser modificado e o mesmo retorna os modificados
-	globalQuery, localQuery := m.queries(m.globalRequestQuery(), m.localRequestParams())
+	globalQuery, localQuery := m.queries(m.globalRequestQuery(), m.localRequestQuery())
 
 	// modificamos o query local
-	backendRequestVO := m.modifyRequestLocal(localQuery)
+	backendRequestVO := m.modifyLocalRequest(localQuery)
 
-	// modificamos o params global e retornamos
-	return m.modifyRequestGlobal(globalQuery, backendRequestVO), m.response
+	// modificamos o params propagate e retornamos
+	return m.modifyGlobalRequest(globalQuery, backendRequestVO), m.response
 }
 
-// globalRequestQuery returns the global query of the request.
+// globalRequestQuery returns the propagate query of the request.
 func (m modifyQueries) globalRequestQuery() Query {
 	return m.request.Query()
 }
 
-// localRequestParams returns the query parameters of the current backend request.
-func (m modifyQueries) localRequestParams() Query {
+// localRequestQuery returns the query of the current backend request.
+func (m modifyQueries) localRequestQuery() Query {
 	return m.request.CurrentBackendRequest().Query()
 }
 
-// modifyRequestLocal modifies the local query of the current backend request and returns the modified backend request.
+// modifyLocalRequest modifies the local query of the current backend request and returns the modified backend request.
 // It takes a localQuery of type Query as an argument and returns a backendRequest.
 // The local query is modified using the ModifyQuery method of the current backend request.
 // The modified backend request is created with the updated local query and the other existing properties of the current backend request.
 // The modified backend request is then returned.
-func (m modifyQueries) modifyRequestLocal(localQuery Query) backendRequest {
+func (m modifyQueries) modifyLocalRequest(localQuery Query) backendRequest {
 	return m.request.CurrentBackendRequest().ModifyQuery(localQuery)
 }
 
-// modifyRequestGlobal takes a global Query and a backendRequest as inputs.
+// modifyGlobalRequest takes a propagate Query and a backendRequest as inputs.
 // This function calls the ModifyQuery method on the m.request with globalQuery and backendRequestVO as parameters.
 // It returns a modified Request.
-func (m modifyQueries) modifyRequestGlobal(globalQuery Query, backendRequestVO backendRequest) Request {
+func (m modifyQueries) modifyGlobalRequest(globalQuery Query, backendRequestVO backendRequest) Request {
 	return m.request.ModifyQuery(globalQuery, backendRequestVO)
 }

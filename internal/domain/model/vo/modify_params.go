@@ -19,24 +19,19 @@ func (m modifyParams) Execute() (Request, Response) {
 	return m.executeRequestScope()
 }
 
-// executeRequestScope executes the modifications on request parameters.
-// It first modifies the local parameters by calling the modify method on the params,
-// using the local request path and both global and local request parameters.
-// It then modifies the local parameters and
-// finally modifies the global parameters before returning the updated Request and Response.
-//
-// Returns:
-// Request: the updated request after modifications
-// Response: the unchanged response
+// executeRequestScope executes request scope modifications.
+// It first modifies local and global parameters, then modifies local request with updated local parameters,
+// following by modification of global request with updated global parameters. It also returns a response.
+// The function returns modified Request and Response after the modifications are done.
 func (m modifyParams) executeRequestScope() (Request, Response) {
 	// chamamos o modify de params passando o path e params a ser modificado e o mesmo retorna os mesmo modificados
 	localPath, globalParams, localParams := m.params(m.localRequestPath(), m.globalRequestParams(), m.localRequestParams())
 
 	// modificamos o params local
-	backendRequestVO := m.modifyRequestLocal(localPath, localParams)
+	backendRequestVO := m.modifyLocalRequest(localPath, localParams)
 
-	// modificamos o params global e retornamos
-	return m.modifyRequestGlobal(globalParams, backendRequestVO), m.response
+	// modificamos o params propagate e retornamos
+	return m.modifyGlobalRequest(globalParams, backendRequestVO), m.response
 }
 
 // localRequestPath returns the path of the current backend request in the modifyParams struct.
@@ -44,7 +39,7 @@ func (m modifyParams) localRequestPath() string {
 	return m.request.CurrentBackendRequest().Path()
 }
 
-// globalRequestParams returns the global request parameters of the request object in the modifyParams struct.
+// globalRequestParams returns the propagate request parameters of the request object in the modifyParams struct.
 func (m modifyParams) globalRequestParams() Params {
 	return m.request.Params()
 }
@@ -54,7 +49,7 @@ func (m modifyParams) localRequestParams() Params {
 	return m.request.CurrentBackendRequest().Params()
 }
 
-// modifyRequestLocal is a method on the modifyParams type.
+// modifyLocalRequest is a method on the modifyParams type.
 // This method takes in a 'localPath' of type string and 'localParams' of type Params,
 // and returns a modified backendRequest.
 //
@@ -63,24 +58,24 @@ func (m modifyParams) localRequestParams() Params {
 // The 'localParams' represents the new local parameters to be used for the backend request.
 //
 // This method is used to modify the parameters of a local backend request with new parameters.
-func (m modifyParams) modifyRequestLocal(localPath string, localParams Params) backendRequest {
+func (m modifyParams) modifyLocalRequest(localPath string, localParams Params) backendRequest {
 	return m.request.CurrentBackendRequest().ModifyParams(localPath, localParams)
 }
 
-// modifyRequestGlobal is a method on the modifyParams struct.
-// It modifies global request parameters based on provided Params and backendRequest.
+// modifyGlobalRequest is a method on the modifyParams struct.
+// It modifies propagate request parameters based on provided Params and backendRequest.
 // It takes two arguments - globalParams of type Params and backendRequestVO of type backendRequest.
 // It returns a Request which is the modified version of the original Request.
 //
 // Parameters:
 //
-// globalParams: The Params type global parameters that need to be modified.
+// globalParams: The Params type propagate parameters that need to be modified.
 //
 // backendRequestVO: The backendRequest type which contains the request sent to the backend.
 //
 // Returns:
 //
 // The modified Request after applying changes based on globalParams and backendRequestVO.
-func (m modifyParams) modifyRequestGlobal(globalParams Params, backendRequestVO backendRequest) Request {
+func (m modifyParams) modifyGlobalRequest(globalParams Params, backendRequestVO backendRequest) Request {
 	return m.request.ModifyParams(globalParams, backendRequestVO)
 }
