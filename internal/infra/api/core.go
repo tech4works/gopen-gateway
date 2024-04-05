@@ -171,17 +171,22 @@ func (r *Request) Write(responseVO vo.Response) {
 
 	// verificamos se tem valor o body
 	if body.IsNotEmpty() {
-		r.writeBody(statusCode, responseVO.Body())
+		r.writeBody(statusCode, body.ToWrite())
 	} else {
 		r.writeStatusCode(statusCode)
 	}
+
+	// abortamos
+	r.framework.Abort()
 }
 
 // WriteCacheResponse writes the cache response to the client's response.
 // It creates a new response using the cache response and writes it.
 func (r *Request) WriteCacheResponse(cacheResponse vo.CacheResponse) {
+	// preparamos a resposta
+	responseVO := vo.NewResponseByCache(r.endpoint, cacheResponse)
 	// escrevemos a resposta
-	r.Write(vo.NewResponseByCache(r.endpoint, cacheResponse))
+	r.Write(responseVO)
 }
 
 // WriteError writes an error response to the client.

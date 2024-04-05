@@ -15,7 +15,7 @@ import (
 type CacheResponse struct {
 	StatusCode int           `json:"statusCode"`
 	Header     Header        `json:"header"`
-	Body       Body          `json:"body"`
+	Body       *Body         `json:"body"`
 	Duration   time.Duration `json:"duration"`
 	CreatedAt  time.Time     `json:"createdAt"`
 }
@@ -64,7 +64,7 @@ func NewResponseByCache(endpointVO Endpoint, cacheResponseVO CacheResponse) Resp
 		endpoint:   endpointVO,
 		statusCode: cacheResponseVO.StatusCode,
 		header:     header,
-		body:       cacheResponseVO.Body,
+		body:       newBodyByAny(cacheResponseVO.Body),
 	}
 }
 
@@ -89,10 +89,12 @@ func NewResponseByErr(endpointVO Endpoint, statusCode int, err error) Response {
 // The CreatedAt field of the CacheResponse object set to the current time.
 // Returns the newly created CacheResponse object.
 func NewCacheResponse(writer dto.Writer, duration time.Duration) CacheResponse {
+	header := NewHeader(writer.Header())
+	body := newBody(writer.Body.Bytes())
 	return CacheResponse{
 		StatusCode: writer.Status(),
-		Header:     NewHeader(writer.Header()),
-		Body:       newBody(writer.Body.Bytes()),
+		Header:     header,
+		Body:       body.ToWrite(),
 		Duration:   duration,
 		CreatedAt:  time.Now(),
 	}

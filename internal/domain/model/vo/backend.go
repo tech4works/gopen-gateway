@@ -411,7 +411,7 @@ func (b backendRequest) Body() Body {
 	return b.body
 }
 
-// BodyToSend returns the body to send as an `io.ReadCloser` interface.
+// BodyToRead returns the body to send as an `io.ReadCloser` interface.
 // If `omitRequestBody` is set to `true` or `body` is `nil`, it returns `nil`.
 //
 // It converts the body to bytes using the desired encoding (XML, JSON, TEXT/PLAIN) based on `Content-Type` config.
@@ -419,15 +419,15 @@ func (b backendRequest) Body() Body {
 // If there is an error during the conversion, it returns `nil`.
 //
 // Finally, it returns the `io.ReadCloser` interface with the bytes of the body.
-func (b backendRequest) BodyToSend() io.ReadCloser {
+func (b backendRequest) BodyToRead() io.ReadCloser {
 	// se ele quer omitir o body da solicitação ou o mesmo tiver vazio retornamos
-	if b.omitRequestBody || helper.IsNil(b.body) {
+	if b.omitRequestBody || helper.IsNil(b.body.value) {
 		return nil
 	}
 
 	// convertemos o body para bytes
 	// todo: aqui vamos obter o encode desejado XML, JSON, TEXT/PLAIN como um CONTENT-TYPE config
-	bytesBody, err := helper.ConvertToBytes(b.body)
+	bytesBody, err := helper.ConvertToBytes(b.body.ToRead())
 	if helper.IsNotNil(err) {
 		// todo: log?
 		return nil
@@ -443,7 +443,7 @@ func (b backendRequest) BodyToSend() io.ReadCloser {
 // If an error occurs during the construction of the request, nil and the error are returned.
 func (b backendRequest) Http(ctx context.Context) (*http.Request, error) {
 	// construímos o http request para fazer a requisição
-	httpRequest, err := http.NewRequestWithContext(ctx, b.Method(), b.Url(), b.BodyToSend())
+	httpRequest, err := http.NewRequestWithContext(ctx, b.Method(), b.Url(), b.BodyToRead())
 	if helper.IsNotNil(err) {
 		return nil, err
 	}

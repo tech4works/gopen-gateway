@@ -58,19 +58,18 @@ func newBody(bytes []byte) (b Body) {
 	return b
 }
 
-// copyOrderedMap returns a new copy of the given ordered map.
-// It iterates over each key in the ordered map and retrieves its corresponding value.
-// If the value exists, it sets the key-value pair in the new ordered map.
-// Finally, it returns the new copy of the ordered map.
-func (b *Body) copyOrderedMap(orderedMap orderedmap.OrderedMap) orderedmap.OrderedMap {
-	c := orderedmap.New()
-	for _, key := range orderedMap.Keys() {
-		valueByKey, exists := orderedMap.Get(key)
-		if exists {
-			c.Set(key, valueByKey)
-		}
-	}
-	return *c
+// ToWrite returns the body itself.
+// It is used to get a reference to the body object so that it can be written to or modified.
+// It returns the pointer to the current body object.
+func (b *Body) ToWrite() *Body {
+	return b
+}
+
+// ToRead returns the body itself.
+// It is used to get a reference to the body object so that it can be read or accessed.
+// It returns the pointer to the current body object.
+func (b *Body) ToRead() *Body {
+	return b
 }
 
 // Value returns the value of the body.
@@ -231,6 +230,21 @@ func (b *Body) Modify(key string, value any) Body {
 	}
 	// se ele não é nenhum tipo de map, retornamos o valor modificado passado
 	return Body{value: value}
+}
+
+// copyOrderedMap returns a new copy of the given ordered map.
+// It iterates over each key in the ordered map and retrieves its corresponding value.
+// If the value exists, it sets the key-value pair in the new ordered map.
+// Finally, it returns the new copy of the ordered map.
+func (b *Body) copyOrderedMap(orderedMap orderedmap.OrderedMap) orderedmap.OrderedMap {
+	c := orderedmap.New()
+	for _, key := range orderedMap.Keys() {
+		valueByKey, exists := orderedMap.Get(key)
+		if exists {
+			c.Set(key, valueByKey)
+		}
+	}
+	return *c
 }
 
 // modifyMap modifies the value of the given key in the body's map.

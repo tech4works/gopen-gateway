@@ -49,13 +49,24 @@ func (q Query) Get(key string) string {
 	return ""
 }
 
-// FilterByForwarded filters the Query map by removing keys that are not present in the forwardedQueries slice.
-// If the forwardedQueries slice does not contain "*" and does not contain the key, the key is removed from the copied Query map.
-// The filtered Query map is then returned.
+// FilterByForwarded filters the Query map by the list of forwardedQueries.
+// It removes any keys from the Query map that are not in forwardedQueries,
+// except the wildcard character '*' which represents all keys.
+// If forwardedQueries is empty or contains only the wildcard character '*',
+// the original Query map is returned without any modifications.
+//
+// Returns:
+//
+//	A new copy of the Query map with keys filtered by forwardedQueries.
+//
+// Note:
+//
+//	The original Query map is not modified.
 func (q Query) FilterByForwarded(forwardedQueries []string) (r Query) {
 	r = q.copy()
 	for key := range q.copy() {
-		if helper.NotContains(forwardedQueries, "*") && helper.NotContains(forwardedQueries, key) {
+		if helper.IsNotEmpty(forwardedQueries) && helper.NotContains(forwardedQueries, "*") &&
+			helper.NotContains(forwardedQueries, key) {
 			r = q.Del(key)
 		}
 	}

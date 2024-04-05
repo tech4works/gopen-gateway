@@ -74,7 +74,7 @@ func (t timeout) Do(timeoutDuration time.Duration) api.HandlerFunc {
 			break
 		case <-req.Context().Done():
 			statusCode = http.StatusGatewayTimeout
-			err = errors.New("gateway timeout: ", timeoutDuration.String())
+			err = errors.New("gateway timeout:", timeoutDuration.String())
 			break
 		}
 

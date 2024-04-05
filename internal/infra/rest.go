@@ -27,7 +27,8 @@ func NewRestTemplate() interfaces.RestTemplate {
 // the error is returned as it is.
 func (r restTemplate) MakeRequest(httpRequest *http.Request) (*http.Response, error) {
 	// fazemos a requisição http
-	httpResponse, err := http.DefaultClient.Do(httpRequest)
+	httpClient := http.Client{}
+	httpResponse, err := httpClient.Do(httpRequest)
 	// caso ocorra um erro, tratamos, caso contrario retornamos a resposta
 	return httpResponse, r.treatHttpClientErr(err)
 }

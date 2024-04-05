@@ -1,7 +1,6 @@
 package vo
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/enum"
@@ -475,11 +474,11 @@ func (m modify) valueEval() any {
 		}
 	}
 
-	// damos o parse da string para bytes para verificarmos se o valor é um json, se for, transformamos o mesmo em objeto
-	modifierValueBytes := []byte(modifierValue)
-	if json.Valid(modifierValueBytes) {
+	// verificamos qual o tipo
+	if helper.IsJson(modifierValue) || helper.IsInt(modifierValue) || helper.IsFloat(modifierValue) ||
+		helper.IsBool(modifierValue) || helper.IsTime(modifierValue) {
 		var obj any
-		err := json.Unmarshal(modifierValueBytes, &obj)
+		err := helper.ConvertToDest(modifierValue, &obj)
 		if helper.IsNil(err) {
 			return obj
 		}

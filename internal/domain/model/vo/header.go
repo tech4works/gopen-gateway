@@ -92,18 +92,20 @@ func (h Header) Get(key string) string {
 	return ""
 }
 
-// FilterByForwarded filters the headers of the Header object based on the forwardedHeaders array.
-// The method removes the keys from the Header object if they do not match the conditions:
-// - The forwardedHeaders array does not contain the "*" wildcard.
-// - The forwardedHeaders array does not contain the current key.
-// - The current key is not equal to the consts.XForwardedFor and consts.XTraceId constants.
-//
+// FilterByForwarded filters the Header object by removing certain headers based on the provided list of forwarded headers.
 // It returns a new Header object with the filtered headers.
+// The following conditions are applied to determine whether a header should be removed:
+// - The forwardedHeaders list is not empty.
+// - The forwardedHeaders list does not contain "*".
+// - The forwardedHeaders list does not contain the current key.
+// - The current key is not equal to consts.XForwardedFor.
+// - The current key is not equal to consts.XTraceId.
 func (h Header) FilterByForwarded(forwardedHeaders []string) (r Header) {
 	r = h.copy()
 	for key := range h.copy() {
-		if helper.NotContains(forwardedHeaders, "*") && helper.NotContains(forwardedHeaders, key) &&
-			helper.IsNotEqualTo(key, consts.XForwardedFor) && helper.IsNotEqualTo(key, consts.XTraceId) {
+		if helper.IsNotEmpty(forwardedHeaders) && helper.NotContains(forwardedHeaders, "*") &&
+			helper.NotContains(forwardedHeaders, key) && helper.IsNotEqualTo(key, consts.XForwardedFor) &&
+			helper.IsNotEqualTo(key, consts.XTraceId) {
 			r = h.Del(key)
 		}
 	}
