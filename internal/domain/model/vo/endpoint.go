@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"github.com/GabrielHCataldo/go-errors/errors"
 	"github.com/GabrielHCataldo/go-helper/helper"
+	"github.com/GabrielHCataldo/go-logger/logger"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/app/model/dto"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/enum"
 	"github.com/gin-gonic/gin"
 	"net/http"
@@ -15,13 +17,46 @@ type Endpoint struct {
 	method             string
 	timeout            time.Duration
 	limiter            Limiter
-	cache              Cache
+	cache              EndpointCache
 	responseEncode     enum.ResponseEncode
 	aggregateResponses bool
 	abortIfStatusCodes []int
 	beforeware         []string
 	afterware          []string
 	backends           []Backend
+}
+
+// newEndpoint creates a new instance of Endpoint based on the provided endpointDTO.
+// It initializes the fields of Endpoint based on values from endpointDTO and sets default values for empty fields.
+// The function returns the created Endpoint.
+func newEndpoint(endpointDTO dto.Endpoint) Endpoint {
+	var backends []Backend
+	for _, backendDTO := range endpointDTO.Backends {
+		backends = append(backends, newBackend(backendDTO))
+	}
+
+	var timeout time.Duration
+	var err error
+	if helper.IsNotEmpty(endpointDTO.Timeout) {
+		timeout, err = time.ParseDuration(endpointDTO.Timeout)
+		if helper.IsNotNil(err) {
+			logger.Warning("Parse duration endpoint.timeout err:", err)
+		}
+	}
+
+	return Endpoint{
+		path:               endpointDTO.Path,
+		method:             endpointDTO.Method,
+		timeout:            timeout,
+		limiter:            newLimiter(helper.IfNilReturns(endpointDTO.Limiter, dto.Limiter{})),
+		cache:              newEndpointCache(helper.IfNilReturns(endpointDTO.Cache, dto.EndpointCache{})),
+		responseEncode:     endpointDTO.ResponseEncode,
+		aggregateResponses: endpointDTO.AggregateResponses,
+		abortIfStatusCodes: endpointDTO.AbortIfStatusCodes,
+		beforeware:         endpointDTO.Beforeware,
+		afterware:          endpointDTO.Afterware,
+		backends:           backends,
+	}
 }
 
 // Path returns the path field of the Endpoint struct.
@@ -114,7 +149,7 @@ func (e Endpoint) LimiterMaxMultipartMemorySize() Bytes {
 
 // HasCache returns a boolean value indicating whether the Endpoint has a cache.
 func (e Endpoint) HasCache() bool {
-	return helper.IsNotEmpty(e.cache)
+	return e.cache.enabled
 }
 
 // HasCacheDuration returns true if the cache duration of the Endpoint is greater than 0, otherwise false.
@@ -139,6 +174,11 @@ func (e Endpoint) CacheStrategyHeaders() []string {
 	return e.cache.strategyHeaders
 }
 
+// OnlyIfStatusCodes returns the onlyIfStatusCodes field of the cache struct.
+func (e Endpoint) OnlyIfStatusCodes() []int {
+	return e.cache.onlyIfStatusCodes
+}
+
 // HasAllowCacheControl returns a boolean value indicating whether the `allowCacheControl` field in the Cache struct
 // of the Endpoint is not nil.
 func (e Endpoint) HasAllowCacheControl() bool {
@@ -150,6 +190,12 @@ func (e Endpoint) HasAllowCacheControl() bool {
 // This method is used to determine whether cache control is allowed for the endpoint.
 func (e Endpoint) AllowCacheControl() bool {
 	return helper.IfNilReturns(e.cache.allowCacheControl, false)
+}
+
+// CacheIgnoreQuery returns the value of the ignoreQuery field in the Cache struct,
+// which determines whether to ignore the query parameters when caching a response.
+func (e Endpoint) CacheIgnoreQuery() bool {
+	return e.cache.ignoreQuery
 }
 
 // Beforeware returns the slice of strings representing the beforeware keys configured for the Endpoint.Beforeware

@@ -184,7 +184,7 @@ func (g gopen) buildEndpointHandles(endpointVO vo.Endpoint) []api.HandlerFunc {
 	// configuramos o handler do limiter do endpoint como o middleware
 	limiterHandler := g.buildLimiterMiddlewareHandler(endpointVO)
 	// configuramos o handler de cache do endpoint como o middleware
-	cacheHandler := g.buildCacheMiddlewareHandler(endpointVO)
+	cacheHandler := g.BuildCacheMiddlewareHandler(endpointVO)
 	// configuramos o handler do endpoint como controlador
 	endpointHandler := g.endpointController.Execute
 	// montamos a lista de manipuladores
@@ -221,81 +221,27 @@ func (g gopen) buildTimeoutMiddlewareHandler(endpointVO vo.Endpoint) api.Handler
 // and max multipart form size values from the gopenVO configuration. If these values are specified in the endpoint,
 // they take.
 func (g gopen) buildLimiterMiddlewareHandler(endpointVO vo.Endpoint) api.HandlerFunc {
-	// por padrão obtemos o limiter.rate.every configurado na raiz, caso não informado um valor padrão é retornado
-	rateEvery := g.gopenVO.LimiterRateEvery()
-	// caso informado no endpoint damos prioridade
-	if endpointVO.HasLimiterRateEvery() {
-		rateEvery = endpointVO.LimiterRateEvery()
-	}
-
-	// por padrão obtemos o limiter.rate.capacity configurado na raiz, caso não informado um valor padrão é retornado
-	rateCapacity := g.gopenVO.LimiterRateCapacity()
-	// caso informado no endpoint damos prioridade
-	if endpointVO.HasLimiterRateCapacity() {
-		rateCapacity = endpointVO.LimiterRateCapacity()
-	}
-
-	// por padrão obtemos o limiter.max-header-size configurado na raiz, caso não informado um valor padrão é retornado
-	maxHeaderSize := g.gopenVO.LimiterMaxHeaderSize()
-	// caso informado no endpoint damos prioridade
-	if endpointVO.HasLimiterMaxHeaderSize() {
-		maxHeaderSize = endpointVO.LimiterMaxHeaderSize()
-	}
-
-	// por padrão obtemos o limiter.max-body-size configurado na raiz, caso não informado um valor padrão é retornado
-	maxBodySize := g.gopenVO.LimiterMaxBodySize()
-	// caso informado no endpoint damos prioridade
-	if endpointVO.HasLimiterMaxBodySize() {
-		maxBodySize = endpointVO.LimiterMaxBodySize()
-	}
-
-	// por padrão obtemos o limiter.max-multipart-form-size configurado na raiz, caso não informado um valor padrão é retornado
-	maxMultipartForm := g.gopenVO.LimiterMaxMultipartMemorySize()
-	// caso informado no endpoint damos prioridade
-	if endpointVO.HasLimiterMaxMultipartFormSize() {
-		maxMultipartForm = endpointVO.LimiterMaxMultipartMemorySize()
-	}
+	// construímos o limiter com base no
+	limiterVO := vo.NewLimiterFromEndpoint(g.gopenVO, endpointVO)
 
 	// inicializamos o limitador de taxa
-	rateLimiterProvider := infra.NewRateLimiterProvider(rateEvery, rateCapacity)
+	rateLimiterProvider := infra.NewRateLimiterProvider(limiterVO.Rate())
 	// inicializamos o limitador de tamanho
-	sizeLimiterProvider := infra.NewSizeLimiterProvider(maxHeaderSize, maxBodySize, maxMultipartForm)
+	sizeLimiterProvider := infra.NewSizeLimiterProvider(limiterVO)
 
 	// construímos a chamada limiter
 	return g.limiterMiddleware.Do(rateLimiterProvider, sizeLimiterProvider)
 }
 
-// buildCacheMiddlewareHandler is a method of the gopen type that builds and returns a cache middleware handler for the
-// given endpointVO. It first obtains the cache duration value from the parent gopenVO. If the endpointVO has a cache
-// duration value, it overrides the parent's value. Next, it obtains the cache strategy headers value from the parent
-// gopenVO. If the endpointVO has a cache strategy headers value, it overrides the parent's value. Then, it obtains the
-// allow cache control value from the parent gopenVO. If the endpointVO has an allow cache control value, it overrides
-// the parent's value. Using these values, it creates a cacheVO value object using the vo.NewCacheFromEndpoint function.
-// Finally, it returns the cache middleware handler by calling g.cacheMiddleware.Do with the cacheVO object as the argument.
-func (g gopen) buildCacheMiddlewareHandler(endpointVO vo.Endpoint) api.HandlerFunc {
-	// obtemos o valor do pai
-	cacheDuration := g.gopenVO.CacheDuration()
-	// caso seja informado no endpoint, damos prioridade
-	if endpointVO.HasCacheDuration() {
-		cacheDuration = endpointVO.CacheDuration()
-	}
-	// obtemos o valor do pai
-	cacheStrategyHeaders := g.gopenVO.CacheStrategyHeaders()
-	// caso seja informado no endpoint, damos prioridade
-	if endpointVO.HasCacheStrategyHeaders() {
-		cacheStrategyHeaders = endpointVO.CacheStrategyHeaders()
-	}
-
-	// obtemos o valor do pai
-	allowCacheControl := g.gopenVO.AllowCacheControl()
-	// caso seja informado no endpoint, damos prioridade
-	if endpointVO.HasAllowCacheControl() {
-		allowCacheControl = endpointVO.AllowCacheControl()
-	}
-
-	// com esses valores, construímos o objeto de valor
-	cacheVO := vo.NewCacheFromEndpoint(cacheDuration, cacheStrategyHeaders, allowCacheControl)
-
+// BuildCacheMiddlewareHandler is a method of the gopen type that builds and returns a cache middleware handler for the given endpointVO.
+// It retrieves the cache duration value from the parent gopenVO, or overrides it if the endpointVO has its own cache duration value.
+// Similarly, it retrieves the cache strategy headers value from the parent gopenVO, or overrides it if the endpointVO has its own value.
+// It also retrieves the allow cache control value from the parent gopenVO, or overrides it if the endpointVO has its own value.
+// The method creates a cacheVO value object using the vo.NewCacheFromEndpoint function, and returns the cache middleware handler
+// by calling g.cacheMiddleware.Do with the cacheVO object as the argument.
+func (g gopen) BuildCacheMiddlewareHandler(endpointVO vo.Endpoint) api.HandlerFunc {
+	// construímos o objeto de valor de cache com base no endpoint e a configuração Gopen
+	cacheVO := vo.NewCacheFromEndpoint(g.gopenVO, endpointVO)
 	// construímos a chamada de cache middleware para o endpoint
 	return g.cacheMiddleware.Do(cacheVO)
 }

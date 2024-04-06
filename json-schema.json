@@ -70,12 +70,68 @@
             "type": "string"
           }
         },
+        "only-if-status-codes": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 100,
+            "maximum": 599
+          }
+        },
+        "only-if-methods": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "POST",
+              "PUT",
+              "PATCH",
+              "DELETE",
+              "GET"
+            ]
+          }
+        },
         "allow-cache-control": {
           "type": "boolean"
         }
       },
       "required": [
         "duration"
+      ],
+      "additionalProperties": false
+    },
+    "endpoint-cache": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "ignore-query": {
+          "type": "boolean"
+        },
+        "duration": {
+          "$ref": "#/definitions/duration"
+        },
+        "strategy-headers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "only-if-status-codes": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 100,
+            "maximum": 599
+          }
+        },
+        "allow-cache-control": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "enabled"
       ],
       "additionalProperties": false
     },
@@ -151,7 +207,7 @@
           "$ref": "#/definitions/path"
         },
         "cache": {
-          "$ref": "#/definitions/cache"
+          "$ref": "#/definitions/endpoint-cache"
         },
         "method": {
           "$ref": "#/definitions/http-method"

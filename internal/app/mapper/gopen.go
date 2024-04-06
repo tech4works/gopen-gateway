@@ -89,21 +89,26 @@ func BuildCacheDTOFromGOpenVO(gopenVO vo.Gopen) *dto.Cache {
 	return &dto.Cache{
 		Duration:          gopenVO.CacheDuration().String(),
 		StrategyHeaders:   gopenVO.CacheStrategyHeaders(),
+		OnlyIfStatusCodes: gopenVO.OnlyIfStatusCodes(),
+		OnlyIfMethods:     gopenVO.OnlyIfMethods(),
 		AllowCacheControl: helper.ConvertToPointer(gopenVO.AllowCacheControl()),
 	}
 }
 
-// BuildCacheDTOFromEndpointVO builds a `Cache` DTO object using the provided `Endpoint` object as input.
+// BuildEndpointCacheDTOFromEndpointVO builds a `Cache` DTO object using the provided `Endpoint` object as input.
 // It retrieves various properties from the `Endpoint` object and sets them on the `Cache` object.
 // If the `Endpoint` object does not have any cache, it returns nil.
 // It returns a pointer to the `Cache` object.
-func BuildCacheDTOFromEndpointVO(endpointVO vo.Endpoint) *dto.Cache {
+func BuildEndpointCacheDTOFromEndpointVO(endpointVO vo.Endpoint) *dto.EndpointCache {
 	if !endpointVO.HasCache() {
 		return nil
 	}
-	return &dto.Cache{
+	return &dto.EndpointCache{
+		Enabled:           true,
+		IgnoreQuery:       endpointVO.CacheIgnoreQuery(),
 		Duration:          endpointVO.CacheDuration().String(),
 		StrategyHeaders:   endpointVO.CacheStrategyHeaders(),
+		OnlyIfStatusCodes: endpointVO.OnlyIfStatusCodes(),
 		AllowCacheControl: helper.ConvertToPointer(endpointVO.AllowCacheControl()),
 	}
 }
@@ -152,13 +157,12 @@ func BuildEndpointDTO(endpointVO vo.Endpoint) dto.Endpoint {
 	if endpointVO.HasTimeout() {
 		timeout = endpointVO.Timeout().String()
 	}
-
 	return dto.Endpoint{
 		Path:               endpointVO.Path(),
 		Method:             endpointVO.Method(),
 		Timeout:            timeout,
 		Limiter:            BuildLimiterDTOFromEndpointVO(endpointVO),
-		Cache:              BuildCacheDTOFromEndpointVO(endpointVO),
+		Cache:              BuildEndpointCacheDTOFromEndpointVO(endpointVO),
 		ResponseEncode:     endpointVO.ResponseEncode(),
 		AggregateResponses: endpointVO.AggregateResponses(),
 		AbortIfStatusCodes: endpointVO.AbortIfStatusCodes(),

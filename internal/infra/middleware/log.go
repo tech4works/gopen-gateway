@@ -12,7 +12,7 @@ type log struct {
 }
 
 type Log interface {
-	Do(req *api.Request)
+	Do(ctx *api.Context)
 }
 
 // NewLog creates a new instance of the Log interface using the provided LogProvider.
@@ -25,20 +25,20 @@ func NewLog(logProvider infra.LogProvider) Log {
 // Do is a method that performs logging for a request.
 // It keeps track of the request start time, initializes the logger options with trace ID and XForwardedFor,
 // prints the start log, calls the next request handler, and prints the finish log.
-// It takes a *api.Request as a parameter.
-func (l log) Do(req *api.Request) {
+// It takes a *api.Context as a parameter.
+func (l log) Do(ctx *api.Context) {
 	// mantemos o tempo que a requisição começou
 	startTime := time.Now()
 
 	// inicializamos a logger options global, com o traceId e XForwardedFor
-	l.logProvider.InitializeLoggerOptions(req)
+	l.logProvider.InitializeLoggerOptions(ctx)
 
 	// imprimimos o log de start
-	logger.Info("Start!", l.logProvider.BuildInitialRequestMessage(req))
+	logger.Info("Start!", l.logProvider.BuildInitialRequestMessage(ctx))
 
 	// chamamos o próximo handler da requisição
-	req.Next()
+	ctx.Next()
 
 	// imprimimos o log de finish
-	logger.Info("Finish!", l.logProvider.BuildFinishRequestMessage(req.Writer(), startTime))
+	logger.Info("Finish!", l.logProvider.BuildFinishRequestMessage(ctx.Writer(), startTime))
 }

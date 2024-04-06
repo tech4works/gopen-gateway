@@ -3,6 +3,7 @@ package vo
 import (
 	"github.com/GabrielHCataldo/go-errors/errors"
 	"github.com/GabrielHCataldo/go-helper/helper"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/app/model/dto"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/consts"
 	"strings"
 )
@@ -11,6 +12,16 @@ type SecurityCors struct {
 	allowOrigins []string
 	allowMethods []string
 	allowHeaders []string
+}
+
+// newSecurityCors creates a new instance of SecurityCors based on the provided securityCorsDTO.
+// It sets the allowOrigins, allowMethods, and allowHeaders fields of SecurityCors based on the values from securityCorsDTO.
+func newSecurityCors(securityCorsDTO dto.SecurityCors) SecurityCors {
+	return SecurityCors{
+		allowOrigins: securityCorsDTO.AllowOrigins,
+		allowMethods: securityCorsDTO.AllowMethods,
+		allowHeaders: securityCorsDTO.AllowHeaders,
+	}
 }
 
 // AllowOriginsData returns the allowOrigins field in the SecurityCors struct.

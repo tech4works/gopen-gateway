@@ -11,7 +11,7 @@ type endpoint struct {
 }
 
 type Endpoint interface {
-	Execute(req *api.Request)
+	Execute(ctx *api.Context)
 }
 
 func NewEndpoint(endpointService service.Endpoint) Endpoint {
@@ -21,13 +21,13 @@ func NewEndpoint(endpointService service.Endpoint) Endpoint {
 }
 
 // Execute executes the service to process the endpoint.
-// It takes a pointer to api.Request as an argument.
+// It takes a pointer to api.Context as an argument.
 // It builds the service parameters using mapper.BuildExecuteServiceParams.
 // It invokes the endpointService.Execute method passing the built parameters.
-// It writes the response to the request using req.Write method.
-func (e endpoint) Execute(req *api.Request) {
+// It writes the response to the request using ctx.Write method.
+func (e endpoint) Execute(ctx *api.Context) {
 	// executamos o serviço de dominío para processar o endpoint
-	responseVO := e.endpointService.Execute(mapper.BuildExecuteServiceParams(req))
+	responseVO := e.endpointService.Execute(mapper.BuildExecuteServiceParams(ctx))
 	// respondemos a requisição a partir do objeto de valor recebido
-	req.Write(responseVO)
+	ctx.Write(responseVO)
 }

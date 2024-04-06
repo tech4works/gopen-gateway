@@ -2,6 +2,7 @@ package infra
 
 import (
 	domainmapper "github.com/GabrielHCataldo/gopen-gateway/internal/domain/mapper"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
 	"golang.org/x/time/rate"
 	"sync"
 	"time"
@@ -22,13 +23,13 @@ type RateLimiterProvider interface {
 // NewRateLimiterProvider creates a new instance of the RateLimiterProvider interface.
 // It takes a time duration 'every' and an integer 'limit' as parameters.
 // It returns a RateLimiterProvider object.
-func NewRateLimiterProvider(every time.Duration, limit int) RateLimiterProvider {
+func NewRateLimiterProvider(rateVO vo.Rate) RateLimiterProvider {
 	return &rateLimiterProvider{
 		keys:  map[string]*rate.Limiter{},
 		mutex: &sync.RWMutex{},
-		every: every,
-		limit: rate.Every(every),
-		burst: limit,
+		every: rateVO.Every(),
+		limit: rate.Every(rateVO.Every()),
+		burst: rateVO.Capacity(),
 	}
 }
 

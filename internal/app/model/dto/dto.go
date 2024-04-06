@@ -42,8 +42,19 @@ type Redis struct {
 
 type Cache struct {
 	Duration          string   `json:"duration,omitempty"`
-	StrategyHeaders   []string `json:"strategyHeaders,omitempty"`
-	AllowCacheControl *bool    `json:"allowCacheControl,omitempty"`
+	StrategyHeaders   []string `json:"strategy-headers,omitempty"`
+	OnlyIfStatusCodes []int    `json:"only-if-status-codes,omitempty"`
+	OnlyIfMethods     []string `json:"only-if-methods,omitempty"`
+	AllowCacheControl *bool    `json:"allow-cache-control,omitempty"`
+}
+
+type EndpointCache struct {
+	Enabled           bool     `json:"enabled,omitempty"`
+	IgnoreQuery       bool     `json:"ignore-query,omitempty"`
+	Duration          string   `json:"duration,omitempty"`
+	StrategyHeaders   []string `json:"strategy-headers,omitempty"`
+	OnlyIfStatusCodes []int    `json:"only-if-status-codes,omitempty"`
+	AllowCacheControl *bool    `json:"allow-cache-control,omitempty"`
 }
 
 type Limiter struct {
@@ -69,7 +80,7 @@ type Endpoint struct {
 	Method             string              `json:"method,omitempty"`
 	Timeout            string              `json:"timeout,omitempty"`
 	Limiter            *Limiter            `json:"limiter,omitempty"`
-	Cache              *Cache              `json:"cache,omitempty"`
+	Cache              *EndpointCache      `json:"cache,omitempty"`
 	ResponseEncode     enum.ResponseEncode `json:"response-encode,omitempty"`
 	AggregateResponses bool                `json:"aggregate-responses,omitempty"`
 	AbortIfStatusCodes []int               `json:"abort-if-status-codes,omitempty"`

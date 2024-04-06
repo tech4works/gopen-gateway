@@ -116,6 +116,16 @@ definidas, veja abaixo um exemplo simples com todos os campos possíveis e seus 
       "X-Forwarded-For",
       "Device"
     ],
+    "only-if-status-codes": [
+      200,
+      201,
+      202,
+      203,
+      204
+    ],
+    "only-if-methods": [
+      "GET"
+    ],
     "allow-cache-control": true
   },
   "limiter": {
@@ -167,7 +177,13 @@ definidas, veja abaixo um exemplo simples com todos os campos possíveis e seus 
       "@comment": "Feature: Find user by key",
       "path": "/users/find/:key",
       "cache": {
-        "duration": "30s"
+        "enabled": true,
+        "duration": "30s",
+        "strategy-headers": [],
+        "only-if-status-codes": [
+          200
+        ],
+        "allow-cache-control": false
       },
       "method": "GET",
       "response-encode": "JSON",

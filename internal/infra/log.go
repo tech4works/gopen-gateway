@@ -17,8 +17,8 @@ type logProvider struct {
 }
 
 type LogProvider interface {
-	InitializeLoggerOptions(req *api.Request)
-	BuildInitialRequestMessage(req *api.Request) string
+	InitializeLoggerOptions(ctx *api.Context)
+	BuildInitialRequestMessage(ctx *api.Context) string
 	BuildFinishRequestMessage(writer dto.Writer, startTime time.Time) string
 }
 
@@ -30,12 +30,12 @@ func NewLogProvider() LogProvider {
 // InitializeLoggerOptions initializes the logger options for the current request.
 // It obtains the values to be printed in the request logs such as traceId, IP address, URL, and method.
 // Then, it sets the global log options with the values obtained.
-func (l logProvider) InitializeLoggerOptions(req *api.Request) {
+func (l logProvider) InitializeLoggerOptions(ctx *api.Context) {
 	// obtemos os valores para imprimir nos logs da requisição atual
-	traceId := req.HeaderValue(consts.XTraceId)
-	ip := req.HeaderValue(consts.XForwardedFor)
-	url := req.Url()
-	method := req.Method()
+	traceId := ctx.HeaderValue(consts.XTraceId)
+	ip := ctx.HeaderValue(consts.XForwardedFor)
+	url := ctx.Url()
+	method := ctx.Method()
 
 	// setamos as opções globais de log
 	logger.SetOptions(&logger.Options{
@@ -49,18 +49,18 @@ func (l logProvider) InitializeLoggerOptions(req *api.Request) {
 // If the body type is "application/json" or "application/xml" or "plain/text", it converts the body to a string and assigns it to `bodyInfo`.
 // Otherwise, if the body type and size are not empty, it creates a message string with the content type and content length and assigns it to `bodyInfo`.
 // Finally, it converts `bodyInfo` to a string, removes any line breaks, and returns the result.
-func (l logProvider) BuildInitialRequestMessage(req *api.Request) string {
+func (l logProvider) BuildInitialRequestMessage(ctx *api.Context) string {
 	// inicializamos o body
 	var bodyInfo any
 
 	// obtemos o tipo do body e size do mesmo
-	bodyType := req.HeaderValue("Content-Type")
-	bodySize := req.HeaderValue("Content-Length")
+	bodyType := ctx.HeaderValue("Content-Type")
+	bodySize := ctx.HeaderValue("Content-Length")
 	if helper.ContainsIgnoreCase(bodyType, "application/json") ||
 		helper.ContainsIgnoreCase(bodyType, "application/xml") ||
 		helper.ContainsIgnoreCase(bodyType, "plain/text") {
 		// convertemos esses bytes para o any inicializado
-		bodyInfo = req.BodyString()
+		bodyInfo = ctx.BodyString()
 	} else if helper.IsNotEmpty(bodyType, bodySize) {
 		var msg string
 		if helper.IsNotEmpty(bodyType) {

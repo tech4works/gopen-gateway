@@ -31,25 +31,25 @@ func NewLimiter() Limiter {
 // If the request is allowed, it calls the Next() method of the Request object to execute the next handler in the chain.
 func (l limiter) Do(rateLimiterProvider infra.RateLimiterProvider, sizeLimiterProvider infra.SizeLimiterProvider,
 ) api.HandlerFunc {
-	return func(req *api.Request) {
+	return func(ctx *api.Context) {
 		// aqui ja verificamos se a chave hoje sendo ela o IP está permitida
-		err := rateLimiterProvider.Allow(req.HeaderValue(consts.XForwardedFor))
+		err := rateLimiterProvider.Allow(ctx.HeaderValue(consts.XForwardedFor))
 		if helper.IsNotNil(err) {
-			req.WriteError(http.StatusTooManyRequests, err)
+			ctx.WriteError(http.StatusTooManyRequests, err)
 			return
 		}
 
 		// verificamos o tamanho da requisição, e tratamos o erro logo em seguida
-		err = sizeLimiterProvider.Allow(req.Http())
+		err = sizeLimiterProvider.Allow(ctx.Http())
 		if errors.Contains(err, domainmapper.ErrHeaderTooLarge) {
-			req.WriteError(http.StatusRequestHeaderFieldsTooLarge, err)
+			ctx.WriteError(http.StatusRequestHeaderFieldsTooLarge, err)
 			return
 		} else if helper.IsNotNil(err) {
-			req.WriteError(http.StatusRequestEntityTooLarge, err)
+			ctx.WriteError(http.StatusRequestEntityTooLarge, err)
 			return
 		}
 
 		// chamamos o próximo handler da requisição
-		req.Next()
+		ctx.Next()
 	}
 }

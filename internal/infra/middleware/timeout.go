@@ -32,15 +32,15 @@ func NewTimeout() Timeout {
 // If a panic occurs, it sends the panic value to the panicChan.
 // If the context timeout occurs before the request finishes, it sets the statusCode to http.StatusGatewayTimeout and the error to "gateway timeout: <timeoutDuration>".
 // It then waits for one of the three channels to receive a signal by using a select statement.
-// Finally, it checks whether the statusCode is greater than 0 and writes the error response using req.WriteError if true.
+// Finally, it checks whether the statusCode is greater than 0 and writes the error response using ctx.WriteError if true.
 func (t timeout) Do(timeoutDuration time.Duration) api.HandlerFunc {
-	return func(req *api.Request) {
+	return func(ctx *api.Context) {
 		// inicializamos o context com timeout fornecido na config do gateway
-		timeoutContext, cancel := context.WithTimeout(req.Context(), timeoutDuration)
+		timeoutContext, cancel := context.WithTimeout(ctx.Context(), timeoutDuration)
 		defer cancel()
 
 		// setamos esse context na request atual para propagar para os outros manipuladores
-		req.WithContext(timeoutContext)
+		ctx.SetContext(timeoutContext)
 
 		// criamos os canais de alerta
 		finishChan := make(chan interface{}, 1)
@@ -55,7 +55,7 @@ func (t timeout) Do(timeoutDuration time.Duration) api.HandlerFunc {
 				}
 			}()
 			// chamamos o próximo handler na requisição
-			req.Next()
+			ctx.Next()
 			// se finalizou a tempo, chamamos o channel para seguir normalmente
 			finishChan <- struct{}{}
 		}()
@@ -72,7 +72,7 @@ func (t timeout) Do(timeoutDuration time.Duration) api.HandlerFunc {
 			statusCode = http.StatusInternalServerError
 			err = errors.New("panic error occurred")
 			break
-		case <-req.Context().Done():
+		case <-ctx.Context().Done():
 			statusCode = http.StatusGatewayTimeout
 			err = errors.New("gateway timeout:", timeoutDuration.String())
 			break
@@ -80,7 +80,7 @@ func (t timeout) Do(timeoutDuration time.Duration) api.HandlerFunc {
 
 		// caso tenha passado nos dois fluxos de timeout ou de erro, respondemos à requisição
 		if helper.IsGreaterThan(statusCode, 0) {
-			req.WriteError(statusCode, err)
+			ctx.WriteError(statusCode, err)
 		}
 	}
 }

@@ -30,19 +30,19 @@ func NewCache(cacheStore infra.CacheStore) Cache {
 // If the cache cannot be read or is not found, it proceeds to the next handler.
 // After the next handler is executed, it checks if the response can be cached, sets the cache value, and logs any errors.
 func (c cache) Do(cacheVO vo.Cache) api.HandlerFunc {
-	return func(req *api.Request) {
+	return func(ctx *api.Context) {
 		// inicializamos a chave que vai ser utilizada
-		key := cacheVO.StrategyKey(req.Method(), req.Url(), req.Header())
+		key := cacheVO.StrategyKey(ctx.Method(), ctx.Uri(), ctx.Url(), ctx.Header())
 
 		// verificamos se ele permite ler o cache
-		if cacheVO.CanRead(req.Method(), req.Header()) {
+		if cacheVO.CanRead(ctx.Method(), ctx.Header()) {
 			// inicializamos o valor a ser obtido
 			var cacheResponse vo.CacheResponse
 
 			// obtemos através do cache store se a chave exists respondemos, se não seguimos normalmente
-			err := c.cacheStore.Get(req.Context(), key, &cacheResponse)
+			err := c.cacheStore.Get(ctx.Context(), key, &cacheResponse)
 			if helper.IsNil(err) {
-				req.WriteCacheResponse(cacheResponse)
+				ctx.WriteCacheResponse(cacheResponse)
 				return
 			} else if errors.IsNot(err, mapper.ErrCacheNotFound) {
 				logger.Warning("Error read cache key:", key, "err:", err)
@@ -50,21 +50,23 @@ func (c cache) Do(cacheVO vo.Cache) api.HandlerFunc {
 		}
 
 		// damos próximo no handler
-		req.Next()
+		ctx.Next()
 
+		// obtemos o status code da resposta
+		httpStatusCode := ctx.Writer().Status()
 		// obtemos o header da resposta
-		httpHeaderResponse := req.Writer().Header()
+		httpHeaderResponse := ctx.Writer().Header()
 
 		// verificamos se podemos gravar a resposta
-		if cacheVO.CanWrite(req.Method(), vo.NewHeader(httpHeaderResponse)) {
+		if cacheVO.CanWrite(ctx.Method(), httpStatusCode, vo.NewHeader(httpHeaderResponse)) {
 			// instanciamos a duração
 			duration := cacheVO.Duration()
 
 			// construímos o valor a ser setado no cache
-			cacheResponse := vo.NewCacheResponse(req.Writer(), duration)
+			cacheResponse := vo.NewCacheResponse(ctx.Writer(), duration)
 
 			// transformamos em cacheResponse e setamos
-			err := c.cacheStore.Set(req.Context(), key, cacheResponse, duration)
+			err := c.cacheStore.Set(ctx.Context(), key, cacheResponse, duration)
 			if helper.IsNotNil(err) {
 				logger.Warning("Error write cache key:", key, "err:", err)
 			}

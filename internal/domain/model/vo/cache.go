@@ -3,16 +3,104 @@ package vo
 import (
 	"fmt"
 	"github.com/GabrielHCataldo/go-helper/helper"
+	"github.com/GabrielHCataldo/go-logger/logger"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/app/model/dto"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/enum"
-	"net/http"
 	"strings"
 	"time"
 )
 
 type Cache struct {
 	duration          time.Duration
+	ignoreQuery       bool
 	strategyHeaders   []string
+	onlyIfStatusCodes []int
+	onlyIfMethods     []string
 	allowCacheControl *bool
+}
+
+type EndpointCache struct {
+	enabled           bool
+	ignoreQuery       bool
+	duration          time.Duration
+	strategyHeaders   []string
+	onlyIfStatusCodes []int
+	allowCacheControl *bool
+}
+
+// NewCacheFromEndpoint creates a new instance of Cache based on the provided duration, strategyHeaders, allowCacheControl and enabled.
+// It initializes the fields of Cache with the given values.
+func NewCacheFromEndpoint(gopenVO Gopen, endpointVO Endpoint) Cache {
+	// se o endpoint não tem cache retornamos vazio
+	if !endpointVO.HasCache() {
+		return Cache{}
+	}
+
+	// obtemos o valor do pai
+	duration := gopenVO.CacheDuration()
+	// caso seja informado no endpoint, damos prioridade
+	if endpointVO.HasCacheDuration() {
+		duration = endpointVO.CacheDuration()
+	}
+	// obtemos o valor do pai
+	strategyHeaders := gopenVO.CacheStrategyHeaders()
+	// caso seja informado no endpoint, damos prioridade
+	if endpointVO.HasCacheStrategyHeaders() {
+		strategyHeaders = endpointVO.CacheStrategyHeaders()
+	}
+	// obtemos o valor do pai
+	allowCacheControl := gopenVO.AllowCacheControl()
+	// caso seja informado no endpoint, damos prioridade
+	if endpointVO.HasAllowCacheControl() {
+		allowCacheControl = endpointVO.AllowCacheControl()
+	}
+
+	return Cache{
+		duration:          duration,
+		ignoreQuery:       endpointVO.CacheIgnoreQuery(),
+		strategyHeaders:   strategyHeaders,
+		allowCacheControl: &allowCacheControl,
+	}
+}
+
+// newCache creates a new instance of Cache based on the provided cacheDTO.
+// It initializes the fields of Cache based on values from cacheDTO and sets default values for empty fields.
+func newCache(cacheDTO dto.Cache) Cache {
+	var duration time.Duration
+	var err error
+	if helper.IsNotEmpty(cacheDTO.Duration) {
+		duration, err = time.ParseDuration(cacheDTO.Duration)
+		if helper.IsNotNil(err) {
+			logger.Warning("Parse duration cache.duration err:", err)
+		}
+	}
+	return Cache{
+		duration:          duration,
+		ignoreQuery:       false,
+		strategyHeaders:   cacheDTO.StrategyHeaders,
+		onlyIfStatusCodes: cacheDTO.OnlyIfStatusCodes,
+		onlyIfMethods:     cacheDTO.OnlyIfMethods,
+		allowCacheControl: cacheDTO.AllowCacheControl,
+	}
+}
+
+func newEndpointCache(endpointCacheDTO dto.EndpointCache) EndpointCache {
+	var duration time.Duration
+	var err error
+	if helper.IsNotEmpty(endpointCacheDTO.Duration) {
+		duration, err = time.ParseDuration(endpointCacheDTO.Duration)
+		if helper.IsNotNil(err) {
+			logger.Warning("Parse duration endpoint.cache.duration err:", err)
+		}
+	}
+	return EndpointCache{
+		enabled:           endpointCacheDTO.Enabled,
+		ignoreQuery:       endpointCacheDTO.IgnoreQuery,
+		duration:          duration,
+		strategyHeaders:   endpointCacheDTO.StrategyHeaders,
+		onlyIfStatusCodes: endpointCacheDTO.OnlyIfStatusCodes,
+		allowCacheControl: endpointCacheDTO.AllowCacheControl,
+	}
 }
 
 // Duration returns the value of the duration field in the Cache struct.
@@ -31,27 +119,17 @@ func (c Cache) Disabled() bool {
 	return !c.Enabled()
 }
 
-// CanRead checks if the cache is active and if the Cache-Control header value is not "no-cache" and the HTTP method is "GET".
-// If the cache is disabled, it returns false.
-// It returns true if the cache is active and the conditions are met, otherwise false.
-func (c Cache) CanRead(httpMethod string, header Header) bool {
-	// verificamos se ta ativo
-	if c.Disabled() {
-		return false
-	}
-
-	// obtemos o cache control enum do ctx de requisição
-	cacheControl := c.CacheControlEnum(header)
-
-	// verificamos se no Cache-Control enviado veio como "no-cache" e se o método da requisição é GET
-	return helper.IsNotEqualTo(enum.CacheControlNoCache, cacheControl) && helper.Equals(httpMethod, http.MethodGet)
+// IgnoreQuery returns the value of the ignoreQuery field in the Cache struct.
+func (c Cache) IgnoreQuery() bool {
+	return c.ignoreQuery
 }
 
-// CanWrite checks if it is possible to write to the cache based on the HTTP method and header.
+// CanRead checks if it is possible to read from the cache based on the HTTP method and header.
 // If the cache is disabled, it returns false.
 // It retrieves the cache control enum from the request header.
-// It returns false if the Cache-Control header contains "no-store" and the HTTP method is GET, otherwise it returns true.
-func (c Cache) CanWrite(httpMethod string, header Header) bool {
+// It returns false if the Cache-Control header contains "no-cache" and the HTTP method is in the onlyIfMethods field,
+// otherwise it returns true.
+func (c Cache) CanRead(method string, header Header) bool {
 	// verificamos se ta ativo
 	if c.Disabled() {
 		return false
@@ -60,8 +138,29 @@ func (c Cache) CanWrite(httpMethod string, header Header) bool {
 	// obtemos o cache control enum do ctx de requisição
 	cacheControl := c.CacheControlEnum(header)
 
-	// verificamos se no Cache-Control enviado veio como "no-store" e se o método da requisição é GET
-	return helper.IsNotEqualTo(enum.CacheControlNoStore, cacheControl) && helper.Equals(httpMethod, http.MethodGet)
+	// verificamos se no Cache-Control enviado veio como "no-cache" e se o método da requisição contains no campo
+	// de permissão
+	return helper.IsNotEqualTo(enum.CacheControlNoCache, cacheControl) && helper.Contains(c.onlyIfMethods, method)
+}
+
+// CanWrite checks if it is possible to write to the cache based on the HTTP method, status code, and header.
+// If the cache is disabled, it returns false.
+// It retrieves the cache control enum from the request header.
+// It returns false if the Cache-Control header contains "no-store", the status code is not in the onlyIfStatusCodes field,
+// or the HTTP method is not in the onlyIfMethods field; otherwise, it returns true.
+func (c Cache) CanWrite(method string, statusCode int, header Header) bool {
+	// verificamos se ta ativo
+	if c.Disabled() {
+		return false
+	}
+
+	// obtemos o cache control enum do ctx de requisição
+	cacheControl := c.CacheControlEnum(header)
+
+	// verificamos se no Cache-Control enviado veio como "no-store" e se o método da requisição contains no campo
+	// de permissão, também verificamos o código de
+	return helper.IsNotEqualTo(enum.CacheControlNoStore, cacheControl) &&
+		helper.Contains(c.onlyIfStatusCodes, statusCode) && helper.Contains(c.onlyIfMethods, method)
 }
 
 // CacheControlEnum takes a Header and returns the CacheControl enum value.
@@ -71,6 +170,7 @@ func (c Cache) CacheControlEnum(header Header) (cacheControl enum.CacheControl) 
 	if helper.IsNotNil(c.allowCacheControl) && *c.allowCacheControl {
 		cacheControl = enum.CacheControl(header.Get("Cache-Control"))
 	}
+	// retornamos a enum do cache control vazia ou não, dependendo da configuração
 	return cacheControl
 }
 
@@ -81,9 +181,16 @@ func (c Cache) CacheControlEnum(header Header) (cacheControl enum.CacheControl) 
 // If the values are found, they are separated with a colon delimiter.
 // If the strategyKey is not empty, it is appended to the key string.
 // The final key is returned.
-func (c Cache) StrategyKey(httpMethod string, httpUrl string, header Header) string {
+func (c Cache) StrategyKey(httpMethod, httpUri, httpUrl string, header Header) string {
+	// inicializamos a url da requisição completa
+	url := httpUrl
+	// caso o cache queira ignorar as queries, ele ignora
+	if c.IgnoreQuery() {
+		url = httpUri
+	}
+
 	// construímos a chave inicialmente com os valores de requisição
-	key := fmt.Sprintf("%s:%s", httpMethod, httpUrl)
+	key := fmt.Sprintf("%s:%s", httpMethod, url)
 
 	var strategyValues []string
 	// iteramos as chaves para obter os valores
@@ -100,5 +207,7 @@ func (c Cache) StrategyKey(httpMethod string, httpUrl string, header Header) str
 	if helper.IsNotEmpty(strategyKey) {
 		key = fmt.Sprintf("%s:%s", key, strategyKey)
 	}
+
+	// retornamos a key construída
 	return key
 }

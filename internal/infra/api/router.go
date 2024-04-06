@@ -7,7 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type HandlerFunc func(ctx *Request)
+type HandlerFunc func(ctx *Context)
 
 // Handle handles a request by registering it with the specified engine and endpoint information,
 // and then passing it to the provided handler functions.
@@ -39,18 +39,20 @@ func parseHandles(gopenVO vo.Gopen, endpointVO vo.Endpoint, handles []HandlerFun
 // The handle parameter is a HandlerFunc function that will be called to handle the request.
 func handle(gopenVO vo.Gopen, endpointVO vo.Endpoint, handle HandlerFunc) gin.HandlerFunc {
 	return func(gin *gin.Context) {
-		req := buildRequestByContext(gin, gopenVO, endpointVO)
+		req := buildContextByFramework(gin, gopenVO, endpointVO)
 		handle(req)
 	}
 }
 
-// buildRequestByContext builds a Request object based on the gin context, Gopen configuration, and Endpoint configuration.
+// buildContextByFramework builds a Context object based on the gin context, Gopen configuration, and Endpoint configuration.
 // It creates a ResponseWriter and assigns it to the gin context's writer.
-// It returns the constructed Request object.
-func buildRequestByContext(gin *gin.Context, gopenVO vo.Gopen, endpointVO vo.Endpoint) *Request {
+// It returns the constructed Context object.
+func buildContextByFramework(gin *gin.Context, gopenVO vo.Gopen, endpointVO vo.Endpoint) *Context {
+	// construímos o escritor de resposta
 	writer := buildResponseWriter(gin)
 	gin.Writer = writer
-	return &Request{
+	// o contexto da requisição é criado
+	return &Context{
 		framework: gin,
 		gopen:     gopenVO,
 		endpoint:  endpointVO,

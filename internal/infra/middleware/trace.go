@@ -12,7 +12,7 @@ type trace struct {
 }
 
 type Trace interface {
-	Do(req *api.Request)
+	Do(ctx *api.Context)
 }
 
 // NewTrace creates a new Trace instance.
@@ -26,13 +26,13 @@ func NewTrace(traceProvider infra.TraceProvider) Trace {
 // It adds the X-Forwarded-For header to the request with the remote address,
 // and sets the X-TraceId header if it is not already specified.
 // Then it proceeds to the next function in the request.
-func (t trace) Do(req *api.Request) {
+func (t trace) Do(ctx *api.Context) {
 	// adicionamos na requisição o X-Forwarded-For
-	req.AddHeader(consts.XForwardedFor, req.RemoteAddr())
+	ctx.AddHeader(consts.XForwardedFor, ctx.RemoteAddr())
 	// caso não tenha trace id informado, setamos
-	if helper.IsEmpty(req.HeaderValue(consts.XTraceId)) {
-		req.SetHeader(consts.XTraceId, t.traceProvider.GenerateTraceId())
+	if helper.IsEmpty(ctx.HeaderValue(consts.XTraceId)) {
+		ctx.SetHeader(consts.XTraceId, t.traceProvider.GenerateTraceId())
 	}
 	// seguimos para a próxima func da requisição
-	req.Next()
+	ctx.Next()
 }

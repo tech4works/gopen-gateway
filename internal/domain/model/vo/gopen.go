@@ -4,6 +4,7 @@ import (
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/go-logger/logger"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/app/model/dto"
+	"net/http"
 	"time"
 )
 
@@ -23,11 +24,13 @@ type Gopen struct {
 // NewGOpen creates a new instance of Gopen based on the provided environment and gopenDTO.
 // It initializes the fields of Gopen based on values from gopenDTO and sets default values for empty fields.
 func NewGOpen(env string, gopenDTO dto.Gopen) Gopen {
+	// damos o parse dos endpoints
 	var endpoints []Endpoint
 	for _, endpointDTO := range gopenDTO.Endpoints {
 		endpoints = append(endpoints, newEndpoint(endpointDTO))
 	}
 
+	// damos o parse do timeout
 	var timeout time.Duration
 	var err error
 	if helper.IsNotEmpty(gopenDTO.Timeout) {
@@ -47,107 +50,6 @@ func NewGOpen(env string, gopenDTO dto.Gopen) Gopen {
 		securityCors: newSecurityCors(helper.IfNilReturns(gopenDTO.SecurityCors, dto.SecurityCors{})),
 		middlewares:  newMiddlewares(gopenDTO.Middlewares),
 		endpoints:    endpoints,
-	}
-}
-
-// NewCacheFromEndpoint creates a new instance of Cache based on the provided duration, strategyHeaders, and allowCacheControl.
-// It initializes the fields of Cache with the given values.
-func NewCacheFromEndpoint(duration time.Duration, strategyHeaders []string, allowCacheControl bool) Cache {
-	return Cache{
-		duration:          duration,
-		strategyHeaders:   strategyHeaders,
-		allowCacheControl: &allowCacheControl,
-	}
-}
-
-// newLimiter creates a new instance of Limiter based on the provided limiterDTO.
-// It initializes the fields of Limiter based on values from limiterDTO and sets default values for empty fields.
-func newLimiter(limiterDTO dto.Limiter) Limiter {
-	return Limiter{
-		maxHeaderSize:          NewBytes(limiterDTO.MaxHeaderSize),
-		maxBodySize:            NewBytes(limiterDTO.MaxBodySize),
-		maxMultipartMemorySize: NewBytes(limiterDTO.MaxMultipartMemorySize),
-		rate:                   newRate(helper.IfNilReturns(limiterDTO.Rate, dto.Rate{})),
-	}
-}
-
-// newRate creates a new instance of Rate based on the provided rateDTO.
-// It initializes the fields of Rate based on values from rateDTO and sets default values for empty fields.
-func newRate(rateDTO dto.Rate) Rate {
-	var every time.Duration
-	var err error
-	if helper.IsNotEmpty(rateDTO.Every) {
-		every, err = time.ParseDuration(rateDTO.Every)
-		if helper.IsNotNil(err) {
-			logger.Warning("Parse duration limiter.rate.every err:", err)
-		}
-	}
-
-	return Rate{
-		capacity: rateDTO.Capacity,
-		every:    every,
-	}
-}
-
-// newCache creates a new instance of Cache based on the provided cacheDTO.
-// It initializes the fields of Cache based on values from cacheDTO and sets default values for empty fields.
-func newCache(cacheDTO dto.Cache) Cache {
-	var duration time.Duration
-	var err error
-	if helper.IsNotEmpty(cacheDTO.Duration) {
-		duration, err = time.ParseDuration(cacheDTO.Duration)
-		if helper.IsNotNil(err) {
-			logger.Warning("Parse duration cache.duration err:", err)
-		}
-	}
-
-	return Cache{
-		duration:          duration,
-		strategyHeaders:   cacheDTO.StrategyHeaders,
-		allowCacheControl: cacheDTO.AllowCacheControl,
-	}
-}
-
-// newSecurityCors creates a new instance of SecurityCors based on the provided securityCorsDTO.
-// It sets the allowOrigins, allowMethods, and allowHeaders fields of SecurityCors based on the values from securityCorsDTO.
-func newSecurityCors(securityCorsDTO dto.SecurityCors) SecurityCors {
-	return SecurityCors{
-		allowOrigins: securityCorsDTO.AllowOrigins,
-		allowMethods: securityCorsDTO.AllowMethods,
-		allowHeaders: securityCorsDTO.AllowHeaders,
-	}
-}
-
-// newEndpoint creates a new instance of Endpoint based on the provided endpointDTO.
-// It initializes the fields of Endpoint based on values from endpointDTO and sets default values for empty fields.
-// The function returns the created Endpoint.
-func newEndpoint(endpointDTO dto.Endpoint) Endpoint {
-	var backends []Backend
-	for _, backendDTO := range endpointDTO.Backends {
-		backends = append(backends, newBackend(backendDTO))
-	}
-
-	var timeout time.Duration
-	var err error
-	if helper.IsNotEmpty(endpointDTO.Timeout) {
-		timeout, err = time.ParseDuration(endpointDTO.Timeout)
-		if helper.IsNotNil(err) {
-			logger.Warning("Parse duration endpoint.timeout err:", err)
-		}
-	}
-
-	return Endpoint{
-		path:               endpointDTO.Path,
-		method:             endpointDTO.Method,
-		timeout:            timeout,
-		limiter:            newLimiter(helper.IfNilReturns(endpointDTO.Limiter, dto.Limiter{})),
-		cache:              newCache(helper.IfNilReturns(endpointDTO.Cache, dto.Cache{})),
-		responseEncode:     endpointDTO.ResponseEncode,
-		aggregateResponses: endpointDTO.AggregateResponses,
-		abortIfStatusCodes: endpointDTO.AbortIfStatusCodes,
-		beforeware:         endpointDTO.Beforeware,
-		afterware:          endpointDTO.Afterware,
-		backends:           backends,
 	}
 }
 
@@ -241,6 +143,39 @@ func (g Gopen) CacheStrategyHeaders() []string {
 	return g.cache.strategyHeaders
 }
 
+// OnlyIfStatusCodes returns the array of status codes that are used for conditional caching.
+// If the 'onlyIfStatusCodes' field in the Gopen cache is not empty, it returns that array.
+// Otherwise, it returns a default array of commonly used status codes for conditional caching.
+func (g Gopen) OnlyIfStatusCodes() []int {
+	if helper.IsNotEmpty(g.cache.onlyIfStatusCodes) {
+		return g.cache.onlyIfStatusCodes
+	}
+	return []int{
+		http.StatusOK,
+		http.StatusCreated,
+		http.StatusAccepted,
+		http.StatusNonAuthoritativeInfo,
+		http.StatusNoContent,
+		http.StatusResetContent,
+		http.StatusPartialContent,
+		http.StatusMultiStatus,
+		http.StatusAlreadyReported,
+		http.StatusIMUsed,
+	}
+}
+
+// OnlyIfMethods returns the array of HTTP methods used for conditional caching.
+// If the 'onlyIfMethods' field in the Gopen cache is not empty, it returns that array.
+// Otherwise, it returns a default array containing only the HTTP GET method.
+func (g Gopen) OnlyIfMethods() []string {
+	if helper.IsNotEmpty(g.cache.onlyIfMethods) {
+		return g.cache.onlyIfMethods
+	}
+	return []string{
+		http.MethodGet,
+	}
+}
+
 // AllowCacheControl checks if the caching is allowed or not.
 // It uses the 'allowCacheControl' field in the 'Gopen' structure.
 // In case of nil value, it defaults to 'false'.
@@ -248,6 +183,7 @@ func (g Gopen) AllowCacheControl() bool {
 	return helper.IfNilReturns(g.cache.allowCacheControl, false)
 }
 
+// SecurityCors returns the value of the securityCors field in the Gopen struct.
 func (g Gopen) SecurityCors() SecurityCors {
 	return g.securityCors
 }
