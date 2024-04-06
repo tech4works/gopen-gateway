@@ -40,7 +40,7 @@ func (t timeout) Do(timeoutDuration time.Duration) api.HandlerFunc {
 		defer cancel()
 
 		// setamos esse context na request atual para propagar para os outros manipuladores
-		ctx.SetContext(timeoutContext)
+		ctx.With(timeoutContext)
 
 		// criamos os canais de alerta
 		finishChan := make(chan interface{}, 1)

@@ -24,9 +24,9 @@ func (r *Context) Context() context.Context {
 	return r.framework.Request.Context()
 }
 
-// SetContext sets the context of the Context to the provided context.
+// With sets the context of the Context to the provided context.
 // It updates the underlying framework's Context.Context() method to use the new context.
-func (r *Context) SetContext(ctx context.Context) {
+func (r *Context) With(ctx context.Context) {
 	r.framework.Request = r.framework.Request.WithContext(ctx)
 }
 
