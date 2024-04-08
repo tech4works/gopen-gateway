@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/go-logger/logger"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/app/model/dto"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/consts"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/infra/api"
 	"net/http"
 	"strings"
@@ -19,7 +19,7 @@ type logProvider struct {
 type LogProvider interface {
 	InitializeLoggerOptions(ctx *api.Context)
 	BuildInitialRequestMessage(ctx *api.Context) string
-	BuildFinishRequestMessage(writer dto.Writer, startTime time.Time) string
+	BuildFinishRequestMessage(responseVO vo.Response, startTime time.Time) string
 }
 
 // NewLogProvider creates and returns a new instance of LogProvider.
@@ -82,7 +82,7 @@ func (l logProvider) BuildInitialRequestMessage(ctx *api.Context) string {
 // The method obtains the status code text, latency text, and response body text.
 // It then constructs the message by appending the status code, latency, and response body (if not empty) to the string builder.
 // Finally, it returns the build log message as a string.
-func (l logProvider) BuildFinishRequestMessage(writer dto.Writer, startTime time.Time) string {
+func (l logProvider) BuildFinishRequestMessage(responseVO vo.Response, startTime time.Time) string {
 	// obtemos quanto tempo demorou a requisição
 	latency := time.Now().Sub(startTime)
 
@@ -90,11 +90,12 @@ func (l logProvider) BuildFinishRequestMessage(writer dto.Writer, startTime time
 	var text strings.Builder
 
 	// obtemos o texto de status code de resposta
-	textStatusCode := l.statusCodeText(writer.Status())
+	textStatusCode := l.statusCodeText(responseVO.StatusCode())
 	// obtemos o text de latência
 	textLatency := latency.String()
 	// obtemos o text do body de resposta
-	textBody := string(writer.Body.Bytes())
+	responseBody := responseVO.Body()
+	textBody := responseBody.String()
 
 	// montamos o texto
 	text.WriteString(textStatusCode)

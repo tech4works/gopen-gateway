@@ -124,43 +124,41 @@ func (c Cache) IgnoreQuery() bool {
 	return c.ignoreQuery
 }
 
-// CanRead checks if it is possible to read from the cache based on the HTTP method and header.
+// CanRead checks if it is possible to read from the cache based on the Cache-Control header
+// and the HTTP method of the request.
 // If the cache is disabled, it returns false.
-// It retrieves the cache control enum from the request header.
-// It returns false if the Cache-Control header contains "no-cache" and the HTTP method is in the onlyIfMethods field,
-// otherwise it returns true.
-func (c Cache) CanRead(method string, header Header) bool {
+// It retrieves the Cache-Control enum from the request header.
+// It returns false if the Cache-Control header contains "no-cache" or the HTTP method is not in the onlyIfMethods field;
+// otherwise, it returns true.
+func (c Cache) CanRead(requestVO Request) bool {
 	// verificamos se ta ativo
 	if c.Disabled() {
 		return false
 	}
 
 	// obtemos o cache control enum do ctx de requisição
-	cacheControl := c.CacheControlEnum(header)
+	cacheControl := c.CacheControlEnum(requestVO.Header())
 
 	// verificamos se no Cache-Control enviado veio como "no-cache" e se o método da requisição contains no campo
 	// de permissão
-	return helper.IsNotEqualTo(enum.CacheControlNoCache, cacheControl) && helper.Contains(c.onlyIfMethods, method)
+	return helper.IsNotEqualTo(enum.CacheControlNoCache, cacheControl) &&
+		helper.Contains(c.onlyIfMethods, requestVO.Method())
 }
 
-// CanWrite checks if it is possible to write to the cache based on the HTTP method, status code, and header.
-// If the cache is disabled, it returns false.
-// It retrieves the cache control enum from the request header.
-// It returns false if the Cache-Control header contains "no-store", the status code is not in the onlyIfStatusCodes field,
-// or the HTTP method is not in the onlyIfMethods field; otherwise, it returns true.
-func (c Cache) CanWrite(method string, statusCode int, header Header) bool {
+func (c Cache) CanWrite(requestVO Request, responseVO Response) bool {
 	// verificamos se ta ativo
 	if c.Disabled() {
 		return false
 	}
 
 	// obtemos o cache control enum do ctx de requisição
-	cacheControl := c.CacheControlEnum(header)
+	cacheControl := c.CacheControlEnum(responseVO.Header())
 
 	// verificamos se no Cache-Control enviado veio como "no-store" e se o método da requisição contains no campo
 	// de permissão, também verificamos o código de
 	return helper.IsNotEqualTo(enum.CacheControlNoStore, cacheControl) &&
-		helper.Contains(c.onlyIfStatusCodes, statusCode) && helper.Contains(c.onlyIfMethods, method)
+		helper.Contains(c.onlyIfMethods, requestVO.Method()) &&
+		helper.Contains(c.onlyIfStatusCodes, responseVO.StatusCode())
 }
 
 // CacheControlEnum takes a Header and returns the CacheControl enum value.
@@ -181,21 +179,21 @@ func (c Cache) CacheControlEnum(header Header) (cacheControl enum.CacheControl) 
 // If the values are found, they are separated with a colon delimiter.
 // If the strategyKey is not empty, it is appended to the key string.
 // The final key is returned.
-func (c Cache) StrategyKey(httpMethod, httpUri, httpUrl string, header Header) string {
+func (c Cache) StrategyKey(requestVO Request) string {
 	// inicializamos a url da requisição completa
-	url := httpUrl
+	url := requestVO.Url()
 	// caso o cache queira ignorar as queries, ele ignora
 	if c.IgnoreQuery() {
-		url = httpUri
+		url = requestVO.Uri()
 	}
 
 	// construímos a chave inicialmente com os valores de requisição
-	key := fmt.Sprintf("%s:%s", httpMethod, url)
+	key := fmt.Sprintf("%s:%s", requestVO.Method(), url)
 
 	var strategyValues []string
 	// iteramos as chaves para obter os valores
 	for _, strategyKey := range c.strategyHeaders {
-		valueByStrategyKey := header.Get(strategyKey)
+		valueByStrategyKey := requestVO.Header().Get(strategyKey)
 		if helper.IsNotEmpty(valueByStrategyKey) {
 			strategyValues = append(strategyValues, valueByStrategyKey)
 		}

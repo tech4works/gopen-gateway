@@ -47,7 +47,7 @@ func (r restTemplate) treatHttpClientErr(err error) error {
 	}
 
 	// caso ocorra algum erro, tratamos
-	if errors.Contains(err, syscall.ECONNREFUSED) {
+	if errors.Contains(err, syscall.ECONNREFUSED) || errors.Contains(err, syscall.EHOSTDOWN) {
 		err = domainmapper.NewErrBadGateway(err)
 	} else if helper.IsNotNil(err) {
 		var urlErr *url.Error

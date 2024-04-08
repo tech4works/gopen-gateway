@@ -32,10 +32,10 @@ func NewCache(cacheStore infra.CacheStore) Cache {
 func (c cache) Do(cacheVO vo.Cache) api.HandlerFunc {
 	return func(ctx *api.Context) {
 		// inicializamos a chave que vai ser utilizada
-		key := cacheVO.StrategyKey(ctx.Method(), ctx.Uri(), ctx.Url(), ctx.Header())
+		key := cacheVO.StrategyKey(ctx.Request())
 
 		// verificamos se ele permite ler o cache
-		if cacheVO.CanRead(ctx.Method(), ctx.Header()) {
+		if cacheVO.CanRead(ctx.Request()) {
 			// inicializamos o valor a ser obtido
 			var cacheResponse vo.CacheResponse
 
@@ -52,18 +52,13 @@ func (c cache) Do(cacheVO vo.Cache) api.HandlerFunc {
 		// damos próximo no handler
 		ctx.Next()
 
-		// obtemos o status code da resposta
-		httpStatusCode := ctx.Writer().Status()
-		// obtemos o header da resposta
-		httpHeaderResponse := ctx.Writer().Header()
-
 		// verificamos se podemos gravar a resposta
-		if cacheVO.CanWrite(ctx.Method(), httpStatusCode, vo.NewHeader(httpHeaderResponse)) {
+		if cacheVO.CanWrite(ctx.Request(), ctx.Response()) {
 			// instanciamos a duração
 			duration := cacheVO.Duration()
 
 			// construímos o valor a ser setado no cache
-			cacheResponse := vo.NewCacheResponse(ctx.Writer(), duration)
+			cacheResponse := vo.NewCacheResponse(ctx.Response(), duration)
 
 			// transformamos em cacheResponse e setamos
 			err := c.cacheStore.Set(ctx.Context(), key, cacheResponse, duration)

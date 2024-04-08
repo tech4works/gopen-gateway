@@ -1,9 +1,7 @@
 package dto
 
 import (
-	"bytes"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/enum"
-	"github.com/gin-gonic/gin"
 )
 
 type Gopen struct {
@@ -121,19 +119,4 @@ type Modifier struct {
 	Propagate bool                 `json:"propagate,omitempty"`
 	Key       string               `json:"key,omitempty"`
 	Value     string               `json:"value,omitempty"`
-}
-
-type Writer struct {
-	gin.ResponseWriter
-	Body *bytes.Buffer
-}
-
-func (r Writer) Write(b []byte) (int, error) {
-	r.Body.Write(b)
-	return r.ResponseWriter.Write(b)
-}
-
-func (r Writer) WriteString(s string) (n int, err error) {
-	r.Body.WriteString(s)
-	return r.ResponseWriter.WriteString(s)
 }

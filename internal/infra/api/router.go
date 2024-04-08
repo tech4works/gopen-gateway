@@ -1,10 +1,9 @@
 package api
 
 import (
-	"bytes"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/app/model/dto"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
 	"github.com/gin-gonic/gin"
+	"sync"
 )
 
 type HandlerFunc func(ctx *Context)
@@ -39,8 +38,16 @@ func parseHandles(gopenVO vo.Gopen, endpointVO vo.Endpoint, handles []HandlerFun
 // The handle parameter is a HandlerFunc function that will be called to handle the request.
 func handle(gopenVO vo.Gopen, endpointVO vo.Endpoint, handle HandlerFunc) gin.HandlerFunc {
 	return func(gin *gin.Context) {
-		req := buildContextByFramework(gin, gopenVO, endpointVO)
-		handle(req)
+		// verificamos se esse contexto ja foi construído
+		ctx, ok := gin.Get("context")
+		if !ok {
+			// construímos o contexto da requisição através dos objetos de valores e o gin todo: ve se isso tem impacto
+			ctx = buildContextByFramework(gin, gopenVO, endpointVO)
+			// setamos o contexto criado da requisição
+			gin.Set("context", ctx)
+		}
+		// chamamos a função persistida
+		handle(ctx.(*Context))
 	}
 }
 
@@ -48,24 +55,13 @@ func handle(gopenVO vo.Gopen, endpointVO vo.Endpoint, handle HandlerFunc) gin.Ha
 // It creates a ResponseWriter and assigns it to the gin context's writer.
 // It returns the constructed Context object.
 func buildContextByFramework(gin *gin.Context, gopenVO vo.Gopen, endpointVO vo.Endpoint) *Context {
-	// construímos o escritor de resposta
-	writer := buildResponseWriter(gin)
-	gin.Writer = writer
 	// o contexto da requisição é criado
 	return &Context{
+		mutex:     &sync.RWMutex{},
 		framework: gin,
 		gopen:     gopenVO,
 		endpoint:  endpointVO,
-		writer:    writer,
-	}
-}
-
-// buildResponseWriter creates a new instance of dto.Writer and initializes its fields.
-// The gin parameter is the context of the current HTTP request.
-// The returned value is a pointer to the created dto.Writer object.
-func buildResponseWriter(gin *gin.Context) *dto.Writer {
-	return &dto.Writer{
-		Body:           &bytes.Buffer{},
-		ResponseWriter: gin.Writer,
+		request:   vo.NewRequest(gin),
+		response:  vo.NewResponse(endpointVO),
 	}
 }

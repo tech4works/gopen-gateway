@@ -40,5 +40,5 @@ func (l log) Do(ctx *api.Context) {
 	ctx.Next()
 
 	// imprimimos o log de finish
-	logger.Info("Finish!", l.logProvider.BuildFinishRequestMessage(ctx.Writer(), startTime))
+	logger.Info("Finish!", l.logProvider.BuildFinishRequestMessage(ctx.Response(), startTime))
 }

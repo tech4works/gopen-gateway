@@ -1,6 +1,14 @@
 package vo
 
+import (
+	"bytes"
+	"github.com/GabrielHCataldo/go-helper/helper"
+	"github.com/gin-gonic/gin"
+	"io"
+)
+
 type Request struct {
+	uri     string
 	url     string
 	method  string
 	header  Header
@@ -10,22 +18,58 @@ type Request struct {
 	history []backendRequest
 }
 
-// NewRequest creates a new Request with the specified URL, method, header, params, query, and body.
-// 'url' is the URL of the request.
-// 'method' is the HTTP method of the request.
-// 'header' is an instance of Header that represents the request header.
-// 'params' is an instance of Params that represents the request parameters.
-// 'query' is an instance of Query that represents the query parameters.
-// 'body' is the body of the request.
-// The function returns a new instance of Request initialized with the provided values.
-func NewRequest(url, method string, header Header, params Params, query Query, body Body) Request {
+// NewRequest creates a new Request object from a gin.Context object.
+//
+// The function extracts the URL path and query parameters from the gin.Context object
+// and prepares the URL field by concatenating the path and query parameters.
+// It then reads the bytes from the request body and sets up the Request object
+// with the necessary fields such as URL, method, header, params, query, and body.
+//
+// Parameters:
+// gin - The gin.Context object from which to extract the request information.
+//
+// Returns:
+// Request - A new Request object with the extracted request information.
+func NewRequest(gin *gin.Context) Request {
+	// preparamos a url ordenando as chaves de busca
+	url := gin.Request.URL.RequestURI()
+	if helper.IsNotEmpty(gin.Request.URL.RawQuery) {
+		url += "?" + gin.Request.URL.Query().Encode()
+	}
+
+	// obtemos os bytes da requisição
+	bodyBytes, _ := io.ReadAll(gin.Request.Body)
+	gin.Request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+
+	// montamos o VO de requisição
 	return Request{
+		uri:    gin.Request.RequestURI,
 		url:    url,
-		method: method,
-		header: header,
-		params: params,
-		query:  query,
-		body:   body,
+		method: gin.Request.Method,
+		header: NewHeader(gin.Request.Header),
+		params: NewParams(gin.Params),
+		query:  NewQuery(gin.Request.URL.Query()),
+		body:   NewBodyByContentType(gin.GetHeader("Content-Type"), bodyBytes),
+	}
+}
+
+// SetHeader takes a Header object as an argument and returns a new Request with the provided header.
+// The other fields of the new Request remain unchanged.
+//
+// Parameters:
+// header - The Header object to be set in the new Request.
+//
+// Returns:
+// Request - A new Request instance with the updated header and the original values for the other fields.
+func (r Request) SetHeader(header Header) Request {
+	return Request{
+		url:     r.url,
+		method:  r.method,
+		header:  header,
+		params:  r.params,
+		query:   r.query,
+		body:    r.body,
+		history: r.history,
 	}
 }
 
@@ -159,6 +203,18 @@ func (r Request) CurrentBackendRequest() backendRequest {
 // It retrieves the value of the `url` field from the Request struct.
 func (r Request) Url() string {
 	return r.url
+}
+
+// Uri returns the URI of the Request.
+// It retrieves the value of the `uri` field from the Request struct.
+func (r Request) Uri() string {
+	return r.uri
+}
+
+// Method returns the HTTP method of the Request.
+// It retrieves the value of the `method` field from the Request struct.
+func (r Request) Method() string {
+	return r.method
 }
 
 // Header returns the request header of a Request.

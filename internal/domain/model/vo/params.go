@@ -3,9 +3,21 @@ package vo
 import (
 	"fmt"
 	"github.com/GabrielHCataldo/go-helper/helper"
+	"github.com/gin-gonic/gin"
 )
 
 type Params map[string]string
+
+// NewParams creates a new Params map from the given gin.Params slice.
+// Each element in the slice is assigned as a key-value pair in the Params map.
+// The resulting Params map is returned.
+func NewParams(params gin.Params) Params {
+	result := Params{}
+	for _, param := range params {
+		result[param.Key] = param.Value
+	}
+	return result
+}
 
 // NewParamsByPath filters the params from the parentParams map that contain the keys present in the path string.
 // The filtered params are returned as a new Params map.

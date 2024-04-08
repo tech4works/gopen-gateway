@@ -1,22 +1,22 @@
 package api
 
 import (
-	"bytes"
 	"github.com/GabrielHCataldo/go-helper/helper"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/app/model/dto"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/enum"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/net/context"
-	"io"
 	"net/http"
+	"sync"
 )
 
 type Context struct {
+	mutex     *sync.RWMutex
 	framework *gin.Context
 	gopen     vo.Gopen
 	endpoint  vo.Endpoint
-	writer    *dto.Writer
+	request   vo.Request
+	response  vo.Response
 }
 
 // Context returns the context of the Context. It delegates the call to the underlying framework's Context.Context() method.
@@ -24,22 +24,45 @@ func (r *Context) Context() context.Context {
 	return r.framework.Request.Context()
 }
 
-// With sets the context of the Context to the provided context.
-// It updates the underlying framework's Context.Context() method to use the new context.
-func (r *Context) With(ctx context.Context) {
-	r.framework.Request = r.framework.Request.WithContext(ctx)
+// Gopen returns the Gopen object associated with the Context. It retrieves the Gopen value from the Context object.
+func (r *Context) Gopen() vo.Gopen {
+	return r.gopen
 }
 
-// Http returns the underlying *http.Request object of the Context.
-// It simply returns the framework's Context object.
+// Endpoint returns the endpoint associated with the request.
+// It retrieves the endpoint value from the `endpoint` field of the Context struct.
+func (r *Context) Endpoint() vo.Endpoint {
+	return r.endpoint
+}
+
+// Request returns the request object of the Context.
+// It returns the `request` field of the Context struct.
+func (r *Context) Request() vo.Request {
+	return r.request
+}
+
+// Response returns the response of the Context. It returns the response object stored
+// in the Context struct.
+func (r *Context) Response() vo.Response {
+	return r.response
+}
+
+// Http returns the underlying HTTP request object of the Context.
+// It delegates the call to the underlying framework's Request property.
 func (r *Context) Http() *http.Request {
 	return r.framework.Request
+}
+
+// SetRequestContext sets the context of the Context to the provided context.
+// It updates the underlying framework's Context.Context() method to use the new context.
+func (r *Context) SetRequestContext(ctx context.Context) {
+	r.framework.Request = r.framework.Request.WithContext(ctx)
 }
 
 // Header returns the `vo.Header` of the `Request`. It creates a new `vo.Header` using the underlying `http.Header`
 // from the `Request`.
 func (r *Context) Header() vo.Header {
-	return vo.NewHeader(r.Http().Header)
+	return r.request.Header()
 }
 
 // HeaderValue returns the value of the specified header key. It delegates the call to the underlying Context's
@@ -54,18 +77,24 @@ func (r *Context) HeaderValue(key string) string {
 //
 //	req.AddHeader("Content-Type", "application/json")
 //	req.AddHeader("Authorization", "Bearer token123")
+//
+// The method first creates a new header using the provided key and value.
+// It then adds the header to the request using the Header() method of the context.
+// Finally, it sets the updated request header using the SetHeader() method of the request.
 func (r *Context) AddHeader(key, value string) {
-	r.Http().Header.Add(key, value)
+	header := r.Header().Add(key, value)
+	r.request = r.Request().SetHeader(header)
 }
 
 // SetHeader sets the value of the specified header key for the Context object.
 // It delegates the call to the underlying framework's Request.Header.Set() method.
-// Example usage:
-//
-//	req.SetHeader("X-Forwarded-For", req.RemoteAddr())
-//	req.SetHeader("X-TraceId", t.traceProvider.GenerateTraceId())
+// Example usage: req.SetHeader("X-Forwarded-For", req.RemoteAddr()) and req.SetHeader("X-TraceId", t.traceProvider.GenerateTraceId())
+// The SetHeader method takes a key and value as parameters, set the key value pair in the Context object's header.
+// It uses the underlying framework's Request.Header.Set() method to update the header value.
+// It returns nothing.
 func (r *Context) SetHeader(key, value string) {
-	r.Http().Header.Set(key, value)
+	header := r.Header().Set(key, value)
+	r.request = r.Request().SetHeader(header)
 }
 
 // RemoteAddr returns the client's remote network address in the format "IP:port". It delegates the call to the
@@ -75,87 +104,51 @@ func (r *Context) RemoteAddr() string {
 }
 
 // Method returns the HTTP method of the Context.
-// It retrieves the method from the underlying HTTP request.
+// It delegates the call to the underlying framework's Request.Method() method.
 func (r *Context) Method() string {
-	return r.Http().Method
+	return r.Request().Method()
 }
 
-// Url returns the URL of the request. It delegates the call to the underlying framework's Request.URL.String() method.
+// Url returns the URL of the request.
+// It delegates the call to the underlying framework's Request.Url() method.
 func (r *Context) Url() string {
-	return r.Http().URL.String()
+	return r.Request().Url()
 }
 
-// Uri returns the URI of the request. It delegates the call to the Http method
-// to obtain the underlying HTTP request, and then returns the RequestURI field
-// of the HTTP request, which represents the URI of the request.
+// Uri returns the URI of the Context. It delegates the call to the
+// underlying Request's Uri() method.
 func (r *Context) Uri() string {
-	return r.Http().RequestURI
+	return r.Request().Uri()
 }
 
-// Body reads the request body and returns a vo.Body object representing the body content. It also updates the
-// underlying request's Body with a new io.ReadCloser to ensure that the body
+// Body returns the body of the Context. It delegates the call to the
+// underlying framework's Request.Body() method.
 func (r *Context) Body() vo.Body {
-	bytesBody, _ := io.ReadAll(r.Http().Body)
-	r.Http().Body = io.NopCloser(bytes.NewBuffer(bytesBody))
-
-	// no pior das hipóteses retornamos uma string do body
-	return vo.NewBodyByContentType(r.framework.GetHeader("Content-Type"), bytesBody)
+	return r.Request().Body()
 }
 
-// BodyString returns the body of the Context as a string.
-// It reads the bytes from the underlying framework's Context.Body and converts them to a string.
-// The original Context.Body is replaced with a new io.ReadCloser that reads from a buffer containing the bytes.
+// BodyString returns the string representation of the body. It delegates the call to the
+// underlying Body() method and then calls String() on the returned value.
 func (r *Context) BodyString() string {
-	bytesBody, _ := io.ReadAll(r.Http().Body)
-	r.Http().Body = io.NopCloser(bytes.NewBuffer(bytesBody))
-
-	return string(bytesBody)
+	body := r.Body()
+	return body.String()
 }
 
-// Params returns a copy of the parameters stored in the framework's request.
-// It converts the parameters into a vo.Params map, where the key is the parameter's key and the value is the parameter's
-// value. The method iterates over the framework's Params slice and adds each parameter to the result map.
-// Returns an empty vo.Params map if there are no parameters.
+// Params returns the params of the Context.
+// It delegates the call to the underlying Request's Params() method.
 func (r *Context) Params() vo.Params {
-	result := vo.Params{}
-	for _, param := range r.framework.Params {
-		result[param.Key] = param.Value
-	}
-	return result
+	return r.Request().Params()
 }
 
-// Query returns a vo.Query object representing the query parameters of the request's URL.
-// It creates a new vo.Query object using the URL query parameters obtained from the HTTP request.
+// Query returns the query object associated with the current context. It retrieves the query object
+// by delegating the call to the underlying framework's Request().Query() method.
 func (r *Context) Query() vo.Query {
-	return vo.NewQuery(r.Http().URL.Query())
+	return r.Request().Query()
 }
 
 // Next calls the underlying framework's Next method to proceed to the next handler in the request chain.
 func (r *Context) Next() {
 	r.framework.Next()
-}
-
-// Gopen returns the Gopen object associated with the Context. It retrieves the Gopen value from the Context object.
-func (r *Context) Gopen() vo.Gopen {
-	return r.gopen
-}
-
-// Endpoint returns the endpoint associated with the request.
-// It retrieves the endpoint value from the `endpoint` field of the Context struct.
-func (r *Context) Endpoint() vo.Endpoint {
-	return r.endpoint
-}
-
-// Request returns a new `vo.Request` object based on the current `Request` instance.
-// It creates a new `vo.Request` object using the URL, method, header, params, query, and body of the Context struct
-func (r *Context) Request() vo.Request {
-	return vo.NewRequest(r.Url(), r.Method(), r.Header(), r.Params(), r.Query(), r.Body())
-}
-
-// Writer returns the Writer object associated with the Context. It allows writing response data to the client.
-// The Writer object is obtained from the underlying `dto.Writer` field of the Context.
-func (r *Context) Writer() dto.Writer {
-	return *r.writer
 }
 
 // Write writes the response to the client.
@@ -165,6 +158,9 @@ func (r *Context) Writer() dto.Writer {
 // If the body is not empty, it writes the body along with the status code.
 // Otherwise, it only writes the status code.
 func (r *Context) Write(responseVO vo.Response) {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
 	// se ja tiver abortado não fazemos nada
 	if r.framework.IsAborted() {
 		return
@@ -173,6 +169,7 @@ func (r *Context) Write(responseVO vo.Response) {
 	// escrevemos os headers de resposta
 	r.writeHeader(responseVO.Header())
 
+	// instanciamos os valores a serem utilizados
 	statusCode := responseVO.StatusCode()
 	body := responseVO.Body()
 
@@ -183,8 +180,11 @@ func (r *Context) Write(responseVO vo.Response) {
 		r.writeStatusCode(statusCode)
 	}
 
-	// abortamos
+	// abortamos a requisição
 	r.framework.Abort()
+
+	// setamos a resposta VO escrita
+	r.response = responseVO
 }
 
 // WriteCacheResponse writes the cache response to the client's response.

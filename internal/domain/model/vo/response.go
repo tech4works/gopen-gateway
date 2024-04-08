@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/GabrielHCataldo/go-errors/errors"
 	"github.com/GabrielHCataldo/go-helper/helper"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/app/model/dto"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/mapper"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/consts"
 	"github.com/iancoleman/orderedmap"
@@ -81,19 +80,22 @@ func NewResponseByErr(endpointVO Endpoint, statusCode int, err error) Response {
 	}
 }
 
-// NewCacheResponse creates a new CacheResponse object with the provided writer and duration.
-// The StatusCode of the CacheResponse object is set to the writer's status code.
-// The Header of the CacheResponse object is initialized using NewHeader(writer.Header()).
-// The Body of the CacheResponse object is created by parsing the writer's body bytes using the newBody function.
-// The Duration of the CacheResponse object is set to the provided duration.
-// The CreatedAt field of the CacheResponse object set to the current time.
-// Returns the newly created CacheResponse object.
-func NewCacheResponse(writer dto.Writer, duration time.Duration) CacheResponse {
-	header := NewHeader(writer.Header())
-	body := newBody(writer.Body.Bytes())
+// NewCacheResponse takes in a Response and a duration, then returns a new CacheResponse.
+// The CacheResponse contains the StatusCode, Header, Body from the original Response,
+// as well as the duration for which the response should be cached.
+// The CreatedAt time is set to the current time.
+//
+// Parameters:
+//   - responseVO : The original Response to be cached.
+//   - duration : Duration for which the Response should be cached.
+//
+// Returns:
+//   - A new CacheResponse containing the provided data and the current time of creation.
+func NewCacheResponse(responseVO Response, duration time.Duration) CacheResponse {
+	body := responseVO.Body()
 	return CacheResponse{
-		StatusCode: writer.Status(),
-		Header:     header,
+		StatusCode: responseVO.StatusCode(),
+		Header:     responseVO.Header(),
 		Body:       body.ToWrite(),
 		Duration:   duration,
 		CreatedAt:  time.Now(),
