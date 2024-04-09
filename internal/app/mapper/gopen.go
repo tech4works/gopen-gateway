@@ -89,8 +89,8 @@ func BuildCacheDTOFromGOpenVO(gopenVO vo.Gopen) *dto.Cache {
 	return &dto.Cache{
 		Duration:          gopenVO.CacheDuration().String(),
 		StrategyHeaders:   gopenVO.CacheStrategyHeaders(),
-		OnlyIfStatusCodes: gopenVO.OnlyIfStatusCodes(),
-		OnlyIfMethods:     gopenVO.OnlyIfMethods(),
+		OnlyIfStatusCodes: gopenVO.CacheOnlyIfStatusCodes(),
+		OnlyIfMethods:     gopenVO.CacheOnlyIfMethods(),
 		AllowCacheControl: helper.ConvertToPointer(gopenVO.AllowCacheControl()),
 	}
 }
@@ -108,7 +108,7 @@ func BuildEndpointCacheDTOFromEndpointVO(endpointVO vo.Endpoint) *dto.EndpointCa
 		IgnoreQuery:       endpointVO.CacheIgnoreQuery(),
 		Duration:          endpointVO.CacheDuration().String(),
 		StrategyHeaders:   endpointVO.CacheStrategyHeaders(),
-		OnlyIfStatusCodes: endpointVO.OnlyIfStatusCodes(),
+		OnlyIfStatusCodes: endpointVO.CacheOnlyIfStatusCodes(),
 		AllowCacheControl: helper.ConvertToPointer(endpointVO.AllowCacheControl()),
 	}
 }

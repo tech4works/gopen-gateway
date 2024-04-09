@@ -28,8 +28,8 @@ type EndpointCache struct {
 	allowCacheControl *bool
 }
 
-// NewCacheFromEndpoint creates a new instance of Cache based on the provided duration, strategyHeaders, allowCacheControl and enabled.
-// It initializes the fields of Cache with the given values.
+// NewCacheFromEndpoint creates a new instance of Cache based on the provided Gopen and Endpoint objects.
+// It initializes the fields of Cache based on values from Gopen and Endpoint objects and sets default values for empty fields.
 func NewCacheFromEndpoint(gopenVO Gopen, endpointVO Endpoint) Cache {
 	// se o endpoint não tem cache retornamos vazio
 	if !endpointVO.HasCache() {
@@ -55,10 +55,20 @@ func NewCacheFromEndpoint(gopenVO Gopen, endpointVO Endpoint) Cache {
 		allowCacheControl = endpointVO.AllowCacheControl()
 	}
 
+	// obtemos o valor do pai
+	onlyIfStatusCodes := gopenVO.CacheOnlyIfStatusCodes()
+	// caso seja informado no endpoint, damos prioridade
+	if endpointVO.HasCacheOnlyIfStatusCodes() {
+		onlyIfStatusCodes = endpointVO.CacheOnlyIfStatusCodes()
+	}
+
+	// construímos o objeto vo com os valores padrões ou informados no json
 	return Cache{
 		duration:          duration,
 		ignoreQuery:       endpointVO.CacheIgnoreQuery(),
 		strategyHeaders:   strategyHeaders,
+		onlyIfStatusCodes: onlyIfStatusCodes,
+		onlyIfMethods:     gopenVO.CacheOnlyIfMethods(),
 		allowCacheControl: &allowCacheControl,
 	}
 }
@@ -184,7 +194,7 @@ func (c Cache) StrategyKey(requestVO Request) string {
 	url := requestVO.Url()
 	// caso o cache queira ignorar as queries, ele ignora
 	if c.IgnoreQuery() {
-		url = requestVO.Uri()
+		url = requestVO.Path()
 	}
 
 	// construímos a chave inicialmente com os valores de requisição

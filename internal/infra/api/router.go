@@ -42,7 +42,7 @@ func handle(gopenVO vo.Gopen, endpointVO vo.Endpoint, handle HandlerFunc) gin.Ha
 		ctx, ok := gin.Get("context")
 		if !ok {
 			// construímos o contexto da requisição através dos objetos de valores e o gin todo: ve se isso tem impacto
-			ctx = buildContextByFramework(gin, gopenVO, endpointVO)
+			ctx = buildContext(gin, gopenVO, endpointVO)
 			// setamos o contexto criado da requisição
 			gin.Set("context", ctx)
 		}
@@ -51,10 +51,10 @@ func handle(gopenVO vo.Gopen, endpointVO vo.Endpoint, handle HandlerFunc) gin.Ha
 	}
 }
 
-// buildContextByFramework builds a Context object based on the gin context, Gopen configuration, and Endpoint configuration.
+// buildContext builds a Context object based on the gin context, Gopen configuration, and Endpoint configuration.
 // It creates a ResponseWriter and assigns it to the gin context's writer.
 // It returns the constructed Context object.
-func buildContextByFramework(gin *gin.Context, gopenVO vo.Gopen, endpointVO vo.Endpoint) *Context {
+func buildContext(gin *gin.Context, gopenVO vo.Gopen, endpointVO vo.Endpoint) *Context {
 	// o contexto da requisição é criado
 	return &Context{
 		mutex:     &sync.RWMutex{},

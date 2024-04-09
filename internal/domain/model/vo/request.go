@@ -8,7 +8,7 @@ import (
 )
 
 type Request struct {
-	uri     string
+	path    string
 	url     string
 	method  string
 	header  Header
@@ -31,10 +31,13 @@ type Request struct {
 // Returns:
 // Request - A new Request object with the extracted request information.
 func NewRequest(gin *gin.Context) Request {
+	// instanciamos o query VO para obter funções de montagem da url por ele
+	query := NewQuery(gin.Request.URL.Query())
+
 	// preparamos a url ordenando as chaves de busca
-	url := gin.Request.URL.RequestURI()
+	url := gin.Request.URL.Path
 	if helper.IsNotEmpty(gin.Request.URL.RawQuery) {
-		url += "?" + gin.Request.URL.Query().Encode()
+		url += "?" + query.Encode()
 	}
 
 	// obtemos os bytes da requisição
@@ -43,12 +46,12 @@ func NewRequest(gin *gin.Context) Request {
 
 	// montamos o VO de requisição
 	return Request{
-		uri:    gin.Request.RequestURI,
+		path:   gin.Request.URL.Path,
 		url:    url,
 		method: gin.Request.Method,
 		header: NewHeader(gin.Request.Header),
 		params: NewParams(gin.Params),
-		query:  NewQuery(gin.Request.URL.Query()),
+		query:  query,
 		body:   NewBodyByContentType(gin.GetHeader("Content-Type"), bodyBytes),
 	}
 }
@@ -205,10 +208,10 @@ func (r Request) Url() string {
 	return r.url
 }
 
-// Uri returns the URI of the Request.
-// It retrieves the value of the `uri` field from the Request struct.
-func (r Request) Uri() string {
-	return r.uri
+// Path returns the URI of the Request.
+// It retrieves the value of the `path` field from the Request struct.
+func (r Request) Path() string {
+	return r.path
 }
 
 // Method returns the HTTP method of the Request.

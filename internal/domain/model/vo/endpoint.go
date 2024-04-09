@@ -174,8 +174,13 @@ func (e Endpoint) CacheStrategyHeaders() []string {
 	return e.cache.strategyHeaders
 }
 
-// OnlyIfStatusCodes returns the onlyIfStatusCodes field of the cache struct.
-func (e Endpoint) OnlyIfStatusCodes() []int {
+// HasCacheOnlyIfStatusCodes returns whether the cache only applies for specific status codes.
+func (e Endpoint) HasCacheOnlyIfStatusCodes() bool {
+	return helper.IsNotNil(e.cache.onlyIfStatusCodes)
+}
+
+// CacheOnlyIfStatusCodes returns the onlyIfStatusCodes field of the cache struct.
+func (e Endpoint) CacheOnlyIfStatusCodes() []int {
 	return e.cache.onlyIfStatusCodes
 }
 

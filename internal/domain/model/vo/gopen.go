@@ -143,10 +143,10 @@ func (g Gopen) CacheStrategyHeaders() []string {
 	return g.cache.strategyHeaders
 }
 
-// OnlyIfStatusCodes returns the array of status codes that are used for conditional caching.
+// CacheOnlyIfStatusCodes returns the array of status codes that are used for conditional caching.
 // If the 'onlyIfStatusCodes' field in the Gopen cache is not empty, it returns that array.
 // Otherwise, it returns a default array of commonly used status codes for conditional caching.
-func (g Gopen) OnlyIfStatusCodes() []int {
+func (g Gopen) CacheOnlyIfStatusCodes() []int {
 	if helper.IsNotEmpty(g.cache.onlyIfStatusCodes) {
 		return g.cache.onlyIfStatusCodes
 	}
@@ -164,10 +164,10 @@ func (g Gopen) OnlyIfStatusCodes() []int {
 	}
 }
 
-// OnlyIfMethods returns the array of HTTP methods used for conditional caching.
+// CacheOnlyIfMethods returns the array of HTTP methods used for conditional caching.
 // If the 'onlyIfMethods' field in the Gopen cache is not empty, it returns that array.
 // Otherwise, it returns a default array containing only the HTTP GET method.
-func (g Gopen) OnlyIfMethods() []string {
+func (g Gopen) CacheOnlyIfMethods() []string {
 	if helper.IsNotEmpty(g.cache.onlyIfMethods) {
 		return g.cache.onlyIfMethods
 	}

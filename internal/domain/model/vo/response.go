@@ -297,10 +297,18 @@ func (r Response) notifyDataChanged(history responseHistory) Response {
 // abortEndpoint creates a new Response object with the status code, header, body, and history of the last backend response.
 // Returns a pointer to the created Response object.
 func (r Response) abortEndpoint() *Response {
+	// instanciamos o ultimo backend response, que é para ser abortado
 	lastBackendResponseVO := r.LastBackendResponse()
+
+	// instanciamos o novo header
+	header := newResponseHeader(false, false)
+	// agregamos o header do backend abortado
+	header = header.Aggregate(lastBackendResponseVO.Header())
+
+	// construímos o response com os dados do backend abortado
 	return &Response{
 		statusCode: lastBackendResponseVO.statusCode,
-		header:     lastBackendResponseVO.header,
+		header:     header,
 		body:       lastBackendResponseVO.body,
 		history:    r.history,
 	}
@@ -342,11 +350,9 @@ func (r responseHistory) Filter(completed bool) (filteredHistory responseHistory
 			//se a resposta do histórico quer ser omitida, e passou por todos os backends, pulamos ela
 			continue
 		}
-
 		// setamos a resposta filtrada
 		filteredHistory = append(filteredHistory, backendResponseVO)
 	}
-
 	return filteredHistory
 }
 

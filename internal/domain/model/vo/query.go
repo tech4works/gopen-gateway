@@ -3,6 +3,8 @@ package vo
 import (
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"net/url"
+	"sort"
+	"strings"
 )
 
 type Query map[string][]string
@@ -82,4 +84,47 @@ func (q Query) copy() (r Query) {
 		r[key] = value
 	}
 	return r
+}
+
+// Encode encodes the values into “URL encoded” form
+// ("bar=baz&foo=qux") sorted by key.
+func (q Query) Encode() string {
+	// se for vazio retornamos a string vazia
+	if helper.IsEmpty(q) {
+		return ""
+	}
+
+	// instanciamos o valor string a ser usado para adicionar os valores
+	var buf strings.Builder
+
+	// obtemos as keys
+	keys := make([]string, 0, len(q))
+	for k := range q {
+		keys = append(keys, k)
+	}
+	// fazemos o sort
+	sort.Strings(keys)
+
+	// iteramos as chaves ordenadas
+	for _, k := range keys {
+		// obtemos o valor da chave
+		vs := q[k]
+		// fazemos o sort dos valores
+		sort.Strings(vs)
+
+		// escapamos a chave
+		keyEscaped := url.QueryEscape(k)
+
+		// iteramos sobre os valores pela chave ja ordenados
+		for _, v := range vs {
+			if buf.Len() > 0 {
+				buf.WriteByte('&')
+			}
+			buf.WriteString(keyEscaped)
+			buf.WriteByte('=')
+			buf.WriteString(url.QueryEscape(v))
+		}
+	}
+	// retornamos o valor da query como string
+	return buf.String()
 }
