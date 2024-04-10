@@ -411,6 +411,7 @@ func (b backendRequest) BodyToRead() io.ReadCloser {
 		return nil
 	}
 	// retornamos o valor da interface com os bytes do body
+	// todo: aqui podemos futuramente colocar encode de request customizado
 	return io.NopCloser(bytes.NewReader(b.body.Bytes()))
 }
 
