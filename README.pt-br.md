@@ -29,7 +29,7 @@ veja abaixo todos os recursos disponíveis:
 - Execução via docker com hot reload opcional.
 - Configuração de timeout global e local para cada endpoint.
 - Configuração de cache global e local para cada endpoint, com customização da estratégia da chave de armazenamento, e
-  condições baseada em códigos de status de resposta e método http para salvar o mesmo.
+  condições baseada em códigos de status de resposta e método http para ler e salvar o mesmo.
 - Armazenamento de cache local ou global utilizando Redis
 - Configuração de limitador de tamanho global e local para cada endpoint, limitando o tamanho Header, Body e Multipart
   Memory.
