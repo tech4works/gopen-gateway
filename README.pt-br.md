@@ -319,11 +319,11 @@ A descrição da lógica por trás dessa chave é:
 
       {método}:{url}:{X-Forwarded-For}:{Device}
 
-Sem a estrátegia preenchida a lógica padrão fica assim:
+Sem a estrátegia preenchida, a lógica padrão fica assim:
 
       {método}:{url}
 
-Então o valor padrão para esse endpoint fica assim:
+Então o valor padrão para esse endpoint fica assim sem a estrátegia preenchida:
 
       GET:/users/find/479976139
 
