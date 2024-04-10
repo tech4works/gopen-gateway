@@ -1,22 +1,21 @@
 package vo
 
 import (
-	"fmt"
 	"github.com/GabrielHCataldo/go-errors/errors"
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/mapper"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/consts"
-	"github.com/iancoleman/orderedmap"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/enum"
 	"net/http"
 	"time"
 )
 
 type CacheResponse struct {
-	StatusCode int           `json:"statusCode"`
-	Header     Header        `json:"header"`
-	Body       *Body         `json:"body"`
-	Duration   time.Duration `json:"duration"`
-	CreatedAt  time.Time     `json:"createdAt"`
+	StatusCode int        `json:"statusCode"`
+	Header     Header     `json:"header"`
+	Body       *CacheBody `json:"body,omitempty"`
+	Duration   string     `json:"duration"`
+	CreatedAt  time.Time  `json:"createdAt"`
 }
 
 type Response struct {
@@ -30,11 +29,7 @@ type Response struct {
 
 type responseHistory []backendResponse
 
-type aggregateBody struct {
-	value orderedmap.OrderedMap
-}
-
-type errorBody struct {
+type errorResponseBody struct {
 	File      string    `json:"file,omitempty"`
 	Line      int       `json:"line,omitempty"`
 	Endpoint  string    `json:"endpoint,omitempty"`
@@ -59,24 +54,26 @@ func NewResponseByCache(endpointVO Endpoint, cacheResponseVO CacheResponse) Resp
 	header := cacheResponseVO.Header
 	header = header.Set(consts.XGOpenCache, helper.SimpleConvertToString(true))
 	header = header.Set(consts.XGOpenCacheTTL, cacheResponseVO.TTL())
+
+	var body string
+	if helper.IsNotNil(cacheResponseVO.Body) {
+		body = cacheResponseVO.Body.value
+	}
+
 	return Response{
 		endpoint:   endpointVO,
 		statusCode: cacheResponseVO.StatusCode,
 		header:     header,
-		body:       newBodyByAny(cacheResponseVO.Body),
+		body:       NewBodyFromString(body),
 	}
 }
 
-// NewResponseByErr creates a new Response object with the given endpoint, status code, and error.
-// The Response object has a header set to newHeaderFailed() and a body set to newErrorBody(endpointVO, err).
-// Returns the newly created Response object.
 func NewResponseByErr(endpointVO Endpoint, statusCode int, err error) Response {
-	errorResponseVO := newErrorBody(endpointVO, err)
 	return Response{
 		endpoint:   endpointVO,
 		statusCode: statusCode,
 		header:     newHeaderFailed(),
-		body:       newBodyByAny(errorResponseVO),
+		body:       newErrorBody(endpointVO, err),
 	}
 }
 
@@ -92,45 +89,13 @@ func NewResponseByErr(endpointVO Endpoint, statusCode int, err error) Response {
 // Returns:
 //   - A new CacheResponse containing the provided data and the current time of creation.
 func NewCacheResponse(responseVO Response, duration time.Duration) CacheResponse {
-	body := responseVO.Body()
 	return CacheResponse{
 		StatusCode: responseVO.StatusCode(),
 		Header:     responseVO.Header(),
-		Body:       body.ToWrite(),
-		Duration:   duration,
+		Body:       newCacheBody(responseVO.Body()),
+		Duration:   duration.String(),
 		CreatedAt:  time.Now(),
 	}
-}
-
-func newErrorBody(endpointVO Endpoint, err error) *errorBody {
-	detailsErr := errors.Details(err)
-	if helper.IsNil(detailsErr) {
-		return nil
-	}
-	return &errorBody{
-		File:      detailsErr.GetFile(),
-		Line:      detailsErr.GetLine(),
-		Endpoint:  endpointVO.Path(),
-		Message:   detailsErr.GetMessage(),
-		Timestamp: time.Now(),
-	}
-}
-
-// newAggregateBody creates a new aggregateBody object with the given index and backendResponse.
-// It initializes an orderedmap, sets the "ok" and "code" fields of the value to the corresponding values from backendResponseVO,
-// and creates a new instance of aggregateBody with the value set.
-// Then, it calls the aggregate method on the new instance to aggregate the data based on the index and backendResponseVO.
-// Finally, it returns the newly created aggregateBody object.
-func newAggregateBody(index int, backendResponseVO backendResponse) aggregateBody {
-	value := orderedmap.New()
-	value.Set("ok", backendResponseVO.Ok())
-	value.Set("code", backendResponseVO.StatusCode())
-
-	newInstance := aggregateBody{
-		value: *value,
-	}
-	newInstance.aggregate(index, backendResponseVO)
-	return newInstance
 }
 
 // ModifyLastBackendResponse modifies the last backendResponse in the history list of the Response object.
@@ -175,13 +140,11 @@ func (r Response) Error(err error) Response {
 	} else {
 		statusCode = http.StatusInternalServerError
 	}
-	// construímos o body de erro padrão
-	errorResponseVO := newErrorBody(r.endpoint, err)
 	// construímos a resposta de erro padrão do gateway
 	return Response{
 		statusCode: statusCode,
 		header:     newHeaderFailed(),
-		body:       newBodyByAny(errorResponseVO),
+		body:       newErrorBody(r.endpoint, err),
 		abort:      true,
 	}
 }
@@ -240,9 +203,28 @@ func (r Response) Header() Header {
 	return r.header
 }
 
+func (r Response) ContentType() enum.ContentType {
+	responseEncode := r.endpoint.ResponseEncode()
+	if responseEncode.IsEnumValid() {
+		return responseEncode.ContentType()
+	}
+	return r.Body().ContentType()
+}
+
 // Body returns the body of the Response object.
 func (r Response) Body() Body {
 	return r.body
+}
+
+func (r Response) BodyBytes() []byte {
+	// instanciamos o response encode do endpoint
+	responseEncode := r.endpoint.ResponseEncode()
+	// retornamos pelo responseEncode caso ele seja valido
+	if responseEncode.IsEnumValid() {
+		return r.body.BytesByContentType(responseEncode.ContentType())
+	}
+	// se não respondemos pelo tipo do body
+	return r.body.Bytes()
 }
 
 // Eval returns a map representation of the Response object.
@@ -250,12 +232,13 @@ func (r Response) Body() Body {
 // - "statusCode": the integer status code of the response.
 // - "header": the Header object of the response.
 // - "body": the interface representation of the Body object.
-func (r Response) Eval() map[string]any {
-	return map[string]any{
+func (r Response) Eval() string {
+	mapEval := map[string]any{
 		"statusCode": r.statusCode,
 		"header":     r.header,
 		"body":       r.body.Interface(),
 	}
+	return helper.SimpleConvertToString(mapEval)
 }
 
 // notifyDataChanged updates the Response object based on the modified history.
@@ -318,7 +301,8 @@ func (r Response) abortEndpoint() *Response {
 // It subtracts the current time from the sum of the CreatedAt time and the Duration of the CacheResponse.
 // Returns the TTL duration as a string representation.
 func (c CacheResponse) TTL() string {
-	sub := c.CreatedAt.Add(c.Duration).Sub(time.Now())
+	duration, _ := time.ParseDuration(c.Duration)
+	sub := c.CreatedAt.Add(duration).Sub(time.Now())
 	return sub.String()
 }
 
@@ -413,12 +397,11 @@ func (r responseHistory) Body(aggregateResponses bool) (b Body) {
 		if aggregateResponses {
 			return r.aggregateBody()
 		} else {
-			return r.aggregatedBodies()
+			return r.body()
 		}
 	} else if r.SingleResponse() {
 		return r[0].body
 	}
-
 	return b
 }
 
@@ -435,22 +418,32 @@ func (r responseHistory) Body(aggregateResponses bool) (b Body) {
 //	Body : The aggregated Body from the response history.
 func (r responseHistory) aggregateBody() Body {
 	// instanciamos primeiro o aggregate body para retornar
-	var bodyHistory aggregateBody
+	bodyHistory := Body{
+		contentType: enum.ContentTypeJson,
+		value:       "{}",
+	}
 
+	// iteramos o histórico de backends response
 	for index, backendResponseVO := range r {
 		// se tiver nil pulamos para o próximo
 		if helper.IsNil(backendResponseVO.body) {
 			continue
 		}
-		// agregamos o backendResponse
-		bodyHistory.aggregate(index, backendResponseVO)
+		// instânciamos o body
+		body := backendResponseVO.Body()
+		// caso seja string ou slice agregamos na chave, caso contrario, iremos agregar todos os campos json no bodyHistory
+		if backendResponseVO.GroupResponse() {
+			bodyHistory = bodyHistory.AggregateByKey(backendResponseVO.Key(index), body)
+		} else {
+			bodyHistory = bodyHistory.Aggregate(body)
+		}
 	}
 
 	// se tudo ocorreu bem retornamos o corpo agregado
-	return newBodyByAny(bodyHistory.value)
+	return bodyHistory
 }
 
-// aggregatedBodies constructs an aggregated body by looping through the response history.
+// body constructs an aggregated body by looping through the response history.
 // For each backend response in the history, it checks if the body is nil, and if it's not,
 // initializes an aggregate body and appends it to a list.
 // If everything goes well, the function returns the aggregated bodies.
@@ -458,116 +451,20 @@ func (r responseHistory) aggregateBody() Body {
 // Returns:
 //
 //	Body: A new slice of aggregate bodies constructed from the response history.
-func (r responseHistory) aggregatedBodies() Body {
+func (r responseHistory) body() Body {
 	// instanciamos o valor a ser construído
-	var bodies []orderedmap.OrderedMap
-
+	var bodies []Body
+	// iteramos o histórico para listar os bodies de resposta
 	for index, backendResponseVO := range r {
 		// se tiver nil pulamos para o próximo
 		if helper.IsNil(backendResponseVO.body) {
 			continue
 		}
-
 		// inicializamos o body agregado
-		bodyGateway := newAggregateBody(index, backendResponseVO)
-
+		bodyBackendResponse := newBodyFromBackendResponse(index, backendResponseVO)
 		// inserimos na lista de retorno
-		bodies = append(bodies, bodyGateway.value)
+		bodies = append(bodies, bodyBackendResponse)
 	}
 	// se tudo ocorrer bem, teremos o body agregado
-	return newBodyByAny(bodies)
-}
-
-// exists checks if a given key exists in the 'aggregateBody' structure.
-// It takes a string, 'key', as parameter which represents the key to be checked in the 'aggregateBody' structure.
-// It returns a boolean value - 'true' if the key exists and 'false' otherwise.
-func (a aggregateBody) exists(key string) bool {
-	_, ok := a.value.Get(key)
-	return ok
-}
-
-// notExists checks if the given key does not exist in the aggregateBody.
-// It returns true if the key does not exist and false otherwise.
-func (a aggregateBody) notExists(key string) bool {
-	return !a.exists(key)
-}
-
-// uniqueKey checks if a given key exists in aggregateBody map.
-// If the key exists, a number is appended to it, forming a unique key not existing in the map.
-// This function checks the existence of the original key and also potential keys with appended number starting from 1
-// until it finds a key that does not already exist.
-// If the key is found to be unique, no changes are made.
-//
-// Parameters:
-//
-// key string: the candidate key to be checked/modified
-//
-// Returns:
-//
-// A string which is the unique key guaranteed to not exist so far in the aggregateBody.
-func (a aggregateBody) uniqueKey(key string) string {
-	// verificamos se o valor ja existe no mapper, se existir adicionamos um número
-	if a.exists(key) {
-		// faremos um count ate achar o campo que não existe no map ainda
-		count := 1
-		exists := a.exists(key)
-
-		// iteramos até encontrar um campo que não exists
-		for exists {
-			tempKey := fmt.Sprintf("%s %v", key, count)
-			exists = a.exists(tempKey)
-			if !exists {
-				key = tempKey
-			}
-			count++
-		}
-	}
-
-	return key
-}
-
-// append is a function method that adds a new key value pair to the AggregateBody.
-// It ensures that the key is unique to avoid overwriting existing values.
-// 'key' is the string that will be used as the key in the key-value pair.
-// 'value' is the value to be associated with the provided key.
-// This function does not return any values.
-func (a aggregateBody) append(key string, value any) {
-	// chamamos o generateKey para gerar uma chave a partir da informada que nao existe no body ainda
-	a.value.Set(a.uniqueKey(key), value)
-}
-
-// aggregate is a method on the aggregateBody type that aggregates backend responses.
-// The aggregateBody type is an ordered map that collects and organizes backend responses.
-//
-// The method takes an index and a backendResponseVO (value object) as input parameters.
-// It uses the index to get a key from the response and the value object to access the response body.
-//
-// The aggregate method determines the type of the response body and structures it accordingly.
-// If the body is a slice or string type, or groupResponse condition is set to true, the body is appended to the key.
-// If the body is a struct type, it's treated as an ordered map.
-// Then, every value from the ordered map is appended to the corresponding key in the aggregate body,
-// preserving the original order of the map.
-//
-// This method doesn't return a value. It modifies the aggregateBody in-place.
-func (a aggregateBody) aggregate(index int, backendResponseVO backendResponse) {
-	// obtemos a chave do backendResponse pelo index
-	key := backendResponseVO.Key(index)
-
-	// agregamos pelo tipo de dado que o body é ou forcamos se o groupResponse for true
-	body := backendResponseVO.Body()
-	bodyValue := body.Value()
-	if backendResponseVO.groupResponse || helper.IsSliceType(bodyValue) || helper.IsStringType(bodyValue) {
-		// se o body de resposta for um slice ou string, agrupamos
-		a.append(key, bodyValue)
-	} else if helper.IsStructType(bodyValue) {
-		// se o body for uma estrutura quer dizer que ele é um ordered map
-		orderedMap := body.OrderedMap()
-		// iteramos para agregar no corpo principal mantendo a ordem
-		for _, orderedKey := range orderedMap.Keys() {
-			valueToAppend, exists := orderedMap.Get(orderedKey)
-			if exists {
-				a.append(orderedKey, valueToAppend)
-			}
-		}
-	}
+	return newSliceBody(bodies)
 }

@@ -5,6 +5,7 @@ type ModifierScope string
 type ModifierAction string
 type CacheControl string
 type ResponseEncode string
+type ContentType string
 
 const (
 	ResponseEncodeText ResponseEncode = "TEXT"
@@ -30,6 +31,12 @@ const (
 	ModifierActionDel     ModifierAction = "DEL"
 	ModifierActionReplace ModifierAction = "REPLACE"
 	ModifierActionRename  ModifierAction = "RENAME"
+)
+const (
+	ContentTypeJson ContentType = "JSON"
+	ContentTypeXml  ContentType = "XML"
+	ContentTypeYml  ContentType = "YML"
+	ContentTypeText ContentType = "TEXT"
 )
 
 func (m ModifierScope) IsEnumValid() bool {
@@ -70,4 +77,38 @@ func (r ResponseEncode) IsEnumValid() bool {
 		return true
 	}
 	return false
+}
+
+func (r ResponseEncode) ContentType() ContentType {
+	switch r {
+	case ResponseEncodeJson:
+		return ContentTypeJson
+	case ResponseEncodeXml:
+		return ContentTypeXml
+	case ResponseEncodeYaml:
+		return ContentTypeYml
+	default:
+		return ContentTypeText
+	}
+}
+
+func (c ContentType) IsEnumValid() bool {
+	switch c {
+	case ContentTypeText, ContentTypeJson, ContentTypeXml, ContentTypeYml:
+		return true
+	}
+	return false
+}
+
+func (c ContentType) String() string {
+	switch c {
+	case ContentTypeJson:
+		return "application/json"
+	case ContentTypeXml:
+		return "application/xml"
+	case ContentTypeYml:
+		return "application/x-yaml"
+	default:
+		return "text/plain"
+	}
 }

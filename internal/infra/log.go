@@ -51,7 +51,7 @@ func (l logProvider) InitializeLoggerOptions(ctx *api.Context) {
 // Finally, it converts `bodyInfo` to a string, removes any line breaks, and returns the result.
 func (l logProvider) BuildInitialRequestMessage(ctx *api.Context) string {
 	// inicializamos o body
-	var bodyInfo any
+	var bodyInfo string
 
 	// obtemos o tipo do body e size do mesmo
 	bodyType := ctx.HeaderValue("Content-Type")
@@ -94,8 +94,7 @@ func (l logProvider) BuildFinishRequestMessage(responseVO vo.Response, startTime
 	// obtemos o text de latência
 	textLatency := latency.String()
 	// obtemos o text do body de resposta
-	responseBody := responseVO.Body()
-	textBody := responseBody.String()
+	bodyBytes := responseVO.BodyBytes()
 
 	// montamos o texto
 	text.WriteString(textStatusCode)
@@ -103,9 +102,9 @@ func (l logProvider) BuildFinishRequestMessage(responseVO vo.Response, startTime
 	text.WriteString(textLatency)
 	text.WriteString(" ")
 	text.WriteString(logger.StyleReset)
-	if helper.IsNotEmpty(textBody) {
+	if helper.IsNotEmpty(bodyBytes) {
 		text.WriteString(" ")
-		text.WriteString(textBody)
+		text.WriteString(l.replaceAllBreakLineText(string(bodyBytes)))
 	}
 	// retornamos o text de log
 	return text.String()
@@ -218,8 +217,7 @@ func (l logProvider) methodTextStyle(method string) string {
 // If the rune is a space, it replaces it with -1 to exclude it from the string.
 // If the rune is not a space, it keeps the original value.
 // Finally, it returns the modified string.
-func (l logProvider) replaceAllBreakLineText(a any) string {
-	s := helper.SimpleConvertToString(a)
+func (l logProvider) replaceAllBreakLineText(s string) string {
 	return strings.Map(func(r rune) rune {
 		if unicode.IsSpace(r) {
 			// se for um espaço, substitua por -1 para excluir da string

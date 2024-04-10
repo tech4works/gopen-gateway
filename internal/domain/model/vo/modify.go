@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/enum"
-	"github.com/ohler55/ojg/jp"
+	"github.com/tidwall/gjson"
+	"github.com/tidwall/sjson"
 	"regexp"
 	"strings"
 )
@@ -316,37 +317,42 @@ func (m modify) bodies(globalBody, localBody Body) (Body, Body) {
 // - For ModifierActionRename, it changes the key of the body to the new value, retaining the original value.
 // After modification, it uses the body's ModifyLastBackendResponse method to apply the changes.
 func (m modify) bodyJson(body Body, modifierValue any) Body {
-	// damos o parse string da chave que eu quero modificar
-	expr, err := jp.ParseString(m.key)
-	if helper.IsNotNil(err) {
-		return body
-	}
-
 	// instanciamos a interface do body para ser modificada
-	bodyToModify := body.Interface()
+	valueBody := body.Value()
+
+	// instanciamos o meu novo body
+	var modifiedValue string
+	var err error
 
 	// abaixo verificamos qual ação desejada para modificar o valor body
 	switch m.action {
 	case enum.ModifierActionSet:
-		_ = expr.Set(bodyToModify, modifierValue)
+		modifiedValue, err = sjson.Set(valueBody, m.key, modifierValue)
 		break
 	case enum.ModifierActionDel:
-		_ = expr.Del(bodyToModify)
+		modifiedValue, err = sjson.Delete(valueBody, m.key)
 		break
 	case enum.ModifierActionRename:
-		values := expr.Get(bodyToModify)
-		if helper.IsNotEmpty(values) {
-			exprValue, errValue := jp.ParseString(m.value)
-			if helper.IsNil(errValue) {
-				_ = expr.Del(bodyToModify)
-				_ = exprValue.Set(bodyToModify, values[len(values)-1])
-				m.key = m.value
+		result := gjson.Get(valueBody, m.key)
+		if result.Exists() {
+			modifiedValue, err = sjson.Delete(valueBody, m.key)
+			if helper.IsNil(err) {
+				modifiedValue, err = sjson.Set(modifiedValue, m.value, result.Value())
 			}
+		} else {
+			modifiedValue = valueBody
 		}
 		break
+	default:
+		modifiedValue = valueBody
+		break
 	}
-	// chamamos modify do body objeto de valor para ele alterar os dados sem perder a ordenação
-	return body.Modify(m.key, bodyToModify)
+	// tratamos o erro e retornamos o próprio body
+	if helper.IsNotNil(err) {
+		return body
+	}
+	// setamos o novo valor gerando um novo objeto de valor
+	return body.SetValue(modifiedValue)
 }
 
 // bodyString modifies the body based on the provided action and returns the modified body.
@@ -372,7 +378,7 @@ func (m modify) bodyString(body Body, modifierValue any) Body {
 	bodyToModify := helper.SimpleConvertToString(body.Interface())
 
 	// inicializamos o valor a ser modificado
-	modifiedValue := bodyToModify
+	var modifiedValue string
 
 	// modificamos a string com base no action fornecido
 	switch m.action {
@@ -388,9 +394,12 @@ func (m modify) bodyString(body Body, modifierValue any) Body {
 	case enum.ModifierActionReplace:
 		modifiedValue = modifierValueStr
 		break
+	default:
+		modifiedValue = bodyToModify
+		break
 	}
 	// retornamos o novo body com o valor modificado
-	return newBodyByAny(modifiedValue)
+	return body.SetValue(modifiedValue)
 }
 
 // valueInt method in the modify struct initializes the modifier value by calling
@@ -488,51 +497,20 @@ func (m modify) valueEval() any {
 	return modifierValue
 }
 
-// requestValueByEval is a method associated with the modify struct. This method evaluates a string input,
-// retrieves a value from the provided Request object based on the evaluation.
-//
-// Parameters:
-// requestVO (type Request): This is used as the source for the `eval` evaluation.
-// eval (type string): This is evaluated after replacing the "request." prefix with an empty string.
-//
-// Procedure:
-// First, the `eval` string is parsed into a JSONPath expression using the jp.ParseString method after replacing "request.".
-// If there is an error during parsing, the method returns nil.
-// If parsing succeeds, the expression is then applied to the requestVO to fetch values.
-// If the result yields multiple values, only the last value is returned.
-//
-// The function returns a single value of any type, or nil on encountering parsing errors.
 func (m modify) requestValueByEval(requestVO Request, eval string) any {
-	expr, err := jp.ParseString(strings.Replace(eval, "request.", "", 1))
-	if helper.IsNil(err) {
-		values := expr.Get(requestVO.Eval())
-		if helper.IsNotEmpty(values) {
-			return values[len(values)-1]
-		}
+	expr := strings.Replace(eval, "request.", "", 1)
+	result := gjson.Get(requestVO.Eval(), expr)
+	if result.Exists() {
+		return result.Value()
 	}
 	return nil
 }
 
-// responseValueByEval takes a Response object and an 'eval' string as parameters. It attempts to parse the eval argument,
-// replacing occurrences of "response." with an empty string. If parsing is successful and doesn't return an error,
-// it executes a Get method on the returned expression using Eval method of Response as an argument.
-// If the retrieved values are not empty, the last value in the values slice is returned. Otherwise, or if an error occurs
-// during parsing, it returns nil.
-//
-// The function expects:
-// - responseVO: A Response struct.
-// - eval: A string representing an eval field.
-//
-// It returns:
-//   - An interface that contains either the last value of a slice or nil if an error occurs during parsing or the values
-//     are empty.
 func (m modify) responseValueByEval(responseVO Response, eval string) any {
-	expr, err := jp.ParseString(strings.Replace(eval, "response.", "", 1))
-	if helper.IsNil(err) {
-		values := expr.Get(responseVO.Eval())
-		if helper.IsNotEmpty(values) {
-			return values[len(values)-1]
-		}
+	expr := strings.Replace(eval, "response.", "", 1)
+	result := gjson.Get(responseVO.Eval(), expr)
+	if result.Exists() {
+		return result.Value()
 	}
 	return nil
 }

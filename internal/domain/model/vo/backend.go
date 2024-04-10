@@ -85,26 +85,12 @@ func NewBackendRequest(backendVO Backend, balancedHost string, requestVO Request
 	}
 }
 
-// NewBackendResponse creates a new backendResponse instance based on the provided Backend and httpResponse.
-// It parses the bytes of the response into an interface and assigns it to the body field of backendResponse.
-// If the response body is not empty, it parses the body bytes into a Body instance, maintaining the JSON order.
-// The function initializes the backendResponse instance with the following fields:
-// - name: taken from the name field of Backend
-// - omitResponse: taken from the omitResponse field of Backend's extraConfig
-// - groupResponse: taken from the groupResponse field of Backend's extraConfig
-// - statusCode: taken from the StatusCode field of httpResponse
-// - header: a new Header instance created from httpResponse's Header
-// - body: the parsed Body instance
-// The function returns the created backendResponse instance.
 func NewBackendResponse(backendVO Backend, httpResponse *http.Response) backendResponse {
 	// fazemos o parse dos bytes da resposta em para uma interface
-	var body Body
 	bodyBytes, _ := io.ReadAll(httpResponse.Body)
 
-	// se não for vazio, fazemos o parse para Body mantendo sempre a ordenação do json
-	if helper.IsNotEmpty(bodyBytes) {
-		body = newBody(bodyBytes)
-	}
+	// convertemos em body VO a partir dos bytes e do content-type
+	body := NewBody(httpResponse.Header.Get("Content-Type"), bodyBytes)
 
 	// construímos o objeto de valor do backend response
 	return backendResponse{
@@ -421,20 +407,11 @@ func (b backendRequest) Body() Body {
 // Finally, it returns the `io.ReadCloser` interface with the bytes of the body.
 func (b backendRequest) BodyToRead() io.ReadCloser {
 	// se ele quer omitir o body da solicitação ou o mesmo tiver vazio retornamos
-	if b.omitRequestBody || helper.IsNil(b.body.value) {
+	if b.omitRequestBody || b.body.IsEmpty() {
 		return nil
 	}
-
-	// convertemos o body para bytes
-	// todo: aqui vamos obter o encode desejado XML, JSON, TEXT/PLAIN como um CONTENT-TYPE config
-	bytesBody, err := helper.ConvertToBytes(b.body.ToRead())
-	if helper.IsNotNil(err) {
-		// todo: log?
-		return nil
-	}
-
 	// retornamos o valor da interface com os bytes do body
-	return io.NopCloser(bytes.NewReader(bytesBody))
+	return io.NopCloser(bytes.NewReader(b.body.Bytes()))
 }
 
 // Http returns an HTTP request based on the backendRequest instance.
@@ -534,4 +511,10 @@ func (b backendResponse) Header() Header {
 // Body returns the `body` of the `backendResponse` instance.
 func (b backendResponse) Body() Body {
 	return b.body
+}
+
+func (b backendResponse) GroupResponse() bool {
+	body := b.Body()
+	bodyValue := body.Value()
+	return b.groupResponse || body.IsText() || helper.IsSlice(bodyValue)
 }

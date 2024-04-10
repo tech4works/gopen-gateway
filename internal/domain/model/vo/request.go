@@ -52,7 +52,7 @@ func NewRequest(gin *gin.Context) Request {
 		header: NewHeader(gin.Request.Header),
 		params: NewParams(gin.Params),
 		query:  query,
-		body:   NewBodyByContentType(gin.GetHeader("Content-Type"), bodyBytes),
+		body:   NewBody(gin.GetHeader("Content-Type"), bodyBytes),
 	}
 }
 
@@ -247,11 +247,12 @@ func (r Request) Body() Body {
 // This method returns a map where the keys are strings (specifically "header", "params", "query", "body")
 // and the values are of any type. These values correspond to data within the Request: header data,
 // parameters, query information, and request body, respectively.
-func (r Request) Eval() map[string]any {
-	return map[string]any{
+func (r Request) Eval() string {
+	mapEval := map[string]any{
 		"header": r.header,
 		"params": r.params,
 		"query":  r.query,
-		"body":   r.body.Interface(),
+		"body":   r.body.String(),
 	}
+	return helper.SimpleConvertToString(mapEval)
 }

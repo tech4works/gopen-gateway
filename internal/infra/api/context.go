@@ -2,7 +2,6 @@ package api
 
 import (
 	"github.com/GabrielHCataldo/go-helper/helper"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/enum"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/net/context"
@@ -177,11 +176,12 @@ func (c *Context) Write(responseVO vo.Response) {
 
 	// instanciamos os valores a serem utilizados
 	statusCode := responseVO.StatusCode()
-	body := responseVO.Body()
+	contentType := responseVO.ContentType()
+	bodyBytes := responseVO.BodyBytes()
 
 	// verificamos se tem valor o body
-	if body.IsNotEmpty() {
-		c.writeBody(statusCode, body.ToWrite())
+	if helper.IsNotEmpty(bodyBytes) {
+		c.writeBody(statusCode, contentType.String(), bodyBytes)
 	} else {
 		c.writeStatusCode(statusCode)
 	}
@@ -232,32 +232,11 @@ func (c *Context) writeHeader(header vo.Header) {
 // If the response encoding is set to ResponseEncodeYaml, the body is written as YAML using the given code.
 // If none of the above cases match and the body is of JSON type, it is written as JSON using the given code.
 // If none of the above cases match and the body is not of JSON type, it is written as a string using the given code.
-func (c *Context) writeBody(code int, body any) {
+func (c *Context) writeBody(code int, contentType string, body []byte) {
 	if c.framework.IsAborted() {
 		return
 	}
-	// respondemos o body a partir do encode configurado
-	switch c.endpoint.ResponseEncode() {
-	case enum.ResponseEncodeText:
-		c.framework.String(code, "%s", body)
-		break
-	case enum.ResponseEncodeJson:
-		c.framework.JSON(code, body)
-		break
-	case enum.ResponseEncodeXml:
-		c.framework.XML(code, body)
-		break
-	case enum.ResponseEncodeYaml:
-		c.framework.YAML(code, body)
-		break
-	default:
-		if helper.IsJsonType(body) {
-			c.framework.JSON(code, body)
-		} else {
-			c.framework.String(code, "%s", body)
-		}
-		break
-	}
+	c.framework.Data(code, contentType, body)
 }
 
 // writeStatusCode writes the HTTP status code to the response.

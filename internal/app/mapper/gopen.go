@@ -227,7 +227,7 @@ func BuildModifiersDTO(modifiers []vo.Modifier) (result []dto.Modifier) {
 // Otherwise, it creates a new `Modifier` object and sets its properties based on the input `Modifier` object.
 // The created `Modifier` object is then returned as a pointer.
 func BuildModifierDTO(modifierVO vo.Modifier) *dto.Modifier {
-	if !modifierVO.Valid() {
+	if modifierVO.Invalid() {
 		return nil
 	}
 	return &dto.Modifier{

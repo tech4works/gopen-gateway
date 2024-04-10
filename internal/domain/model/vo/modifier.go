@@ -76,7 +76,7 @@ func (m Modifier) Value() string {
 // Valid checks if a Modifier is valid.
 // A Modifier is considered valid if both the Modifier and its value are not empty.
 func (m Modifier) Valid() bool {
-	return helper.IsNotEmpty(m) && helper.IsNotEmpty(m.value)
+	return helper.IsNotEmpty(m)
 }
 
 // Invalid checks if the Modifier is invalid. It returns true if the Modifier is not valid, otherwise it returns false.
