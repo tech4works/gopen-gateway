@@ -30,17 +30,17 @@ veja abaixo todos os recursos disponíveis:
 - Configuração de timeout global e local para cada endpoint.
 - Configuração de cache global e local para cada endpoint, com customização da estratégia da chave de armazenamento, e
   condições baseada em códigos de status de resposta e método http para ler e salvar o mesmo.
-- Armazenamento de cache local ou global utilizando Redis
-- Configuração de limitador de tamanho global e local para cada endpoint, limitando o tamanho Header, Body e Multipart
+- Armazenamento de cache local ou global utilizando Redis.
+- Configuração de limitador de tamanho, global e local para cada endpoint, limitando o tamanho do Header, Body e Multipart
   Memory.
-- Configuração de limitador de taxa global e local para cada endpoint, limitando pelo tempo e rajada pelo IP.
+- Configuração de limitador de taxa, global e local para cada endpoint, limitando pelo tempo e rajada pelo IP.
 - Configuração de segurança de CORS com validações de origens, método http e headers.
 - Configuração global de múltiplos middlewares, para serem usados posteriormente no endpoint caso indicado.
 - Filtragem personalizada de envio de headers e query para os backends do endpoint.
 - Processamento de múltiplos backends, sendo eles beforewares, principais e afterwares para o endpoint.
 - Configuração personalizada para abortar processo de execução dos backends pelo código de status retornado.
-- Modificadores para todos os conteúdos da requisição e response (Status Code, Path, Header, Params, Query, Body)
-  ao nível global (requisição) e local (atual requisição/response backend) com ações de remoção,
+- Modificadores para todos os conteúdos de requisição e response (Status Code, Path, Header, Params, Query, Body)
+  ao nível global (requisição/response) e local (requisição backend/response backend) com ações de remoção,
   adição, alteração, substituição e renomeio.
 - Obtenha o valor a ser modificado de variáveis de ambiente, da requisição atual, do histórico de respostas do endpoint,
   ou até mesmo do valor passado na configuração.
