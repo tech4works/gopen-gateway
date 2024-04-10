@@ -286,7 +286,7 @@ a ter cache, pode ser lido e escrito, veja mais sobre eles abaixo.
 Caso a resposta não seja "fresca", ou seja, foi respondida pelo cache, o header `X-Gopen-Cache` terá o valor `true`
 caso contrário o valor será `false`.
 
-- #### duration
+#### duration
 
 Indica o tempo que o cache irá durar, ele é do tipo `time.Duration`.
 
@@ -306,7 +306,7 @@ Indica o tempo que o cache irá durar, ele é do tipo `time.Duration`.
     - 1.5m
 ```
 
-- #### strategy-headers
+#### strategy-headers
 
 Campo opcional, a estrátegia padrão de chave de cache é pela url e método http da requisição tornando-o um cache global
 por endpoint, caso informado os cabeçalhos a serem usados na estrátegia eles são agregados nos valores padrões de chave,
@@ -330,7 +330,7 @@ Então o valor padrão para esse endpoint fica assim:
 Nesse exemplo tornamos o cache antes global para o endpoint em espécifico, passa a ser por cliente! Lembrando que isso
 é um exemplo simples, você pode ter a estrátegia que quiser com base no header de sua aplicação.
 
-- #### only-if-methods
+#### only-if-methods
 
 Campo opcional, o valor padrão é uma lista com apenas o método http `GET`, caso informada vazia, qualquer método http
 será aceito.
@@ -338,7 +338,7 @@ será aceito.
 Esse campo é responsável por decidir se irá ler e gravar o cache do endpoint (que está habilitado a ter cache) pelo
 método http do mesmo.
 
-- #### only-if-status-codes
+#### only-if-status-codes
 
 Campo opcional, o valor padrão é uma lista de códigos de status http de sucessos reconhecidos, caso informada vazia,
 qualquer código de status http de resposta será aceito.
@@ -346,7 +346,7 @@ qualquer código de status http de resposta será aceito.
 Esse campo é responsável por decidir se irá gravar o cache do endpoint (que está habilitado a ter cache) pelo
 código de status http de resposta do mesmo.
 
-- #### allow-cache-control
+#### allow-cache-control
 
 Campo opcional, o valor padrão é `false`, caso seja informado como `true` a API Gateway irá considerar o header
 `Cache-Control` seguindo as regras a seguir a partir do valor informado na requisição ou na resposta dos backends:
@@ -362,7 +362,7 @@ cache.
 Campo opcional, objeto responsável pelas regras de limitação da API Gateway, seja de tamanho ou taxa, os valores padrões
 variam de campo a campo, veja:
 
-- #### max-header-size
+#### max-header-size
 
 Campo opcional, ele é do tipo `byteUnit`, valor padrão é `1MB`, é responsável por limitar o tamanho do cabeçalho de
 requisição.
@@ -389,7 +389,7 @@ Caso o tamanho do cabeçalho ultrapasse o valor informado, a API Gateway irá ab
     - 1.5GB
 ```
 
-- #### max-body-size
+#### max-body-size
 
 Campo opcional, ele é do tipo `byteUnit`, valor padrão é `3MB`, campo é responsável por limitar o tamanho do corpo
 da requisição.
@@ -416,7 +416,7 @@ Caso o tamanho do corpo ultrapasse o valor informado, a API Gateway irá abortar
     - 1.5GB
 ```
 
-- #### max-multipart-memory-size
+#### max-multipart-memory-size
 
 Campo opcional, ele é do tipo `byteUnit`, valor padrão é `5MB`, esse campo é responsável por limitar o tamanho do
 corpo multipart/form da requisição, geralmente utilizado para envio de arquivos, imagens, etc.
@@ -443,7 +443,7 @@ Caso o tamanho do corpo ultrapasse o valor informado, a API Gateway irá abortar
   - 1.5GB
 ```
 
-- #### rate
+#### rate
 
 Campo opcional, caso seja informado, o campo `capacity` torna-se obrigatório, esse objeto é responsável por limitar
 a taxa de requisição pelo IP, esse limite é imposto obtendo a capacidade máxima pelo campo `capacity` por X duração,
@@ -452,12 +452,12 @@ informado no campo `every`.
 Caso essa capacidade seja ultrapassada, a API Gateway por segurança abortará a requisição, retornando
 `429 (Too many requests)`.
 
-- #### rate.capacity
+#### rate.capacity
 
 Campo opcional, caso o objeto rate seja informado, ele passa a ser obrigatório, o valor padrão é `5`, e o mínimo
 que poderá ser informado é `1`, indica a capacidade máxima de requisições.
 
-- #### rate.every
+#### rate.every
 
 Campo opcional, o valor padrão é `1 segundo`, indica o valor da duração da verificação da capacidade máxima de
 requisições.
@@ -470,29 +470,28 @@ os valores de origin, methods e headers.
 Caso queira restringir, e a requisição não esteja de acordo com as configurações impostas, a API Gateway por segurança
 irá abortar a requisição retornando `403 (Forbidden)`.
 
-- #### allow-origins
+#### allow-origins
 
 Campo opcional, do tipo lista de string, os itens da lista precisam indicar quais IPs de origem a API Gateway
 permite receber nas requisições.
 
-- #### allow-methods
+#### allow-methods
 
 Campo opcional, do tipo lista de string, os itens da lista precisam indicar quais métodos http a API Gateway
 permite receber nas requisições.
 
-- #### allow-headers
+#### allow-headers
 
 Campo opcional, do tipo lista de string, os itens da lista precisam indicar quais campos de cabeçalho http a API Gateway
 permite receber nas requisições.
 
 ### middlewares
 
-Campo opcional, ele é responsável pela configuração de seus middlewares de aplicação.
+Campo opcional, é responsável pela configuração de seus middlewares de aplicação, é um mapa com chaves
+em string mencionando o nome do seu middleware, esse nome poderá ser utilizado em seu [endpoint](#endpoint)
+como `beforeware` e `afterware`.
 
-O campo é do tipo mapa com chaves em string mencionando o nome do seu middleware, esse nome poderá ser utilizado
-em seu [endpoint](#endpoint) como `beforeware` e `afterware`.
-
-O valor da chave é um objeto de [backend](#backend), porém, com uma observação, esse objeto [backend](#backend) terá
+O valor da chave é um objeto de [backend](#backend), porém, com uma observação, esse objeto terá
 sua resposta de sucesso omitida automáticamente pelo endpoint, já que respostas de sucesso de middlewares não são
 exibidas para o cliente final http, porém sua resposta será armazenada ao longo da requisição http feita no endpoint,
 podendo ser manipulada.
