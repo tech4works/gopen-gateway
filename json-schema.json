@@ -179,7 +179,6 @@
           "items": {
             "type": "string",
             "enum": [
-              "*",
               "POST",
               "PUT",
               "PATCH",

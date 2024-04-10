@@ -39,39 +39,25 @@ func (s SecurityCors) AllowHeadersData() []string {
 	return s.allowHeaders
 }
 
-// AllowOrigins checks if the given IP is allowed by the security-cors.allow-origins configuration
-// It returns an error if the configuration is not empty, does not contain "*", and does not contain the IP
 func (s SecurityCors) AllowOrigins(ip string) (err error) {
-	// verificamos se na configuração security-cors.allow-origins ta vazia, tem * ou tá informado o ip da requisição
-	if helper.IsNotEmpty(s.allowOrigins) && helper.NotContains(s.allowOrigins, "*") &&
-		helper.NotContains(s.allowOrigins, ip) {
+	// verificamos se na configuração security-cors.allow-origins ta vazia, ou tá informado o ip da requisição
+	if helper.IsNotEmpty(s.allowOrigins) && helper.NotContains(s.allowOrigins, ip) {
 		err = errors.New("Origin not mapped on security-cors.allow-origins")
 	}
 	return err
 }
 
-// AllowMethods verifies if the specified method is allowed based on the configuration in SecurityCors.
-// The method checks if the allow-methods configuration is not empty, does not contain "*", and does not have the specified method.
-// If the method is not allowed, it returns an error with the message "method not mapped on security-cors.allow-methods".
-// It returns the error, if any, otherwise it returns nil.
 func (s SecurityCors) AllowMethods(method string) (err error) {
-	// verificamos se na configuração security-cors.allow-methods ta vazia, tem * ou tá informado com oq vem na requisição
-	if helper.IsNotEmpty(s.allowMethods) && helper.NotContains(s.allowMethods, "*") &&
-		helper.NotContains(s.allowMethods, method) {
+	// verificamos se na configuração security-cors.allow-methods ta vazia ou tá informado com oq vem na requisição
+	if helper.IsNotEmpty(s.allowMethods) && helper.NotContains(s.allowMethods, method) {
 		err = errors.New("Method not mapped on security-cors.allow-methods")
 	}
 	return err
 }
 
-// AllowHeaders checks if the headers in the provided Header map are allowed according to the configuration in the SecurityCors struct.
-// It returns an error if any of the headers are not allowed, based on the SecurityCors.allowHeaders field.
-// If the SecurityCors.allowHeaders field is empty or contains "*", all headers are considered allowed.
-// Headers listed in SecurityCors.allowHeaders, as well as the X-Forwarded-For and X-Trace-Id headers, are always allowed.
-// If there are headers that are not allowed, the function returns an error with a message indicating which headers are not allowed.
-// If there are no headers that are not allowed, it returns nil.
 func (s SecurityCors) AllowHeaders(header Header) (err error) {
-	// verificamos se na configuração security-cors.allow-headers ta vazia, tem * para retornar ok
-	if helper.IsEmpty(s.allowHeaders) || helper.Contains(s.allowHeaders, "*") {
+	// verificamos se na configuração security-cors.allow-headers ta vazia
+	if helper.IsEmpty(s.allowHeaders) {
 		return nil
 	}
 	// inicializamos os headers não permitidos

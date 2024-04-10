@@ -28,24 +28,25 @@ veja abaixo todos os recursos disponíveis:
 - Versionamento via json de configuração.
 - Execução via docker com hot reload opcional.
 - Configuração de timeout global e local para cada endpoint.
-- Configuração de cache global e local para cada endpoint, com customização da estratégia da chave de armazenamento.
+- Configuração de cache global e local para cada endpoint, com customização da estratégia da chave de armazenamento, e
+  condições baseada em códigos de status de resposta e método http para salvar o mesmo.
 - Armazenamento de cache local ou global utilizando Redis
 - Configuração de limitador de tamanho global e local para cada endpoint, limitando o tamanho Header, Body e Multipart
   Memory.
 - Configuração de limitador de taxa global e local para cada endpoint, limitando pelo tempo e rajada pelo IP.
 - Configuração de segurança de CORS com validações de origens, método http e headers.
-- Configuração de global múltiplos middlewares, para serem usados posteriormente no endpoint caso indicado.
+- Configuração global de múltiplos middlewares, para serem usados posteriormente no endpoint caso indicado.
 - Filtragem personalizada de envio de headers e query para os backends do endpoint.
 - Processamento de múltiplos backends, sendo eles beforewares, principais e afterwares para o endpoint.
 - Configuração personalizada para abortar processo de execução dos backends pelo código de status retornado.
 - Modificadores para todos os conteúdos da requisição e response (Status Code, Path, Header, Params, Query, Body)
-  ao nível global (requisição/response do endpoint) e local (atual requisição/response backend) com ações de remoção,
+  ao nível global (requisição) e local (atual requisição/response backend) com ações de remoção,
   adição, alteração, substituição e renomeio.
 - Obtenha o valor a ser modificado de variáveis de ambiente, da requisição atual, do histórico de respostas do endpoint,
   ou até mesmo do valor passado na configuração.
 - Executa os modificadores no contexto que desejar, antes de uma requisição backend ou depois, você decide.
 - Faça com que as modificações reflitam em todas as requisições/respostas seguintes, usando a mesma ao nível global.
-- Omita a resposta de um backend caso necessite, a mesma não será impressa na resposta do endpoint.
+- Omita a resposta de um backend caso necessite, a mesma não será utilizada na resposta do endpoint.
 - Omita o body de requisição do seu backend caso precise.
 - Agregue suas múltiplas respostas dos backends caso deseje, podendo personalizar o nome do campo a ser alocado a
   resposta do backend.
@@ -138,26 +139,19 @@ definidas, veja abaixo um exemplo simples com todos os campos possíveis e seus 
     }
   },
   "security-cors": {
-    "allow-origins": [
-      "*"
-    ],
-    "allow-methods": [
-      "*"
-    ],
-    "allow-headers": [
-      "*"
-    ]
+    "allow-origins": [],
+    "allow-methods": [],
+    "allow-headers": []
   },
   "middlewares": {
     "save-device": {
+      "name": "Save device",
       "hosts": [
         "http://192.168.1.2:8051"
       ],
       "path": "/devices",
       "method": "PUT",
-      "forward-headers": [
-        "*"
-      ],
+      "forward-headers": [],
       "modifiers": {
         "header": [
           {
@@ -180,18 +174,19 @@ definidas, veja abaixo um exemplo simples com todos os campos possíveis e seus 
         "enabled": true,
         "duration": "30s",
         "strategy-headers": [],
-        "only-if-status-codes": [
-          200
-        ],
+        "only-if-status-codes": [],
         "allow-cache-control": false
       },
       "method": "GET",
       "response-encode": "JSON",
+      "aggregate-responses": false,
+      "abort-if-status-codes": [],
       "beforeware": [
         "save-device"
       ],
       "backends": [
         {
+          "name": "user",
           "hosts": [
             "$USER_SERVICE_URL"
           ],
@@ -202,9 +197,7 @@ definidas, veja abaixo um exemplo simples com todos os campos possíveis e seus 
             "X-Forwarded-For",
             "X-Trace-Id"
           ],
-          "forward-queries": [
-            "*"
-          ],
+          "forward-queries": [],
           "modifiers": {
             "statusCode": {},
             "header": [],
@@ -213,7 +206,7 @@ definidas, veja abaixo um exemplo simples com todos os campos possíveis e seus 
             "body": []
           },
           "extra-config": {
-            "group-response": "",
+            "group-response": false,
             "omit-request-body": false,
             "omit-response": false
           }
@@ -252,7 +245,7 @@ retornará
 o código de status `504 (Gateway Timeout)`.
 
 IMPORTANTE: Caso seja informado no objeto de endpoint, damos prioridade ao valor informado do endpoint, caso contrário
-seguiremos com o valor informado nesse campo, na raiz do json de configuração.
+seguiremos com o valor informado ou padrão desse campo, na raiz do json de configuração.
 
 ```
 - Valores aceitos:
@@ -287,6 +280,9 @@ seguiremos com os valores informados nesse campo.
 
 O valor do cache é apenas gravado 1 vez a cada X duração informada.
 
+Os campos `only-if-status-codes` e `only-if-methods` são utilizados para verificar se naquele endpoint habilitado
+a ter cache, pode ser lido e escrito, veja mais sobre eles abaixo.
+
 Caso a resposta não seja "fresca", ou seja, foi respondida pelo cache, o header `X-Gopen-Cache` terá o valor `true`
 caso contrário o valor será `false`.
 
@@ -312,7 +308,7 @@ Indica o tempo que o cache irá durar, ele é do tipo `time.Duration`.
 
 - #### strategy-headers
 
-Campo opcional, a estrátegia padrão de chave de cache é pela url e método da requisição tornando-o um cache global
+Campo opcional, a estrátegia padrão de chave de cache é pela url e método http da requisição tornando-o um cache global
 por endpoint, caso informado os cabeçalhos a serem usados na estrátegia eles são agregados nos valores padrões de chave,
 por exemplo, ali no exemplo foi indicado utilizar o campo `X-Forwarded-For` e o `Device` o valor final da chave
 ficaria:
@@ -323,8 +319,32 @@ A descrição da lógica por trás dessa chave é:
 
       {método}:{url}:{X-Forwarded-For}:{Device}
 
+Sem a estrátegia preenchida a lógica padrão fica assim:
+
+      {método}:{url}
+
+Então o valor padrão para esse endpoint fica assim:
+
+      GET:/users/find/479976139
+
 Nesse exemplo tornamos o cache antes global para o endpoint em espécifico, passa a ser por cliente! Lembrando que isso
 é um exemplo simples, você pode ter a estrátegia que quiser com base no header de sua aplicação.
+
+- #### only-if-methods
+
+Campo opcional, o valor padrão é uma lista com apenas o método http `GET`, caso informada vazia, qualquer método http
+será aceito.
+
+Esse campo é responsável por decidir se irá ler e gravar o cache do endpoint (que está habilitado a ter cache) pelo
+método http do mesmo.
+
+- #### only-if-status-codes
+
+Campo opcional, o valor padrão é uma lista de códigos de status http de sucessos reconhecidos, caso informada vazia,
+qualquer código de status http de resposta será aceito.
+
+Esse campo é responsável por decidir se irá gravar o cache do endpoint (que está habilitado a ter cache) pelo
+código de status http de resposta do mesmo.
 
 - #### allow-cache-control
 
@@ -441,6 +461,54 @@ que poderá ser informado é `1`, indica a capacidade máxima de requisições.
 
 Campo opcional, o valor padrão é `1 segundo`, indica o valor da duração da verificação da capacidade máxima de
 requisições.
+
+### security-cors
+
+Campo opcional, usado para segurança do CORS da API Gateway, todos os campos por padrão são vazios, não restringindo
+os valores de origin, methods e headers.
+
+Caso queira restringir, e a requisição não esteja de acordo com as configurações impostas, a API Gateway por segurança
+irá abortar a requisição retornando `403 (Forbidden)`.
+
+- #### allow-origins
+
+Campo opcional, do tipo lista de string, os itens da lista precisam indicar quais IPs de origem a API Gateway
+permite receber nas requisições.
+
+- #### allow-methods
+
+Campo opcional, do tipo lista de string, os itens da lista precisam indicar quais métodos http a API Gateway
+permite receber nas requisições.
+
+- #### allow-headers
+
+Campo opcional, do tipo lista de string, os itens da lista precisam indicar quais campos de cabeçalho http a API Gateway
+permite receber nas requisições.
+
+### middlewares
+
+Campo opcional, ele é responsável pela configuração de seus middlewares de aplicação.
+
+O campo é do tipo mapa com chaves em string mencionando o nome do seu middleware, esse nome poderá ser utilizado
+em seu [endpoint](#endpoint) como `beforeware` e `afterware`.
+
+O valor da chave é um objeto de [backend](#backend), porém, com uma observação, esse objeto [backend](#backend) terá
+sua resposta de sucesso omitida automáticamente pelo endpoint, já que respostas de sucesso de middlewares não são
+exibidas para o cliente final http, porém sua resposta será armazenada ao longo da requisição http feita no endpoint,
+podendo ser manipulada.
+
+Por exemplo, um `beforeware` quando mencionado no endpoint, ele será utilizado como middleware de pré-requisições, isto
+é, ele será chamado antes dos backends principais do endpoint, então podemos, por exemplo, ter um middleware
+de manipulação de device, como no json de configuração acima, aonde ele irá chamar esse backend de middleware
+configurado no endpoint como `beforeware`, validando e salvando o dispositivo a partir de informações do header da
+requisição, caso o backend responda um código de status de falha, no exemplo, o gateway abortará todos os backends
+seguintes retornando o que o backend de device respondeu, caso tenha retornado um código de status de sucesso, ele irá
+modificar o header de todas as requisições seguintes (`propagate:true`), adicionando o campo `X-Device-Id`, com o valor
+do id do body de resposta do próprio backend (para saber mais sobre os `modifiers` [veja](#modifiers)).
+
+Para entender melhor essa ferramenta poderosissíma, na prática, veja os exemplos de middlewares usados como
+`beforeware` e `afterware` feitos no projeto
+de [playground](https://github.com/GabrielHCataldo/gopen-gateway-playground).
 
 Usabilidade
 -----------

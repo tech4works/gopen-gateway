@@ -96,16 +96,14 @@ func (h Header) Get(key string) string {
 // It returns a new Header object with the filtered headers.
 // The following conditions are applied to determine whether a header should be removed:
 // - The forwardedHeaders list is not empty.
-// - The forwardedHeaders list does not contain "*".
 // - The forwardedHeaders list does not contain the current key.
 // - The current key is not equal to consts.XForwardedFor.
 // - The current key is not equal to consts.XTraceId.
 func (h Header) FilterByForwarded(forwardedHeaders []string) (r Header) {
 	r = h.copy()
 	for key := range h.copy() {
-		if helper.IsNotEmpty(forwardedHeaders) && helper.NotContains(forwardedHeaders, "*") &&
-			helper.NotContains(forwardedHeaders, key) && helper.IsNotEqualTo(key, consts.XForwardedFor) &&
-			helper.IsNotEqualTo(key, consts.XTraceId) {
+		if helper.IsNotEmpty(forwardedHeaders) && helper.NotContains(forwardedHeaders, key) &&
+			helper.IsNotEqualTo(key, consts.XForwardedFor) && helper.IsNotEqualTo(key, consts.XTraceId) {
 			r = h.Del(key)
 		}
 	}

@@ -67,8 +67,7 @@ func (q Query) Get(key string) string {
 func (q Query) FilterByForwarded(forwardedQueries []string) (r Query) {
 	r = q.copy()
 	for key := range q.copy() {
-		if helper.IsNotEmpty(forwardedQueries) && helper.NotContains(forwardedQueries, "*") &&
-			helper.NotContains(forwardedQueries, key) {
+		if helper.IsNotEmpty(forwardedQueries) && helper.NotContains(forwardedQueries, key) {
 			r = q.Del(key)
 		}
 	}

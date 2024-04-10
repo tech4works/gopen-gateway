@@ -134,12 +134,6 @@ func (c Cache) IgnoreQuery() bool {
 	return c.ignoreQuery
 }
 
-// CanRead checks if it is possible to read from the cache based on the Cache-Control header
-// and the HTTP method of the request.
-// If the cache is disabled, it returns false.
-// It retrieves the Cache-Control enum from the request header.
-// It returns false if the Cache-Control header contains "no-cache" or the HTTP method is not in the onlyIfMethods field;
-// otherwise, it returns true.
 func (c Cache) CanRead(requestVO Request) bool {
 	// verificamos se ta ativo
 	if c.Disabled() {
@@ -150,9 +144,8 @@ func (c Cache) CanRead(requestVO Request) bool {
 	cacheControl := c.CacheControlEnum(requestVO.Header())
 
 	// verificamos se no Cache-Control enviado veio como "no-cache" e se o método da requisição contains no campo
-	// de permissão
-	return helper.IsNotEqualTo(enum.CacheControlNoCache, cacheControl) &&
-		helper.Contains(c.onlyIfMethods, requestVO.Method())
+	// de permissão, ou esse campo esteja vazio
+	return helper.IsNotEqualTo(enum.CacheControlNoCache, cacheControl) && c.AllowMethod(requestVO.Method())
 }
 
 func (c Cache) CanWrite(requestVO Request, responseVO Response) bool {
@@ -166,9 +159,8 @@ func (c Cache) CanWrite(requestVO Request, responseVO Response) bool {
 
 	// verificamos se no Cache-Control enviado veio como "no-store" e se o método da requisição contains no campo
 	// de permissão, também verificamos o código de
-	return helper.IsNotEqualTo(enum.CacheControlNoStore, cacheControl) &&
-		helper.Contains(c.onlyIfMethods, requestVO.Method()) &&
-		helper.Contains(c.onlyIfStatusCodes, responseVO.StatusCode())
+	return helper.IsNotEqualTo(enum.CacheControlNoStore, cacheControl) && c.AllowMethod(requestVO.Method()) &&
+		c.AllowStatusCode(responseVO.StatusCode())
 }
 
 // CacheControlEnum takes a Header and returns the CacheControl enum value.
@@ -218,4 +210,12 @@ func (c Cache) StrategyKey(requestVO Request) string {
 
 	// retornamos a key construída
 	return key
+}
+
+func (c Cache) AllowMethod(method string) bool {
+	return helper.IsEmpty(c.onlyIfMethods) || helper.Contains(c.onlyIfMethods, method)
+}
+
+func (c Cache) AllowStatusCode(statusCode int) bool {
+	return helper.IsEmpty(c.onlyIfStatusCodes) || helper.Contains(c.onlyIfStatusCodes, statusCode)
 }
