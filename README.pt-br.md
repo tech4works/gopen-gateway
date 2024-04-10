@@ -503,7 +503,9 @@ configurado no endpoint como `beforeware`, validando e salvando o dispositivo a 
 requisição, caso o backend responda um código de status de falha, no exemplo, o gateway abortará todos os backends
 seguintes retornando o que o backend de device respondeu, caso tenha retornado um código de status de sucesso, ele irá
 modificar o header de todas as requisições seguintes (`propagate:true`), adicionando o campo `X-Device-Id`, com o valor
-do id do body de resposta do próprio backend (para saber mais sobre os `modifiers` [veja](#modifiers)).
+do id do body de resposta do próprio backend, podendo ser utilizado nos outros backends seguintes do endpoint.
+
+Para saber mais sobre os `modifiers` [veja](#modifiers).
 
 Para entender melhor essa ferramenta poderosissíma, na prática, veja os exemplos de middlewares usados como
 `beforeware` e `afterware` feitos no projeto
