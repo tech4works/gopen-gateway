@@ -212,6 +212,17 @@
         "method": {
           "$ref": "#/definitions/http-method"
         },
+        "aggregate-responses": {
+          "type": "boolean"
+        },
+        "abort-if-status-codes": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 100,
+            "maximum": 599
+          }
+        },
         "response-encode": {
           "$ref": "#/definitions/response-encode"
         },
@@ -239,6 +250,9 @@
     "backend": {
       "type": "object",
       "properties": {
+        "name": {
+          "type": "string"
+        },
         "hosts": {
           "type": "array",
           "minItems": 1,
@@ -304,7 +318,7 @@
       "type": "object",
       "properties": {
         "group-response": {
-          "type": "string"
+          "type": "boolean"
         },
         "omit-response": {
           "type": "boolean"

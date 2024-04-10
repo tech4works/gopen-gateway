@@ -91,7 +91,7 @@ func newErrorBody(endpointVO Endpoint, err error) Body {
 	}
 }
 
-func newBodyFromBackendResponse(index int, backendResponseVO backendResponse) Body {
+func newBodyFromIndex(index int, backendResponseVO backendResponse) Body {
 	// construímos o body padrão de resposta, com os campos iniciais
 	bodyJson := "{}"
 	bodyJson, _ = sjson.Set(bodyJson, "ok", backendResponseVO.Ok())
@@ -102,11 +102,9 @@ func newBodyFromBackendResponse(index int, backendResponseVO backendResponse) Bo
 		contentType: enum.ContentTypeJson,
 		value:       bodyJson,
 	}
-	// obtemos a chave do backendResponse pelo index
-	key := backendResponseVO.Key(index)
 	// caso seja string ou slice agregamos na chave, caso contrario, iremos agregar todos os campos json no bodyHistory
-	if body.IsText() && helper.IsSlice(body.Value()) {
-		body = body.AggregateByKey(key, backendResponseVO.Body())
+	if backendResponseVO.GroupResponse() {
+		body = body.AggregateByKey(backendResponseVO.Key(index), backendResponseVO.Body())
 	} else {
 		body = body.Aggregate(backendResponseVO.Body())
 	}
@@ -114,15 +112,27 @@ func newBodyFromBackendResponse(index int, backendResponseVO backendResponse) Bo
 	return body
 }
 
-func newSliceBody(slice []Body) Body {
-	var bodyValue []string
-	for _, body := range slice {
-		bodyValue = append(bodyValue, body.value)
+func newBodyFromBackendResponse(backendResponseVO backendResponse) Body {
+	// verificamos se backendResponse quer ser agrupado com o campo extra-config
+	if !backendResponseVO.groupResponse {
+		return backendResponseVO.body
 	}
-	if helper.IsEmpty(bodyValue) {
+	// caso ele queira ser agrupado independente se for json ou não, transformamos ele em json
+	bodyJson := "{}"
+	// construímos o body vazio para poder agregar logo após
+	body := Body{
+		contentType: enum.ContentTypeJson,
+		value:       bodyJson,
+	}
+	// retornamos o body agregado com a chave
+	return body.AggregateByKey(backendResponseVO.Key(-1), backendResponseVO.Body())
+}
+
+func newSliceBody(slice []Body) Body {
+	if helper.IsEmpty(slice) {
 		return newEmptyBody()
 	}
-	bodyBytes := helper.SimpleConvertToBytes(bodyValue)
+	bodyBytes := helper.SimpleConvertToBytes(slice)
 	return Body{
 		contentType: enum.ContentTypeJson,
 		value:       string(bodyBytes),
@@ -160,10 +170,10 @@ func (b Body) Aggregate(anotherBody Body) Body {
 	mergedBodyStr := b.value
 	switch b.contentType {
 	case enum.ContentTypeJson:
-		mergedBodyStr = mergeJSON(b.value, anotherBody.value)
+		mergedBodyStr = mergeJSON(mergedBodyStr, anotherBody.value)
 		break
 	case enum.ContentTypeText:
-		mergedBodyStr = mergeString(b.value, anotherBody.value)
+		mergedBodyStr = mergeString(mergedBodyStr, anotherBody.value)
 		break
 	}
 	return Body{
@@ -176,7 +186,7 @@ func (b Body) AggregateByKey(key string, anotherBody Body) Body {
 	if b.IsNotJson() {
 		return b
 	}
-	mergedBodyStr := setJsonKeyValue(b.value, key, anotherBody.Value())
+	mergedBodyStr := setJsonKeyValue(b.value, key, anotherBody)
 	return Body{
 		contentType: b.contentType,
 		value:       mergedBodyStr,
@@ -192,6 +202,10 @@ func (b Body) Interface() any {
 }
 
 func (b Body) Json() string {
+	if b.IsEmpty() {
+		return ""
+	}
+
 	switch b.contentType {
 	case enum.ContentTypeJson:
 		return b.value
@@ -200,6 +214,10 @@ func (b Body) Json() string {
 }
 
 func (b Body) Xml() string {
+	if b.IsEmpty() {
+		return ""
+	}
+
 	switch b.contentType {
 	case enum.ContentTypeJson:
 		mapJson, err := mxj.NewMapJson([]byte(b.value))
@@ -280,17 +298,17 @@ func mergeJSON(jsonA, jsonB string) string {
 	merged := jsonA
 	parsedJsonB := gjson.Parse(jsonB)
 	parsedJsonB.ForEach(func(key, value gjson.Result) bool {
-		merged = setJsonKeyValue(merged, key.String(), value.String())
+		merged = setJsonKeyValue(merged, key.String(), value.Value())
 		return true // continue iterando
 	})
 	return merged
 }
 
-func setJsonKeyValue(jsonStr, key, value string) string {
+func setJsonKeyValue(jsonStr, key string, value any) string {
 	// Se a key já existe no JSON A
 	if gjson.Get(jsonStr, key).Exists() {
-		jsonStr, _ = sjson.Set(jsonStr, key, []string{
-			gjson.Get(jsonStr, key).String(),
+		jsonStr, _ = sjson.Set(jsonStr, key, []any{
+			gjson.Get(jsonStr, key).Value(),
 			value,
 		})
 	} else {

@@ -476,10 +476,8 @@ func (b backendResponse) ModifyBody(body Body) backendResponse {
 	}
 }
 
-// Ok returns a boolean indicating whether the statusCode of the backendResponse is less than http.StatusOK.
-// It uses the helper.IsLessThan function to compare the statusCode.
 func (b backendResponse) Ok() bool {
-	return helper.IsLessThan(b.statusCode, http.StatusOK)
+	return helper.IsGreaterThanOrEqual(b.statusCode, 200) && helper.IsLessThanOrEqual(b.statusCode, 299)
 }
 
 // Key returns the key of the backendResponse for aggregation.
@@ -489,7 +487,7 @@ func (b backendResponse) Key(index int) (key string) {
 	// montamos o key do backend para agregar
 	key = "backend"
 	if helper.IsGreaterThanOrEqual(index, 0) {
-		key = fmt.Sprintf("%s #%v", key, index)
+		key = fmt.Sprintf("%s-%v", key, index)
 	}
 	// se o backend tiver nome, damos prioridade
 	if helper.IsNotEmpty(b.name) {
@@ -513,8 +511,12 @@ func (b backendResponse) Body() Body {
 	return b.body
 }
 
-func (b backendResponse) GroupResponse() bool {
+func (b backendResponse) GroupResponseByType() bool {
 	body := b.Body()
 	bodyValue := body.Value()
-	return b.groupResponse || body.IsText() || helper.IsSlice(bodyValue)
+	return body.IsText() || helper.IsSlice(bodyValue)
+}
+
+func (b backendResponse) GroupResponse() bool {
+	return b.groupResponse || b.GroupResponseByType()
 }

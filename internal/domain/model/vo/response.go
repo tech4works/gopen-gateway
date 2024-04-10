@@ -343,7 +343,7 @@ func (r responseHistory) Filter(completed bool) (filteredHistory responseHistory
 // SingleResponse checks if the response history contains only one response.
 // Returns true if the response history size is less than or equal to 1, false otherwise.
 func (r responseHistory) SingleResponse() bool {
-	return helper.IsLessThanOrEqual(r.Size(), 1)
+	return helper.Equals(r.Size(), 1)
 }
 
 // MultipleResponse returns true if the size of the response history is greater than 1, indicating multiple responses.
@@ -397,25 +397,22 @@ func (r responseHistory) Body(aggregateResponses bool) (b Body) {
 		if aggregateResponses {
 			return r.aggregateBody()
 		} else {
-			return r.body()
+			return r.sliceOfBodies()
 		}
 	} else if r.SingleResponse() {
-		return r[0].body
+		return r.body()
 	}
 	return b
 }
 
-// aggregateBody aggregates the response history into a single body. The function
-// goes through each backend response in the response history. If the body of a response
-// is nil, it is skipped. Otherwise, the response and its index are passed to the
-// 'aggregate' method of aggregateBody. Once through with all responses, the function
-// returns a new body created by the 'newBodyByAny' function, using the aggregated values.
-//
-// This function is a method of the responseHistory struct.
-//
-// Returns:
-//
-//	Body : The aggregated Body from the response history.
+func (r responseHistory) last() backendResponse {
+	return r[len(r)-1]
+}
+
+func (r responseHistory) body() Body {
+	return newBodyFromBackendResponse(r.last())
+}
+
 func (r responseHistory) aggregateBody() Body {
 	// instanciamos primeiro o aggregate body para retornar
 	bodyHistory := Body{
@@ -443,25 +440,17 @@ func (r responseHistory) aggregateBody() Body {
 	return bodyHistory
 }
 
-// body constructs an aggregated body by looping through the response history.
-// For each backend response in the history, it checks if the body is nil, and if it's not,
-// initializes an aggregate body and appends it to a list.
-// If everything goes well, the function returns the aggregated bodies.
-//
-// Returns:
-//
-//	Body: A new slice of aggregate bodies constructed from the response history.
-func (r responseHistory) body() Body {
+func (r responseHistory) sliceOfBodies() Body {
 	// instanciamos o valor a ser construído
 	var bodies []Body
 	// iteramos o histórico para listar os bodies de resposta
 	for index, backendResponseVO := range r {
-		// se tiver nil pulamos para o próximo
-		if helper.IsNil(backendResponseVO.body) {
+		// se tiver vazio pulamos para o próximo
+		if backendResponseVO.body.IsEmpty() {
 			continue
 		}
 		// inicializamos o body agregado
-		bodyBackendResponse := newBodyFromBackendResponse(index, backendResponseVO)
+		bodyBackendResponse := newBodyFromIndex(index, backendResponseVO)
 		// inserimos na lista de retorno
 		bodies = append(bodies, bodyBackendResponse)
 	}
