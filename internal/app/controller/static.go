@@ -8,16 +8,29 @@ import (
 	"net/http"
 )
 
+// static represents a static handler that handles requests for ping and version.
+// It contains a gopenVO field of type vo.Gopen, which holds configuration information.
 type static struct {
 	gopenVO vo.Gopen
 }
 
+// Static represents an interface for handling requests related to ping, version, and settings.
 type Static interface {
+	// Ping handles the GET request to the "/ping" endpoint. It is a method of the Static interface
+	// that returns a response containing the string "pong". This method is used in the buildStaticRoutes
+	// method of the gopen type to configure the "/ping" route for the Gin engine.
 	Ping(ctx *gin.Context)
+	// Version is a method of the Static interface that handles the GET request to the "/version" endpoint.
+	// It takes a *gin.Context parameter and performs the necessary actions to return a response.
 	Version(ctx *gin.Context)
+	// Settings behaves as a method of the Static interface that handles the GET request to the "/settings" endpoint.
+	// It takes a *gin.Context parameter and performs the necessary actions to return a response.
 	Settings(ctx *gin.Context)
 }
 
+// NewStatic is a function that creates a new instance of the Static interface.
+// It takes a vo.Gopen parameter and returns a Static object.
+// The returned Static object has a gopenVO field which is initialized with the provided vo.Gopen object.
 func NewStatic(gopenVO vo.Gopen) Static {
 	return static{
 		gopenVO: gopenVO,

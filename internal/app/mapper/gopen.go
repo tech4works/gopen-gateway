@@ -25,8 +25,8 @@ func BuildSettingViewDTO(gopenVO vo.Gopen) dto.SettingView {
 
 // BuildGOpenViewDTO builds a `GOpenView` DTO object using the provided `Gopen` object as input.
 // It retrieves various properties from the `Gopen` object and sets them on the `GOpenView` object.
-func BuildGOpenViewDTO(gopenVO vo.Gopen) dto.GOpenView {
-	return dto.GOpenView{
+func BuildGOpenViewDTO(gopenVO vo.Gopen) dto.GopenView {
+	return dto.GopenView{
 		Version:      gopenVO.Version(),
 		Port:         gopenVO.Port(),
 		HotReload:    gopenVO.HotReload(),

@@ -330,7 +330,7 @@ func (r responseHistory) Success() bool {
 func (r responseHistory) Filter(completed bool) (filteredHistory responseHistory) {
 	// iteramos o histórico para ser filtrado
 	for _, backendResponseVO := range r {
-		if backendResponseVO.omitResponse && completed {
+		if backendResponseVO.omit && completed {
 			//se a resposta do histórico quer ser omitida, e passou por todos os backends, pulamos ela
 			continue
 		}

@@ -25,7 +25,7 @@ func (m Middlewares) Get(key string) (Backend, bool) {
 	if !ok {
 		return Backend{}, false
 	}
-	return newMiddlewareBackend(backend, backendExtraConfig{
+	return newMiddlewareBackend(backend, BackendExtraConfig{
 		omitResponse: true,
 	}), true
 }

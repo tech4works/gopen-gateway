@@ -25,7 +25,8 @@ type Backend interface {
 //
 // Parameters:
 // modifierService: Provides the service for modifying backend information. Must conform to the Modifier interface.
-// restTemplate: Provides the functionality for conducting RESTful operations. Must conform to the RestTemplate interface from interfaces package.
+// restTemplate: Provides the functionality for conducting RESTful operations. Must conform to the RestTemplate
+// interface from interfaces package.
 //
 // Returns:
 // A Backend instance with modifierService and restTemplate composed in.

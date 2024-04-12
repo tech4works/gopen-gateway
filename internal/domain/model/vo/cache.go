@@ -28,8 +28,8 @@ type EndpointCache struct {
 	allowCacheControl *bool
 }
 
-// NewCacheFromEndpoint creates a new instance of Cache based on the provided Gopen and Endpoint objects.
-// It initializes the fields of Cache based on values from Gopen and Endpoint objects and sets default values for empty fields.
+// NewCacheFromEndpoint creates a new instance of Cache based on the provided Gopen and Endpoint.
+// It initializes the fields of Cache based on values from Gopen and Endpoint and sets default values for empty fields.
 func NewCacheFromEndpoint(gopenVO Gopen, endpointVO Endpoint) Cache {
 	// se o endpoint não tem cache retornamos vazio
 	if !endpointVO.HasCache() {
@@ -94,6 +94,8 @@ func newCache(cacheDTO dto.Cache) Cache {
 	}
 }
 
+// newEndpointCache creates a new instance of EndpointCache based on the provided EndpointCacheDTO.
+// It initializes the fields of EndpointCache based on values from EndpointCacheDTO and sets default values for empty fields.
 func newEndpointCache(endpointCacheDTO dto.EndpointCache) EndpointCache {
 	var duration time.Duration
 	var err error
@@ -134,6 +136,8 @@ func (c Cache) IgnoreQuery() bool {
 	return c.ignoreQuery
 }
 
+// CanRead checks if the cache is active and if the Cache-Control header in the request allows caching.
+// It returns true if caching is allowed, false otherwise.
 func (c Cache) CanRead(requestVO Request) bool {
 	// verificamos se ta ativo
 	if c.Disabled() {
@@ -148,6 +152,9 @@ func (c Cache) CanRead(requestVO Request) bool {
 	return helper.IsNotEqualTo(enum.CacheControlNoCache, cacheControl) && c.AllowMethod(requestVO.Method())
 }
 
+// CanWrite checks if the cache is active and if the Cache-Control header in the response allows caching.
+// It also checks if the request method and response status code are allowed for caching.
+// It returns true if caching is allowed, false otherwise.
 func (c Cache) CanWrite(requestVO Request, responseVO Response) bool {
 	// verificamos se ta ativo
 	if c.Disabled() {
@@ -174,13 +181,12 @@ func (c Cache) CacheControlEnum(header Header) (cacheControl enum.CacheControl) 
 	return cacheControl
 }
 
-// StrategyKey generates a key for caching based on the HTTP method, URL, and header values.
-// The key is initially constructed with the request method and URL.
-// Then, the method iterates through the strategyHeaders field of the Cache object
-// to collect the corresponding values from the header parameter.
-// If the values are found, they are separated with a colon delimiter.
-// If the strategyKey is not empty, it is appended to the key string.
-// The final key is returned.
+// StrategyKey generates a cache key based on the request information and strategy headers.
+// If IgnoreQuery is enabled in the Cache struct, the query parameters will be ignored in the key generation.
+// The generated key follows the pattern: "{HTTP Method}:{Request URL}:{Strategy Value 1}:{Strategy Value 2}:..."
+// The Strategy Value is obtained from the request headers specified in the strategyHeaders field of the Cache struct.
+// If no Strategy Value is found, the key will be generated without it.
+// The final key is returned as a string.
 func (c Cache) StrategyKey(requestVO Request) string {
 	// inicializamos a url da requisição completa
 	url := requestVO.Url()
@@ -212,10 +218,16 @@ func (c Cache) StrategyKey(requestVO Request) string {
 	return key
 }
 
+// AllowMethod checks if the given method is allowed based on the onlyIfMethods field in the Cache struct.
+// If the onlyIfMethods field is empty or if the given method is present in the onlyIfMethods field, it returns true,
+// indicating that the method is allowed. Otherwise, it returns false.
 func (c Cache) AllowMethod(method string) bool {
 	return helper.IsEmpty(c.onlyIfMethods) || helper.Contains(c.onlyIfMethods, method)
 }
 
+// AllowStatusCode checks if the given status code is allowed based on the onlyIfStatusCodes field in the Cache struct.
+// If the onlyIfStatusCodes field is empty or if the given status code is present in the onlyIfStatusCodes field, it returns true,
+// indicating that the status code is allowed. Otherwise, it returns false.
 func (c Cache) AllowStatusCode(statusCode int) bool {
 	return helper.IsEmpty(c.onlyIfStatusCodes) || helper.Contains(c.onlyIfStatusCodes, statusCode)
 }

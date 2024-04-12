@@ -36,7 +36,7 @@ func (r restTemplate) MakeRequest(httpRequest *http.Request) (*http.Response, er
 // treatHttpClientErr handles an error that occurred during an HTTP request made by the restTemplate.
 // It takes an error as input and returns the corresponding error after handling it, if any.
 // If the input error is nil, it returns nil.
-// If the input error is a connection refused error, it creates a new domainmapper.ErrBadGateway error and returns it.
+// If the input error is a connection refused error or host down error, it creates a new domainmapper.ErrBadGateway error and returns it.
 // If the input error is not nil, it checks if it is an url.Error and if it has a timeout.
 // If it has a timeout, it creates a new domainmapper.ErrGatewayTimeout error and returns it.
 // For any other type of error, it returns the error as it is.

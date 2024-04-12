@@ -177,7 +177,7 @@ func (m modify) params(localPath string, globalParams, localParams Params) (stri
 		// se o parâmetro não conte no path atual, adicionamos
 		if !strings.Contains(localPath, paramKeyUrl) {
 			// checamos se no fim da url tem o /
-			if localPath[len(localPath)-1] == '/' {
+			if helper.Equals(localPath[len(localPath)-1], '/') {
 				localPath = fmt.Sprintf("%s:%s", localPath, m.key)
 			} else {
 				localPath = fmt.Sprintf("%s/:%s", localPath, m.key)
@@ -212,7 +212,7 @@ func (m modify) params(localPath string, globalParams, localParams Params) (stri
 				localPath = strings.ReplaceAll(localPath, paramKeyUrl, paramValueUrl)
 			} else if !strings.Contains(localPath, paramValueUrl) {
 				// checamos se no fim da url tem o /
-				if localPath[len(localPath)-1] == '/' {
+				if helper.Equals(localPath[len(localPath)-1], '/') {
 					localPath = fmt.Sprintf("%s:%s", localPath, modifierValue)
 				} else {
 					localPath = fmt.Sprintf("%s/:%s", localPath, modifierValue)

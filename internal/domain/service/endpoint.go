@@ -21,11 +21,32 @@ func NewEndpoint(backendService Backend) Endpoint {
 	}
 }
 
-// Execute executes the endpoint operation with the given executeData and returns the response.
-// It processes the beforeware, main backends, and afterware in order.
-// The beforeware and afterware are configured as middleware keys in the endpointVO.
-// If the response needs to be aborted, it returns the abortResponseVO.
-// Otherwise, it returns the final responseVO.
+// Execute executes the endpoint with the given executeData and returns the response.
+//
+// The method initializes the necessary value objects and processes the middlewares and backends
+// of the endpoint. It iterates through the middleware keys provided by the endpoint's beforeware
+// and afterware fields, executes the configured middleware backends, and updates the request and
+// response value objects.
+//
+// If the response object indicates that the response needs to be aborted, the method returns the
+// abort response without further processing.
+//
+// The method then iterates through the main backends of the endpoint, executes them, and updates
+// the request and response value objects. Again, if the response object indicates that the response
+// needs to be aborted, the method returns the abort response.
+//
+// After processing the backends, the method processes the middlewares configured in the
+// afterware field, updating the request and response value objects accordingly.
+//
+// Finally, the method returns the final response value object.
+//
+// Parameters:
+//   - ctx: The context.Context object for the execution.
+//   - executeData: The vo.ExecuteEndpoint object containing the necessary data for execution, including
+//     the Gopen, Endpoint, and Request value objects.
+//
+// Returns:
+// The vo.Response object representing the response of the executed endpoint.
 func (e endpoint) Execute(ctx context.Context, executeData vo.ExecuteEndpoint) vo.Response {
 	// instanciamos o objeto gopenVO
 	gopenVO := executeData.Gopen()
@@ -63,6 +84,25 @@ func (e endpoint) Execute(ctx context.Context, executeData vo.ExecuteEndpoint) v
 	return responseVO
 }
 
+// processMiddlewares processes the middleware backends for the given middleware keys.
+// It iterates through the middleware keys and checks if each key is configured in the gopenVO
+// middlewares field. If configured, it creates an executeBackendVO object and executes the
+// backend service using the backendService.Execute method.
+// If the response object indicates that the response needs to be aborted, the method breaks
+// out of the loop and returns the current request and response value objects.
+// The method returns the updated request and response value objects after executing all the
+// configured middleware backends.
+//
+// Parameters:
+//   - ctx: The context.Context object for the execution.
+//   - gopenVO: The vo.Gopen object containing the middleware configurations.
+//   - middlewareType: The type of middleware being processed (beforeware or afterware).
+//   - middlewareKeys: The middleware keys to be processed.
+//   - requestVO: The vo.Request object representing the current request.
+//   - responseVO: The vo.Response object representing the current response.
+//
+// Returns:
+// The vo.Request and vo.Response objects after executing the middleware backends.
 func (e endpoint) processMiddlewares(
 	ctx context.Context,
 	gopenVO vo.Gopen,
@@ -92,6 +132,19 @@ func (e endpoint) processMiddlewares(
 	return requestVO, responseVO
 }
 
+// processBackends iterates through the provided backends and executes each backend.
+// It updates the request and response value objects accordingly. If the response object
+// indicates that the response needs to be aborted, the iteration stops and the current
+// request and response value objects are returned.
+//
+// Parameters:
+//   - ctx: The context.Context object for the execution.
+//   - backends: The slice of vo.Backend objects representing the backends to be processed.
+//   - requestVO: The vo.Request object representing the current request.
+//   - responseVO: The vo.Response object representing the current response.
+//
+// Returns:
+// The updated vo.Request and vo.Response objects after executing the backends.
 func (e endpoint) processBackends(ctx context.Context, backends []vo.Backend, requestVO vo.Request, responseVO vo.Response,
 ) (vo.Request, vo.Response) {
 	// iteramos os backends fornecidos

@@ -44,14 +44,6 @@ func NewRateLimiterProvider(rateVO vo.Rate) RateLimiterProvider {
 // the function returns a new instance of the error ErrTooManyRequests, passing the defined burst and every values.
 // Otherwise, it returns nil to indicate that the request is allowed.
 //
-// Example usage:
-//
-//	provider := NewRateLimiterProvider(time.Second, 10)
-//	err := provider.Allow("key")
-//	if err != nil {
-//	  // handle error
-//	}
-//
 // Note: The keys map and other related structures should be properly initialized before calling this method.
 // The rateLimiterProvider type should be used to access this method.
 // Other types should not have direct access to this method.

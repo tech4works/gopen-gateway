@@ -14,12 +14,29 @@ import (
 	"net/http"
 )
 
+// loggerOptions is a variable that holds the options for the logger package.
+// It is of type logger.Options.
+// The CustomAfterPrefixText field is used to set a custom text that will be
+// printed after the log prefix. In this example, the value is set to "APP".
 var loggerOptions = logger.Options{
 	CustomAfterPrefixText: "APP",
 }
 
+// httpServer is a variable that holds an instance of the http.Server struct.
+// The http.Server struct represents an HTTP server that listens for incoming connections and handles them
+// using the specified Handler. It is used to configure and start an HTTP server.
+// The httpServer variable is used to register the Gin engine as the handler for the HTTP server in the
+// ListerAndServer method of the gopen type.
+// It can be used to access properties and methods of the HTTP server, such as Shutdown, which gracefully shuts down
+// the server without interrupting active connections.
+// If the HTTP server is nil, the Shutdown method will return nil.
+// Otherwise, it will return an error resulting from the http.Server's Shutdown method.
 var httpServer *http.Server
 
+// gopen is a struct that holds various components and controllers required for running a Gopen server.
+// It contains a gopenVO field that represents the configuration and settings for the Gopen server.
+// It also includes middleware implementations such as traceMiddleware, logMiddleware, securityCorsMiddleware,
+// timeoutMiddleware, limiterMiddleware, cacheMiddleware, as well as static and endpoint controllers to handle requests.
 type gopen struct {
 	gopenVO                vo.Gopen
 	traceMiddleware        middleware.Trace
@@ -32,11 +49,22 @@ type gopen struct {
 	endpointController     controller.Endpoint
 }
 
+// Gopen is an interface that represents the functionality of a Gopen server.
+// It contains the methods ListerAndServer() and Shutdown(ctx context.Context) error
 type Gopen interface {
+	// ListerAndServer starts the Gopen application with the initialized cache store
+	// and Gopen configuration. It builds necessary infrastructures, services,
+	// middlewares, controllers, and the Gopen application. The Gopen application is
+	// then started by calling its ListAndServer() method.
 	ListerAndServer()
+	// Shutdown stops the Gopen application gracefully within the given context.
+	// It shuts down the server, closes any resources, and cancels any ongoing operations.
+	// It returns an error if the shutdown is not successful.
 	Shutdown(ctx context.Context) error
 }
 
+// NewGOpen creates and returns a new `Gopen` object.
+// It returns a `Gopen` interface, which represents the Gopen object that stores the provided configuration and middleware.
 func NewGOpen(
 	gopenVO vo.Gopen,
 	traceMiddleware middleware.Trace,
@@ -246,10 +274,17 @@ func (g gopen) BuildCacheMiddlewareHandler(endpointVO vo.Endpoint) api.HandlerFu
 	return g.cacheMiddleware.Do(cacheVO)
 }
 
+// printInfoLog is a function that logs informational messages using logger.InfoOpts from the logger package.
+// It accepts a variadic parameter 'msg' of any type that represents the message to be logged.
+// The loggerOptions variable is used as the logger's options, which contains custom configuration options.
 func printInfoLog(msg ...any) {
 	logger.InfoOpts(loggerOptions, msg...)
 }
 
+// printInfoLogf is a function that logs informational messages using logger.InfoOptsf from the logger package.
+// It accepts a parameter 'format' of type string that represents the format string for the log message.
+// It also accepts a variadic parameter 'msg' of any type that represents the message to be logged.
+// The loggerOptions variable is used as the logger's options, which contains custom configuration options.
 func printInfoLogf(format string, msg ...any) {
 	logger.InfoOptsf(format, loggerOptions, msg...)
 }

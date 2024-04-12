@@ -17,19 +17,17 @@ func NewModifier() Modifier {
 	return modifier{}
 }
 
-// Execute applies modifications to the request and response objects based on the given executeData.
-//
-// It iterates through the executeData's modifier collections and performs the corresponding modifications
-// on the request and response objects, if the modifiers' contexts are valid. The method returns the modified
-// request and response objects.
+// Execute executes the modifiers on the request and response value objects based on the provided ExecuteModifier data.
+// It first applies the modifier for the status code if it is valid and matches the response context.
+// Then it applies the header modifiers, followed by the param modifiers,
+// query modifiers, and finally the body modifiers.
 //
 // Parameters:
-//   - executeData : vo.ExecuteModifier
-//     The executeData object containing the request, response, and modifier collections.
+// - executeData: The ExecuteModifier object containing the necessary data for executing the modifiers.
 //
 // Returns:
-// - vo.Request: The potentially altered request value object
-// - vo.Response: The potentially altered response value object
+// - vo.Request: The potentially altered request value object.
+// - vo.Response: The potentially altered response value object.
 func (m modifier) Execute(executeData vo.ExecuteModifier) (vo.Request, vo.Response) {
 	// instanciamos o requestVO para ser modificado ou não
 	requestVO := executeData.Request()
