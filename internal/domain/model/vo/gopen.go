@@ -149,7 +149,7 @@ func (g Gopen) Endpoints() []Endpoint {
 	for i, endpointVO := range g.endpoints {
 		endpoints[i] = endpointVO.fillDefaultValues(g)
 	}
-	return g.endpoints
+	return endpoints
 }
 
 // CountMiddlewares returns the number of middlewares in the Gopen instance.
