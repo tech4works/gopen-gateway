@@ -10,17 +10,36 @@ import (
 	"strings"
 )
 
+// modify represents a modification operation to be performed on a request or response.
+// It contains fields such as action, scope, propagate, key, value, request, and response,
+// which define the details of the modification operation.
 type modify struct {
-	action    enum.ModifierAction
-	scope     enum.ModifierScope
+	// action represents the action to be performed.
+	action enum.ModifierAction
+	// scope represents the scope of a modifier.
+	scope enum.ModifierScope
+	// propagate is a boolean variable used to control whether a certain operation should be propagated or not.
 	propagate bool
-	key       string
-	value     string
-	request   Request
-	response  Response
+	// key represents the key of the field to be modified
+	key string
+	// value represents the value to be inserted to modify the object
+	value string
+	// request represents an HTTP `request` object.
+	request Request
+	// response represents an HTTP `response` object.
+	response Response
 }
 
+// ModifierStrategy represents a strategy for executing a modification operation on a Request and Response.
+// It defines a single method Execute() which takes no arguments and returns a Request and Response.
+// Implementations of this interface should provide their own Execute() method implementation.
 type ModifierStrategy interface {
+	// Execute executes the modification operation on a Request and Response.
+	// It returns a Request and Response.
+	//
+	// Returns:
+	// Request - The modified Request object.
+	// Response - The modified Response object.
 	Execute() (Request, Response)
 }
 
@@ -83,9 +102,9 @@ func (m modify) statusCodes(statusCode int) int {
 	return statusCode
 }
 
-// headers modifies the globalHeader and localHeader based on the receiver 'm' of the type modify.
+// modifyHeaders modifies the globalHeader and localHeader based on the receiver 'm' of the type modify.
 // It obtains the value to be used for modification using the m.valueStr() method.
-// It alters the headers based on the action indicated by m.action.
+// It alters the modifyHeaders based on the action indicated by m.action.
 // If the action is ModifierActionSet, it sets the value of the key in the localHeader.
 // If the propagate field is true, it also sets the value in the globalHeader.
 // If the action is ModifierActionAdd, it adds the value to the key in the localHeader.
@@ -497,6 +516,10 @@ func (m modify) valueEval() any {
 	return modifierValue
 }
 
+// requestValueByEval obtains the value from the Request object based on the evaluation string 'eval'.
+// It replaces the "request." substring with an empty string in the evaluation string to form the expression.
+// Using the gjson.Get method, it retrieves the value from the evaluation string in the Request object.
+// If the value exists, it returns the result. Otherwise, it returns nil.
 func (m modify) requestValueByEval(requestVO Request, eval string) any {
 	expr := strings.Replace(eval, "request.", "", 1)
 	result := gjson.Get(requestVO.Eval(), expr)
@@ -506,6 +529,10 @@ func (m modify) requestValueByEval(requestVO Request, eval string) any {
 	return nil
 }
 
+// responseValueByEval obtains the value from the responseVO object by evaluating the expression given by the eval string.
+// The expression is modified by replacing "response." with an empty string using strings.Replace() method.
+// The modified expression is then used to extract the value from the response using gjson.Get() method.
+// If the value exists, it is returned as result.Value(). Otherwise, it returns nil.
 func (m modify) responseValueByEval(responseVO Response, eval string) any {
 	expr := strings.Replace(eval, "response.", "", 1)
 	result := gjson.Get(responseVO.Eval(), expr)

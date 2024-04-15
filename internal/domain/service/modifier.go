@@ -8,7 +8,12 @@ import (
 type modifier struct {
 }
 
+// Modifier is an interface that represents a modifier which can be executed on a backend request and response.
 type Modifier interface {
+	// Execute is a method that executes a modifier on a backend request and response.
+	// It takes a vo.ExecuteModifier as a parameter, which contains the modifier context,
+	// backend modifiers, request, and response. It returns a vo.Request object and a vo.Response object.
+	// This method allows modification of the request and response based on the provided modifier.
 	Execute(executeData vo.ExecuteModifier) (vo.Request, vo.Response)
 }
 

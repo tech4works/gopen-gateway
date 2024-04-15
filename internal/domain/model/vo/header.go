@@ -7,6 +7,7 @@ import (
 	"strings"
 )
 
+// Header represents a map of string keys to slices of string values.
 type Header map[string][]string
 
 // NewHeader creates a new Header object from an existing http.Header object.
@@ -27,7 +28,7 @@ func newHeaderFailed() Header {
 // newResponseHeader creates a new Header object with specific values for consts.XGOpenCache, consts.XGOpenComplete, consts.XGOpenSuccess.
 // The complete parameter is used to set the value of consts.XGOpenComplete header.
 // The success parameter is used to set the value of consts.XGOpenSuccess header.
-// The returned Header object contains the updated values for consts.XGOpenCache, consts.XGOpenComplete, consts.XGOpenSuccess headers.
+// The returned Header object contains the updated values for consts.XGOpenCache, consts.XGOpenComplete, consts.XGOpenSuccess modifyHeaders.
 func newResponseHeader(complete, success bool) Header {
 	return Header{
 		consts.XGOpenCache:    {"false"},

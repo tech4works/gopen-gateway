@@ -7,11 +7,16 @@ import (
 	"github.com/GabrielHCataldo/gopen-gateway/internal/infra/api"
 )
 
+// trace represents a type responsible for performing tracing logic for a request.
+// It contains a traceProvider that implements the infra.TraceProvider interface.
 type trace struct {
 	traceProvider infra.TraceProvider
 }
 
+// Trace represents an interface for performing tracing logic for a request.
+// The Do method accepts a ctx parameter of type *api.Context to perform the tracing operation.
 type Trace interface {
+	// Do perform the tracing operation on the given context.
 	Do(ctx *api.Context)
 }
 

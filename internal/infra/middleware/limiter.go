@@ -13,7 +13,14 @@ import (
 type limiter struct {
 }
 
+// Limiter is an interface that defines a method for handling rate limiting and size limiting
+// for API endpoints. The Do method takes a rateLimiterProvider and a sizeLimiterProvider
+// as arguments and returns a HandlerFunc. The returned HandlerFunc can be used as an HTTP
+// route handler.
 type Limiter interface {
+	// Do handles rate limiting and size limiting for API endpoints.
+	// It takes a rateLimiterProvider and a sizeLimiterProvider as arguments
+	// and returns a HandlerFunc that can be used as an HTTP route handler.
 	Do(rateLimiterProvider infra.RateLimiterProvider, sizeLimiterProvider infra.SizeLimiterProvider) api.HandlerFunc
 }
 

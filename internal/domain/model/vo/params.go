@@ -6,6 +6,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// Params is a type alias for a map[string]string. It represents a collection of key-value pairs,
+// where the keys are strings and the values are strings.
 type Params map[string]string
 
 // NewParams creates a new Params map from the given gin.Params slice.

@@ -6,13 +6,33 @@ import (
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/enum"
 )
 
+// Modifier represents a modification that can be applied to a request or response in the Gopen application.
 type Modifier struct {
-	context   enum.ModifierContext
-	scope     enum.ModifierScope
-	action    enum.ModifierAction
+	// context represents the context in which a modification should be applied.
+	// It is an enum.ModifierContext value.
+	// Valid values for Context are "request" and "response".
+	context enum.ModifierContext
+	// scope represents the scope of a modification in the Backend or Endpoint.
+	// It is an enum.ModifierScope value that specifies where the modification should be applied.
+	// Valid values for Scope are "request" and "response".
+	scope enum.ModifierScope
+	// action represents the action to be performed in the Modifier struct.
+	// It is an enum.ModifierAction value and can be one of the following values:
+	// - ModifierActionSet: to set a value.
+	// - ModifierActionAdd: to add a value.
+	// - ModifierActionDel: to delete a value.
+	// - ModifierActionReplace: to replace a value.
+	// - ModifierActionRename: to rename a value.
+	action enum.ModifierAction
+	// propagate represents a boolean flag that indicates whether the modification should be propagated to subsequent
+	// Backend requests.
 	propagate bool
-	key       string
-	value     string
+	// key represents a string value that serves as the key for a modification in the Modifier structure.
+	// Indicates the field that you want to modify.
+	key string
+	// value represents a string value in the Modifier struct.
+	// It is used as a field to store the value of a modification.
+	value string
 }
 
 // newModifier creates a new instance of Modifier struct

@@ -10,21 +10,43 @@ import (
 	"time"
 )
 
+// Cache represents a cache configuration.
 type Cache struct {
-	duration          time.Duration
-	ignoreQuery       bool
-	strategyHeaders   []string
+	// duration represents the duration of the cache in the Cache struct.
+	duration time.Duration
+	// ignoreQuery is a boolean field in the Cache struct. When enabled, it indicates that the
+	// query parameters should be ignored when generating a cache key in the StrategyKey method.
+	ignoreQuery bool
+	// strategyHeaders is a string slice that represents the list of request modifyHeaders used to generate a cache key.
+	// The `StrategyKey` method in the `Cache` struct extracts values from these modifyHeaders and includes them in the cache key.
+	// If no strategy values are found in the modifyHeaders, the cache key will be generated without them.
+	strategyHeaders []string
+	// AllowStatusCode checks if the given status code is allowed based on the onlyIfStatusCodes field in the Cache struct.
+	// If the onlyIfStatusCodes field is empty or if the given status code is present in the onlyIfStatusCodes field, it returns true,
+	// indicating that the status code is allowed. Otherwise, it returns false.
 	onlyIfStatusCodes []int
-	onlyIfMethods     []string
+	// onlyIfMethods is a field in the Cache struct that represents the list of request methods that are allowed for caching.
+	// If the onlyIfMethods field is empty or if the given method is present in the onlyIfMethods field, the method is allowed for caching.
+	// Otherwise, it is not allowed. This field is used by the AllowMethod method in the Cache struct.
+	onlyIfMethods []string
+	// allowCacheControl represents a pointer to a boolean indicating whether the cache should
+	// honor the Cache-Control header
 	allowCacheControl *bool
 }
 
+// EndpointCache represents the cache configuration for an endpoint.
 type EndpointCache struct {
-	enabled           bool
-	ignoreQuery       bool
-	duration          time.Duration
-	strategyHeaders   []string
+	// enabled represents a boolean indicating whether caching is enabled for an endpoint.
+	enabled bool
+	// ignoreQuery represents a boolean indicating whether to ignore query parameters when caching.
+	ignoreQuery bool
+	// duration represents the duration configuration for caching an endpoint response.
+	duration time.Duration
+	// strategyHeaders represents a slice of strings for strategy modifyHeaders
+	strategyHeaders []string
+	// onlyIfStatusCodes represents the status codes that the cache should be applied to.
 	onlyIfStatusCodes []int
+	// allowCacheControl represents a boolean value indicating whether the cache control header is allowed for the endpoint cache.
 	allowCacheControl *bool
 }
 

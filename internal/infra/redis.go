@@ -10,6 +10,7 @@ import (
 	"time"
 )
 
+// redisStore represents a Redis cache store that implements the CacheStore interface.
 type redisStore struct {
 	redisTemplate *redis.Template
 }
@@ -36,6 +37,11 @@ func (r redisStore) Set(ctx context.Context, key string, value any, expire time.
 	return r.redisTemplate.Set(ctx, key, value, option.NewSet().SetTTL(expire))
 }
 
+// Del deletes the value associated with the given key from the Redis cache.
+// It takes the context and key as parameters.
+// If the key does not exist in the cache, Del returns nil (no error is returned).
+// If there is any error during the deletion, that error is returned.
+// If everything goes well, Del returns nil.
 func (r redisStore) Del(ctx context.Context, key string) error {
 	return r.redisTemplate.Del(ctx, key)
 }

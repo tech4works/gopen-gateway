@@ -7,16 +7,26 @@ import (
 	"time"
 )
 
+// Limiter represents the configuration for rate limiting in the Gopen application.
 type Limiter struct {
-	maxHeaderSize          Bytes
-	maxBodySize            Bytes
+	// maxHeaderSize represents the maximum size of the header in bytes for rate limiting.
+	maxHeaderSize Bytes
+	// maxBodySize represents the maximum size of the body in bytes for rate limiting.
+	maxBodySize Bytes
+	// maxMultipartMemorySize represents the maximum memory size for multipart request bodies.
 	maxMultipartMemorySize Bytes
-	rate                   Rate
+	// rate represents the configuration for `rate` limiting in the Limiter struct. It specifies the capacity and
+	// frequency of allowed requests.
+	rate Rate
 }
 
+// Rate represents the configuration for rate limiting. It specifies the capacity
+// and frequency of allowed requests.
 type Rate struct {
+	// capacity represents the maximum number of allowed requests within a given time period.
 	capacity int
-	every    time.Duration
+	// every represents the frequency of allowed requests in the Rate configuration for rate limiting.
+	every time.Duration
 }
 
 // NewLimiterFromEndpoint takes a Gopen object and an Endpoint object and returns a Limiter object.

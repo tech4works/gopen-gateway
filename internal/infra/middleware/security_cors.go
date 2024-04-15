@@ -8,11 +8,18 @@ import (
 	"net/http"
 )
 
+// securityCors implements the SecurityCors interface.
+// It represents the configuration options for Cross-Origin Resource Sharing (CORS) settings in Gopen.
 type securityCors struct {
 	securityCorsVO vo.SecurityCors
 }
 
+// SecurityCors is an interface that defines the behavior of handling Cross-Origin Resource Sharing (CORS) settings in Gopen.
+// Implementing types must define the Do method, which takes a *api.Context as an argument.
+// The Do method is responsible for handling CORS-related tasks, such as validating and processing CORS requests.
 type SecurityCors interface {
+	// Do handles Cross-Origin Resource Sharing (CORS) related tasks.
+	// It takes a *api.Context as an argument and is responsible for validating and processing CORS requests.
 	Do(ctx *api.Context)
 }
 

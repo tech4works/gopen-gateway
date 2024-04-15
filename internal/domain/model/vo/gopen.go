@@ -8,17 +8,54 @@ import (
 	"time"
 )
 
+// Gopen is a struct that represents the configuration for a Gopen server.
 type Gopen struct {
-	env          string
-	version      string
-	hotReload    bool
-	port         int
-	timeout      time.Duration
-	limiter      Limiter
-	cache        Cache
+	// env is a string field that represents the environment in which the Gopen server is running.
+	env string
+	// version is a string field that represents the version of the Gopen server configured in the configuration json.
+	version string
+	// port represents the port number on which the Gopen application will listen for incoming requests.
+	// It is an integer value and can be specified in the Gopen configuration JSON file.
+	port int
+	// hotReload represents a boolean flag indicating whether hot-reloading is enabled or not.
+	// It is a field in the Gopen struct and is specified in the Gopen configuration JSON file.
+	// It is used to control whether the Gopen application will automatically reload the configuration file
+	// and apply the changes and restart the server.
+	// If the value is true, hot-reloading is enabled. If the value is false, hot-reloading is disabled.
+	// By default, hot-reloading is disabled, so if the field is not specified in the JSON file, it will be set to false.
+	hotReload bool
+	// timeout represents the timeout duration for a request or operation.
+	// It is specified in string format and can be parsed into a time.Duration value.
+	// The default value is empty. If not provided, the timeout will be 30s.
+	timeout time.Duration
+	// limiter represents the configuration for rate limiting.
+	// It specifies the maximum header size, maximum body size, maximum multipart memory size, and the rate of allowed requests.
+	limiter Limiter
+	// cache is a struct representing the `cache` configuration in the Gopen struct. It contains the following fields:
+	// - Duration: a string representing the duration of the `cache` in a format compatible with Go's time.ParseDuration
+	// function. It defaults to an empty string. If not provided, the duration will be 30s.
+	// - StrategyHeaders: a slice of strings representing the modifyHeaders used to determine the `cache` strategy. It defaults
+	// to an empty slice.
+	// - OnlyIfStatusCodes: A slice of integers representing the HTTP status codes for which the `cache` should be used.
+	// Default is an empty slice. If not provided, the default value is 2xx success HTTP status codes
+	// - OnlyIfMethods: a slice of strings representing the HTTP methods for which the `cache` should be used. The default
+	// is an empty slice. If not provided by default, we only consider the http GET method.
+	//- AllowCacheControl: a pointer to a boolean indicating whether the `cache` should honor the Cache-Control header.
+	// It defaults to empty.
+	cache Cache
+	// securityCors represents the configuration options for Cross-Origin Resource Sharing (CORS) settings in Gopen.
 	securityCors SecurityCors
-	middlewares  Middlewares
-	endpoints    []Endpoint
+	// middlewares is a map that represents the middleware configuration in Gopen.
+	// The keys of the map are the names of the middlewares, and the values are
+	// Backend objects that define the properties of each middleware.
+	// The Backend struct contains fields like name, hosts, path, method, forwardHeaders,
+	// forwardQueries, modifiers, and extraConfig, which specify the behavior
+	// and settings of the middleware.
+	middlewares Middlewares
+	// endpoints is a field in the Gopen struct that represents a slice of Endpoint objects.
+	// Each Endpoint object defines a specific API endpoint with its corresponding settings such as path, method,
+	// timeout, limiter, cache, etc.
+	endpoints []Endpoint
 }
 
 // NewGOpen creates a new instance of Gopen based on the provided environment and gopenDTO.

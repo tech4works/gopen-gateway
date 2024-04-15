@@ -8,9 +8,16 @@ import (
 	"strings"
 )
 
+// SecurityCors represents the configuration options for Cross-Origin Resource Sharing (CORS) settings in Gopen.
 type SecurityCors struct {
+	// allowOrigins is a field in the SecurityCors struct that represents a list of allowed origins for Cross-Origin
+	// Resource Sharing (CORS).
 	allowOrigins []string
+	// allowMethods is a field in the SecurityCors struct that represents a list of allowed HTTP methods for Cross-Origin
+	// Resource Sharing (CORS).
 	allowMethods []string
+	// allowHeaders is a field in the SecurityCors struct that represents a list of allowed HTTP headers for Cross-Origin
+	// Resource Sharing (CORS).
 	allowHeaders []string
 }
 
@@ -39,6 +46,9 @@ func (s SecurityCors) AllowHeadersData() []string {
 	return s.allowHeaders
 }
 
+// AllowOrigins checks if the given IP is allowed based on the allowOrigins field in the SecurityCors struct.
+// If the allowOrigins field is not empty and does not contain the given IP, it returns an error "Origin not mapped
+// on security-cors.allow-origins". Otherwise, it returns nil.
 func (s SecurityCors) AllowOrigins(ip string) (err error) {
 	// verificamos se na configuração security-cors.allow-origins ta vazia, ou tá informado o ip da requisição
 	if helper.IsNotEmpty(s.allowOrigins) && helper.NotContains(s.allowOrigins, ip) {
@@ -47,6 +57,9 @@ func (s SecurityCors) AllowOrigins(ip string) (err error) {
 	return err
 }
 
+// AllowMethods checks if the given HTTP method is allowed based on the allowMethods field in the SecurityCors struct.
+// If the allowMethods field is not empty and does not contain the given method, it returns an error "Method not mapped
+// on security-cors.allow-methods". Otherwise, it returns nil.
 func (s SecurityCors) AllowMethods(method string) (err error) {
 	// verificamos se na configuração security-cors.allow-methods ta vazia ou tá informado com oq vem na requisição
 	if helper.IsNotEmpty(s.allowMethods) && helper.NotContains(s.allowMethods, method) {
@@ -55,6 +68,13 @@ func (s SecurityCors) AllowMethods(method string) (err error) {
 	return err
 }
 
+// AllowHeaders checks if the requested HTTP headers are allowed based on the allowHeaders field in the SecurityCors struct.
+// If the allowHeaders field is empty, it returns nil.
+// Otherwise, it iterates over the headers of the request and adds any headers that are not mapped in the allowHeaders list,
+// except for the X-Forwarded-For and X-Trace-Id headers.
+// If there are headers that are not allowed, it returns an error "Headers contains not mapped fields on security-cors.allow-headers"
+// along with the list of headers that are not allowed.
+// If all headers are allowed, it returns nil.
 func (s SecurityCors) AllowHeaders(header Header) (err error) {
 	// verificamos se na configuração security-cors.allow-headers ta vazia
 	if helper.IsEmpty(s.allowHeaders) {

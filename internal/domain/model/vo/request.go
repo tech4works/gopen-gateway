@@ -7,14 +7,28 @@ import (
 	"io"
 )
 
+// Request represents an HTTP request and contains information such as the request path, URL, method, header,
+// parameters, query parameters, request body, and request history.
 type Request struct {
-	path    string
-	url     string
-	method  string
-	header  Header
-	params  Params
-	query   Query
-	body    Body
+	// path represents the URI of the Request.
+	// It is a string field in the Request struct.
+	path string
+	// url represents the URL of the Request.
+	url string
+	// method represents the HTTP method of the Request.
+	// It is a string field in the Request struct.
+	method string
+	// header represents the request header of a Request.
+	header Header
+	// params represents the parameters associated with the request.
+	params Params
+	// query represents the query parameter map of the Request.
+	query Query
+	// Body represents the body of an HTTP request.
+	// It is a field in the Request struct.
+	body Body
+	// history represents the history of backend requests made by the Request object.
+	// It is a slice of backendRequest objects.
 	history []backendRequest
 }
 

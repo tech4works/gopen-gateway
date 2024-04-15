@@ -7,6 +7,10 @@ import (
 	"strings"
 )
 
+// Query represents an HTTP query. It is a type alias for map[string][]string,
+// where the key is the parameter name and the value is a slice of parameter values.
+// The Query type provides various methods to manipulate and interact with the query
+// parameters, such as adding, setting, deleting, filtering, and encoding.
 type Query map[string][]string
 
 // NewQuery takes an HTTP query and creates a new instance of Query.

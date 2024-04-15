@@ -6,6 +6,10 @@ import (
 	"sync"
 )
 
+// HandlerFunc is a type for defining functions that can be used as HTTP route handlers.
+// It takes a *Context parameter which contains information about the current request
+// and allows the handler to read and manipulate the request and response.
+// The handler function must not return any values.
 type HandlerFunc func(ctx *Context)
 
 // Handle handles a request by registering it with the specified engine and endpoint information,

@@ -12,18 +12,50 @@ import (
 	"time"
 )
 
+// Endpoint represents the configuration for an API endpoint in the Gopen application.
 type Endpoint struct {
-	path               string
-	method             string
-	timeout            time.Duration
-	limiter            Limiter
-	cache              EndpointCache
-	responseEncode     enum.ResponseEncode
+	// path is a string representing the path of the API endpoint. It is a field in the Endpoint struct.
+	path string
+	// method represents the HTTP method of an API endpoint.
+	method string
+	// timeout represents the timeout duration for the API endpoint.
+	// It is a string value specified in the JSON configuration.
+	// The default value is empty. If not provided, the timeout will be Gopen.timeout.
+	timeout time.Duration
+	// limiter represents the configuration for rate limiting in the Gopen application.
+	// The default value is nil. If not provided, the `limiter` will be Gopen.limiter.
+	limiter Limiter
+	// cache represents the `cache` configuration for an endpoint.
+	// The default value is EndpointCache empty with enabled false.
+	cache EndpointCache
+	// responseEncode represents the encoding format for the API endpoint response. The ResponseEncode
+	// field is an enum.ResponseEncode value, which can have one of the following values:
+	// - enum.ResponseEncodeText: for encoding the response as plain text.
+	// - enum.ResponseEncodeJson: for encoding the response as JSON.
+	// - enum.ResponseEncodeXml: for encoding the response as XML.
+	// The default value is empty. If not provided, the response will be encoded by type, if the string is json it
+	// returns json, otherwise it responds to plain text
+	responseEncode enum.ResponseEncode
+	// aggregateResponses represents a boolean indicating whether the API endpoint should aggregate responses
+	// from multiple backends.
 	aggregateResponses bool
+	// abortIfStatusCodes represents a slice of integers representing the HTTP status codes
+	// for which the API endpoint should abort. It is a field in the Endpoint struct.
 	abortIfStatusCodes []int
-	beforeware         []string
-	afterware          []string
-	backends           []Backend
+	// beforeware represents a slice of strings containing the names of the beforeware middlewares that should be
+	// applied before processing the API endpoint.
+	beforeware []string
+	// afterware represents the configuration for the afterware middlewares to apply after processing the API endpoint.
+	// It is a slice of strings representing the names of the afterware middlewares to apply.
+	// The names specify the behavior and settings of each afterware middleware.
+	// If not provided, the default value is an empty slice.
+	// The afterware middleware is executed after processing the API endpoint, allowing for modification or
+	// transformation of the response or performing any additional actions.
+	// Afterware can be used for logging, error handling, response modification, etc.
+	afterware []string
+	// Backends represents the backend configurations for an API endpoint in the Gopen application.
+	// It is a slice of Backend structs.
+	backends []Backend
 }
 
 // newEndpoint creates a new instance of Endpoint based on the provided endpointDTO.

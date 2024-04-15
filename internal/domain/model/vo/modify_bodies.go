@@ -2,6 +2,10 @@ package vo
 
 import "github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/enum"
 
+// modifyBodies is a type that represents the combination of a modify struct
+// and additional methods or properties defined within it. This type allows for
+// modifying bodies of an object by utilizing the methods and properties of the
+// modify struct it contains.
 type modifyBodies struct {
 	modify
 }

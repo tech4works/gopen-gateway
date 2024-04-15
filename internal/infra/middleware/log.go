@@ -7,11 +7,17 @@ import (
 	"time"
 )
 
+// log is a struct that represents a logging component. It uses an implementation of the LogProvider interface
+// to perform logging operations.
 type log struct {
 	logProvider infra.LogProvider
 }
 
+// Log is an interface that defines a logging operation. Implementation of this interface
+// should provide a method Do() that takes a context object of type *api.Context as an argument.
 type Log interface {
+	// Do perform a logging operation using the provided context object.
+	// The context object is of type *api.Context and is passed as an argument to the method.
 	Do(ctx *api.Context)
 }
 

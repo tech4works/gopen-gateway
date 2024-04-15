@@ -2,23 +2,40 @@ package vo
 
 import "github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/enum"
 
+// ExecuteBackend is a type that represents the execution of a backend server request and response.
 type ExecuteBackend struct {
-	backend  Backend
-	request  Request
+	// Backend represents a backend server configuration.
+	backend Backend
+	// Request represents an HTTP `request` object.
+	request Request
+	// Response represents an HTTP `response` object.
 	response Response
 }
 
+// ExecuteModifier is a type that represents the execution of a modifier on a backend request and response.
+// It contains fields for the modifier context, backend modifiers, request, and response.
 type ExecuteModifier struct {
-	context         enum.ModifierContext
+	// context represents the context in which a modification should be applied.
+	context enum.ModifierContext
+	// backendModifier represents the set of modifiers for a backend configuration. It contains fields for the
+	// status code, header, params, query, and body modifiers.
 	backendModifier BackendModifiers
-	request         Request
-	response        Response
+	// Request represents an HTTP `request` object.
+	request Request
+	// Response represents an HTTP `response` object.
+	response Response
 }
 
+// ExecuteEndpoint represents the execution of a specific endpoint in the Gopen server.
+// It contains the configuration for the Gopen server, the targeted endpoint, and the HTTP request for execution.
 type ExecuteEndpoint struct {
-	gopen    Gopen
+	// Gopen represents the configuration for the Gopen server, including environment, version, hot reload status, port,
+	// timeout duration, limiter, cache, security CORS, middlewares, and endpoints.
+	gopen Gopen
+	// endpoint represents a specific endpoint in the Gopen server.
 	endpoint Endpoint
-	request  Request
+	// Request represents an HTTP `request` object.
+	request Request
 }
 
 // NewExecuteEndpoint creates a new ExecuteEndpoint using the provided Gopen, Endpoint, and Request objects.

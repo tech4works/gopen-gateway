@@ -16,9 +16,18 @@ import (
 type logProvider struct {
 }
 
+// LogProvider is an interface that defines methods for logging in a software application.
+// It provides functionality to initialize logger options, build an initial request message,
+// and build a finish request message.
 type LogProvider interface {
+	// InitializeLoggerOptions initializes the logger options using the provided context.
 	InitializeLoggerOptions(ctx *api.Context)
+	// BuildInitialRequestMessage builds the initial request message for logging purposes based on the provided context.
 	BuildInitialRequestMessage(ctx *api.Context) string
+	// BuildFinishRequestMessage constructs a finish request message for logging purposes.
+	// It takes a responseVO object that represents the response of an API call, and a startTime
+	// object that represents the start time of the API call. It returns a string containing the
+	// finish request message.
 	BuildFinishRequestMessage(responseVO vo.Response, startTime time.Time) string
 }
 

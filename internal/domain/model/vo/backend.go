@@ -22,7 +22,7 @@ type Backend struct {
 	path string
 	// method is the HTTP method to be used for requests to the backend.
 	method string
-	// forwardHeaders is a slice of strings representing the headers to be forwarded.
+	// forwardHeaders is a slice of strings representing the modifyHeaders to be forwarded.
 	forwardHeaders []string
 	// forwardQueries is a slice of strings representing the query parameters to be forwarded.
 	forwardQueries []string
@@ -39,7 +39,7 @@ type BackendModifiers struct {
 	// It represents the status code modifier for the current backend response.
 	// The status code modifier is an instance of the Modifier struct.
 	statusCode Modifier
-	// header represents an array of Modifier instances that modify the headers of a request or response
+	// header represents an array of Modifier instances that modify the modifyHeaders of a request or response
 	// from Endpoint or only current backend.
 	header []Modifier
 	// params is a field in the BackendModifiers struct.
@@ -71,7 +71,7 @@ type BackendExtraConfig struct {
 }
 
 // backendRequest represents a request to be made to a backend server.
-// It includes the host information, method, path, headers, params, query fields, and the request body.
+// It includes the host information, method, path, modifyHeaders, params, query fields, and the request body.
 type backendRequest struct {
 	// omitBody is a boolean field that determines whether the request body should be omitted.
 	// If set to true, the request body will not be included in the backend request.

@@ -9,7 +9,11 @@ import (
 type trace struct {
 }
 
+// TraceProvider is an interface that defines the behavior for generating a trace ID.
 type TraceProvider interface {
+	// GenerateTraceId generates a trace ID for tracking requests.
+	// It returns a string representing the generated trace ID.
+	// The implementation of this method may vary depending on the requirements and system configuration.
 	GenerateTraceId() string
 }
 

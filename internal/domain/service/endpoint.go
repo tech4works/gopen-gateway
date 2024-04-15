@@ -7,14 +7,24 @@ import (
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
 )
 
+// endpoint is a struct type that represents an `endpoint` service domain in the Gopen server.
+//
+// It contains a backendService field of type Backend, which encapsulates the functionality
+// for interacting with a backend service.
 type endpoint struct {
 	backendService Backend
 }
 
+// Endpoint represents an interface for executing a specific endpoint in the Gopen server.
+// It defines the Execute method, which takes a context and an ExecuteEndpoint object as parameters
+// and returns a Response object.
 type Endpoint interface {
+	// Execute executes a specific endpoint in the Gopen server.
+	// It takes a context and a vo.ExecuteEndpoint object as parameters and returns a vo.Response object.
 	Execute(ctx context.Context, executeData vo.ExecuteEndpoint) vo.Response
 }
 
+// NewEndpoint returns a new instance of the endpoint struct with the provided backendService.
 func NewEndpoint(backendService Backend) Endpoint {
 	return endpoint{
 		backendService: backendService,

@@ -8,11 +8,33 @@ import (
 	"time"
 )
 
+// rateLimiterProvider represents a rate limiter provider that manages rate limiters for different keys.
+// It has a keys map to store rate limiters for each key, a mutex for thread safety, and configuration parameters
+// every (time.Duration), limit (rate.Limit), and burst (int).
 type rateLimiterProvider struct {
-	keys  map[string]*rate.Limiter
+	// keys represents a map that stores rate limiters for each key.
+	// The keys are of type string and the values are of type *rate.Limiter.
+	// It is a field of the rateLimiterProvider struct.
+	// This map is used to store and manage rate limiters for different keys.
+	//
+	// Note: The keys map and other related structures should be properly initialized before accessing this field.
+	// The rateLimiterProvider type should be used to access this field.
+	// Other types should not have direct access to this field.
+	keys map[string]*rate.Limiter
+	// mutex is a pointer to a sync.RWMutex object. It is used for thread-safety
+	// in the rateLimiterProvider struct. It should be locked and unlocked using
+	// the Lock and Unlock methods respectively to protect concurrent accesses
+	// to shared resources.
 	mutex *sync.RWMutex
+	// every represents the frequency of allowed requests in the rateLimiterProvider configuration for rate limiting.
 	every time.Duration
+	// limit represents the rate limit value used for rate limiting in the rateLimiterProvider struct.
 	limit rate.Limit
+	// burst represents the maximum number of requests that can be allowed in a given time period.
+	// It is a field of the rateLimiterProvider struct, and it is used in the rate limiting process.
+	//
+	// Note: The rateLimiterProvider type should be used to access this field.
+	// Other types should not have direct access to this field.
 	burst int
 }
 

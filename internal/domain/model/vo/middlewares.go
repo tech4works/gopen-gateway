@@ -2,6 +2,10 @@ package vo
 
 import "github.com/GabrielHCataldo/gopen-gateway/internal/app/model/dto"
 
+// Middlewares is a type that represents a map of string keys to Backend values.
+// It is used to configure and store middleware settings in the Gopen server.
+// Each key in the map represents the name of the middleware, and the corresponding Backend
+// value defines the properties and behavior of that middleware.
 type Middlewares map[string]Backend
 
 // newMiddlewares creates a new Middlewares object based on the provided middlewaresDTO map.

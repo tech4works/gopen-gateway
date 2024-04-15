@@ -1,5 +1,8 @@
 package vo
 
+// modifyQueries represents a type that allows modification of queries.
+// It is composed of the modify struct, which provides the necessary
+// functionality for modifying queries.
 type modifyQueries struct {
 	modify
 }

@@ -9,13 +9,32 @@ import (
 	"net/http"
 )
 
+// sizeLimiterProvider represents a provider for size limiting functionality.
+// It contains fields to store the maximum sizes for the header, body, and multipart memory.
+// The `Allow` method is responsible for checking the size of the request header and body,
+// and returning an error if the size exceeds the maximum allowed size.
 type sizeLimiterProvider struct {
-	maxHeaderSize          vo.Bytes
-	maxBodySize            vo.Bytes
+	// maxHeaderSize represents the maximum size allowed for request headers.
+	// It is a field of the sizeLimiterProvider struct, which is responsible for
+	// size limiting functionality. The size is stored as a vo.Bytes value.
+	maxHeaderSize vo.Bytes
+	// maxBodySize represents the maximum size allowed for request bodies.
+	// It is a field of the sizeLimiterProvider struct, which is responsible for size limiting functionality.
+	// The size is stored as a vo.Bytes value.
+	maxBodySize vo.Bytes
+	// maxMultipartMemorySize represents the maximum size allowed for multipart
+	// memory in the sizeLimiterProvider struct which is responsible for size
+	// limiting functionality. The size is stored as a vo.Bytes value.
+	// It is used to determine the maximum body size for requests with
+	// "multipart/form-data" content type.
 	maxMultipartMemorySize vo.Bytes
 }
 
+// SizeLimiterProvider is an interface that represents a provider for size limiting functionality.
 type SizeLimiterProvider interface {
+	// Allow checks whether the request is allowed based on the rate limit.
+	// It takes a *http.Request as input parameter.
+	// If the request is not allowed, it returns an error.
 	Allow(request *http.Request) error
 }
 

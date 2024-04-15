@@ -1,5 +1,7 @@
 package vo
 
+// modifyParams represents the parameters for modifying an entity. It contains a modify field
+// which defines the modifications to be applied.
 type modifyParams struct {
 	modify
 }

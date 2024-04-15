@@ -9,13 +9,26 @@ import (
 	"sync"
 )
 
+// Context is a struct that represents the context of the current request.
+// It contains various fields including mutex to synchronize access to the context,
+// framework to handle the request, gopen configuration, endpoint information, and request and response data.
 type Context struct {
-	mutex     *sync.RWMutex
+	// mutex is a pointer to a sync.RWMutex structure which provides mutual
+	// exclusion locking using read-write locks.
+	mutex *sync.RWMutex
+	// framework represents a context object for the Gin framework. It contains information about
+	// the current HTTP request and response.
 	framework *gin.Context
-	gopen     vo.Gopen
-	endpoint  vo.Endpoint
-	request   vo.Request
-	response  vo.Response
+	// gopen represents a variable of type vo.Gopen. It is used to access and manipulate data using the desired
+	// application settings
+	gopen vo.Gopen
+	// endpoint represents the configuration of the endpoint that is receiving the current request, widely used to take
+	// execution guidelines and response customization
+	endpoint vo.Endpoint
+	// request represents a data structure for current `request`.
+	request vo.Request
+	// response is a structure that represents the HTTP response, written by the context.
+	response vo.Response
 }
 
 // Context returns the context of the Context. It delegates the call to the underlying framework's Context.Context() method.

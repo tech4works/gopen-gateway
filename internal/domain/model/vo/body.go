@@ -11,12 +11,18 @@ import (
 	"time"
 )
 
+// Body represents the content and format of an HTTP request or response body.
 type Body struct {
+	// contentType is an enumeration type that represents the format of the content.
+	// It can have the following values: ContentTypeText, ContentTypeJson.
 	contentType enum.ContentType
-	value       string
+	// value is a string field that represents the value of the Body instance.
+	value string
 }
 
+// CacheBody represents the caching value of an HTTP response body.
 type CacheBody struct {
+	// value is a field of the CacheBody struct. It represents the caching value of an HTTP response body.
 	value string
 }
 

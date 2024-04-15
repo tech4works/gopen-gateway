@@ -38,7 +38,7 @@ type Gopen struct {
 	// - OnlyIfMethods: a slice of strings representing the HTTP methods for which the cache should be used. The default
 	// is an empty slice. If not provided by default, we only consider the http GET method.
 	//- AllowCacheControl: a pointer to a boolean indicating whether the cache should honor the Cache-Control header.
-	// It defaults to nil. If not provided, the default value is false.
+	// It defaults to nil.
 	Cache *Cache `json:"cache,omitempty"`
 	// SecurityCors represents the configuration options for Cross-Origin Resource Sharing (CORS) settings in Gopen.
 	SecurityCors *SecurityCors `json:"security-cors,omitempty"`
@@ -161,7 +161,8 @@ type Endpoint struct {
 	// - enum.ResponseEncodeText: for encoding the response as plain text.
 	// - enum.ResponseEncodeJson: for encoding the response as JSON.
 	// - enum.ResponseEncodeXml: for encoding the response as XML.
-	// The default value is empty. If not provided, the response will be encoded as plain text.
+	// The default value is empty. If not provided, the response will be encoded by type, if the string is json it
+	// returns json, otherwise it responds to plain text
 	ResponseEncode enum.ResponseEncode `json:"response-encode,omitempty"`
 	// AggregateResponses represents a boolean indicating whether the API endpoint should aggregate responses
 	// from multiple backends.
@@ -260,13 +261,6 @@ type BackendExtraConfig struct {
 }
 
 // Modifier represents a modification that can be applied to a request or response in the Gopen application.
-// It contains the following fields:
-// - Context: an enum.ModifierContext value that specifies the context in which the modification should be applied.
-// - Scope: an enum.ModifierScope value that specifies the scope of the modification.
-// - Action: an enum.ModifierAction value that specifies the action to be performed.
-// - Propagate: a boolean flag indicating whether the modification should be propagated to downstream services.
-// - Key: a string representing the key of the modification.
-// - Value: a string representing the value of the modification.
 type Modifier struct {
 	// Context represents the context in which a modification should be applied.
 	// It is an enum.ModifierContext value.

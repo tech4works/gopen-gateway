@@ -2,7 +2,10 @@ package vo
 
 import "github.com/GabrielHCataldo/go-helper/helper"
 
+// Bytes represents a type for storing byte values.
 type Bytes int64
+
+// MegaBytes represents a type for storing megabyte values.
 type MegaBytes int64
 
 // NewBytes creates a new Bytes value based on the given byte unit string.

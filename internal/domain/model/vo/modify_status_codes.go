@@ -1,5 +1,7 @@
 package vo
 
+// modifyStatusCodes is a struct that extends the functionality of the modify type.
+// It is used to modify status codes in HTTP responses.
 type modifyStatusCodes struct {
 	modify
 }

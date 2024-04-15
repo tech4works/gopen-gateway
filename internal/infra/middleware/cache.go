@@ -10,11 +10,23 @@ import (
 	"github.com/GabrielHCataldo/gopen-gateway/internal/infra/api"
 )
 
+// cache represents a Cache implementation that uses the provided infra.CacheStore for caching operations.
 type cache struct {
 	cacheStore infra.CacheStore
 }
 
+// Cache represents an interface for caching operations.
+// The Do method takes a cacheVO object and returns a HandlerFunc function
+// that can be used as an HTTP route handler.
 type Cache interface {
+	// Do takes a cacheVO object and returns a HandlerFunc function
+	// that can be used as an HTTP route handler.
+	//
+	// The cacheVO object contains information about cache configuration
+	// such as duration, strategy headers, allowed status codes, and allowed methods.
+	//
+	// The returned HandlerFunc is responsible for handling the HTTP request,
+	// implementing cache-related logic based on the provided cache configuration.
 	Do(cacheVO vo.Cache) api.HandlerFunc
 }
 

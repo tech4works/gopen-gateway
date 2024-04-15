@@ -9,12 +9,27 @@ import (
 	"net/http"
 )
 
+// backend represents a type that encapsulates the functionality for interacting with a backend service.
+// It provides methods for executing backend requests and handling backend responses.
 type backend struct {
 	modifierService Modifier
 	restTemplate    interfaces.RestTemplate
 }
 
+// Backend represents a type that encapsulates the functionality for interacting with a backend service.
+// It provides a method for executing backend requests and handling backend responses.
 type Backend interface {
+	// Execute is a method that is implemented by a Backend type. It represents the execution of a backend server request and
+	// response. The method takes a context.Context object and a vo.ExecuteBackend object as parameters.
+	// It returns the vo.Request and vo.Response objects associated with the ExecuteBackend object.
+	//
+	// Parameters:
+	// ctx - The context.Context object that provides a context for the execution of the request.
+	// executeData - The vo.ExecuteBackend object that encapsulates the data for the execution of the backend request.
+	//
+	// Returns:
+	// vo.Request - The vo.Request associated with vo.ExecuteBackend and can be modified by the backend execution process.
+	// vo.Response - The vo.Response associated with vo.ExecuteBackend and can be modified by the backend execution process.
 	Execute(ctx context.Context, executeData vo.ExecuteBackend) (vo.Request, vo.Response)
 }
 

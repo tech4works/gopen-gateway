@@ -9,6 +9,7 @@ import (
 	"time"
 )
 
+// memoryStore represents an in-memory cache store that implements the CacheStore interface.
 type memoryStore struct {
 	ttlCache *ttlcache.Cache
 }

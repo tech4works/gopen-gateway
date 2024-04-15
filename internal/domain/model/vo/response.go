@@ -10,31 +10,67 @@ import (
 	"time"
 )
 
+// CacheResponse represents a cached HTTP response.
+// It contains the status code, header, body, duration, and creation timestamp of the response.
+// The duration specifies how long the response should be cached.
+// The CreatedAt field indicates the timestamp of the response's creation.
 type CacheResponse struct {
-	StatusCode int        `json:"statusCode"`
-	Header     Header     `json:"header"`
-	Body       *CacheBody `json:"body,omitempty"`
-	Duration   string     `json:"duration"`
-	CreatedAt  time.Time  `json:"createdAt"`
+	// StatusCode is an integer field representing the status code of an HTTP response.
+	// It is included in the CacheResponse struct and is used to store the status code of a cached response.
+	StatusCode int `json:"statusCode"`
+	// Header is a field representing the header of an HTTP response.
+	// It is included in the CacheResponse struct and is used to store the header of a cached response.
+	Header Header `json:"header"`
+	// Body is a field representing the body of an HTTP response. (optional)
+	// It is included in the CacheResponse struct and is used to store the body of a cached response.
+	Body *CacheBody `json:"body,omitempty"`
+	// Duration represents the duration for which the response should be cached.
+	Duration string `json:"duration"`
+	// CreatedAt is a field of the CacheResponse struct indicating the timestamp of the response's creation.
+	CreatedAt time.Time `json:"createdAt"`
 }
 
+// Response represents the gateway HTTP response.
 type Response struct {
-	endpoint   Endpoint
+	// endpoint represents the current `endpoint` in the Response object to accommodate response customizations.
+	endpoint Endpoint
+	// statusCode stores the integer HTTP status code of the Response object.
 	statusCode int
-	header     Header
-	body       Body
-	abort      bool
-	history    responseHistory
+	// header represents the header of the Response object.
+	header Header
+	// Body represents the body of the gateway HTTP response.
+	body Body
+	// abort bool is a flag in the Response object that indicates whether the response should be aborted.
+	// If abort is set to true, it means that an error has occurred and the response should not be processed further.
+	// The Abort method returns the value of the abort flag.
+	// The AbortResponse method checks if the abort flag is set to true.
+	abort bool
+	// history represents the history of backend responses in the Response object.
+	history responseHistory
 }
 
+// responseHistory represents the history of backend responses.
+// It is a slice of backendResponse, which represents the responses from a backend service.
+// The response history can be filtered and modified based on certain conditions.
+// It also provides methods to retrieve information about the response history, such as size, success, and status code.
 type responseHistory []backendResponse
 
+// errorResponseBody represents the structure of a response body containing error details.
+// It is used to serialize the error details to JSON format.
+//
+// This struct is typically used in conjunction with the newErrorBody function to generate a JSON response body
+// with error details based on the Endpoint and error provided.
 type errorResponseBody struct {
-	File      string    `json:"file,omitempty"`
-	Line      int       `json:"line,omitempty"`
-	Endpoint  string    `json:"endpoint,omitempty"`
-	Message   string    `json:"message,omitempty"`
-	Timestamp time.Time `json:"timestamp,omitempty"`
+	// File represents the file name or path where the error occurred.
+	File string `json:"file"`
+	// Line represents the line number where the error occurred
+	Line int `json:"line"`
+	// Endpoint represents the endpoint path where the error occurred.
+	Endpoint string `json:"endpoint"`
+	// Message represents the error message.
+	Message string `json:"message"`
+	// Timestamp represents the timestamp when the error occurred.
+	Timestamp time.Time `json:"timestamp"`
 }
 
 // NewResponse creates a new Response object with the given endpoint.
@@ -246,7 +282,7 @@ func (r Response) Eval() string {
 // Then it filters the history based on the completion status to determine if it was a success or not.
 // The method retrieves the status code from the filtered history and creates a new Response header
 // by aggregating the completion and success values.
-// It also aggregates the headers from the filtered history.
+// It also aggregates the modifyHeaders from the filtered history.
 // The method retrieves the body from the filtered history based on the endpoint's aggregateResponses flag.
 // Finally, it constructs and returns a new Response object with the updated values.
 func (r Response) notifyDataChanged(history responseHistory) Response {
@@ -405,14 +441,29 @@ func (r responseHistory) Body(aggregateResponses bool) (b Body) {
 	return b
 }
 
+// last returns the last backendResponse in the responseHistory list.
+// Returns the last backendResponse object.
+// Does not modify the responseHistory.
 func (r responseHistory) last() backendResponse {
 	return r[len(r)-1]
 }
 
+// body returns the Body object of the last backendResponse in the responseHistory list.
+// Creates a new Body object using the last backendResponse in the responseHistory.
+// Returns the newly created Body object.
 func (r responseHistory) body() Body {
 	return newBodyFromBackendResponse(r.last())
 }
 
+// aggregateBody aggregates the body from each backend response in the response history.
+// It creates an initial Body object with empty JSON content.
+// Then, it iterates through each backend response,
+// skipping responses with a nil body.
+// If the backend response has a group response flag set to true,
+// it aggregates the body by key using the AggregateByKey method of the Body object.
+// Otherwise, it aggregates all the JSON fields into the body using the Aggregate method of the Body object.
+// Returns the final aggregated body.
+// If there are no non-nil bodies in the response history, returns an empty Body struct.
 func (r responseHistory) aggregateBody() Body {
 	// instanciamos primeiro o aggregate body para retornar
 	bodyHistory := Body{
@@ -440,6 +491,10 @@ func (r responseHistory) aggregateBody() Body {
 	return bodyHistory
 }
 
+// sliceOfBodies iterates over the response history and constructs a slice of bodies from the backend responses.
+// If a backend response has an empty body, it is skipped.
+// For each backend response with a non-empty body, a bodyBackendResponse object is created and added to the list of bodies.
+// Returns a new Body object that contains the aggregated list of bodies from the response history.
 func (r responseHistory) sliceOfBodies() Body {
 	// instanciamos o valor a ser construído
 	var bodies []Body

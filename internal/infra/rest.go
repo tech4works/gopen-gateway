@@ -14,6 +14,8 @@ import (
 type restTemplate struct {
 }
 
+// NewRestTemplate returns a new instance of a restTemplate object.
+// It implements the interfaces.RestTemplate interface.
 func NewRestTemplate() interfaces.RestTemplate {
 	return restTemplate{}
 }
