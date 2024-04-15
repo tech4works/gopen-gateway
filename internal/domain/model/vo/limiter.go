@@ -20,6 +20,20 @@ type Limiter struct {
 	rate Rate
 }
 
+// EndpointLimiter represents the configuration for rate limiting for an endpoint in the Gopen application.
+// It includes the maximum sizes for the header, body, and multipart memory, as well as the rate configuration for limiting requests.
+type EndpointLimiter struct {
+	// maxHeaderSize represents the maximum size of the header in bytes for rate limiting.
+	maxHeaderSize Bytes
+	// maxBodySize represents the maximum size of the body in bytes for rate limiting.
+	maxBodySize Bytes
+	// maxMultipartMemorySize represents the maximum memory size for multipart request bodies.
+	maxMultipartMemorySize Bytes
+	// rate represents the configuration for `rate` limiting in the Limiter struct. It specifies the capacity and
+	// frequency of allowed requests.
+	rate EndpointRate
+}
+
 // Rate represents the configuration for rate limiting. It specifies the capacity
 // and frequency of allowed requests.
 type Rate struct {
@@ -29,81 +43,96 @@ type Rate struct {
 	every time.Duration
 }
 
-// NewLimiterFromEndpoint takes a Gopen object and an Endpoint object and returns a Limiter object.
-// It initializes the fields of the Limiter object based on values from the Gopen and Endpoint objects.
-// If a value is provided in the Endpoint object, it takes priority over the value from the Gopen object.
-func NewLimiterFromEndpoint(gopenVO Gopen, endpointVO Endpoint) Limiter {
+// EndpointRate represents the configuration for rate limiting for an endpoint in the Gopen application.
+// It includes the capacity, which represents the maximum number of allowed requests within a given time period,
+// and the every field, which represents the frequency of allowed requests in the Rate configuration for rate limiting.
+type EndpointRate struct {
+	// capacity represents the maximum number of allowed requests within a given time period.
+	capacity int
+	// every represents the frequency of allowed requests in the Rate configuration for rate limiting.
+	every time.Duration
+}
+
+// newEndpointLimiter creates a new instance of EndpointLimiter based on the provided Limiter and EndpointLimiter.
+// It sets the maxHeaderSize, maxBodySize, maxMultipartMemorySize fields of EndpointLimiter
+// based on values from the Limiter and EndpointLimiter arguments.
+// If the maxHeaderSize field is specified in EndpointLimiter, it takes precedence over the maxHeaderSize field in Limiter.
+// If the maxBodySize field is specified in EndpointLimiter, it takes precedence over the maxBodySize field in Limiter.
+// If the maxMultipartMemorySize field is specified in EndpointLimiter,
+// it takes precedence over the maxMultipartMemorySize field in Limiter.
+// It also sets the rate field of EndpointLimiter by calling the newEndpointRate function
+// with the rate field from Limiter and EndpointLimiter as arguments.
+func newEndpointLimiter(limiterVO Limiter, endpointLimiterVO EndpointLimiter) EndpointLimiter {
 	// por padrão obtemos o limiter.max-header-size configurado na raiz, caso não informado um valor padrão é retornado
-	maxHeaderSize := gopenVO.LimiterMaxHeaderSize()
+	maxHeaderSize := limiterVO.MaxHeaderSize()
 	// caso informado no endpoint damos prioridade
-	if endpointVO.HasLimiterMaxHeaderSize() {
-		maxHeaderSize = endpointVO.LimiterMaxHeaderSize()
+	if endpointLimiterVO.HasMaxHeaderSize() {
+		maxHeaderSize = endpointLimiterVO.MaxHeaderSize()
 	}
 
 	// por padrão obtemos o limiter.max-body-size configurado na raiz, caso não informado um valor padrão é retornado
-	maxBodySize := gopenVO.LimiterMaxBodySize()
+	maxBodySize := limiterVO.MaxBodySize()
 	// caso informado no endpoint damos prioridade
-	if endpointVO.HasLimiterMaxBodySize() {
-		maxBodySize = endpointVO.LimiterMaxBodySize()
+	if endpointLimiterVO.HasMaxBodySize() {
+		maxBodySize = endpointLimiterVO.MaxBodySize()
 	}
 
 	// por padrão obtemos o limiter.max-multipart-form-size configurado na raiz, caso não informado um valor padrão é retornado
-	maxMultipartForm := gopenVO.LimiterMaxMultipartMemorySize()
+	maxMultipartForm := limiterVO.MaxMultipartMemorySize()
 	// caso informado no endpoint damos prioridade
-	if endpointVO.HasLimiterMaxMultipartFormSize() {
-		maxMultipartForm = endpointVO.LimiterMaxMultipartMemorySize()
+	if endpointLimiterVO.HasMaxMultipartFormSize() {
+		maxMultipartForm = endpointLimiterVO.MaxMultipartMemorySize()
 	}
 
 	//construímos o limiter vo
-	return Limiter{
+	return EndpointLimiter{
 		maxHeaderSize:          maxHeaderSize,
 		maxBodySize:            maxBodySize,
 		maxMultipartMemorySize: maxMultipartForm,
-		rate:                   newRateFromEndpoint(gopenVO, endpointVO),
+		rate:                   newEndpointRate(limiterVO.Rate(), endpointLimiterVO.Rate()),
 	}
 }
 
-// newRateFromEndpoint creates a new instance of Rate based on the provided Gopen and Endpoint objects.
-// It retrieves the rate.every and rate.capacity values from the Gopen and Endpoint objects.
-// If the rate.every value is provided in the Endpoint object, it takes priority over the value in the Gopen object.
-// If the rate.capacity value is provided in the Endpoint object, it takes priority over the value in the Gopen object.
-// The function returns a Rate object initialized with the capacity and every value.
-func newRateFromEndpoint(gopenVO Gopen, endpointVO Endpoint) Rate {
+// newEndpointRate creates a new instance of EndpointRate based on the provided Rate and EndpointRate.
+// It sets the capacity and every field of EndpointRate based on values from the Rate and EndpointRate arguments.
+// If the every field is specified in EndpointRate, it takes precedence over the every field in Rate.
+// If the capacity field is specified in EndpointRate, it takes precedence over the capacity field in Rate.
+func newEndpointRate(rateVO Rate, endpointRateVO EndpointRate) EndpointRate {
 	// por padrão obtemos o limiter.rate.every configurado na raiz, caso não informado um valor padrão é retornado
-	every := gopenVO.LimiterRateEvery()
+	every := rateVO.Every()
 	// caso informado no endpoint damos prioridade
-	if endpointVO.HasLimiterRateEvery() {
-		every = endpointVO.LimiterRateEvery()
+	if endpointRateVO.HasEvery() {
+		every = endpointRateVO.Every()
 	}
 
 	// por padrão obtemos o limiter.rate.capacity configurado na raiz, caso não informado um valor padrão é retornado
-	capacity := gopenVO.LimiterRateCapacity()
+	capacity := rateVO.Capacity()
 	// caso informado no endpoint damos prioridade
-	if endpointVO.HasLimiterRateCapacity() {
-		capacity = endpointVO.LimiterRateCapacity()
+	if endpointRateVO.HasCapacity() {
+		capacity = endpointRateVO.Capacity()
 	}
 
 	// montamos o objeto de valor
-	return Rate{
+	return EndpointRate{
 		capacity: capacity,
 		every:    every,
 	}
 }
 
-// newLimiter creates a new instance of Limiter based on the provided limiterDTO.
+// newLimiterFromDTO creates a new instance of Limiter based on the provided limiterDTO.
 // It initializes the fields of Limiter based on values from limiterDTO and sets default values for empty fields.
-func newLimiter(limiterDTO dto.Limiter) Limiter {
+func newLimiterFromDTO(limiterDTO dto.Limiter) Limiter {
 	return Limiter{
 		maxHeaderSize:          NewBytes(limiterDTO.MaxHeaderSize),
 		maxBodySize:            NewBytes(limiterDTO.MaxBodySize),
 		maxMultipartMemorySize: NewBytes(limiterDTO.MaxMultipartMemorySize),
-		rate:                   newRate(helper.IfNilReturns(limiterDTO.Rate, dto.Rate{})),
+		rate:                   newRateFromDTO(limiterDTO.Rate),
 	}
 }
 
-// newRate creates a new instance of Rate based on the provided rateDTO.
+// newRateFromDTO creates a new instance of Rate based on the provided rateDTO.
 // It initializes the fields of Rate based on values from rateDTO and sets default values for empty fields.
-func newRate(rateDTO dto.Rate) Rate {
+func newRateFromDTO(rateDTO dto.Rate) Rate {
 	var every time.Duration
 	var err error
 	if helper.IsNotEmpty(rateDTO.Every) {
@@ -118,19 +147,62 @@ func newRate(rateDTO dto.Rate) Rate {
 	}
 }
 
+// newEndpointLimiterFromDTO creates a new instance of EndpointLimiter based on the provided limiterDTO.
+// It initializes the fields of EndpointLimiter based on values from limiterDTO and sets default values for empty fields.
+func newEndpointLimiterFromDTO(limiterDTO dto.Limiter) EndpointLimiter {
+	return EndpointLimiter{
+		maxHeaderSize:          NewBytes(limiterDTO.MaxHeaderSize),
+		maxBodySize:            NewBytes(limiterDTO.MaxBodySize),
+		maxMultipartMemorySize: NewBytes(limiterDTO.MaxMultipartMemorySize),
+		rate:                   newEndpointRateFromDTO(limiterDTO.Rate),
+	}
+}
+
+// newEndpointRateFromDTO creates a new instance of EndpointRate based on the provided rateDTO.
+// It initializes the fields of EndpointRate based on values from rateDTO and sets default values for empty fields.
+func newEndpointRateFromDTO(rateDTO dto.Rate) EndpointRate {
+	var every time.Duration
+	var err error
+	if helper.IsNotEmpty(rateDTO.Every) {
+		every, err = time.ParseDuration(rateDTO.Every)
+		if helper.IsNotNil(err) {
+			logger.Warning("Parse duration limiter.rate.every err:", err)
+		}
+	}
+	return EndpointRate{
+		capacity: rateDTO.Capacity,
+		every:    every,
+	}
+}
+
 // MaxHeaderSize returns the value of the maxHeaderSize field in the Limiter object.
+// If the maxHeaderSize field is greater than 0, it returns the value of that field.
+// Otherwise, it returns a new Bytes value with the string "1MB" as the byte unit.
 func (l Limiter) MaxHeaderSize() Bytes {
-	return l.maxHeaderSize
+	if helper.IsGreaterThan(l.maxHeaderSize, 0) {
+		return l.maxHeaderSize
+	}
+	return NewBytes("1MB")
 }
 
 // MaxBodySize returns the value of the maxBodySize field in the Limiter object.
+// If the maxBodySize field is greater than 0, it returns the value of that field.
+// Otherwise, it returns a new Bytes value with the string "3MB" as the byte unit.
 func (l Limiter) MaxBodySize() Bytes {
-	return l.maxBodySize
+	if helper.IsGreaterThan(l.maxBodySize, 0) {
+		return l.maxBodySize
+	}
+	return NewBytes("3MB")
 }
 
 // MaxMultipartMemorySize returns the value of the maxMultipartMemorySize field in the Limiter object.
+// If the maxMultipartMemorySize field is greater than 0, it returns the value of that field.
+// Otherwise, it returns a new Bytes value with the string "5MB" as the byte unit.
 func (l Limiter) MaxMultipartMemorySize() Bytes {
-	return l.maxMultipartMemorySize
+	if helper.IsGreaterThan(l.maxMultipartMemorySize, 0) {
+		return l.maxMultipartMemorySize
+	}
+	return NewBytes("5MB")
 }
 
 // Rate returns the value of the rate field in the Limiter object.
@@ -146,4 +218,65 @@ func (r Rate) Capacity() int {
 // Every returns the value of the every field in the Rate struct.
 func (r Rate) Every() time.Duration {
 	return r.every
+}
+
+// HasMaxHeaderSize returns true if the maxHeaderSize field in the EndpointLimiter object is greater than 0.
+// Otherwise, it returns false.
+func (e EndpointLimiter) HasMaxHeaderSize() bool {
+	return helper.IsGreaterThan(e.maxHeaderSize, 0)
+}
+
+// MaxHeaderSize returns the value of the maxHeaderSize field in the EndpointLimiter object.
+func (e EndpointLimiter) MaxHeaderSize() Bytes {
+	return e.maxHeaderSize
+}
+
+// HasMaxBodySize returns true if the maxBodySize field in the Limiter object is greater than 0.
+// Otherwise, it returns false.
+func (e EndpointLimiter) HasMaxBodySize() bool {
+	return helper.IsGreaterThan(e.maxBodySize, 0)
+}
+
+// MaxBodySize returns the value of the maxBodySize field in the EndpointLimiter object.
+func (e EndpointLimiter) MaxBodySize() Bytes {
+	return e.maxBodySize
+}
+
+// HasMaxMultipartFormSize returns true if the maxMultipartMemorySize field in the EndpointLimiter object is greater than 0.
+// Otherwise, it returns false.
+func (e EndpointLimiter) HasMaxMultipartFormSize() bool {
+	return helper.IsGreaterThan(e.maxMultipartMemorySize, 0)
+}
+
+// MaxMultipartMemorySize returns the value of the maxMultipartMemorySize field in the EndpointLimiter object.
+func (e EndpointLimiter) MaxMultipartMemorySize() Bytes {
+	return e.maxMultipartMemorySize
+}
+
+// Rate returns the value of the rate field in the EndpointLimiter object.
+func (e EndpointLimiter) Rate() EndpointRate {
+	return e.rate
+}
+
+// HasEvery determines if the every field in the EndpointRate struct is greater than 0.
+// It returns true if the every field is greater than 0, otherwise it returns false.
+func (e EndpointRate) HasEvery() bool {
+	return helper.IsGreaterThan(e.every, 0)
+}
+
+// Every returns the value of the every field in the EndpointRate struct.
+func (e EndpointRate) Every() time.Duration {
+	return e.every
+}
+
+// HasCapacity determines if the capacity field in the EndpointRate struct is greater than 0.
+// It returns true if the capacity field is greater than 0, otherwise it returns false.
+func (e EndpointRate) HasCapacity() bool {
+	return helper.IsGreaterThan(e.capacity, 0)
+}
+
+// Capacity returns the value of the capacity field in the EndpointRate struct.
+// It represents the maximum number of allowed requests within a given time period.
+func (e EndpointRate) Capacity() int {
+	return e.capacity
 }

@@ -24,7 +24,7 @@ type Endpoint struct {
 	timeout time.Duration
 	// limiter represents the configuration for rate limiting in the Gopen application.
 	// The default value is nil. If not provided, the `limiter` will be Gopen.limiter.
-	limiter Limiter
+	limiter EndpointLimiter
 	// cache represents the `cache` configuration for an endpoint.
 	// The default value is EndpointCache empty with enabled false.
 	cache EndpointCache
@@ -80,14 +80,47 @@ func newEndpoint(endpointDTO dto.Endpoint) Endpoint {
 		path:               endpointDTO.Path,
 		method:             endpointDTO.Method,
 		timeout:            timeout,
-		limiter:            newLimiter(helper.IfNilReturns(endpointDTO.Limiter, dto.Limiter{})),
-		cache:              newEndpointCache(helper.IfNilReturns(endpointDTO.Cache, dto.EndpointCache{})),
+		limiter:            newEndpointLimiterFromDTO(endpointDTO.Limiter),
+		cache:              newEndpointCacheFromDTO(endpointDTO.Cache),
 		responseEncode:     endpointDTO.ResponseEncode,
 		aggregateResponses: endpointDTO.AggregateResponses,
 		abortIfStatusCodes: endpointDTO.AbortIfStatusCodes,
 		beforeware:         endpointDTO.Beforeware,
 		afterware:          endpointDTO.Afterware,
 		backends:           backends,
+	}
+}
+
+// fillDefaultValues sets default values for an Endpoint object based on a given Gopen object.
+// The timeout value is obtained from the Gopen object by default, unless a timeout value is specified in the Endpoint,
+// in which case, that value takes priority. The limiter and cache values are constructed using the global configuration
+// from the Gopen object and the Endpoint object. The method returns a new Endpoint object with the default values set.
+func (e Endpoint) fillDefaultValues(gopenVO Gopen) Endpoint {
+	// por padrão obtemos o timeout configurado na raiz, caso não informado um valor padrão é retornado
+	timeoutDuration := gopenVO.Timeout()
+	// se o timeout foi informado no endpoint damos prioridade a ele
+	if e.HasTimeout() {
+		timeoutDuration = e.Timeout()
+	}
+	// construímos o limiter com os valores de configuração global
+	endpointLimiterVO := newEndpointLimiter(gopenVO.Limiter(), e.Limiter())
+
+	// construímos o endpoint cache com os valores de configuração global
+	endpointCacheVO := newEndpointCache(gopenVO, e)
+
+	// construímos o VO com os valores padrões construídos a partir do Gopen e o próprio endpoint
+	return Endpoint{
+		path:               e.path,
+		method:             e.method,
+		timeout:            timeoutDuration,
+		limiter:            endpointLimiterVO,
+		cache:              endpointCacheVO,
+		responseEncode:     e.responseEncode,
+		aggregateResponses: e.aggregateResponses,
+		abortIfStatusCodes: e.abortIfStatusCodes,
+		beforeware:         e.beforeware,
+		afterware:          e.afterware,
+		backends:           e.backends,
 	}
 }
 
@@ -120,119 +153,24 @@ func (e Endpoint) Timeout() time.Duration {
 	return e.timeout
 }
 
+// Limiter returns the limiter field of the Endpoint struct.
+func (e Endpoint) Limiter() EndpointLimiter {
+	return e.limiter
+}
+
 // HasLimiter returns true if the Endpoint has a Limiter set, otherwise false.
 func (e Endpoint) HasLimiter() bool {
 	return helper.IsNotEmpty(e.limiter)
 }
 
-// HasLimiterRateCapacity returns true if the limiter rate capacity has been set and is greater than 0.
-func (e Endpoint) HasLimiterRateCapacity() bool {
-	return helper.IsGreaterThan(e.limiter.rate.capacity, 0)
-}
-
-// LimiterRateCapacity returns the value of the capacity field in the rate field of the Limiter struct.
-// It is used to determine the rate limit capacity for a specific endpoint.
-func (e Endpoint) LimiterRateCapacity() int {
-	return e.limiter.rate.capacity
-}
-
-// HasLimiterRateEvery returns true if the endpoint has a limiter rate every greater than 0, false otherwise.
-func (e Endpoint) HasLimiterRateEvery() bool {
-	return helper.IsGreaterThan(e.limiter.rate.every, 0)
-}
-
-// LimiterRateEvery returns the value of the 'every' field in the 'rate' field of the Limiter struct in the Endpoint struct.
-func (e Endpoint) LimiterRateEvery() time.Duration {
-	return e.limiter.rate.every
-}
-
-// HasLimiterMaxHeaderSize returns true if the limiter's maxHeaderSize is greater than 0, false otherwise.
-func (e Endpoint) HasLimiterMaxHeaderSize() bool {
-	return helper.IsGreaterThan(e.limiter.maxHeaderSize, 0)
-}
-
-// LimiterMaxHeaderSize returns the value of the maxHeaderSize field in the Limiter struct.
-func (e Endpoint) LimiterMaxHeaderSize() Bytes {
-	return e.limiter.maxHeaderSize
-}
-
-// HasLimiterMaxBodySize returns true if the `maxBodySize` field in the `Limiter` struct of the `Endpoint` is greater
-// than 0, otherwise it returns false.
-func (e Endpoint) HasLimiterMaxBodySize() bool {
-	return helper.IsGreaterThan(e.limiter.maxBodySize, 0)
-}
-
-// LimiterMaxBodySize returns the value of the maxBodySize field in the Limiter struct of the Endpoint struct.
-func (e Endpoint) LimiterMaxBodySize() Bytes {
-	return e.limiter.maxBodySize
-}
-
-// HasLimiterMaxMultipartFormSize returns true if the limiter's maxMultipartMemorySize value is greater than 0.
-// Otherwise, it returns false.
-func (e Endpoint) HasLimiterMaxMultipartFormSize() bool {
-	return helper.IsGreaterThan(e.limiter.maxMultipartMemorySize, 0)
-}
-
-// LimiterMaxMultipartMemorySize returns the value of the maxMultipartMemorySize field in the Limiter struct of the
-// Endpoint struct.
-func (e Endpoint) LimiterMaxMultipartMemorySize() Bytes {
-	return e.limiter.maxMultipartMemorySize
+// Cache returns the cache field of the Endpoint struct.
+func (e Endpoint) Cache() EndpointCache {
+	return e.cache
 }
 
 // HasCache returns a boolean value indicating whether the Endpoint has a cache.
 func (e Endpoint) HasCache() bool {
 	return e.cache.enabled
-}
-
-// HasCacheDuration returns true if the cache duration of the Endpoint is greater than 0, otherwise false.
-func (e Endpoint) HasCacheDuration() bool {
-	return helper.IsGreaterThan(e.cache.duration, 0)
-}
-
-// CacheDuration returns the cache duration of the Endpoint.
-func (e Endpoint) CacheDuration() time.Duration {
-	return e.cache.duration
-}
-
-// HasCacheStrategyHeaders checks if the Endpoint has any cache strategy headers defined.
-// It returns true if there are cache strategy headers, and false otherwise.
-func (e Endpoint) HasCacheStrategyHeaders() bool {
-	return helper.IsNotNil(e.cache.strategyHeaders)
-}
-
-// CacheStrategyHeaders returns the strategyHeaders field in the Cache struct of the Endpoint.
-// It contains the headers that define the caching strategy for the endpoint.
-func (e Endpoint) CacheStrategyHeaders() []string {
-	return e.cache.strategyHeaders
-}
-
-// HasCacheOnlyIfStatusCodes returns whether the cache only applies for specific status codes.
-func (e Endpoint) HasCacheOnlyIfStatusCodes() bool {
-	return helper.IsNotNil(e.cache.onlyIfStatusCodes)
-}
-
-// CacheOnlyIfStatusCodes returns the onlyIfStatusCodes field of the cache struct.
-func (e Endpoint) CacheOnlyIfStatusCodes() []int {
-	return e.cache.onlyIfStatusCodes
-}
-
-// HasAllowCacheControl returns a boolean value indicating whether the `allowCacheControl` field in the Cache struct
-// of the Endpoint is not nil.
-func (e Endpoint) HasAllowCacheControl() bool {
-	return helper.IsNotNil(e.cache.allowCacheControl)
-}
-
-// AllowCacheControl returns the value of the allowCacheControl field in the Cache struct of the Endpoint.
-// If the allowCacheControl field is nil, it returns false.
-// This method is used to determine whether cache control is allowed for the endpoint.
-func (e Endpoint) AllowCacheControl() bool {
-	return helper.IfNilReturns(e.cache.allowCacheControl, false)
-}
-
-// CacheIgnoreQuery returns the value of the ignoreQuery field in the Cache struct,
-// which determines whether to ignore the query parameters when caching a response.
-func (e Endpoint) CacheIgnoreQuery() bool {
-	return e.cache.ignoreQuery
 }
 
 // Beforeware returns the slice of strings representing the beforeware keys configured for the Endpoint.Beforeware

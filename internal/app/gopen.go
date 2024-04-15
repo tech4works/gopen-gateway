@@ -63,9 +63,9 @@ type Gopen interface {
 	Shutdown(ctx context.Context) error
 }
 
-// NewGOpen creates and returns a new `Gopen` object.
+// NewGopen creates and returns a new `Gopen` object.
 // It returns a `Gopen` interface, which represents the Gopen object that stores the provided configuration and middleware.
-func NewGOpen(
+func NewGopen(
 	gopenVO vo.Gopen,
 	traceMiddleware middleware.Trace,
 	logMiddleware middleware.Log,
@@ -208,11 +208,11 @@ func (g gopen) buildEndpointHandles(endpointVO vo.Endpoint) []api.HandlerFunc {
 	// configuramos o handler do security cors como o middleware
 	securityCorsHandler := g.securityCorsMiddleware.Do
 	// configuramos o handler do timeout do endpoint como o middleware
-	timeoutHandler := g.buildTimeoutMiddlewareHandler(endpointVO)
+	timeoutHandler := g.timeoutMiddleware.Do(endpointVO.Timeout())
 	// configuramos o handler do limiter do endpoint como o middleware
 	limiterHandler := g.buildLimiterMiddlewareHandler(endpointVO)
 	// configuramos o handler de cache do endpoint como o middleware
-	cacheHandler := g.BuildCacheMiddlewareHandler(endpointVO)
+	cacheHandler := g.cacheMiddleware.Do(endpointVO.Cache())
 	// configuramos o handler do endpoint como controlador
 	endpointHandler := g.endpointController.Execute
 	// montamos a lista de manipuladores
@@ -227,51 +227,19 @@ func (g gopen) buildEndpointHandles(endpointVO vo.Endpoint) []api.HandlerFunc {
 	}
 }
 
-// buildTimeoutMiddlewareHandler is a method of the gopen type that builds a timeout middleware handler for a given endpoint.
-// It accepts an endpointVO of type vo.Endpoint and returns an api.HandlerFunc.
-// The method starts by obtaining the timeout duration configured in the gopenVO.
-// If the endpointVO has its own timeout duration, it overrides the default value.
-// Finally, it returns the timeout middleware handler with the configured timeout duration.
-func (g gopen) buildTimeoutMiddlewareHandler(endpointVO vo.Endpoint) api.HandlerFunc {
-	// por padrão obtemos o timeout configurado na raiz, caso não informado um valor padrão é retornado
-	timeoutDuration := g.gopenVO.Timeout()
-	// se o timeout foi informado no endpoint damos prioridade a ele
-	if endpointVO.HasTimeout() {
-		timeoutDuration = endpointVO.Timeout()
-	}
-	// retornamos o manipulador com o timeout configura
-	return g.timeoutMiddleware.Do(timeoutDuration)
-}
-
 // buildLimiterMiddlewareHandler is a method of the gopen type that constructs and returns a limiter middleware handler
 // for the given endpoint. It first retrieves the limiter rate and capacity values from the gopenVO configuration. If
 // these values are specified in the endpoint, they take priority. Next, it retrieves the max header size, max body size,
 // and max multipart form size values from the gopenVO configuration. If these values are specified in the endpoint,
 // they take.
 func (g gopen) buildLimiterMiddlewareHandler(endpointVO vo.Endpoint) api.HandlerFunc {
-	// construímos o limiter com base no
-	limiterVO := vo.NewLimiterFromEndpoint(g.gopenVO, endpointVO)
-
 	// inicializamos o limitador de taxa
-	rateLimiterProvider := infra.NewRateLimiterProvider(limiterVO.Rate())
+	rateLimiterProvider := infra.NewRateLimiterProvider(endpointVO.Limiter().Rate())
 	// inicializamos o limitador de tamanho
-	sizeLimiterProvider := infra.NewSizeLimiterProvider(limiterVO)
+	sizeLimiterProvider := infra.NewSizeLimiterProvider(endpointVO.Limiter())
 
 	// construímos a chamada limiter
 	return g.limiterMiddleware.Do(rateLimiterProvider, sizeLimiterProvider)
-}
-
-// BuildCacheMiddlewareHandler is a method of the gopen type that builds and returns a cache middleware handler for the given endpointVO.
-// It retrieves the cache duration value from the parent gopenVO, or overrides it if the endpointVO has its own cache duration value.
-// Similarly, it retrieves the cache strategy headers value from the parent gopenVO, or overrides it if the endpointVO has its own value.
-// It also retrieves the allow cache control value from the parent gopenVO, or overrides it if the endpointVO has its own value.
-// The method creates a cacheVO value object using the vo.NewCacheFromEndpoint function, and returns the cache middleware handler
-// by calling g.cacheMiddleware.Do with the cacheVO object as the argument.
-func (g gopen) BuildCacheMiddlewareHandler(endpointVO vo.Endpoint) api.HandlerFunc {
-	// construímos o objeto de valor de cache com base no endpoint e a configuração Gopen
-	cacheVO := vo.NewCacheFromEndpoint(g.gopenVO, endpointVO)
-	// construímos a chamada de cache middleware para o endpoint
-	return g.cacheMiddleware.Do(cacheVO)
 }
 
 // printInfoLog is a function that logs informational messages using logger.InfoOpts from the logger package.

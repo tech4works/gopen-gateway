@@ -15,25 +15,25 @@ func NewHeader(httpHeader http.Header) Header {
 	return Header(httpHeader)
 }
 
-// newHeaderFailed creates a new Header object with failed status values for consts.XGOpenCache, consts.XGOpenComplete,
-// and consts.XGOpenSuccess.
+// newHeaderFailed creates a new Header object with failed status values for consts.XGopenCache, consts.XGopenComplete,
+// and consts.XGopenSuccess.
 func newHeaderFailed() Header {
 	return Header{
-		consts.XGOpenCache:    {"false"},
-		consts.XGOpenComplete: {"false"},
-		consts.XGOpenSuccess:  {"false"},
+		consts.XGopenCache:    {"false"},
+		consts.XGopenComplete: {"false"},
+		consts.XGopenSuccess:  {"false"},
 	}
 }
 
-// newResponseHeader creates a new Header object with specific values for consts.XGOpenCache, consts.XGOpenComplete, consts.XGOpenSuccess.
-// The complete parameter is used to set the value of consts.XGOpenComplete header.
-// The success parameter is used to set the value of consts.XGOpenSuccess header.
-// The returned Header object contains the updated values for consts.XGOpenCache, consts.XGOpenComplete, consts.XGOpenSuccess modifyHeaders.
+// newResponseHeader creates a new Header object with specific values for consts.XGopenCache, consts.XGopenComplete, consts.XGopenSuccess.
+// The complete parameter is used to set the value of consts.XGopenComplete header.
+// The success parameter is used to set the value of consts.XGopenSuccess header.
+// The returned Header object contains the updated values for consts.XGopenCache, consts.XGopenComplete, consts.XGopenSuccess modifyHeaders.
 func newResponseHeader(complete, success bool) Header {
 	return Header{
-		consts.XGOpenCache:    {"false"},
-		consts.XGOpenComplete: {helper.SimpleConvertToString(complete)},
-		consts.XGOpenSuccess:  {helper.SimpleConvertToString(success)},
+		consts.XGopenCache:    {"false"},
+		consts.XGopenComplete: {helper.SimpleConvertToString(complete)},
+		consts.XGopenSuccess:  {helper.SimpleConvertToString(success)},
 	}
 }
 

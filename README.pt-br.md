@@ -29,12 +29,13 @@ veja abaixo todos os recursos disponíveis:
 - Execução via docker com hot reload opcional.
 - Configuração de timeout global e local para cada endpoint.
 - Configuração de cache global e local para cada endpoint, com customização da estratégia da chave de armazenamento, e
-  condições baseada em códigos de status de resposta e método http para ler e salvar o mesmo.
+  condições baseada em códigos de status de resposta e método HTTP para ler e salvar o mesmo.
 - Armazenamento de cache local ou global utilizando Redis.
-- Configuração de limitador de tamanho, global e local para cada endpoint, limitando o tamanho do Header, Body e Multipart
+- Configuração de limitador de tamanho, global e local para cada endpoint, limitando o tamanho do Header, Body e
+  Multipart
   Memory.
 - Configuração de limitador de taxa, global e local para cada endpoint, limitando pelo tempo e rajada pelo IP.
-- Configuração de segurança de CORS com validações de origens, método http e headers.
+- Configuração de segurança de CORS com validações de origens, método HTTP e headers.
 - Configuração global de múltiplos middlewares, para serem usados posteriormente no endpoint caso indicado.
 - Filtragem personalizada de envio de headers e query para os backends do endpoint.
 - Processamento de múltiplos backends, sendo eles beforewares, principais e afterwares para o endpoint.
@@ -104,13 +105,13 @@ definidas, veja abaixo um exemplo simples com todos os campos possíveis e seus 
   "version": "v1.0.0",
   "port": 8080,
   "hot-reload": true,
-  "timeout": "30s",
   "store": {
     "redis": {
       "address": "$REDIS_URL",
       "password": "$REDIS_PASSWORD"
     }
   },
+  "timeout": "30s",
   "cache": {
     "duration": "1m",
     "strategy-headers": [
@@ -170,6 +171,8 @@ definidas, veja abaixo um exemplo simples com todos os campos possíveis e seus 
     {
       "@comment": "Feature: Find user by key",
       "path": "/users/find/:key",
+      "method": "GET",
+      "timeout": "10s",
       "cache": {
         "enabled": true,
         "duration": "30s",
@@ -177,7 +180,15 @@ definidas, veja abaixo um exemplo simples com todos os campos possíveis e seus 
         "only-if-status-codes": [],
         "allow-cache-control": false
       },
-      "method": "GET",
+      "limiter": {
+        "max-header-size": "1MB",
+        "max-body-size": "1MB",
+        "max-multipart-memory-size": "1MB",
+        "rate": {
+          "capacity": 10,
+          "every": "1s"
+        }
+      },
       "response-encode": "JSON",
       "aggregate-responses": false,
       "abort-if-status-codes": [],
@@ -235,6 +246,14 @@ máximo `65535`.
 Campo opcional, o valor padrão é `false`, caso seja `true` é utilizado para o carregamento automático quando
 houver alguma alteração no arquivo .json e .env na pasta do ambiente selecionado.
 
+### store
+
+Campo opcional, valor padrão é o armazenamento local em cache, caso seja informado, o campo `redis` passa
+a ser obrigatório e os outros dois campos que acompanham o mesmo `address` e `password` também.
+
+Caso utilize o armazenamento global de cache o Redis, é indicado que os valores de endereço e senha sejam preenchidos
+utilizando variável de ambiente, como no exemplo acima.
+
 ### timeout
 
 Campo opcional, o valor padrão é `30 segundos`, esse campo é responsável pelo tempo máximo de duração do processamento
@@ -263,30 +282,23 @@ seguiremos com o valor informado ou padrão desse campo, na raiz do json de conf
     - 1.5h
 ```
 
-### store
-
-Campo opcional, valor padrão é o armazenamento local em cache, caso seja informado, o campo `redis` passa
-a ser obrigatório e os outros dois campos que acompanham o mesmo `address` e `password` também.
-
-Caso utilize o armazenamento global de cache o Redis, é indicado que os valores de endereço e senha sejam preenchidos
-utilizando variável de ambiente, como no exemplo acima.
-
 ### cache
 
 Campo opcional, se informado, o campo `duration` passa a ser obrigatório!
 
-Caso o objeto seja informado na estrutura do endpoint, damos prioridade aos valores informados lá, caso contrário
-seguiremos com os valores informados nesse campo.
+Caso o objeto seja informado na estrutura do [endpoint.cache](#cache-1), damos prioridade aos valores informados lá,
+caso contrário seguiremos com os valores informados nesse campo.
 
-O valor do cache é apenas gravado 1 vez a cada X duração informada.
+O valor do cache é apenas gravado 1 vez a cada X duração informada no campo `every`.
 
 Os campos `only-if-status-codes` e `only-if-methods` são utilizados para verificar se naquele endpoint habilitado
-a ter cache, pode ser lido e escrito, veja mais sobre eles abaixo.
+a ter cache, pode ser lido e escrito o cache com base no método HTTP e código de status de resposta, veja mais sobre
+eles abaixo.
 
 Caso a resposta não seja "fresca", ou seja, foi respondida pelo cache, o header `X-Gopen-Cache` terá o valor `true`
 caso contrário o valor será `false`.
 
-#### duration
+#### cache.duration
 
 Indica o tempo que o cache irá durar, ele é do tipo `time.Duration`.
 
@@ -306,9 +318,9 @@ Indica o tempo que o cache irá durar, ele é do tipo `time.Duration`.
     - 1.5m
 ```
 
-#### strategy-headers
+#### cache.strategy-headers
 
-Campo opcional, a estrátegia padrão de chave de cache é pela url e método http da requisição tornando-o um cache global
+Campo opcional, a estrátegia padrão de chave de cache é pela url e método HTTP da requisição tornando-o um cache global
 por endpoint, caso informado os cabeçalhos a serem usados na estrátegia eles são agregados nos valores padrões de chave,
 por exemplo, ali no exemplo foi indicado utilizar o campo `X-Forwarded-For` e o `Device` o valor final da chave
 ficaria:
@@ -330,23 +342,23 @@ Então o valor padrão para esse endpoint fica assim sem a estrátegia preenchid
 Nesse exemplo tornamos o cache antes global para o endpoint em espécifico, passa a ser por cliente! Lembrando que isso
 é um exemplo simples, você pode ter a estrátegia que quiser com base no header de sua aplicação.
 
-#### only-if-methods
+#### cache.only-if-methods
 
-Campo opcional, o valor padrão é uma lista com apenas o método http `GET`, caso informada vazia, qualquer método http
+Campo opcional, o valor padrão é uma lista com apenas o método HTTP `GET`, caso informada vazia, qualquer método HTTP
 será aceito.
 
 Esse campo é responsável por decidir se irá ler e gravar o cache do endpoint (que está habilitado a ter cache) pelo
-método http do mesmo.
+método HTTP do mesmo.
 
-#### only-if-status-codes
+#### cache.only-if-status-codes
 
-Campo opcional, o valor padrão é uma lista de códigos de status http de sucessos reconhecidos, caso informada vazia,
-qualquer código de status http de resposta será aceito.
+Campo opcional, o valor padrão é uma lista de códigos de status HTTP de sucessos reconhecidos, caso informada vazia,
+qualquer código de status HTTP de resposta será aceito.
 
 Esse campo é responsável por decidir se irá gravar o cache do endpoint (que está habilitado a ter cache) pelo
-código de status http de resposta do mesmo.
+código de status HTTP de resposta do mesmo.
 
-#### allow-cache-control
+#### cache.allow-cache-control
 
 Campo opcional, o valor padrão é `false`, caso seja informado como `true` a API Gateway irá considerar o header
 `Cache-Control` seguindo as regras a seguir a partir do valor informado na requisição ou na resposta dos backends:
@@ -362,7 +374,7 @@ cache.
 Campo opcional, objeto responsável pelas regras de limitação da API Gateway, seja de tamanho ou taxa, os valores padrões
 variam de campo a campo, veja:
 
-#### max-header-size
+#### limiter.max-header-size
 
 Campo opcional, ele é do tipo `byteUnit`, valor padrão é `1MB`, é responsável por limitar o tamanho do cabeçalho de
 requisição.
@@ -389,7 +401,7 @@ Caso o tamanho do cabeçalho ultrapasse o valor informado, a API Gateway irá ab
     - 1.5GB
 ```
 
-#### max-body-size
+#### limiter.max-body-size
 
 Campo opcional, ele é do tipo `byteUnit`, valor padrão é `3MB`, campo é responsável por limitar o tamanho do corpo
 da requisição.
@@ -416,7 +428,7 @@ Caso o tamanho do corpo ultrapasse o valor informado, a API Gateway irá abortar
     - 1.5GB
 ```
 
-#### max-multipart-memory-size
+#### limiter.max-multipart-memory-size
 
 Campo opcional, ele é do tipo `byteUnit`, valor padrão é `5MB`, esse campo é responsável por limitar o tamanho do
 corpo multipart/form da requisição, geralmente utilizado para envio de arquivos, imagens, etc.
@@ -443,7 +455,7 @@ Caso o tamanho do corpo ultrapasse o valor informado, a API Gateway irá abortar
   - 1.5GB
 ```
 
-#### rate
+#### limiter.rate
 
 Campo opcional, caso seja informado, o campo `capacity` torna-se obrigatório, esse objeto é responsável por limitar
 a taxa de requisição pelo IP, esse limite é imposto obtendo a capacidade máxima pelo campo `capacity` por X duração,
@@ -452,12 +464,12 @@ informado no campo `every`.
 Caso essa capacidade seja ultrapassada, a API Gateway por segurança abortará a requisição, retornando
 `429 (Too many requests)`.
 
-#### rate.capacity
+#### limiter.rate.capacity
 
 Campo opcional, caso o objeto rate seja informado, ele passa a ser obrigatório, o valor padrão é `5`, e o mínimo
 que poderá ser informado é `1`, indica a capacidade máxima de requisições.
 
-#### rate.every
+#### limiter.rate.every
 
 Campo opcional, o valor padrão é `1 segundo`, indica o valor da duração da verificação da capacidade máxima de
 requisições.
@@ -467,22 +479,22 @@ requisições.
 Campo opcional, usado para segurança do CORS da API Gateway, todos os campos por padrão são vazios, não restringindo
 os valores de origin, methods e headers.
 
-Caso queira restringir, e a requisição não esteja de acordo com as configurações impostas, a API Gateway por segurança
+Caso queira restringir, e a requisição não corresponda com as configurações impostas, a API Gateway por segurança
 irá abortar a requisição retornando `403 (Forbidden)`.
 
-#### allow-origins
+#### security-cors.allow-origins
 
 Campo opcional, do tipo lista de string, os itens da lista precisam indicar quais IPs de origem a API Gateway
 permite receber nas requisições.
 
-#### allow-methods
+#### security-cors.allow-methods
 
-Campo opcional, do tipo lista de string, os itens da lista precisam indicar quais métodos http a API Gateway
+Campo opcional, do tipo lista de string, os itens da lista precisam indicar quais métodos HTTP a API Gateway
 permite receber nas requisições.
 
-#### allow-headers
+#### security-cors.allow-headers
 
-Campo opcional, do tipo lista de string, os itens da lista precisam indicar quais campos de cabeçalho http a API Gateway
+Campo opcional, do tipo lista de string, os itens da lista precisam indicar quais campos de cabeçalho HTTP a API Gateway
 permite receber nas requisições.
 
 ### middlewares
@@ -493,7 +505,7 @@ como `beforeware` e `afterware`.
 
 O valor da chave é um objeto de [backend](#backend), porém, com uma observação, esse objeto terá
 sua resposta de sucesso omitida automáticamente pelo endpoint, já que respostas de sucesso de middlewares não são
-exibidas para o cliente final http, porém sua resposta será armazenada ao longo da requisição http feita no endpoint,
+exibidas para o cliente final HTTP, porém sua resposta será armazenada ao longo da requisição HTTP feita no endpoint,
 podendo ser manipulada.
 
 Por exemplo, um `beforeware` quando mencionado no endpoint, ele será utilizado como middleware de pré-requisições, isto
@@ -507,9 +519,121 @@ do id do body de resposta do próprio backend, podendo ser utilizado nos outros 
 
 Para saber mais sobre os `modifiers` [veja](#modifiers).
 
-Para entender melhor essa ferramenta poderosissíma, na prática, veja os exemplos de middlewares usados como
+Para entender melhor essa ferramenta poderosa, na prática, veja os exemplos de middlewares usados como
 `beforeware` e `afterware` feitos no projeto
 de [playground](https://github.com/GabrielHCataldo/gopen-gateway-playground).
+
+### endpoints
+
+Campo obrigatório, é uma lista de objeto, representa cada endpoint da API Gateway que será registrado para ouvir e
+servir as requisições HTTP.
+
+Abaixo iremos listar e explicar cada campo desse objeto tão importante:
+
+### endpoint.@comment
+
+Campo opcional, do tipo string, campo livre para anotações relacionadas ao seu endpoint.
+
+### endpoint.path
+
+Campo obrigatório, do tipo string, responsável pelo caminho URI do endpoint, exemplo `"/users/:id"`.
+
+Caso queira ter parâmetros dinâmicos nesse endpoint, apenas use o padrão `":{nome do parâmetro}"` por exemplo
+`"/users/:id/status/:status"`, a API Gateway irá entender que teremos 2 parâmetros dinâmicos desse endpoint,
+esses valores podem ser repassados para os backends subjacentes.
+
+Exemplo usando o parâmetro dinâmico para os backends subjacentes:
+
+- Endpoint
+    - path: `"/users/:id/status/:status"`
+    - resultado: `"/users/1/status/removed"`
+- Backend 1
+    - path: `"/users/:id"`
+    - resultado: `"/users/1"`
+- Backend 2
+    - path: `"/users/:id/status/:status"`
+    - resultado: `"/users/1/status/removed"`
+
+No exemplo acima vemos que o parâmetro pode ser utilizado como quiser como path nas requisições de backend do endpoint
+em questão.
+
+### endpoint.method
+
+Campo obrigatório, do tipo string, responsável por definir qual método HTTP o endpoint será registrado.
+
+#### endpoint.timeout
+
+É semelhante ao campo [timout](#timeout), porém, será aplicado apenas para o endpoint
+em questão.
+
+Caso omitido, será herdado o valor do campo [timeout](#timeout).
+
+### endpoint.cache
+
+Campo opcional, do tipo objeto, por padrão ele virá vazio apenas com o campo `enabled` preenchido com o valor `false`.
+
+Caso informado, o campo `enabled` se torna obrigatório, os outros campos, caso omitidos, irá herdar da configuração
+[cache](#cache) na raiz caso exista e se preenchida.
+
+Se por acaso, tenha omitido o campo `duration` tanto na atual configuração como na configuração [cache](#cache) na raiz,
+o campo `enabled` é ignorado considerando-o sempre como `false` pois não foi informado a duração do cache em ambas
+configurações.
+
+#### endpoint.cache.enabled
+
+Campo obrigatório, do tipo booleano, indica se você deseja que tenha cache em seu endpoint, `true` para habilitado,
+`false` para não habilitado.
+
+Caso esteja `true` mas não informado o campo `duration` na configuração atual e nem na [raiz](#cache), esse campo
+será ignorado considerando-o sempre como `false`.
+
+#### endpoint.cache.ignore-query
+
+Campo opcional, do tipo booleano, caso não informado o valor padrão é `false`.
+
+Caso o valor seja `true` a API Gateway irá ignorar os parâmetros de busca da URL ao
+criar a chave de armazenamento, caso contrário ela considerára os parâmetros de busca da URL
+ordenando alfabéticamente as chaves e valores.
+
+#### endpoint.cache.duration
+
+É semelhante ao campo [cache.duration](#cacheduration), porém, será aplicado apenas para o endpoint
+em questão.
+
+Caso omitido, será herdado o valor do campo [cache.duration](#cacheduration).
+
+Caso seja omitido nas duas configurações, o campo `enabled` será ignorado considerando-o sempre como `false`.
+
+#### endpoint.cache.strategy-headers
+
+É semelhante ao campo [cache.strategy-headers](#cachestrategy-headers), porém, será aplicado apenas para o endpoint
+em questão.
+
+Caso omitido, será herdado o valor do campo [cache.strategy-headers](#cachestrategy-headers).
+
+Caso seja informado vazio, o valor do não será herdado, porém, será aplicado o valor [padrão](#cachestrategy-headers)
+para o endpoint em questão.
+
+#### endpoint.cache.only-if-status-codes
+
+É semelhante ao campo [cache.only-if-status-codes](#cacheonly-if-status-codes), porém, será aplicado apenas para o
+endpoint em questão.
+
+Caso omitido, será herdado o valor do campo [cache.only-if-status-codes](#cacheonly-if-status-codes)).
+
+Caso seja informado vazio, o valor do não será herdado, porém, será aplicado o
+valor [padrão](#cacheonly-if-status-codes) para o endpoint em questão.
+
+#### endpoint.cache.allow-cache-control
+
+É semelhante ao campo [cache.allow-cache-control](#cacheallow-cache-control), porém, será aplicado apenas para o
+endpoint em questão.
+
+Caso omitido, será herdado o valor do campo [cache.allow-cache-control](#cacheallow-cache-control)).
+
+#### endpoint.limiter
+
+
 
 Usabilidade
 -----------

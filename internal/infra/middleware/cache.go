@@ -19,7 +19,7 @@ type cache struct {
 // The Do method takes a cacheVO object and returns a HandlerFunc function
 // that can be used as an HTTP route handler.
 type Cache interface {
-	// Do takes a cacheVO object and returns a HandlerFunc function
+	// Do takes a endpointCacheVO object and returns a HandlerFunc function
 	// that can be used as an HTTP route handler.
 	//
 	// The cacheVO object contains information about cache configuration
@@ -27,7 +27,7 @@ type Cache interface {
 	//
 	// The returned HandlerFunc is responsible for handling the HTTP request,
 	// implementing cache-related logic based on the provided cache configuration.
-	Do(cacheVO vo.Cache) api.HandlerFunc
+	Do(endpointCacheVO vo.EndpointCache) api.HandlerFunc
 }
 
 // NewCache returns a Cache implementation that uses the provided CacheStore for caching operations.
@@ -37,17 +37,17 @@ func NewCache(cacheStore infra.CacheStore) Cache {
 	}
 }
 
-// Do execute the cache logic based on the provided cache value object and returns a HandlerFunc.
+// Do execute the cache logic based on the provided endpoint cache value object and returns a HandlerFunc.
 // It initializes the cache key based on the strategy, checks if the cache can be read, and responds with the cached value if available.
 // If the cache cannot be read or is not found, it proceeds to the next handler.
 // After the next handler is executed, it checks if the response can be cached, sets the cache value, and logs any errors.
-func (c cache) Do(cacheVO vo.Cache) api.HandlerFunc {
+func (c cache) Do(endpointCacheVO vo.EndpointCache) api.HandlerFunc {
 	return func(ctx *api.Context) {
 		// inicializamos a chave que vai ser utilizada
-		key := cacheVO.StrategyKey(ctx.Request())
+		key := endpointCacheVO.StrategyKey(ctx.Request())
 
 		// verificamos se ele permite ler o cache
-		if cacheVO.CanRead(ctx.Request()) {
+		if endpointCacheVO.CanRead(ctx.Request()) {
 			// inicializamos o valor a ser obtido
 			var cacheResponse vo.CacheResponse
 
@@ -65,9 +65,9 @@ func (c cache) Do(cacheVO vo.Cache) api.HandlerFunc {
 		ctx.Next()
 
 		// verificamos se podemos gravar a resposta
-		if cacheVO.CanWrite(ctx.Request(), ctx.Response()) {
+		if endpointCacheVO.CanWrite(ctx.Request(), ctx.Response()) {
 			// instanciamos a duração
-			duration := cacheVO.Duration()
+			duration := endpointCacheVO.Duration()
 
 			// construímos o valor a ser setado no cache
 			cacheResponse := vo.NewCacheResponse(ctx.Response(), duration)

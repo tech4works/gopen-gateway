@@ -187,8 +187,8 @@ func newBackend(backendDTO dto.Backend) Backend {
 		method:         backendDTO.Method,
 		forwardHeaders: backendDTO.ForwardHeaders,
 		forwardQueries: backendDTO.ForwardQueries,
-		modifiers:      newBackendModifier(helper.IfNilReturns(backendDTO.Modifiers, dto.BackendModifiers{})),
-		extraConfig:    newBackendExtraConfig(helper.IfNilReturns(backendDTO.ExtraConfig, dto.BackendExtraConfig{})),
+		modifiers:      newBackendModifier(backendDTO.Modifiers),
+		extraConfig:    newBackendExtraConfig(backendDTO.ExtraConfig),
 	}
 }
 
@@ -232,7 +232,7 @@ func newBackendModifier(backendModifierDTO dto.BackendModifiers) BackendModifier
 	}
 
 	return BackendModifiers{
-		statusCode: newModifier(helper.IfNilReturns(backendModifierDTO.StatusCode, dto.Modifier{})),
+		statusCode: newModifier(backendModifierDTO.StatusCode),
 		header:     header,
 		params:     params,
 		query:      query,
@@ -302,6 +302,15 @@ func (b Backend) BackendModifiers() BackendModifiers {
 	return b.modifiers
 }
 
+// ExtraConfig returns the extra configuration options for the Backend instance.
+// It returns an instance of BackendExtraConfig that contains additional configuration options
+// such as grouping response, omitting request body, and omitting response.
+// This method returns a copy of the BackendExtraConfig instance, any modifications made to it will not affect the
+// original Backend instance.
+func (b Backend) ExtraConfig() BackendExtraConfig {
+	return b.extraConfig
+}
+
 // CountModifiers returns the number of modifiers present in the Backend instance.
 // If the modifiers field is not nil, it counts all the modifiers using the CountAll() method of BackendModifiers.
 // Otherwise, it returns 0.
@@ -346,6 +355,27 @@ func (b BackendModifiers) CountAll() (count int) {
 	}
 	count += len(b.header) + len(b.params) + len(b.query) + len(b.body)
 	return count
+}
+
+// GroupResponse returns a boolean flag indicating whether the backend should group response.
+// The default value is false.
+func (b BackendExtraConfig) GroupResponse() bool {
+	return b.groupResponse
+}
+
+// OmitRequestBody returns a boolean flag indicating whether the backend should omit the request body in request.
+// If set to true, the backend will not include the request body in the request.
+// If set to false, the request body will be included in the request. The default value is false.
+func (b BackendExtraConfig) OmitRequestBody() bool {
+	return b.omitRequestBody
+}
+
+// OmitResponse returns a boolean flag indicating whether the backend should omit the response body in the incoming request.
+// If set to true, the backend will not include the response body in the incoming request.
+// If set to false, the response body will be included in the incoming request.
+// The default value is false.
+func (b BackendExtraConfig) OmitResponse() bool {
+	return b.omitResponse
 }
 
 // ModifyHeader returns a new backendRequest with the specified header modified.

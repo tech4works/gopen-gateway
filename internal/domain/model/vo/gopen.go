@@ -4,7 +4,6 @@ import (
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/go-logger/logger"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/app/model/dto"
-	"net/http"
 	"time"
 )
 
@@ -58,9 +57,9 @@ type Gopen struct {
 	endpoints []Endpoint
 }
 
-// NewGOpen creates a new instance of Gopen based on the provided environment and gopenDTO.
+// NewGopen creates a new instance of Gopen based on the provided environment and gopenDTO.
 // It initializes the fields of Gopen based on values from gopenDTO and sets default values for empty fields.
-func NewGOpen(env string, gopenDTO dto.Gopen) Gopen {
+func NewGopen(env string, gopenDTO dto.Gopen) Gopen {
 	// damos o parse dos endpoints
 	var endpoints []Endpoint
 	for _, endpointDTO := range gopenDTO.Endpoints {
@@ -82,9 +81,9 @@ func NewGOpen(env string, gopenDTO dto.Gopen) Gopen {
 		version:      gopenDTO.Version,
 		port:         gopenDTO.Port,
 		timeout:      timeout,
-		limiter:      newLimiter(helper.IfNilReturns(gopenDTO.Limiter, dto.Limiter{})),
-		cache:        newCache(helper.IfNilReturns(gopenDTO.Cache, dto.Cache{})),
-		securityCors: newSecurityCors(helper.IfNilReturns(gopenDTO.SecurityCors, dto.SecurityCors{})),
+		limiter:      newLimiterFromDTO(gopenDTO.Limiter),
+		cache:        newCacheFromDTO(gopenDTO.Cache),
+		securityCors: newSecurityCors(gopenDTO.SecurityCors),
 		middlewares:  newMiddlewares(gopenDTO.Middlewares),
 		endpoints:    endpoints,
 	}
@@ -105,11 +104,6 @@ func (g Gopen) Version() string {
 	return g.version
 }
 
-// Endpoints returns the value of the endpoints field in the Gopen struct.
-func (g Gopen) Endpoints() []Endpoint {
-	return g.endpoints
-}
-
 // Timeout returns the value of the timeout field in the Gopen struct. If the timeout is greater than 0,
 // it returns the timeout value. Otherwise, it returns a default timeout of 30 seconds
 func (g Gopen) Timeout() time.Duration {
@@ -119,110 +113,43 @@ func (g Gopen) Timeout() time.Duration {
 	return 30 * time.Second
 }
 
-// LimiterMaxHeaderSize returns the value of maxHeaderSize field in the Limiter struct.
-// If the value is greater than 0, it returns the value.
-// Otherwise, it returns a newly created Bytes instance with the value "1MB".
-func (g Gopen) LimiterMaxHeaderSize() Bytes {
-	if helper.IsGreaterThan(g.limiter.maxHeaderSize, 0) {
-		return g.limiter.maxHeaderSize
-	}
-	return NewBytes("1MB")
+// Cache returns the value of the cache field in the Gopen struct.
+func (g Gopen) Cache() Cache {
+	return g.cache
 }
 
-// LimiterMaxBodySize returns the maximum body size limit for the Gopen struct.
-// It checks if the Limiter's maxBodySize field is greater than 0 and returns it.
-// If it is not greater than 0, it returns a new Bytes object initialized with the value "3MB".
-func (g Gopen) LimiterMaxBodySize() Bytes {
-	if helper.IsGreaterThan(g.limiter.maxBodySize, 0) {
-		return g.limiter.maxBodySize
-	}
-	return NewBytes("3MB")
-}
-
-// LimiterMaxMultipartMemorySize returns the value of the maxMultipartMemorySize field in the Limiter struct of the Gopen object.
-// If the value is greater than zero, it returns the value of that field.
-// Otherwise, it returns a new Bytes object initialized with a value of "5MB".
-func (g Gopen) LimiterMaxMultipartMemorySize() Bytes {
-	if helper.IsGreaterThan(g.limiter.maxMultipartMemorySize, 0) {
-		return g.limiter.maxMultipartMemorySize
-	}
-	return NewBytes("5MB")
-}
-
-// LimiterRateCapacity returns the value of the capacity field in the LimiterRateCapacity method.
-// If the capacity is greater than 0, it returns the capacity field value; otherwise, it returns 5.
-// This method is used to retrieve the rate capacity for a limiter.
-func (g Gopen) LimiterRateCapacity() int {
-	if helper.IsGreaterThan(g.limiter.rate.capacity, 0) {
-		return g.limiter.rate.capacity
-	}
-	return 5
-}
-
-// LimiterRateEvery returns the value of the rate.every field in the Limiter struct.
-// If the value is greater than 0, it returns the rate.every value.
-// Otherwise, it returns a default value of 1 second.
-func (g Gopen) LimiterRateEvery() time.Duration {
-	if helper.IsGreaterThan(g.limiter.rate.every, 0) {
-		return g.limiter.rate.every
-	}
-	return time.Second
-}
-
-// CacheDuration returns the duration of the cache field in the Gopen struct.
-func (g Gopen) CacheDuration() time.Duration {
-	return g.cache.duration
-}
-
-// CacheStrategyHeaders returns the strategyHeaders field in the Cache struct, which represents the headers
-// used in cache strategy.
-func (g Gopen) CacheStrategyHeaders() []string {
-	return g.cache.strategyHeaders
-}
-
-// CacheOnlyIfStatusCodes returns the array of status codes that are used for conditional caching.
-// If the 'onlyIfStatusCodes' field in the Gopen cache is not empty, it returns that array.
-// Otherwise, it returns a default array of commonly used status codes for conditional caching.
-func (g Gopen) CacheOnlyIfStatusCodes() []int {
-	if helper.IsNotEmpty(g.cache.onlyIfStatusCodes) {
-		return g.cache.onlyIfStatusCodes
-	}
-	return []int{
-		http.StatusOK,
-		http.StatusCreated,
-		http.StatusAccepted,
-		http.StatusNonAuthoritativeInfo,
-		http.StatusNoContent,
-		http.StatusResetContent,
-		http.StatusPartialContent,
-		http.StatusMultiStatus,
-		http.StatusAlreadyReported,
-		http.StatusIMUsed,
-	}
-}
-
-// CacheOnlyIfMethods returns the array of HTTP methods used for conditional caching.
-// If the 'onlyIfMethods' field in the Gopen cache is not empty, it returns that array.
-// Otherwise, it returns a default array containing only the HTTP GET method.
-func (g Gopen) CacheOnlyIfMethods() []string {
-	if helper.IsNotEmpty(g.cache.onlyIfMethods) {
-		return g.cache.onlyIfMethods
-	}
-	return []string{
-		http.MethodGet,
-	}
-}
-
-// AllowCacheControl checks if the caching is allowed or not.
-// It uses the 'allowCacheControl' field in the 'Gopen' structure.
-// In case of nil value, it defaults to 'false'.
-func (g Gopen) AllowCacheControl() bool {
-	return helper.IfNilReturns(g.cache.allowCacheControl, false)
+// Limiter returns the value of the limiter field in the Gopen struct.
+func (g Gopen) Limiter() Limiter {
+	return g.limiter
 }
 
 // SecurityCors returns the value of the securityCors field in the Gopen struct.
 func (g Gopen) SecurityCors() SecurityCors {
 	return g.securityCors
+}
+
+// Middleware retrieves a backend from the middlewares map based on the given key and returns it with a boolean
+// indicating whether it exists or not. The returned backend is wrapped in a new middleware backend with the omitResponse
+// field set to true.
+func (g Gopen) Middleware(key string) (Backend, bool) {
+	return g.middlewares.Get(key)
+}
+
+// Middlewares returns the value of the middlewares field in the Gopen struct.
+func (g Gopen) Middlewares() Middlewares {
+	return g.middlewares
+}
+
+// Endpoints returns a slice containing all the endpoints configured in the Gopen struct.
+// It iterates over each EndpointVO in the endpoints slice and fills in default values by calling the
+// fillDefaultValues method on each EndpointVO, passing the Gopen instance as a parameter.
+// The resulting Endpoint slice is returned.
+func (g Gopen) Endpoints() []Endpoint {
+	endpoints := make([]Endpoint, len(g.endpoints))
+	for i, endpointVO := range g.endpoints {
+		endpoints[i] = endpointVO.fillDefaultValues(g)
+	}
+	return g.endpoints
 }
 
 // CountMiddlewares returns the number of middlewares in the Gopen instance.
@@ -259,16 +186,4 @@ func (g Gopen) CountModifiers() (count int) {
 		count += endpointDTO.CountModifiers()
 	}
 	return count
-}
-
-// Middleware retrieves a backend from the middlewares map based on the given key and returns it with a boolean
-// indicating whether it exists or not. The returned backend is wrapped in a new middleware backend with the omitResponse
-// field set to true.
-func (g Gopen) Middleware(key string) (Backend, bool) {
-	return g.middlewares.Get(key)
-}
-
-// Middlewares returns the value of the middlewares field in the Gopen struct.
-func (g Gopen) Middlewares() Middlewares {
-	return g.middlewares
 }

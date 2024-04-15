@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Gopen Schema",
   "definitions": {
-    "byteUnit": {
+    "byte-unit": {
       "type": "string",
       "pattern": "^\\d+(B|KB|MB|GB|TB|PB|EB|ZB|YB)$"
     },
@@ -95,9 +95,6 @@
           "type": "boolean"
         }
       },
-      "required": [
-        "duration"
-      ],
       "additionalProperties": false
     },
     "endpoint-cache": {
@@ -139,13 +136,13 @@
       "type": "object",
       "properties": {
         "max-header-size": {
-          "$ref": "#/definitions/byteUnit"
+          "$ref": "#/definitions/byte-unit"
         },
         "max-body-size": {
-          "$ref": "#/definitions/byteUnit"
+          "$ref": "#/definitions/byte-unit"
         },
         "max-multipart-memory-size": {
-          "$ref": "#/definitions/byteUnit"
+          "$ref": "#/definitions/byte-unit"
         },
         "rate": {
           "type": "object",
@@ -205,11 +202,17 @@
         "path": {
           "$ref": "#/definitions/path"
         },
+        "method": {
+          "$ref": "#/definitions/http-method"
+        },
+        "timeout": {
+          "$ref": "#/definitions/duration"
+        },
         "cache": {
           "$ref": "#/definitions/endpoint-cache"
         },
-        "method": {
-          "$ref": "#/definitions/http-method"
+        "limiter": {
+          "$ref": "#/definitions/limiter"
         },
         "aggregate-responses": {
           "type": "boolean"
@@ -631,11 +634,11 @@
     "hot-reload": {
       "type": "boolean"
     },
-    "timeout": {
-      "type": "string"
-    },
     "store": {
       "$ref": "#/definitions/store"
+    },
+    "timeout": {
+      "type": "string"
     },
     "cache": {
       "$ref": "#/definitions/cache"

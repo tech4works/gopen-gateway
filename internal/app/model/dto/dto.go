@@ -18,16 +18,13 @@ type Gopen struct {
 	// If the value is true, hot-reloading is enabled. If the value is false, hot-reloading is disabled.
 	// By default, hot-reloading is disabled, so if the field is not specified in the JSON file, it will be set to false.
 	HotReload bool `json:"hot-reload,omitempty"`
+	// Store represents the store configuration for the Gopen application.
+	// It contains the Redis configuration.
+	Store Store `json:"store,omitempty"`
 	// Timeout represents the timeout duration for a request or operation.
 	// It is specified in string format and can be parsed into a time.Duration value.
 	// The default value is empty. If not provided, the timeout will be 30s.
 	Timeout string `json:"timeout,omitempty"`
-	// Store represents the store configuration for the Gopen application.
-	// It contains the Redis configuration.
-	Store *Store `json:"store,omitempty"`
-	// Limiter represents the configuration for rate limiting.
-	// It specifies the maximum header size, maximum body size, maximum multipart memory size, and the rate of allowed requests.
-	Limiter *Limiter `json:"limiter,omitempty"`
 	// Cache is a struct representing the cache configuration in the Gopen struct. It contains the following fields:
 	// - Duration: a string representing the duration of the cache in a format compatible with Go's time.ParseDuration
 	// function. It defaults to an empty string. If not provided, the duration will be 30s.
@@ -39,9 +36,12 @@ type Gopen struct {
 	// is an empty slice. If not provided by default, we only consider the http GET method.
 	//- AllowCacheControl: a pointer to a boolean indicating whether the cache should honor the Cache-Control header.
 	// It defaults to nil.
-	Cache *Cache `json:"cache,omitempty"`
+	Cache Cache `json:"cache,omitempty"`
+	// Limiter represents the configuration for rate limiting.
+	// It specifies the maximum header size, maximum body size, maximum multipart memory size, and the rate of allowed requests.
+	Limiter Limiter `json:"limiter,omitempty"`
 	// SecurityCors represents the configuration options for Cross-Origin Resource Sharing (CORS) settings in Gopen.
-	SecurityCors *SecurityCors `json:"security-cors,omitempty"`
+	SecurityCors SecurityCors `json:"security-cors,omitempty"`
 	// Middlewares is a map that represents the middleware configuration in Gopen.
 	// The keys of the map are the names of the middlewares, and the values are
 	// Backend objects that define the properties of each middleware.
@@ -118,7 +118,7 @@ type Limiter struct {
 	MaxMultipartMemorySize string `json:"max-multipart-memory-size,omitempty"`
 	// Rate represents the configuration for rate limiting in the Limiter struct. It specifies the capacity and
 	// frequency of allowed requests.
-	Rate *Rate `json:"rate,omitempty"`
+	Rate Rate `json:"rate,omitempty"`
 }
 
 // Rate represents the configuration for rate limiting. It specifies the capacity
@@ -133,11 +133,11 @@ type Rate struct {
 // SecurityCors represents the configuration options for Cross-Origin Resource Sharing (CORS) settings in Gopen.
 type SecurityCors struct {
 	// AllowOrigins represents the allowed origins for Cross-Origin Resource Sharing (CORS) settings in Gopen.
-	AllowOrigins []string `json:"allow-origins,omitempty"`
+	AllowOrigins []string `json:"allow-origins"`
 	// AllowMethods represents the allowed HTTP methods for Cross-Origin Resource Sharing (CORS) settings in Gopen.
-	AllowMethods []string `json:"allow-methods,omitempty"`
+	AllowMethods []string `json:"allow-methods"`
 	// AllowHeaders represents the list of allowed headers for Cross-Origin Resource Sharing (CORS) settings in Gopen.
-	AllowHeaders []string `json:"allow-headers,omitempty"`
+	AllowHeaders []string `json:"allow-headers"`
 }
 
 // Endpoint represents the configuration for an API endpoint in the Gopen application.
@@ -152,10 +152,10 @@ type Endpoint struct {
 	Timeout string `json:"timeout,omitempty"`
 	// Limiter represents the configuration for rate limiting in the Gopen application.
 	// The default value is nil. If not provided, the limiter will be Gopen.Limiter.
-	Limiter *Limiter `json:"limiter,omitempty"`
+	Limiter Limiter `json:"limiter,omitempty"`
 	// Cache represents the cache configuration for an endpoint.
 	// The default value is EndpointCache empty with enabled false.
-	Cache *EndpointCache `json:"cache,omitempty"`
+	Cache EndpointCache `json:"cache,omitempty"`
 	// ResponseEncode represents the encoding format for the API endpoint response. The ResponseEncode
 	// field is an enum.ResponseEncode value, which can have one of the following values:
 	// - enum.ResponseEncodeText: for encoding the response as plain text.
@@ -212,16 +212,16 @@ type Backend struct {
 	// request sent to the backend server.
 	ForwardQueries []string `json:"forward-queries,omitempty"`
 	// Modifiers represent the configuration to modify the request and response of a backend and endpoint in the Gopen application.
-	Modifiers *BackendModifiers `json:"modifiers,omitempty"`
+	Modifiers BackendModifiers `json:"modifiers,omitempty"`
 	// ExtraConfig represents additional configuration options for a backend in the Gopen application.
-	ExtraConfig *BackendExtraConfig `json:"extra-config,omitempty"`
+	ExtraConfig BackendExtraConfig `json:"extra-config,omitempty"`
 }
 
 // BackendModifiers represents a set of modifiers that can be applied to different parts of the request and response
 // in the Gopen application.
 type BackendModifiers struct {
 	// StatusCode represents a modifier that can be applied to the status code of Backend response.
-	StatusCode *Modifier `json:"status-code,omitempty"`
+	StatusCode Modifier `json:"status-code,omitempty"`
 	// Header represents a slice of modifying structures that can be applied to the header of a request or response from
 	// the Endpoint or just the current Backend.
 	Header []Modifier `json:"header,omitempty"`

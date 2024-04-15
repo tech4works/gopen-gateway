@@ -84,12 +84,12 @@ func NewResponse(endpointVO Endpoint) Response {
 }
 
 // NewResponseByCache creates a new Response object with the given endpoint and cache response.
-// The header of the cache response is modified to include the XGOpenCache and XGOpenCacheTTL headers.
+// The header of the cache response is modified to include the XGopenCache and XGopenCacheTTL headers.
 // Returns the newly created Response object.
 func NewResponseByCache(endpointVO Endpoint, cacheResponseVO CacheResponse) Response {
 	header := cacheResponseVO.Header
-	header = header.Set(consts.XGOpenCache, helper.SimpleConvertToString(true))
-	header = header.Set(consts.XGOpenCacheTTL, cacheResponseVO.TTL())
+	header = header.Set(consts.XGopenCache, helper.SimpleConvertToString(true))
+	header = header.Set(consts.XGopenCacheTTL, cacheResponseVO.TTL())
 
 	var body string
 	if helper.IsNotNil(cacheResponseVO.Body) {

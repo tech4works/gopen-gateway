@@ -23,32 +23,5 @@ type SettingView struct {
 	// Modifiers represents the count of modifiers in the SettingView struct.
 	Modifiers int `json:"modifiers"`
 	// Setting represents the detailed configuration view for the Gopen application.
-	Setting GopenView `json:"setting"`
-}
-
-// GopenView represents the configuration view for the Gopen application.
-type GopenView struct {
-	// Version represents the version of the gopen json configuration.
-	Version string `json:"version,omitempty"`
-	// Port represents the port of the gopen json configuration.
-	Port int `json:"port,omitempty"`
-	// HotReload allows for dynamic reloading of the json configuration.
-	HotReload bool `json:"hot-reload,omitempty"`
-	// Timeout represents the timeout duration for an endpoint of the json configuration.
-	Timeout string `json:"timeout,omitempty"`
-	// Limiter represents rate limiting configuration settings.
-	Limiter *Limiter `json:"limiter,omitempty"`
-	// Cache represents the caching configuration for an endpoint or the application.
-	Cache *Cache `json:"cache,omitempty"`
-	// SecurityCors represents the Cross-Origin Resource Sharing (CORS) configuration for security.
-	SecurityCors *SecurityCors `json:"security-cors,omitempty"`
-	// Middlewares is a map that represents the configuration for middleware backends.
-	// The key is the name of the middleware, and the value is a Backend object that specifies the properties of the middleware.
-	Middlewares map[string]Backend `json:"middlewares,omitempty"`
-	// Endpoints represents a collection of Endpoint objects.
-	// Each Endpoint object represents a specific path and method configuration.
-	//
-	// The Endpoints field is used in the GopenView struct to define the various endpoints of the application.
-	// It is a slice of Endpoint objects.
-	Endpoints []Endpoint `json:"endpoints,omitempty"`
+	Setting Gopen `json:"setting"`
 }
