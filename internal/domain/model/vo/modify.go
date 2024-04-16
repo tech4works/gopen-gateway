@@ -426,6 +426,7 @@ func (m modify) bodyString(body *Body, modifierValue any) *Body {
 		if helper.IsNotEmpty(m.key) {
 			modifiedValue = strings.ReplaceAll(bodyStr, m.key, modifierValueStr)
 		} else {
+			// todo: adicionar mensagem warning?
 			modifiedValue = bodyStr
 		}
 		break
@@ -433,6 +434,7 @@ func (m modify) bodyString(body *Body, modifierValue any) *Body {
 		if helper.IsNotEmpty(m.key) {
 			modifiedValue = strings.ReplaceAll(bodyStr, m.key, "")
 		} else {
+			// todo: adicionar mensagem warning?
 			modifiedValue = bodyStr
 		}
 		break
