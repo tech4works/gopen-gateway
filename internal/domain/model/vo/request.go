@@ -81,6 +81,7 @@ func NewRequest(gin *gin.Context) *Request {
 // Request - A new Request instance with the updated header and the original values for the other fields.
 func (r *Request) SetHeader(header Header) *Request {
 	return &Request{
+		path:    r.path,
 		url:     r.url,
 		method:  r.method,
 		header:  header,
@@ -101,6 +102,7 @@ func (r *Request) ModifyHeader(header Header, backendRequestVO *backendRequest) 
 	history[len(history)-1] = backendRequestVO
 
 	return &Request{
+		path:    r.path,
 		url:     r.url,
 		method:  r.method,
 		header:  header,
@@ -120,6 +122,7 @@ func (r *Request) ModifyParams(params Params, backendRequestVO *backendRequest) 
 	history[len(history)-1] = backendRequestVO
 
 	return &Request{
+		path:    r.path,
 		url:     r.url,
 		method:  r.method,
 		header:  r.header,
@@ -150,6 +153,7 @@ func (r *Request) ModifyQuery(query Query, backendRequestVO *backendRequest) *Re
 	history[len(history)-1] = backendRequestVO
 
 	return &Request{
+		path:    r.path,
 		url:     r.url,
 		method:  r.method,
 		header:  r.header,
@@ -175,6 +179,7 @@ func (r *Request) ModifyBody(body *Body, backendRequestVO *backendRequest) *Requ
 	history := r.history
 	history[len(history)-1] = backendRequestVO
 	return &Request{
+		path:    r.path,
 		url:     r.url,
 		method:  r.method,
 		header:  r.header,
@@ -201,6 +206,7 @@ func (r *Request) ModifyBody(body *Body, backendRequestVO *backendRequest) *Requ
 //	Request - A new Request with the backendRequest added to its history.
 func (r *Request) Append(backendRequest *backendRequest) *Request {
 	return &Request{
+		path:    r.path,
 		url:     r.url,
 		method:  r.method,
 		header:  r.header,

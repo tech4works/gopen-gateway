@@ -97,8 +97,8 @@ func (m modify) statusCodes(statusCode int) int {
 		return statusCode
 	}
 
-	// setamos o valor
-	return statusCode
+	// retornamos o valor modificado
+	return modifierValue
 }
 
 // modifyHeaders modifies the globalHeader and localHeader based on the receiver 'm' of the type modify.
@@ -423,10 +423,14 @@ func (m modify) bodyString(body *Body, modifierValue any) *Body {
 		modifiedValue = bodyStr + modifierValueStr
 		break
 	case enum.ModifierActionSet:
-		modifiedValue = strings.ReplaceAll(bodyStr, m.key, modifierValueStr)
+		if helper.IsNotEmpty(m.key) {
+			modifiedValue = strings.ReplaceAll(bodyStr, m.key, modifierValueStr)
+		}
 		break
 	case enum.ModifierActionDel:
-		modifiedValue = strings.ReplaceAll(bodyStr, m.key, "")
+		if helper.IsNotEmpty(m.key) {
+			modifiedValue = strings.ReplaceAll(bodyStr, m.key, "")
+		}
 		break
 	case enum.ModifierActionReplace:
 		modifiedValue = modifierValueStr

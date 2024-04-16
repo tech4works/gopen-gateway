@@ -95,6 +95,9 @@
           "type": "boolean"
         }
       },
+      "required": [
+        "duration"
+      ],
       "additionalProperties": false
     },
     "endpoint-cache": {
@@ -298,7 +301,7 @@
     "backend-modifiers": {
       "type": "object",
       "properties": {
-        "statusCode": {
+        "status-code": {
           "$ref": "#/definitions/status-code-modifier"
         },
         "header": {
@@ -583,28 +586,81 @@
           "type": "string"
         }
       },
-      "if": {
-        "properties": {
-          "action": {
-            "const": "DEL"
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "action": {
+                "const": "DEL"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "context",
+              "action",
+              "key"
+            ]
+          }
+        },
+        {
+          "if": {
+            "not": {
+              "properties": {
+                "action": {
+                  "const": "DEL"
+                }
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "context",
+              "action",
+              "value"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "context": {
+                "const": "REQUEST"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "scope": {
+                "type": "string",
+                "enum": [
+                  "REQUEST"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "context": {
+                "const": "RESPONSE"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "scope": {
+                "type": "string",
+                "enum": [
+                  "REQUEST",
+                  "RESPONSE"
+                ]
+              }
+            }
           }
         }
-      },
-      "then": {
-        "required": [
-          "context",
-          "action",
-          "key"
-        ]
-      },
-      "else": {
-        "required": [
-          "context",
-          "action",
-          "key",
-          "value"
-        ]
-      },
+      ],
       "additionalProperties": false
     },
     "body-modifier-array": {

@@ -5,6 +5,7 @@ import (
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/go-logger/logger"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/consts"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/enum"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/infra/api"
 	"net/http"
@@ -112,8 +113,12 @@ func (l logProvider) BuildFinishRequestMessage(responseVO *vo.Response, startTim
 	text.WriteString(" ")
 	text.WriteString(logger.StyleReset)
 	if helper.IsNotEmpty(bodyBytes) {
+		s := string(bodyBytes)
+		if helper.IsNotEqualTo(responseVO.ContentType(), enum.ContentTypeText) {
+			s = l.replaceAllBreakLineText(s)
+		}
 		text.WriteString(" ")
-		text.WriteString(l.replaceAllBreakLineText(string(bodyBytes)))
+		text.WriteString(s)
 	}
 	// retornamos o text de log
 	return text.String()

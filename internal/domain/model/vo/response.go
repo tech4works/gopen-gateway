@@ -393,7 +393,8 @@ func (r responseHistory) StatusCode() int {
 //
 // This function wouldn't consider any backendResponseVO whose header is nil.
 // Also, with every aggregation, a new Header value object is created.
-func (r responseHistory) Header() (h Header) {
+func (r responseHistory) Header() Header {
+	h := Header{}
 	for _, backendResponseVO := range r {
 		// se tiver nil pulamos para o próximo
 		if helper.IsNil(backendResponseVO.header) {

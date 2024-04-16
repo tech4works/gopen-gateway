@@ -6,7 +6,6 @@ import (
 	"github.com/GabrielHCataldo/go-errors/errors"
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/enum"
-	"github.com/clarketm/json"
 	"github.com/clbanning/mxj/v2"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
@@ -249,7 +248,13 @@ func (b *Body) AggregateByKey(key string, anotherBody *Body) *Body {
 	if b.IsNotJson() || helper.IsNil(anotherBody) {
 		return b
 	}
-	mergedBodyStr := setJsonKeyValue(b.String(), key, anotherBody)
+
+	var value any = anotherBody
+	if anotherBody.ContentType() == enum.ContentTypeText {
+		value = anotherBody.String()
+	}
+
+	mergedBodyStr := setJsonKeyValue(b.String(), key, value)
 	return &Body{
 		contentType: b.contentType,
 		value:       helper.SimpleConvertToBuffer(mergedBodyStr),
@@ -266,7 +271,7 @@ func (b *Body) Interface() any {
 	case enum.ContentTypeJson:
 		return gjson.ParseBytes(b.value.Bytes()).Value()
 	}
-	return b.value
+	return b.value.String()
 }
 
 // Json returns the byte representation of the Body instance in JSON format.
@@ -363,6 +368,12 @@ func (c *CacheBodyValue) String() string {
 	return (*bytes.Buffer)(c).String()
 }
 
+// Bytes returns the byte slice representation of the CacheBodyValue instance.
+// It calls the Bytes method of the underlying bytes.Buffer type to get the byte slice representation.
+func (c *CacheBodyValue) Bytes() []byte {
+	return (*bytes.Buffer)(c).Bytes()
+}
+
 // MarshalJSON returns the JSON encoding of the CacheBodyValue instance.
 // The JSON encoding is obtained by calling the String method of the
 // underlying bytes.Buffer type to retrieve the string representation,
@@ -370,7 +381,7 @@ func (c *CacheBodyValue) String() string {
 // It returns a byte slice representing the JSON encoding and an error,
 // if any occurred during the encoding process.
 func (c *CacheBodyValue) MarshalJSON() ([]byte, error) {
-	return json.Marshal(c.String())
+	return c.Bytes(), nil
 }
 
 // UnmarshalJSON decodes the JSON data into a string and writes
@@ -378,28 +389,35 @@ func (c *CacheBodyValue) MarshalJSON() ([]byte, error) {
 // It returns an error if there is an issue with decoding or writing
 // the string to the buffer.
 func (c *CacheBodyValue) UnmarshalJSON(data []byte) error {
-	var s string
-	if err := json.Unmarshal(data, &s); err != nil {
-		return err
-	}
-	_, err := (*bytes.Buffer)(c).Write([]byte(s))
+	_, err := (*bytes.Buffer)(c).Write(data)
 	return err
 }
 
-// mergeString takes two string parameters, strA and strB, and returns a pointer to a bytes.Buffer object.
-// It merges the two strings by formatting them with a newline separator and converting the result to a buffer
-// using the helper.SimpleConvertToBuffer function. The resulting buffer is then returned.
-func mergeString(strA, strB string) *bytes.Buffer {
-	merged := fmt.Sprintf("%s\n%s", strA, strB)
+// mergeString concatenates `str` and `anotherStr` with a newline character,
+// then converts the merged string to a `bytes.Buffer` using `helper.SimpleConvertToBuffer`
+// and returns the converted buffer.
+func mergeString(str, anotherStr string) *bytes.Buffer {
+	merged := fmt.Sprintf("%s\n%s", str, anotherStr)
 	return helper.SimpleConvertToBuffer(merged)
 }
 
-// mergeJSON merges the JSON strings `jsonA` and `jsonB`, appending the values of `jsonB` to `jsonA`
-// for any keys that exist in both JSON strings.
-// It returns a pointer to a bytes.Buffer containing the merged JSON string.
-func mergeJSON(jsonA, jsonB string) *bytes.Buffer {
-	merged := jsonA
-	parsedJsonB := gjson.Parse(jsonB)
+// mergeJSON merges the provided JSON strings.
+// It iterates through each key-value pair in the second JSON string,
+// and sets the value of the corresponding key in the first JSON string.
+// If the key already exists in the first JSON string,
+// the value is appended to the existing array of values under that key.
+// If the key does not exist, it is added with the provided value.
+// The merged JSON string is then converted to a *bytes.Buffer and returned.
+//
+// Parameters:
+// - jsonStr: The first JSON string to merge.
+// - anotherJsonStr: The second JSON string to merge.
+//
+// Returns:
+// - A *bytes.Buffer containing the merged JSON string.
+func mergeJSON(jsonStr, anotherJsonStr string) *bytes.Buffer {
+	merged := jsonStr
+	parsedJsonB := gjson.Parse(anotherJsonStr)
 	parsedJsonB.ForEach(func(key, value gjson.Result) bool {
 		merged = setJsonKeyValue(merged, key.String(), value.Value())
 		return true // continue iterando
