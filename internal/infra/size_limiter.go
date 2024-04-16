@@ -40,7 +40,7 @@ type SizeLimiterProvider interface {
 
 // NewSizeLimiterProvider returns a new SizeLimiterProvider with the specified maximum sizes for the header, body,
 // and multipart memory.
-func NewSizeLimiterProvider(endpointLimiterVO vo.EndpointLimiter) SizeLimiterProvider {
+func NewSizeLimiterProvider(endpointLimiterVO *vo.EndpointLimiter) SizeLimiterProvider {
 	return sizeLimiterProvider{
 		maxHeaderSize:          endpointLimiterVO.MaxHeaderSize(),
 		maxBodySize:            endpointLimiterVO.MaxBodySize(),

@@ -41,9 +41,9 @@ type Gopen struct {
 	// is an empty slice. If not provided by default, we only consider the http GET method.
 	//- AllowCacheControl: a pointer to a boolean indicating whether the `cache` should honor the Cache-Control header.
 	// It defaults to empty.
-	cache Cache
+	cache *Cache
 	// securityCors represents the configuration options for Cross-Origin Resource Sharing (CORS) settings in Gopen.
-	securityCors SecurityCors
+	securityCors *SecurityCors
 	// middlewares is a map that represents the middleware configuration in Gopen.
 	// The keys of the map are the names of the middlewares, and the values are
 	// Backend objects that define the properties of each middleware.
@@ -59,7 +59,7 @@ type Gopen struct {
 
 // NewGopen creates a new instance of Gopen based on the provided environment and gopenDTO.
 // It initializes the fields of Gopen based on values from gopenDTO and sets default values for empty fields.
-func NewGopen(env string, gopenDTO dto.Gopen) Gopen {
+func NewGopen(env string, gopenDTO *dto.Gopen) *Gopen {
 	// damos o parse dos endpoints
 	var endpoints []Endpoint
 	for _, endpointDTO := range gopenDTO.Endpoints {
@@ -76,10 +76,11 @@ func NewGopen(env string, gopenDTO dto.Gopen) Gopen {
 		}
 	}
 
-	return Gopen{
+	return &Gopen{
 		env:          env,
 		version:      gopenDTO.Version,
 		port:         gopenDTO.Port,
+		hotReload:    gopenDTO.HotReload,
 		timeout:      timeout,
 		limiter:      newLimiterFromDTO(gopenDTO.Limiter),
 		cache:        newCacheFromDTO(gopenDTO.Cache),
@@ -114,7 +115,7 @@ func (g Gopen) Timeout() time.Duration {
 }
 
 // Cache returns the value of the cache field in the Gopen struct.
-func (g Gopen) Cache() Cache {
+func (g Gopen) Cache() *Cache {
 	return g.cache
 }
 
@@ -124,7 +125,7 @@ func (g Gopen) Limiter() Limiter {
 }
 
 // SecurityCors returns the value of the securityCors field in the Gopen struct.
-func (g Gopen) SecurityCors() SecurityCors {
+func (g Gopen) SecurityCors() *SecurityCors {
 	return g.securityCors
 }
 
@@ -147,9 +148,16 @@ func (g Gopen) Middlewares() Middlewares {
 func (g Gopen) Endpoints() []Endpoint {
 	endpoints := make([]Endpoint, len(g.endpoints))
 	for i, endpointVO := range g.endpoints {
-		endpoints[i] = endpointVO.fillDefaultValues(g)
+		endpoints[i] = endpointVO.fillDefaultValues(&g)
 	}
 	return endpoints
+}
+
+// PureEndpoints returns a slice containing all the endpoints configured in the Gopen struct.
+// No default values are filled in for each EndpointVO, unlike the Endpoints method.
+// The resulting Endpoint slice is returned.
+func (g Gopen) PureEndpoints() []Endpoint {
+	return g.endpoints
 }
 
 // CountMiddlewares returns the number of middlewares in the Gopen instance.

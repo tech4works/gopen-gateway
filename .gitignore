@@ -25,6 +25,7 @@ go.work
 
 # Gopen result json
 gopen.json
+gopen-clean.json
 
 # Air files
 tmp/

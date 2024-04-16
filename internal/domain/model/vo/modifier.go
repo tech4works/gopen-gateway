@@ -35,13 +35,11 @@ type Modifier struct {
 	value string
 }
 
-// newModifier creates a new instance of Modifier struct
-// with the provided modifierDTO.
-// It sets the context, scope, action, propagate, key, and value fields of the Modifier struct
-// to the corresponding fields of the modifierDTO parameter.
-// Returns the created Modifier struct.
-func newModifier(modifierDTO dto.Modifier) Modifier {
-	return Modifier{
+func newModifier(modifierDTO *dto.Modifier) *Modifier {
+	if helper.IsNil(modifierDTO) {
+		return nil
+	}
+	return &Modifier{
 		context:   modifierDTO.Context,
 		scope:     modifierDTO.Scope,
 		action:    modifierDTO.Action,

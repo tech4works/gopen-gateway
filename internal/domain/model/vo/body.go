@@ -1,10 +1,12 @@
 package vo
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/GabrielHCataldo/go-errors/errors"
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/enum"
+	"github.com/clarketm/json"
 	"github.com/clbanning/mxj/v2"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
@@ -16,119 +18,89 @@ type Body struct {
 	// contentType is an enumeration type that represents the format of the content.
 	// It can have the following values: ContentTypeText, ContentTypeJson.
 	contentType enum.ContentType
-	// value is a string field that represents the value of the Body instance.
-	value string
+	// value represents the content of an HTTP request or response body. It is stored as a bytes.Buffer object.
+	value *bytes.Buffer
 }
 
 // CacheBody represents the caching value of an HTTP response body.
 type CacheBody struct {
-	// value is a field of the CacheBody struct. It represents the caching value of an HTTP response body.
-	value string
+	// ContentType represents the format of the content.
+	ContentType enum.ContentType `json:"content-type,omitempty"`
+	// Value represents the caching content of an HTTP response body.
+	// It is a pointer to the CacheBodyValue type, which is an alias for bytes.Buffer.
+	// The value is nullable and is omitted in JSON if it is empty.
+	Value *CacheBodyValue `json:"value,omitempty"`
 }
 
-// NewBody creates a new instance of Body based on the provided contentType and bytes.
-// If the bytes are empty, it returns an empty Body.
-// If the contentType is "application/json", it sets the contentTypeEnum to ContentTypeJson.
-// Otherwise, it sets the contentTypeEnum to ContentTypeText.
-// It returns the constructed Body instance.
-func NewBody(contentType string, bytes []byte) Body {
+// CacheBodyValue is an alias for bytes.Buffer type used to represent the caching value
+// of an HTTP response body. It contains methods to convert the value to different
+// representations, such as string and JSON.
+type CacheBodyValue bytes.Buffer
+
+// NewBody creates a new instance of Body based on the provided contentType and buffer.
+// If the buffer is empty, it returns nil.
+// If the contentType contains the string "application/json", it sets the contentTypeEnum to ContentTypeJson.
+// If the contentType contains the string "text/plain", it sets the contentTypeEnum to ContentTypeText.
+// Otherwise, the contentTypeEnum remains uninitialized.
+// It returns a pointer to the constructed Body instance.
+func NewBody(contentType string, buffer *bytes.Buffer) *Body {
 	// se vazio, retornamos vazio
-	if helper.IsEmpty(bytes) {
-		return Body{}
-	}
-	// verificamos se o content-type passado é json
-	contentTypeEnum := enum.ContentTypeText
-	if helper.ContainsIgnoreCase(contentType, "application/json") {
-		contentTypeEnum = enum.ContentTypeJson
-	}
-	// montamos o body
-	return Body{
-		contentType: contentTypeEnum,
-		value:       string(bytes),
-	}
-}
-
-// NewBodyFromString creates a new instance of Body based on the provided value.
-// If the value is empty, it returns an empty Body.
-// If the value is a valid JSON string, it sets the contentTypeEnum to ContentTypeJson.
-// Otherwise, it sets the contentTypeEnum to ContentTypeText.
-// It returns the constructed Body instance.
-func NewBodyFromString(value string) Body {
-	// se vazio, retornamos nil
-	if helper.IsEmpty(value) {
-		return Body{}
-	}
-	// verificamos se a string passada é json
-	contentTypeEnum := enum.ContentTypeText
-	if helper.IsJson(value) {
-		contentTypeEnum = enum.ContentTypeJson
-	}
-	// montamos o body
-	return Body{
-		contentType: contentTypeEnum,
-		value:       value,
-	}
-}
-
-// newCacheBody creates a new instance of CacheBody based on the provided body.
-// If the body is empty, it returns nil.
-// It sets the value of the CacheBody based on the value of the body.
-// It returns a pointer to the constructed CacheBody instance.
-func newCacheBody(body Body) *CacheBody {
-	if body.IsEmpty() {
+	if helper.IsEmpty(buffer.Bytes()) {
 		return nil
 	}
-	return &CacheBody{
-		value: body.value,
+	// montamos o body
+	return &Body{
+		contentType: enum.ContentTypeFromString(contentType),
+		value:       buffer,
 	}
 }
 
-// newEmptyBody creates a new instance of the Body struct with empty
-// values for contentType and value. It returns the constructed Body instance.
-func newEmptyBody() Body {
-	return Body{}
-}
-
-// newErrorBody creates a new instance of Body based on the provided endpointVO and err.
-// It generates a JSON response body containing error details using the errorResponseBody struct.
-// If error details are nil or empty, it returns an empty Body.
-// Otherwise, it populates the errorResponseBody fields with error details and current timestamp.
-// It then converts the errorResponseBody to bytes and constructs the Body instance with ContentTypeJson and bodyBytes.
-// It returns the constructed Body instance.
-func newErrorBody(endpointVO Endpoint, err error) Body {
+// newErrorBody creates a new instance of Body as an error response body.
+// It takes a path string and an error object as arguments.
+// First, it obtains the error details using the errors.Details function from the go-errors library.
+// If the detailsErr is nil, it returns nil.
+// Then, it constructs the errorResponseBody object using the error details and the provided path.
+// After that, it creates the Body instance by setting the contentType to ContentTypeJson and
+// converting the errorResponseBody object to a Buffer using the helper.SimpleConvertToBuffer function.
+// Finally, it returns a pointer to the constructed Body instance.
+func newErrorBody(path string, err error) *Body {
+	// obtemos o detalhe do erro usando a lib go-errors
 	detailsErr := errors.Details(err)
 	if helper.IsNil(detailsErr) {
-		return newEmptyBody()
+		return nil
 	}
-	errResponseBody := &errorResponseBody{
+
+	// com os detalhes, construímos o objeto de retorno padrão de erro da API Gateway
+	errResponseBody := errorResponseBody{
 		File:      detailsErr.GetFile(),
 		Line:      detailsErr.GetLine(),
-		Endpoint:  endpointVO.Path(),
+		Endpoint:  path,
 		Message:   detailsErr.GetMessage(),
 		Timestamp: time.Now(),
 	}
-	bodyBytes := helper.SimpleConvertToBytes(errResponseBody)
-	return Body{
+
+	// construímos o body com esse objeto
+	return &Body{
 		contentType: enum.ContentTypeJson,
-		value:       string(bodyBytes),
+		value:       helper.SimpleConvertToBuffer(errResponseBody),
 	}
 }
 
-// newBodyFromIndex creates a new instance of Body based on the provided index and backendResponse.
+// newBodyFromIndexAndBackendResponse creates a new instance of Body based on the provided index and backendResponse.
 // It constructs the default response body with initial fields.
 // If the backendResponseVO is marked for grouping, it aggregates the body based on the index and body value.
 // Otherwise, it aggregates all JSON fields in the bodyHistory.
 // It returns the constructed Body instance.
-func newBodyFromIndex(index int, backendResponseVO backendResponse) Body {
+func newBodyFromIndexAndBackendResponse(index int, backendResponseVO *backendResponse) *Body {
 	// construímos o body padrão de resposta, com os campos iniciais
 	bodyJson := "{}"
 	bodyJson, _ = sjson.Set(bodyJson, "ok", backendResponseVO.Ok())
 	bodyJson, _ = sjson.Set(bodyJson, "code", backendResponseVO.StatusCode())
 
 	// construímos o body com os valores padrões
-	body := Body{
+	body := &Body{
 		contentType: enum.ContentTypeJson,
-		value:       bodyJson,
+		value:       helper.SimpleConvertToBuffer(bodyJson),
 	}
 	// caso seja string ou slice agregamos na chave, caso contrario, iremos agregar todos os campos json no bodyHistory
 	if backendResponseVO.GroupResponse() {
@@ -145,108 +117,142 @@ func newBodyFromIndex(index int, backendResponseVO backendResponse) Body {
 // If backendResponseVO.groupResponse is true, it creates a new Body with contentType set to ContentTypeJson and value set to "{}".
 // It then calls body.AggregateByKey() to aggregate the body with the provided key and anotherBody.
 // The aggregated Body instance is returned.
-func newBodyFromBackendResponse(backendResponseVO backendResponse) Body {
+func newBodyFromBackendResponse(backendResponseVO *backendResponse) *Body {
 	// verificamos se backendResponse quer ser agrupado com o campo extra-config
 	if !backendResponseVO.group {
 		return backendResponseVO.body
 	}
-	// caso ele queira ser agrupado independente se for json ou não, transformamos ele em json
-	bodyJson := "{}"
 	// construímos o body vazio para poder agregar logo após
-	body := Body{
+	body := &Body{
 		contentType: enum.ContentTypeJson,
-		value:       bodyJson,
+		value:       helper.SimpleConvertToBuffer("{}"),
 	}
 	// retornamos o body agregado com a chave
 	return body.AggregateByKey(backendResponseVO.Key(-1), backendResponseVO.Body())
 }
 
-// newSliceBody creates a new instance of Body based on the provided slice of Body.
-// If the slice is empty, it returns an empty Body.
-// It converts the provided slice of Body to bytes using the SimpleConvertToBytes function from the helper package.
-// It sets the contentTypeEnum to ContentTypeJson.
-// It constructs the Body instance with the contentTypeEnum and the string value of the converted bytes.
-// It returns the constructed Body instance.
-func newSliceBody(slice []Body) Body {
-	if helper.IsEmpty(slice) {
-		return newEmptyBody()
+// newSliceBody creates a new instance of Body based on the provided slice of *Body.
+// If the slice is empty, it returns nil.
+// The contentType of the new Body instance is set to ContentTypeJson.
+// The value of the new Body instance is obtained by converting the slice to a bytes.Buffer object using helper.SimpleConvertToBuffer.
+// It returns a pointer to the constructed Body instance.
+func newSliceBody(sliceOfBodies []*Body) *Body {
+	if helper.IsEmpty(sliceOfBodies) {
+		return nil
 	}
-	bodyBytes := helper.SimpleConvertToBytes(slice)
-	return Body{
+	return &Body{
 		contentType: enum.ContentTypeJson,
-		value:       string(bodyBytes),
+		value:       helper.SimpleConvertToBuffer(sliceOfBodies),
 	}
+}
+
+// newBodyFromCacheBody creates a new instance of Body based on the provided CacheBody.
+// If the cacheBody parameter is nil, it returns nil.
+// Otherwise, it sets the contentType field of the new Body instance to the ContentType field of the cacheBody parameter.
+// It converts the Value field of the cacheBody parameter to a bytes.Buffer pointer and assigns it to the value field of the new Body instance.
+// It returns a pointer to the newly created Body instance.
+func newBodyFromCacheBody(cacheBodyVO *CacheBody) *Body {
+	if helper.IsNil(cacheBodyVO) {
+		return nil
+	}
+	return &Body{
+		contentType: cacheBodyVO.ContentType,
+		value:       (*bytes.Buffer)(cacheBodyVO.Value),
+	}
+}
+
+// newCacheBody creates a new instance of CacheBody based on the provided body.
+// If the body is nil, it returns nil.
+// Otherwise, it sets the ContentType field of CacheBody based on the ContentType method of body.
+// It sets the Value field of CacheBody by calling newCacheBodyValue with the Value method of body as an argument.
+// It returns a pointer to the constructed CacheBody instance.
+func newCacheBody(bodyVO *Body) *CacheBody {
+	if helper.IsNil(bodyVO) {
+		return nil
+	}
+	return &CacheBody{
+		ContentType: bodyVO.ContentType(),
+		Value:       newCacheBodyValue(bodyVO.Value()),
+	}
+}
+
+// newCacheBodyValue creates a new instance of CacheBodyValue based on the provided buffer.
+// If the buffer is nil, it returns nil.
+// Otherwise, it converts the buffer to a pointer of type *CacheBodyValue.
+// It returns a pointer to the constructed CacheBodyValue instance.
+func newCacheBodyValue(buffer *bytes.Buffer) *CacheBodyValue {
+	if helper.IsNil(buffer) {
+		return nil
+	}
+	return (*CacheBodyValue)(buffer)
 }
 
 // SetValue returns a new instance of Body with the provided value.
 // The new Body instance will have the same contentType as the original Body instance.
-func (b Body) SetValue(value string) Body {
-	return Body{
+func (b *Body) SetValue(value *bytes.Buffer) *Body {
+	return &Body{
 		contentType: b.contentType,
 		value:       value,
 	}
 }
 
 // ContentType returns the value of the contentType field in the Body struct.
-func (b Body) ContentType() enum.ContentType {
+func (b *Body) ContentType() enum.ContentType {
 	return b.contentType
 }
 
-// Value returns the value of the Body instance.
-func (b Body) Value() string {
+// Value returns the value of the `bytes.Buffer` object stored in the `value` field of the Body struct.
+func (b *Body) Value() *bytes.Buffer {
 	return b.value
 }
 
-// IsEmpty returns a boolean value indicating whether the value of the Body is empty or not.
-// It uses the helper.IsEmpty function to determine the emptiness of the value.
-func (b Body) IsEmpty() bool {
-	return helper.IsEmpty(b.value)
-}
-
-// IsNotEmpty returns a boolean value indicating whether the value of the Body is not empty.
-// It utilizes the helper.IsNotEmpty function to determine the non-emptiness of the value.
-func (b Body) IsNotEmpty() bool {
-	return helper.IsNotEmpty(b.value)
-}
-
-// Aggregate returns a new instance of Body by merging the value of the current Body
-// instance with the value of anotherBody.
-// The merging process depends on the contentType of the current Body instance.
-// If contentType is enum.ContentTypeJson, the JSON values of the two bodies will be merged.
-// If contentType is enum.ContentTypeText, the two string values will be concatenated with a newline separator.
-// The new Body instance will have the same contentType as the original Body instance.
-func (b Body) Aggregate(anotherBody Body) Body {
-	mergedBodyStr := b.value
-	switch b.contentType {
-	case enum.ContentTypeJson:
-		mergedBodyStr = mergeJSON(mergedBodyStr, anotherBody.value)
-		break
-	case enum.ContentTypeText:
-		mergedBodyStr = mergeString(mergedBodyStr, anotherBody.value)
-		break
-	}
-	return Body{
-		contentType: b.contentType,
-		value:       mergedBodyStr,
-	}
-}
-
-// AggregateByKey returns a new instance of Body by merging the value of the current Body
-// instance with the value of anotherBody. The merging process depends on the contentType
-// of the current Body instance. If contentType is enum.ContentTypeJson, the JSON values of
-// the two bodies will be merged by adding the key-value pair to the existing JSON. If the
-// key already exists in the JSON, the value will be appended to the existing array of values
-// under that key. If the key does not exist, it will be added with the provided value.
-// If contentType is not enum.ContentTypeJson, the method returns the current Body instance without
-// any modifications. The new Body instance will have the same contentType as the original Body instance.
-func (b Body) AggregateByKey(key string, anotherBody Body) Body {
-	if b.IsNotJson() {
+// Aggregate merges two Body instances into a new Body instance.
+// If anotherBody is nil, it returns the current Body instance.
+// It converts the values of the bodies to strings and merges them according to the contentType field.
+// If the contentType is ContentTypeJson, it uses the mergeJSON function to merge the JSON strings.
+// If the contentType is ContentTypeText, it uses the mergeString function to merge the strings.
+// The mergedBody value is then used to create a new Body instance with the same contentType,
+// which is returned as the result.
+func (b *Body) Aggregate(anotherBody *Body) *Body {
+	if helper.IsNil(anotherBody) {
 		return b
 	}
-	mergedBodyStr := setJsonKeyValue(b.value, key, anotherBody)
-	return Body{
+
+	// instanciamos o valor dos bodies em string para ser manipulado
+	bodyStr := b.String()
+	anotherBodyStr := anotherBody.String()
+
+	mergedBody := b.value
+	switch b.contentType {
+	case enum.ContentTypeJson:
+		mergedBody = mergeJSON(bodyStr, anotherBodyStr)
+		break
+	case enum.ContentTypeText:
+		mergedBody = mergeString(bodyStr, anotherBodyStr)
+		break
+	}
+
+	// construímos o novo ponteiro do body merge
+	return &Body{
 		contentType: b.contentType,
-		value:       mergedBodyStr,
+		value:       mergedBody,
+	}
+}
+
+// AggregateByKey merges the value of the current Body instance with the value of anotherBody.
+// It only performs the merging operation if the current Body instance has a contentType of ContentTypeJson and anotherBody is not nil.
+// If either of the conditions is not satisfied, it returns the current Body instance.
+// The merging operation is done by setting the provided key to the value of anotherBody in the JSON representation of the current Body instance.
+// The resulting merged JSON string is converted to a buffer and used to create a new Body instance with the same contentType as the current instance.
+// The new Body instance is then returned.
+func (b *Body) AggregateByKey(key string, anotherBody *Body) *Body {
+	if b.IsNotJson() || helper.IsNil(anotherBody) {
+		return b
+	}
+	mergedBodyStr := setJsonKeyValue(b.String(), key, anotherBody)
+	return &Body{
+		contentType: b.contentType,
+		value:       helper.SimpleConvertToBuffer(mergedBodyStr),
 	}
 }
 
@@ -255,29 +261,27 @@ func (b Body) AggregateByKey(key string, anotherBody Body) Body {
 // using gjson.Parse and returns the rooted JSON.Value.
 // For any other contentType, it returns the value as it is.
 // The returned value will have the type `interface{}`.
-func (b Body) Interface() any {
+func (b *Body) Interface() any {
 	switch b.contentType {
 	case enum.ContentTypeJson:
-		return gjson.Parse(b.value).Value()
+		return gjson.ParseBytes(b.value.Bytes()).Value()
 	}
 	return b.value
 }
 
-// Json returns the JSON representation of the Body instance.
-// If the Body is empty, an empty string is returned.
-// If the contentType of the Body is enum.ContentTypeJson, the value is returned as it is.
-// For any other contentType, the value is formatted as a JSON string with a "text" field.
-// The resulting JSON string is returned.
-func (b Body) Json() string {
-	if b.IsEmpty() {
-		return ""
-	}
-
+// Json returns the byte representation of the Body instance in JSON format.
+// If the contentType of the Body is ContentTypeText, it converts the value to a JSON string
+// with the `text` field containing the value. If the contentType is ContentTypeJson,
+// it returns the same value as the Bytes method. For any other contentType, it returns an empty byte array.
+func (b *Body) Json() []byte {
 	switch b.contentType {
+	case enum.ContentTypeText:
+		return helper.SimpleConvertToBytes(fmt.Sprintf("{\"text\": \"%v\"}", b.value))
 	case enum.ContentTypeJson:
-		return b.value
+		return b.Bytes()
+	default:
+		return []byte{}
 	}
-	return fmt.Sprintf("{\"text\": \"%v\"}", b.value)
 }
 
 // Xml returns the XML representation of the Body instance.
@@ -288,120 +292,119 @@ func (b Body) Json() string {
 // If the conversion fails, "<object></object>" is returned.
 // For any other contentType, the value is formatted as a string with an XML tag wrapping it.
 // The resulting XML string is returned.
-func (b Body) Xml() string {
-	if b.IsEmpty() {
-		return ""
-	}
+func (b *Body) Xml() []byte {
 	switch b.contentType {
 	case enum.ContentTypeJson:
-		mapJson, err := mxj.NewMapJson([]byte(b.value))
+		mapJson, err := mxj.NewMapJson(b.Bytes())
 		if helper.IsNil(err) {
 			xmlBytes, err := mapJson.XmlIndent("", "  ", "object")
 			if helper.IsNil(err) {
-				return string(xmlBytes)
+				return xmlBytes
 			}
 		}
-		return "<object></object>"
+		return []byte("<object></object>")
 	default:
-		return fmt.Sprintf("<string>%s</string>", b.value)
+		return []byte(fmt.Sprintf("<string>%s</string>", b.value))
 	}
 }
 
-// BytesByContentType returns the byte representation of the Body instance
-// based on the provided contentType. If the contentType is ContentTypeJson,
-// it returns the byte representation of the JSON value of the Body. If the
-// contentType is ContentTypeXml, it returns the byte representation of the
-// XML value of the Body. For any other contentType, it returns the byte
-// representation of the value of the Body.
-func (b Body) BytesByContentType(contentType enum.ContentType) []byte {
+// BytesByContentType returns the byte representation of the `Body` instance
+// based on the provided `contentType`.
+// If the `contentType` is `enum.ContentTypeJson`, it returns the result of `b.Json()`.
+// If the `contentType` is `enum.ContentTypeXml`, it returns the result of `b.Xml()`.
+// For any other `contentType`, it returns the result of `b.Bytes()`.
+func (b *Body) BytesByContentType(contentType enum.ContentType) []byte {
 	switch contentType {
 	case enum.ContentTypeJson:
-		return []byte(b.Json())
+		return b.Json()
 	case enum.ContentTypeXml:
-		return []byte(b.Xml())
+		return b.Xml()
 	default:
-		return []byte(b.value)
+		return b.Bytes()
 	}
 }
 
-// Bytes returns the byte representation of the Body instance.
-// If the contentType of the Body is enum.ContentTypeJson, the JSON value is returned as bytes.
-// For any other contentType, the value is returned as bytes.
-func (b Body) Bytes() []byte {
-	switch b.contentType {
-	case enum.ContentTypeJson:
-		return []byte(b.Json())
-	default:
-		return []byte(b.value)
-	}
+// Bytes returns the byte representation of the `Body` instance by returning the byte array from the `bytes.Buffer` value.
+func (b *Body) Bytes() []byte {
+	return b.value.Bytes()
 }
 
 // String returns a string representation of the current Body instance.
 // It utilizes the SimpleConvertToString function from the helper package to convert the value of the Body to a string.
 // The resulting string representation of the Body is returned.
-func (b Body) String() string {
-	return b.value
+func (b *Body) String() string {
+	return b.value.String()
 }
 
 // MarshalJSON marshals the value of the Body instance into JSON format.
 // It uses helper.ConvertToBytes to convert the value to bytes and return it along with no errors.
-func (b Body) MarshalJSON() ([]byte, error) {
-	return helper.ConvertToBytes(b.value)
+func (b *Body) MarshalJSON() ([]byte, error) {
+	return b.value.Bytes(), nil
 }
 
 // IsText returns a boolean value indicating whether the contentType of the Body is ContentTypeText.
-func (b Body) IsText() bool {
+func (b *Body) IsText() bool {
 	return helper.Equals(b.contentType, enum.ContentTypeText)
 }
 
 // IsJson returns a boolean value indicating whether the contentType of the Body is ContentTypeJson.
-func (b Body) IsJson() bool {
+func (b *Body) IsJson() bool {
 	return helper.Equals(b.contentType, enum.ContentTypeJson)
 }
 
 // IsNotJson returns a boolean value indicating whether the contentType of the Body is not ContentTypeJson.
-func (b Body) IsNotJson() bool {
+func (b *Body) IsNotJson() bool {
 	return !b.IsJson()
 }
 
-// MarshalJSON returns the JSON encoding of CacheBody's value using helper.ConvertToBytes.
-// It implements the json.Marshaler interface.
-func (c *CacheBody) MarshalJSON() ([]byte, error) {
-	return helper.ConvertToBytes(c.value)
+// String returns the string representation of the CacheBodyValue instance.
+// It calls the String method of the underlying bytes.Buffer type to get the string representation.
+func (c *CacheBodyValue) String() string {
+	return (*bytes.Buffer)(c).String()
 }
 
-// UnmarshalJSON unmarshals the given JSON data into a CacheBody instance.
-// If the data is empty, it returns nil.
-// Otherwise, it sets the value of the CacheBody instance to the string representation of the data.
-// The function always returns nil as error.
-func (c *CacheBody) UnmarshalJSON(data []byte) error {
-	if helper.IsEmpty(data) {
-		return nil
+// MarshalJSON returns the JSON encoding of the CacheBodyValue instance.
+// The JSON encoding is obtained by calling the String method of the
+// underlying bytes.Buffer type to retrieve the string representation,
+// and then encoding it using json.Marshal.
+// It returns a byte slice representing the JSON encoding and an error,
+// if any occurred during the encoding process.
+func (c *CacheBodyValue) MarshalJSON() ([]byte, error) {
+	return json.Marshal(c.String())
+}
+
+// UnmarshalJSON decodes the JSON data into a string and writes
+// the string to the underlying bytes.Buffer type.
+// It returns an error if there is an issue with decoding or writing
+// the string to the buffer.
+func (c *CacheBodyValue) UnmarshalJSON(data []byte) error {
+	var s string
+	if err := json.Unmarshal(data, &s); err != nil {
+		return err
 	}
-	*c = CacheBody{
-		value: string(data),
-	}
-	return nil
+	_, err := (*bytes.Buffer)(c).Write([]byte(s))
+	return err
 }
 
-// mergeString concatenates two strings with a newline separator and returns the result.
-func mergeString(strA, strB string) string {
-	return fmt.Sprintf("%s\n%s", strA, strB)
+// mergeString takes two string parameters, strA and strB, and returns a pointer to a bytes.Buffer object.
+// It merges the two strings by formatting them with a newline separator and converting the result to a buffer
+// using the helper.SimpleConvertToBuffer function. The resulting buffer is then returned.
+func mergeString(strA, strB string) *bytes.Buffer {
+	merged := fmt.Sprintf("%s\n%s", strA, strB)
+	return helper.SimpleConvertToBuffer(merged)
 }
 
-// mergeJSON merges two JSON strings together.
-// The function iterates over each key-value pair in jsonB and adds it to jsonA.
-// If a key already exists in jsonA, the value is appended to the existing value as an array.
-// If a key does not exist in jsonA, it is added with the provided value.
-// The merged JSON string is returned.
-func mergeJSON(jsonA, jsonB string) string {
+// mergeJSON merges the JSON strings `jsonA` and `jsonB`, appending the values of `jsonB` to `jsonA`
+// for any keys that exist in both JSON strings.
+// It returns a pointer to a bytes.Buffer containing the merged JSON string.
+func mergeJSON(jsonA, jsonB string) *bytes.Buffer {
 	merged := jsonA
 	parsedJsonB := gjson.Parse(jsonB)
 	parsedJsonB.ForEach(func(key, value gjson.Result) bool {
 		merged = setJsonKeyValue(merged, key.String(), value.Value())
 		return true // continue iterando
 	})
-	return merged
+	return helper.SimpleConvertToBuffer(merged)
 }
 
 // setJsonKeyValue sets the value of a key in a JSON string.

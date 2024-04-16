@@ -1,6 +1,7 @@
 package service
 
 import (
+	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/enum"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
 )
@@ -14,7 +15,7 @@ type Modifier interface {
 	// It takes a vo.ExecuteModifier as a parameter, which contains the modifier context,
 	// backend modifiers, request, and response. It returns a vo.Request object and a vo.Response object.
 	// This method allows modification of the request and response based on the provided modifier.
-	Execute(executeData vo.ExecuteModifier) (vo.Request, vo.Response)
+	Execute(executeData *vo.ExecuteModifier) (*vo.Request, *vo.Response)
 }
 
 // NewModifier creates and returns a new Modifier instance.
@@ -22,25 +23,31 @@ func NewModifier() Modifier {
 	return modifier{}
 }
 
-// Execute executes the modifiers on the request and response value objects based on the provided ExecuteModifier data.
-// It first applies the modifier for the status code if it is valid and matches the response context.
-// Then it applies the header modifiers, followed by the param modifiers,
-// query modifiers, and finally the body modifiers.
+// Execute executes the given modifier on the provided backend request and response.
+// The modifier is only applied if it is valid and matches the given context.
+// If the modifier is applicable, a Modification strategy is created and executed,
+// potentially modifying the request and response.
 //
 // Parameters:
-// - executeData: The ExecuteModifier object containing the necessary data for executing the modifiers.
+//   - executeData: An ExecuteModifier object containing the modifier context, backend modifiers,
+//     request, and response to be modified.
 //
 // Returns:
-// - vo.Request: The potentially altered request value object.
-// - vo.Response: The potentially altered response value object.
-func (m modifier) Execute(executeData vo.ExecuteModifier) (vo.Request, vo.Response) {
+// - *vo.Request: The potentially altered request object.
+// - *vo.Response: The potentially altered response object.
+func (m modifier) Execute(executeData *vo.ExecuteModifier) (*vo.Request, *vo.Response) {
+	// checamos se o backendModifier veio nil e ja retornamos
+	if helper.IsNil(executeData.BackendModifiers()) {
+		return executeData.Request(), executeData.Response()
+	}
+
 	// instanciamos o requestVO para ser modificado ou não
 	requestVO := executeData.Request()
 	// instanciamos o responseVO para ser modificado ou não
 	responseVO := executeData.Response()
 
 	// executamos o modificador de código de status
-	if executeData.ModifierStatusCode().Valid() &&
+	if helper.IsNotNil(executeData.ModifierStatusCode()) &&
 		executeData.ModifierStatusCode().EqualsContext(enum.ModifierContextResponse) {
 		modifyVO := vo.NewModifyStatusCodes(executeData.ModifierStatusCode(), requestVO, responseVO)
 		requestVO, responseVO = modifyVO.Execute()
@@ -81,8 +88,8 @@ func (m modifier) Execute(executeData vo.ExecuteModifier) (vo.Request, vo.Respon
 // Returns:
 // - vo.Request: The potentially altered request value object
 // - vo.Response: The potentially altered response value object
-func (m modifier) modify(modifiers []vo.Modifier, context enum.ModifierContext, requestVO vo.Request,
-	responseVO vo.Response, newModifyVO vo.NewModifyVOFunc) (vo.Request, vo.Response) {
+func (m modifier) modify(modifiers []vo.Modifier, context enum.ModifierContext, requestVO *vo.Request,
+	responseVO *vo.Response, newModifyVO vo.NewModifyVOFunc) (*vo.Request, *vo.Response) {
 	// iteramos os modificadores
 	for _, modifierVO := range modifiers {
 		// caso ele seja invalido ou não tiver no context vamos para o próximo
@@ -90,7 +97,7 @@ func (m modifier) modify(modifiers []vo.Modifier, context enum.ModifierContext, 
 			continue
 		}
 		// damos o new modify vo para instanciar a estratégia
-		strategy := newModifyVO(modifierVO, requestVO, responseVO)
+		strategy := newModifyVO(&modifierVO, requestVO, responseVO)
 		// executamos a estrátegia, substituímos os objetos de valor modificados, ou não
 		requestVO, responseVO = strategy.Execute()
 	}

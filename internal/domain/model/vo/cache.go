@@ -52,58 +52,74 @@ type EndpointCache struct {
 	allowCacheControl *bool
 }
 
-// newEndpointCache creates a new instance of Cache based on the provided Gopen and Endpoint.
-// It initializes the fields of Cache based on values from Gopen and Endpoint and sets default values for empty fields.
-func newEndpointCache(gopenVO Gopen, endpointVO Endpoint) EndpointCache {
-	// se o endpoint não tem cache retornamos vazio
-	if !endpointVO.HasCache() {
-		return EndpointCache{}
+// newEndpointCache creates a new instance of EndpointCache based on the provided Cache and EndpointCache.
+// It initializes the fields of EndpointCache with values from Cache and EndpointCache, giving priority to endpointCacheVO.
+// If both cacheVO and endpointCacheVO are nil, it returns nil.
+// The ignoreQuery field set based on the value of endpointCacheVO.
+// The duration field set based on the value of cacheVO or endpointCacheVO.
+// The strategyHeaders field set based on the value of cacheVO or endpointCacheVO.
+// The onlyIfStatusCodes field set based on the value of cacheVO or endpointCacheVO.
+// The onlyIfMethods field set based on the value of cacheVO.
+// The allowCacheControl field set based on the value of cacheVO or endpointCacheVO.
+func newEndpointCache(cacheVO *Cache, endpointCacheVO *EndpointCache) *EndpointCache {
+	// se os dois cache VO estiver nil retornamos nil
+	if helper.IsNil(cacheVO) && helper.IsNil(endpointCacheVO) {
+		return nil
 	}
 
-	// instanciamos o gopen cache
-	cacheVO := gopenVO.Cache()
-	// instanciamos o endpoint cache
-	endpointCacheVO := endpointVO.Cache()
+	// obtemos o valor do pai
+	var enabled bool
+	var ignoreQuery bool
+	var duration time.Duration
+	var strategyHeaders []string
+	var onlyIfStatusCodes []int
+	var onlyIfMethods []string
+	var allowCacheControl *bool
 
-	// obtemos o valor do pai
-	duration := cacheVO.Duration()
-	// caso seja informado no endpoint, damos prioridade
-	if endpointCacheVO.HasDuration() {
-		duration = endpointCacheVO.Duration()
+	// caso seja informado na raiz
+	if helper.IsNotNil(cacheVO) {
+		duration = cacheVO.Duration()
+		strategyHeaders = cacheVO.StrategyHeaders()
+		onlyIfStatusCodes = cacheVO.OnlyIfStatusCodes()
+		onlyIfMethods = cacheVO.OnlyIfMethods()
+		allowCacheControl = cacheVO.AllowCacheControl()
 	}
-	// obtemos o valor do pai
-	strategyHeaders := cacheVO.StrategyHeaders()
+
 	// caso seja informado no endpoint, damos prioridade
-	if endpointCacheVO.HasStrategyHeaders() {
-		strategyHeaders = endpointCacheVO.StrategyHeaders()
-	}
-	// obtemos o valor do pai
-	allowCacheControl := cacheVO.AllowCacheControl()
-	// caso seja informado no endpoint, damos prioridade
-	if endpointCacheVO.HasAllowCacheControl() {
-		allowCacheControl = *endpointCacheVO.AllowCacheControl()
-	}
-	// obtemos o valor do pai
-	onlyIfStatusCodes := cacheVO.OnlyIfStatusCodes()
-	// caso seja informado no endpoint, damos prioridade
-	if endpointCacheVO.HasOnlyIfStatusCodes() {
-		onlyIfStatusCodes = endpointCacheVO.OnlyIfStatusCodes()
+	if helper.IsNotNil(endpointCacheVO) {
+		enabled = endpointCacheVO.enabled
+		ignoreQuery = endpointCacheVO.IgnoreQuery()
+		if endpointCacheVO.HasDuration() {
+			duration = endpointCacheVO.Duration()
+		}
+		if endpointCacheVO.HasStrategyHeaders() {
+			strategyHeaders = endpointCacheVO.StrategyHeaders()
+		}
+		if endpointCacheVO.HasAllowCacheControl() {
+			allowCacheControl = endpointCacheVO.AllowCacheControl()
+		}
+		if endpointCacheVO.HasOnlyIfStatusCodes() {
+			onlyIfStatusCodes = endpointCacheVO.OnlyIfStatusCodes()
+		}
 	}
 
 	// construímos o objeto vo com os valores padrões ou informados no json
-	return EndpointCache{
+	return &EndpointCache{
+		enabled:           enabled,
 		duration:          duration,
-		ignoreQuery:       endpointCacheVO.IgnoreQuery(),
+		ignoreQuery:       ignoreQuery,
 		strategyHeaders:   strategyHeaders,
 		onlyIfStatusCodes: onlyIfStatusCodes,
-		onlyIfMethods:     cacheVO.OnlyIfMethods(),
-		allowCacheControl: &allowCacheControl,
+		onlyIfMethods:     onlyIfMethods,
+		allowCacheControl: allowCacheControl,
 	}
 }
 
-// newCacheFromDTO creates a new instance of Cache based on the provided cacheDTO.
-// It initializes the fields of Cache based on values from cacheDTO and sets default values for empty fields.
-func newCacheFromDTO(cacheDTO dto.Cache) Cache {
+func newCacheFromDTO(cacheDTO *dto.Cache) *Cache {
+	if helper.IsNil(cacheDTO) {
+		return nil
+	}
+
 	var duration time.Duration
 	var err error
 	if helper.IsNotEmpty(cacheDTO.Duration) {
@@ -112,7 +128,7 @@ func newCacheFromDTO(cacheDTO dto.Cache) Cache {
 			logger.Warning("Parse duration cache.duration err:", err)
 		}
 	}
-	return Cache{
+	return &Cache{
 		duration:          duration,
 		strategyHeaders:   cacheDTO.StrategyHeaders,
 		onlyIfStatusCodes: cacheDTO.OnlyIfStatusCodes,
@@ -123,7 +139,11 @@ func newCacheFromDTO(cacheDTO dto.Cache) Cache {
 
 // newEndpointCacheFromDTO creates a new instance of EndpointCache based on the provided EndpointCacheDTO.
 // It initializes the fields of EndpointCache based on values from EndpointCacheDTO and sets default values for empty fields.
-func newEndpointCacheFromDTO(endpointCacheDTO dto.EndpointCache) EndpointCache {
+func newEndpointCacheFromDTO(endpointCacheDTO *dto.EndpointCache) *EndpointCache {
+	if helper.IsNil(endpointCacheDTO) {
+		return nil
+	}
+
 	var duration time.Duration
 	var err error
 	if helper.IsNotEmpty(endpointCacheDTO.Duration) {
@@ -132,7 +152,7 @@ func newEndpointCacheFromDTO(endpointCacheDTO dto.EndpointCache) EndpointCache {
 			logger.Warning("Parse duration endpoint.cache.duration err:", err)
 		}
 	}
-	return EndpointCache{
+	return &EndpointCache{
 		enabled:           endpointCacheDTO.Enabled,
 		ignoreQuery:       endpointCacheDTO.IgnoreQuery,
 		duration:          duration,
@@ -159,48 +179,29 @@ func (c Cache) StrategyHeaders() []string {
 
 // OnlyIfStatusCodes returns the list of status codes that are allowed for caching.
 // If the onlyIfStatusCodes field is not empty, it returns the list of status codes specified in it.
-// Otherwise, it returns a default list containing commonly used status codes for successful responses.
+// Otherwise, it returns an empty list.
 func (c Cache) OnlyIfStatusCodes() []int {
-	if helper.IsNotEmpty(c.onlyIfStatusCodes) {
-		return c.onlyIfStatusCodes
-	}
-	return []int{
-		http.StatusOK,
-		http.StatusCreated,
-		http.StatusAccepted,
-		http.StatusNonAuthoritativeInfo,
-		http.StatusNoContent,
-		http.StatusResetContent,
-		http.StatusPartialContent,
-		http.StatusMultiStatus,
-		http.StatusAlreadyReported,
-		http.StatusIMUsed,
-	}
+	return c.onlyIfStatusCodes
 }
 
 // OnlyIfMethods returns the list of request methods that are allowed for caching.
 // If the onlyIfMethods field is not empty, it returns the list of methods specified in it.
-// Otherwise, it returns a default list containing only the GET method.
+// Otherwise, it returns an empty list.
 func (c Cache) OnlyIfMethods() []string {
-	if helper.IsNotEmpty(c.onlyIfMethods) {
-		return c.onlyIfMethods
-	}
-	return []string{
-		http.MethodGet,
-	}
+	return c.onlyIfMethods
 }
 
 // AllowCacheControl checks if the caching is allowed or not.
 // It uses the 'allowCacheControl' field in the 'Gopen' structure.
 // In case of nil value, it defaults to 'false'.
-func (c Cache) AllowCacheControl() bool {
-	return helper.IfNilReturns(c.allowCacheControl, false)
+func (c Cache) AllowCacheControl() *bool {
+	return c.allowCacheControl
 }
 
-// Enabled returns true if the cache is enabled, false otherwise.
-// The cache is considered enabled if the duration field in the Cache struct is greater than 0.
+// Enabled returns the value of the enabled field in the EndpointCache struct.
+// It returns the boolean value indicating whether the endpoint cache is enabled or not.
 func (e EndpointCache) Enabled() bool {
-	return helper.IsGreaterThan(e.duration, 0)
+	return e.enabled && e.HasDuration()
 }
 
 // Disabled returns the opposite of the Enabled method. It indicates if the cache is disabled or not.
@@ -279,7 +280,7 @@ func (e EndpointCache) OnlyIfMethods() []string {
 
 // CanRead checks if the cache is active and if the Cache-Control header in the request allows caching.
 // It returns true if caching is allowed, false otherwise.
-func (e EndpointCache) CanRead(requestVO Request) bool {
+func (e EndpointCache) CanRead(requestVO *Request) bool {
 	// verificamos se ta ativo
 	if e.Disabled() {
 		return false
@@ -296,7 +297,7 @@ func (e EndpointCache) CanRead(requestVO Request) bool {
 // CanWrite checks if the cache is active and if the Cache-Control header in the response allows caching.
 // It also checks if the request method and response status code are allowed for caching.
 // It returns true if caching is allowed, false otherwise.
-func (e EndpointCache) CanWrite(requestVO Request, responseVO Response) bool {
+func (e EndpointCache) CanWrite(requestVO *Request, responseVO *Response) bool {
 	// verificamos se ta ativo
 	if e.Disabled() {
 		return false
@@ -328,7 +329,7 @@ func (e EndpointCache) CacheControlEnum(header Header) (cacheControl enum.CacheC
 // The Strategy Value is obtained from the request headers specified in the strategyHeaders field of the Cache struct.
 // If no Strategy Value is found, the key will be generated without it.
 // The final key is returned as a string.
-func (e EndpointCache) StrategyKey(requestVO Request) string {
+func (e EndpointCache) StrategyKey(requestVO *Request) string {
 	// inicializamos a url da requisição completa
 	url := requestVO.Url()
 	// caso o cache queira ignorar as queries, ele ignora
@@ -359,16 +360,25 @@ func (e EndpointCache) StrategyKey(requestVO Request) string {
 	return key
 }
 
-// AllowMethod checks if the given method is allowed based on the onlyIfMethods field in the Cache struct.
-// If the onlyIfMethods field is empty or if the given method is present in the onlyIfMethods field, it returns true,
-// indicating that the method is allowed. Otherwise, it returns false.
+// AllowMethod checks if the given method is allowed in the EndpointCache.
+// If the onlyIfMethods field is nil, it allows all methods.
+// If onlyIfMethods is empty and the method is GET, it allows the method.
+// Otherwise, it checks if the method exists in the onlyIfMethods field and allows it.
+// It returns true if the method is allowed, false otherwise.
 func (e EndpointCache) AllowMethod(method string) bool {
-	return helper.IsEmpty(e.onlyIfMethods) || helper.Contains(e.onlyIfMethods, method)
+	return helper.IsNil(e.onlyIfMethods) || (helper.IsEmpty(e.onlyIfMethods) && helper.Equals(method, http.MethodGet)) ||
+		helper.Contains(e.onlyIfMethods, method)
 }
 
-// AllowStatusCode checks if the given status code is allowed based on the onlyIfStatusCodes field in the Cache struct.
-// If the onlyIfStatusCodes field is empty or if the given status code is present in the onlyIfStatusCodes field, it returns true,
-// indicating that the status code is allowed. Otherwise, it returns false.
+// AllowStatusCode checks whether the provided status code is allowed based on the following conditions:
+//  1. If the `onlyIfStatusCodes` field in the `EndpointCache` struct is nil, any status code is allowed.
+//  2. If the `onlyIfStatusCodes` field in the `EndpointCache` struct is empty and the status code is between
+//     200 and 299 (inclusive), the status code is allowed.
+//  3. If the `onlyIfStatusCodes` field in the `EndpointCache` struct contains the status code, it is allowed.
+//
+// It returns true if the status code is allowed; otherwise, it returns false.
 func (e EndpointCache) AllowStatusCode(statusCode int) bool {
-	return helper.IsEmpty(e.onlyIfStatusCodes) || helper.Contains(e.onlyIfStatusCodes, statusCode)
+	return helper.IsNil(e.onlyIfStatusCodes) || (helper.IsEmpty(e.onlyIfStatusCodes) &&
+		helper.IsGreaterThanOrEqual(statusCode, 200) && helper.IsLessThanOrEqual(statusCode, 299)) ||
+		helper.Contains(e.onlyIfStatusCodes, statusCode)
 }

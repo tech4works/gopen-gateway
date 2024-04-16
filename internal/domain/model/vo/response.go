@@ -32,14 +32,14 @@ type CacheResponse struct {
 
 // Response represents the gateway HTTP response.
 type Response struct {
-	// endpoint represents the current `endpoint` in the Response object to accommodate response customizations.
-	endpoint Endpoint
+	// endpoint represents a gateway endpoint.
+	endpoint *Endpoint
 	// statusCode stores the integer HTTP status code of the Response object.
 	statusCode int
 	// header represents the header of the Response object.
 	header Header
 	// Body represents the body of the gateway HTTP response.
-	body Body
+	body *Body
 	// abort bool is a flag in the Response object that indicates whether the response should be aborted.
 	// If abort is set to true, it means that an error has occurred and the response should not be processed further.
 	// The Abort method returns the value of the abort flag.
@@ -53,7 +53,7 @@ type Response struct {
 // It is a slice of backendResponse, which represents the responses from a backend service.
 // The response history can be filtered and modified based on certain conditions.
 // It also provides methods to retrieve information about the response history, such as size, success, and status code.
-type responseHistory []backendResponse
+type responseHistory []*backendResponse
 
 // errorResponseBody represents the structure of a response body containing error details.
 // It is used to serialize the error details to JSON format.
@@ -73,11 +73,11 @@ type errorResponseBody struct {
 	Timestamp time.Time `json:"timestamp"`
 }
 
-// NewResponse creates a new Response object with the given endpoint.
-// The status code of the Response object is set to http.StatusNoContent.
+// NewResponse creates a new Response object with the given Endpoint.
+// The StatusCode is set to http.StatusNoContent.
 // Returns the newly created Response object.
-func NewResponse(endpointVO Endpoint) Response {
-	return Response{
+func NewResponse(endpointVO *Endpoint) *Response {
+	return &Response{
 		endpoint:   endpointVO,
 		statusCode: http.StatusNoContent,
 	}
@@ -86,30 +86,27 @@ func NewResponse(endpointVO Endpoint) Response {
 // NewResponseByCache creates a new Response object with the given endpoint and cache response.
 // The header of the cache response is modified to include the XGopenCache and XGopenCacheTTL headers.
 // Returns the newly created Response object.
-func NewResponseByCache(endpointVO Endpoint, cacheResponseVO CacheResponse) Response {
+func NewResponseByCache(endpointVO *Endpoint, cacheResponseVO *CacheResponse) *Response {
 	header := cacheResponseVO.Header
 	header = header.Set(consts.XGopenCache, helper.SimpleConvertToString(true))
 	header = header.Set(consts.XGopenCacheTTL, cacheResponseVO.TTL())
-
-	var body string
-	if helper.IsNotNil(cacheResponseVO.Body) {
-		body = cacheResponseVO.Body.value
-	}
-
-	return Response{
+	return &Response{
 		endpoint:   endpointVO,
 		statusCode: cacheResponseVO.StatusCode,
 		header:     header,
-		body:       NewBodyFromString(body),
+		body:       newBodyFromCacheBody(cacheResponseVO.Body),
 	}
 }
 
-func NewResponseByErr(endpointVO Endpoint, statusCode int, err error) Response {
-	return Response{
+// NewResponseByErr creates a new Response object with the given Endpoint, statusCode, and err.
+// It sets the header to newHeaderFailed() and the body to newErrorBody(endpointVO.path, err).
+// Returns a pointer to the newly created Response object.
+func NewResponseByErr(endpointVO *Endpoint, statusCode int, err error) *Response {
+	return &Response{
 		endpoint:   endpointVO,
 		statusCode: statusCode,
 		header:     newHeaderFailed(),
-		body:       newErrorBody(endpointVO, err),
+		body:       newErrorBody(endpointVO.path, err),
 	}
 }
 
@@ -124,8 +121,8 @@ func NewResponseByErr(endpointVO Endpoint, statusCode int, err error) Response {
 //
 // Returns:
 //   - A new CacheResponse containing the provided data and the current time of creation.
-func NewCacheResponse(responseVO Response, duration time.Duration) CacheResponse {
-	return CacheResponse{
+func NewCacheResponse(responseVO *Response, duration time.Duration) *CacheResponse {
+	return &CacheResponse{
 		StatusCode: responseVO.StatusCode(),
 		Header:     responseVO.Header(),
 		Body:       newCacheBody(responseVO.Body()),
@@ -138,7 +135,7 @@ func NewCacheResponse(responseVO Response, duration time.Duration) CacheResponse
 // Replaces the last backendResponse with the provided backendResponseVO.
 // Returns the modified Response object with the updated history.
 // Does not modify other properties of the Response object.
-func (r Response) ModifyLastBackendResponse(backendResponseVO backendResponse) Response {
+func (r *Response) ModifyLastBackendResponse(backendResponseVO *backendResponse) *Response {
 	history := r.history
 	history[len(history)-1] = backendResponseVO
 
@@ -149,7 +146,7 @@ func (r Response) ModifyLastBackendResponse(backendResponseVO backendResponse) R
 // Append appends the backendResponseVO to the history list of the Response object.
 // Returns the modified Response object with updated history.
 // Does not modify other properties of the Response object.
-func (r Response) Append(backendResponseVO backendResponse) Response {
+func (r *Response) Append(backendResponseVO *backendResponse) *Response {
 	// adicionamos na nova lista de histórico
 	history := r.history
 	history = append(history, backendResponseVO)
@@ -158,15 +155,14 @@ func (r Response) Append(backendResponseVO backendResponse) Response {
 	return r.notifyDataChanged(history)
 }
 
-// Error modifies the Response object to represent an error.
-// It builds the status code of the response based on the received error.
-// If the error contains mapper.ErrBadGateway, sets the status code to http.StatusBadGateway.
-// If the error contains mapper.ErrGatewayTimeout, sets the status code to http.StatusGatewayTimeout.
-// Otherwise, sets the status code to http.StatusInternalServerError.
-// Builds a default error response of the gateway by creating a new Response object with the modified status code,
-// a new failed header, and a body constructed from the error.
-// Returns the modified Response object.
-func (r Response) Error(err error) Response {
+// Error constructs a standard gateway error response based on the received error.
+// It builds the response's status code from the received error.
+// If the error contains mapper.ErrBadGateway, the status code is set to http.StatusBadGateway.
+// If the error contains mapper.ErrGatewayTimeout, the status code is set to http.StatusGatewayTimeout.
+// Otherwise, the status code is set to http.StatusInternalServerError.
+// It constructs the default gateway error response by setting the status code, header, body, and abort properties.
+// Returns the constructed Response object representing the gateway error response.
+func (r *Response) Error(path string, err error) *Response {
 	// construímos o statusCode de resposta a partir do erro recebido
 	var statusCode int
 	if errors.Contains(err, mapper.ErrBadGateway) {
@@ -177,10 +173,11 @@ func (r Response) Error(err error) Response {
 		statusCode = http.StatusInternalServerError
 	}
 	// construímos a resposta de erro padrão do gateway
-	return Response{
+	return &Response{
+		endpoint:   r.endpoint,
 		statusCode: statusCode,
 		header:     newHeaderFailed(),
-		body:       newErrorBody(r.endpoint, err),
+		body:       newErrorBody(path, err),
 		abort:      true,
 	}
 }
@@ -188,79 +185,85 @@ func (r Response) Error(err error) Response {
 // Abort returns the value of the `abort` property of the Response object.
 // If `abort` is true, it indicates that the response should be aborted.
 // Returns a boolean value representing the `abort` property.
-func (r Response) Abort() bool {
+func (r *Response) Abort() bool {
 	return r.abort
 }
 
-// IsAbortResponse if the abort field of the response structure is true or func of the AbortSequential endpoint returns
-// true, we return true, otherwise it returns false.
-func (r Response) IsAbortResponse() bool {
-	return r.abort || r.endpoint.AbortSequencial(r)
-}
+// AbortResponse returns a new *Response object with the last backend response aborted.
+// The method retrieves the last backend response from the history list and aggregates its header.
+// Then, it constructs a new response with the status code, header, body, and history of the last backend response.
+// Returns the new Response object with the aborted backend response.
+func (r *Response) AbortResponse() *Response {
+	// instanciamos o último backend response, que é para ser abortado
+	lastBackendResponseVO := r.LastBackendResponse()
 
-// AbortResponse checks if the abort flag is set to true in the Response object.
-// If it is true, returns a pointer to the same Response object because it indicates that an error has occurred.
-// Otherwise, it checks if the AbortSequencial method in the Endpoint struct returns true for the current Response object.
-// If it does, calls the abortEndpoint method and returns a pointer to the aborting Response object.
-// If neither condition is met, returns nil.
-func (r Response) AbortResponse() *Response {
-	if r.abort {
-		// caso a resposta vem como abort true, retornamos o mesmo, isso acontece, pois ocorreu um erro
-		return &r
-	} else if r.endpoint.AbortSequencial(r) {
-		// caso o abort sequencial no endpoint vo retorne true, retornamos o endpoint abortando o mesmo
-		return r.abortEndpoint()
+	// instanciamos o novo header
+	header := newResponseHeader(false, false)
+	// agregamos o header do backend abortado
+	header = header.Aggregate(lastBackendResponseVO.Header())
+
+	// construímos o response com os dados do backend abortado
+	return &Response{
+		endpoint:   r.endpoint,
+		statusCode: lastBackendResponseVO.statusCode,
+		header:     header,
+		body:       lastBackendResponseVO.body,
+		history:    r.history,
 	}
-	// se não for para abortar retornamos nil
-	return nil
 }
 
-// LastBackendResponse returns the last backendResponse object in the history of the Response object.
-// If the history is empty, it returns an empty backendResponse object.
-func (r Response) LastBackendResponse() backendResponse {
+// LastBackendResponse returns the last backendResponse in the history list of the Response object.
+// If the history is empty, it returns nil.
+// Returns the last backendResponse from the history list.
+func (r *Response) LastBackendResponse() *backendResponse {
 	if helper.IsEmpty(r.history) {
-		return backendResponse{}
+		return nil
 	}
 	return r.history[len(r.history)-1]
 }
 
-// Endpoint returns the endpoint of the Response object.
-func (r Response) Endpoint() Endpoint {
-	return r.endpoint
-}
-
 // StatusCode returns the status code of the Response object.
-func (r Response) StatusCode() int {
+func (r *Response) StatusCode() int {
 	return r.statusCode
 }
 
 // Header returns the header of the Response object.
-func (r Response) Header() Header {
+func (r *Response) Header() Header {
 	return r.header
 }
 
-func (r Response) ContentType() enum.ContentType {
+func (r *Response) ContentType() enum.ContentType {
 	responseEncode := r.endpoint.ResponseEncode()
 	if responseEncode.IsEnumValid() {
 		return responseEncode.ContentType()
+	} else if helper.IsNotNil(r.Body()) {
+		return r.Body().ContentType()
 	}
-	return r.Body().ContentType()
+	return ""
 }
 
 // Body returns the body of the Response object.
-func (r Response) Body() Body {
+func (r *Response) Body() *Body {
 	return r.body
 }
 
-func (r Response) BodyBytes() []byte {
+// BytesBody returns the body of the gateway HTTP response as a byte slice.
+// It checks the response encoding and returns the body bytes based on the content type.
+// If the response encoding is valid, it returns the body bytes by content type.
+// If the response encoding is not valid and the body is not nil, it returns the body bytes.
+// If the body is nil, it returns nil.
+func (r *Response) BytesBody() []byte {
 	// instanciamos o response encode do endpoint
 	responseEncode := r.endpoint.ResponseEncode()
 	// retornamos pelo responseEncode caso ele seja valido
 	if responseEncode.IsEnumValid() {
 		return r.body.BytesByContentType(responseEncode.ContentType())
+	} else if helper.IsNotNil(r.Body()) {
+		// se não tiver nil respondemos pelo tipo do body
+		return r.body.Bytes()
 	}
-	// se não respondemos pelo tipo do body
-	return r.body.Bytes()
+	// se nao tiver respondemos nil
+	return nil
 }
 
 // Eval returns a map representation of the Response object.
@@ -268,7 +271,7 @@ func (r Response) BodyBytes() []byte {
 // - "statusCode": the integer status code of the response.
 // - "header": the Header object of the response.
 // - "body": the interface representation of the Body object.
-func (r Response) Eval() string {
+func (r *Response) Eval() string {
 	mapEval := map[string]any{
 		"statusCode": r.statusCode,
 		"header":     r.header,
@@ -285,7 +288,7 @@ func (r Response) Eval() string {
 // It also aggregates the modifyHeaders from the filtered history.
 // The method retrieves the body from the filtered history based on the endpoint's aggregateResponses flag.
 // Finally, it constructs and returns a new Response object with the updated values.
-func (r Response) notifyDataChanged(history responseHistory) Response {
+func (r *Response) notifyDataChanged(history responseHistory) *Response {
 	// checamos se ele chegou ao final para o valor padrão
 	completed := r.endpoint.Completed(history.Size())
 
@@ -301,35 +304,15 @@ func (r Response) notifyDataChanged(history responseHistory) Response {
 	header = header.Aggregate(filteredHistory.Header())
 
 	// obtemos o body a partir do histórico filtrado
-	bodyByHistory := filteredHistory.Body(r.endpoint.aggregateResponses)
+	bodyByHistory := filteredHistory.Body(r.endpoint.AggregateResponses())
 
 	// construímos o novo objeto de valor
-	return Response{
+	return &Response{
 		endpoint:   r.endpoint,
 		statusCode: statusCodeByHistory,
 		header:     header,
 		body:       bodyByHistory,
 		history:    history,
-	}
-}
-
-// abortEndpoint creates a new Response object with the status code, header, body, and history of the last backend response.
-// Returns a pointer to the created Response object.
-func (r Response) abortEndpoint() *Response {
-	// instanciamos o ultimo backend response, que é para ser abortado
-	lastBackendResponseVO := r.LastBackendResponse()
-
-	// instanciamos o novo header
-	header := newResponseHeader(false, false)
-	// agregamos o header do backend abortado
-	header = header.Aggregate(lastBackendResponseVO.Header())
-
-	// construímos o response com os dados do backend abortado
-	return &Response{
-		statusCode: lastBackendResponseVO.statusCode,
-		header:     header,
-		body:       lastBackendResponseVO.body,
-		history:    r.history,
 	}
 }
 
@@ -428,7 +411,7 @@ func (r responseHistory) Header() (h Header) {
 // of 'aggregateBody' function else 'aggregatedBodies' function is called.
 // For a single response case, the body of the single response is returned.
 // If no responses are available, returns an empty Body struct.
-func (r responseHistory) Body(aggregateResponses bool) (b Body) {
+func (r responseHistory) Body(aggregateResponses bool) *Body {
 	if r.MultipleResponse() {
 		if aggregateResponses {
 			return r.aggregateBody()
@@ -438,20 +421,20 @@ func (r responseHistory) Body(aggregateResponses bool) (b Body) {
 	} else if r.SingleResponse() {
 		return r.body()
 	}
-	return b
+	return nil
 }
 
 // last returns the last backendResponse in the responseHistory list.
 // Returns the last backendResponse object.
 // Does not modify the responseHistory.
-func (r responseHistory) last() backendResponse {
+func (r responseHistory) last() *backendResponse {
 	return r[len(r)-1]
 }
 
 // body returns the Body object of the last backendResponse in the responseHistory list.
 // Creates a new Body object using the last backendResponse in the responseHistory.
 // Returns the newly created Body object.
-func (r responseHistory) body() Body {
+func (r responseHistory) body() *Body {
 	return newBodyFromBackendResponse(r.last())
 }
 
@@ -464,11 +447,11 @@ func (r responseHistory) body() Body {
 // Otherwise, it aggregates all the JSON fields into the body using the Aggregate method of the Body object.
 // Returns the final aggregated body.
 // If there are no non-nil bodies in the response history, returns an empty Body struct.
-func (r responseHistory) aggregateBody() Body {
+func (r responseHistory) aggregateBody() *Body {
 	// instanciamos primeiro o aggregate body para retornar
-	bodyHistory := Body{
+	bodyHistory := &Body{
 		contentType: enum.ContentTypeJson,
-		value:       "{}",
+		value:       helper.SimpleConvertToBuffer("{}"),
 	}
 
 	// iteramos o histórico de backends response
@@ -495,17 +478,17 @@ func (r responseHistory) aggregateBody() Body {
 // If a backend response has an empty body, it is skipped.
 // For each backend response with a non-empty body, a bodyBackendResponse object is created and added to the list of bodies.
 // Returns a new Body object that contains the aggregated list of bodies from the response history.
-func (r responseHistory) sliceOfBodies() Body {
+func (r responseHistory) sliceOfBodies() *Body {
 	// instanciamos o valor a ser construído
-	var bodies []Body
+	var bodies []*Body
 	// iteramos o histórico para listar os bodies de resposta
 	for index, backendResponseVO := range r {
 		// se tiver vazio pulamos para o próximo
-		if backendResponseVO.body.IsEmpty() {
+		if helper.IsNil(backendResponseVO.body) {
 			continue
 		}
 		// inicializamos o body agregado
-		bodyBackendResponse := newBodyFromIndex(index, backendResponseVO)
+		bodyBackendResponse := newBodyFromIndexAndBackendResponse(index, backendResponseVO)
 		// inserimos na lista de retorno
 		bodies = append(bodies, bodyBackendResponse)
 	}

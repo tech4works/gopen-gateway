@@ -18,7 +18,7 @@ type HandlerFunc func(ctx *Context)
 // The gopenVO parameter is the Gopen configuration object.
 // The endpointVO parameter is the Endpoint configuration object.
 // The handles parameter is a variadic slice of HandlerFunc functions that will be sequentially called to handle the request.
-func Handle(engine *gin.Engine, gopenVO vo.Gopen, endpointVO vo.Endpoint, handles ...HandlerFunc) {
+func Handle(engine *gin.Engine, gopenVO *vo.Gopen, endpointVO *vo.Endpoint, handles ...HandlerFunc) {
 	engine.Handle(endpointVO.Method(), endpointVO.Path(), parseHandles(gopenVO, endpointVO, handles)...)
 }
 
@@ -27,7 +27,7 @@ func Handle(engine *gin.Engine, gopenVO vo.Gopen, endpointVO vo.Endpoint, handle
 // It iterates over the provided HandlerFuncs and calls the handle function to create
 // a gin.HandlerFunc for each one, then appends it to the ginHandler slice.
 // Finally, it returns the ginHandler slice.
-func parseHandles(gopenVO vo.Gopen, endpointVO vo.Endpoint, handles []HandlerFunc) []gin.HandlerFunc {
+func parseHandles(gopenVO *vo.Gopen, endpointVO *vo.Endpoint, handles []HandlerFunc) []gin.HandlerFunc {
 	var ginHandler []gin.HandlerFunc
 	for _, apiHandler := range handles {
 		ginHandler = append(ginHandler, handle(gopenVO, endpointVO, apiHandler))
@@ -40,7 +40,7 @@ func parseHandles(gopenVO vo.Gopen, endpointVO vo.Endpoint, handles []HandlerFun
 // The gopenVO parameter is the Gopen configuration object.
 // The endpointVO parameter is the Endpoint configuration object.
 // The handle parameter is a HandlerFunc function that will be called to handle the request.
-func handle(gopenVO vo.Gopen, endpointVO vo.Endpoint, handle HandlerFunc) gin.HandlerFunc {
+func handle(gopenVO *vo.Gopen, endpointVO *vo.Endpoint, handle HandlerFunc) gin.HandlerFunc {
 	return func(gin *gin.Context) {
 		// verificamos se esse contexto ja foi construído
 		ctx, ok := gin.Get("context")
@@ -58,7 +58,7 @@ func handle(gopenVO vo.Gopen, endpointVO vo.Endpoint, handle HandlerFunc) gin.Ha
 // buildContext builds a Context object based on the gin context, Gopen configuration, and Endpoint configuration.
 // It creates a ResponseWriter and assigns it to the gin context's writer.
 // It returns the constructed Context object.
-func buildContext(gin *gin.Context, gopenVO vo.Gopen, endpointVO vo.Endpoint) *Context {
+func buildContext(gin *gin.Context, gopenVO *vo.Gopen, endpointVO *vo.Endpoint) *Context {
 	// o contexto da requisição é criado
 	return &Context{
 		mutex:     &sync.RWMutex{},

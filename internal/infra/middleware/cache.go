@@ -27,7 +27,7 @@ type Cache interface {
 	//
 	// The returned HandlerFunc is responsible for handling the HTTP request,
 	// implementing cache-related logic based on the provided cache configuration.
-	Do(endpointCacheVO vo.EndpointCache) api.HandlerFunc
+	Do(endpointCacheVO *vo.EndpointCache) api.HandlerFunc
 }
 
 // NewCache returns a Cache implementation that uses the provided CacheStore for caching operations.
@@ -41,7 +41,7 @@ func NewCache(cacheStore infra.CacheStore) Cache {
 // It initializes the cache key based on the strategy, checks if the cache can be read, and responds with the cached value if available.
 // If the cache cannot be read or is not found, it proceeds to the next handler.
 // After the next handler is executed, it checks if the response can be cached, sets the cache value, and logs any errors.
-func (c cache) Do(endpointCacheVO vo.EndpointCache) api.HandlerFunc {
+func (c cache) Do(endpointCacheVO *vo.EndpointCache) api.HandlerFunc {
 	return func(ctx *api.Context) {
 		// inicializamos a chave que vai ser utilizada
 		key := endpointCacheVO.StrategyKey(ctx.Request())
@@ -54,7 +54,7 @@ func (c cache) Do(endpointCacheVO vo.EndpointCache) api.HandlerFunc {
 			// obtemos através do cache store se a chave exists respondemos, se não seguimos normalmente
 			err := c.cacheStore.Get(ctx.Context(), key, &cacheResponse)
 			if helper.IsNil(err) {
-				ctx.WriteCacheResponse(cacheResponse)
+				ctx.WriteCacheResponse(&cacheResponse)
 				return
 			} else if errors.IsNot(err, mapper.ErrCacheNotFound) {
 				logger.Warning("Error read cache key:", key, "err:", err)

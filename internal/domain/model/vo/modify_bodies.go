@@ -10,10 +10,16 @@ type modifyBodies struct {
 	modify
 }
 
-// NewModifyBodies creates a new instance of modifyBodies struct
-// with the provided Modifier, Request, and Response.
-func NewModifyBodies(modifierVO Modifier, requestVO Request, responseVO Response) ModifierStrategy {
-	return modifyBodies{
+// NewModifyBodies creates a new instance of modifyBodies strategy that applies modifications
+// to the request and/or response bodies based on the specified modifierVO, requestVO, and responseVO.
+// Parameters:
+// - modifierVO: a pointer to the Modifier object that contains the modification details.
+// - requestVO: a pointer to the Request object that represents the HTTP Request.
+// - responseVO: a pointer to the Response object that represents the HTTP Response.
+// Returns:
+// - ModifierStrategy: a new instance of modifyBodies strategy.
+func NewModifyBodies(modifierVO *Modifier, requestVO *Request, responseVO *Response) ModifierStrategy {
+	return &modifyBodies{
 		modify: newModify(modifierVO, requestVO, responseVO),
 	}
 }
@@ -28,7 +34,7 @@ func NewModifyBodies(modifierVO Modifier, requestVO Request, responseVO Response
 // Returns:
 //   - Request: the modified (or original) HTTP Request
 //   - Response: the modified (or original) HTTP Response
-func (m modifyBodies) Execute() (Request, Response) {
+func (m modifyBodies) Execute() (*Request, *Response) {
 	// executamos a partir do escopo configurado
 	switch m.scope {
 	case enum.ModifierScopeRequest:
@@ -40,18 +46,7 @@ func (m modifyBodies) Execute() (Request, Response) {
 	}
 }
 
-// executeRequestScope executes the body modifications in the scope of a request.
-// This function first modifies the local and propagate bodies of the request.
-// It then modifies the request's backend locally and globally.
-// The function finally returns the globally modified request and the response.
-//
-// Returns:
-// - Request: The modified request after applying the propagate modifications.
-// - Response: The unmodified response as is.
-//
-// Note: The nature of modifications are defined within the 'bodies', 'modifyRequestLocal', and
-// 'modifyRequestGlobal' methods of the modifyBodies receiver.
-func (m modifyBodies) executeRequestScope() (Request, Response) {
+func (m modifyBodies) executeRequestScope() (*Request, *Response) {
 	// chamamos o modify de bodies passando os bodies a ser modificado e o mesmo retorna modificados
 	globalBody, localBody := m.bodies(m.globalRequestBody(), m.localRequestBody())
 
@@ -72,7 +67,7 @@ func (m modifyBodies) executeRequestScope() (Request, Response) {
 // Request: The original request.
 //
 // Response: The modified response.
-func (m modifyBodies) executeResponseScope() (Request, Response) {
+func (m modifyBodies) executeResponseScope() (*Request, *Response) {
 	// chamamos o modify de bodies passando os bodies a ser modificado e o mesmo retorna modificados
 	_, localBody := m.bodies(m.globalResponseBody(), m.localResponseBody())
 
@@ -84,22 +79,22 @@ func (m modifyBodies) executeResponseScope() (Request, Response) {
 }
 
 // globalRequestBody returns the propagate body of the request in the modifyBodies struct.
-func (m modifyBodies) globalRequestBody() Body {
+func (m modifyBodies) globalRequestBody() *Body {
 	return m.request.Body()
 }
 
 // globalRequestBody returns the local body of the current backend request in the Request struct.
-func (m modifyBodies) localRequestBody() Body {
+func (m modifyBodies) localRequestBody() *Body {
 	return m.request.CurrentBackendRequest().Body()
 }
 
 // globalRequestBody returns the propagate body of the response in the modifyBodies struct.
-func (m modifyBodies) globalResponseBody() Body {
+func (m modifyBodies) globalResponseBody() *Body {
 	return m.response.Body()
 }
 
 // globalRequestBody returns the local body of the last backend response in the Response struct.
-func (m modifyBodies) localResponseBody() Body {
+func (m modifyBodies) localResponseBody() *Body {
 	return m.response.LastBackendResponse().Body()
 }
 
@@ -111,7 +106,7 @@ func (m modifyBodies) localResponseBody() Body {
 //
 // Returns
 // backendRequest: the backend request after its body has been modified.
-func (m modifyBodies) modifyLocalRequest(localBody Body) backendRequest {
+func (m modifyBodies) modifyLocalRequest(localBody *Body) *backendRequest {
 	return m.request.CurrentBackendRequest().ModifyBody(localBody)
 }
 
@@ -124,7 +119,7 @@ func (m modifyBodies) modifyLocalRequest(localBody Body) backendRequest {
 //
 // Returns:
 // - `Request`: This is the modified request after applying the body to the original request.
-func (m modifyBodies) modifyGlobalRequest(globalBody Body, backendRequestVO backendRequest) Request {
+func (m modifyBodies) modifyGlobalRequest(globalBody *Body, backendRequestVO *backendRequest) *Request {
 	return m.request.ModifyBody(globalBody, backendRequestVO)
 }
 
@@ -132,7 +127,7 @@ func (m modifyBodies) modifyGlobalRequest(globalBody Body, backendRequestVO back
 // It uses a modifyBodies receiver that contains the LastBackendResponse.
 // It consumes a Body type 'localBody' which is used to modify the existing backendResponse's body.
 // Returns the modified 'backendResponse'.
-func (m modifyBodies) modifyLocalResponse(localBody Body) backendResponse {
+func (m modifyBodies) modifyLocalResponse(localBody *Body) *backendResponse {
 	return m.response.LastBackendResponse().ModifyBody(localBody)
 }
 
@@ -144,6 +139,6 @@ func (m modifyBodies) modifyLocalResponse(localBody Body) backendResponse {
 //
 // Returns:
 // - Response: the response with the modified last backend response
-func (m modifyBodies) modifyGlobalResponse(backendResponseVO backendResponse) Response {
+func (m modifyBodies) modifyGlobalResponse(backendResponseVO *backendResponse) *Response {
 	return m.response.ModifyLastBackendResponse(backendResponseVO)
 }

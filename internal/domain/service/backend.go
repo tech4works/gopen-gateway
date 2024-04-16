@@ -30,7 +30,7 @@ type Backend interface {
 	// Returns:
 	// vo.Request - The vo.Request associated with vo.ExecuteBackend and can be modified by the backend execution process.
 	// vo.Response - The vo.Response associated with vo.ExecuteBackend and can be modified by the backend execution process.
-	Execute(ctx context.Context, executeData vo.ExecuteBackend) (vo.Request, vo.Response)
+	Execute(ctx context.Context, executeData *vo.ExecuteBackend) (*vo.Request, *vo.Response)
 }
 
 // NewBackend initializes and returns a new Backend instance.
@@ -76,7 +76,7 @@ func NewBackend(modifierService Modifier, restTemplate interfaces.RestTemplate) 
 // The function returns two value objects:
 // requestVO: the potentially modified backend request.
 // responseVO: the backend response. If an error occurred, it contains the error information.
-func (b backend) Execute(ctx context.Context, executeData vo.ExecuteBackend) (vo.Request, vo.Response) {
+func (b backend) Execute(ctx context.Context, executeData *vo.ExecuteBackend) (*vo.Request, *vo.Response) {
 	// construímos o backend request, junto pode vir uma possível alteração no response pelo modifier
 	requestVO, responseVO := b.buildBackendRequest(executeData)
 
@@ -87,14 +87,14 @@ func (b backend) Execute(ctx context.Context, executeData vo.ExecuteBackend) (vo
 	httpRequest, err := backendRequestVO.Http(ctx)
 	// caso ocorra um erro na montagem, retornamos
 	if helper.IsNotNil(err) {
-		return requestVO, responseVO.Error(err)
+		return requestVO, responseVO.Error(executeData.Endpoint().Path(), err)
 	}
 
 	// chamamos a interface de infra para chamar a conexão http e tratar a resposta
 	httpResponse, err := b.restTemplate.MakeRequest(httpRequest)
 	// caso ocorra um erro, retornamos o response como abort = true e a resposta formatada
 	if helper.IsNotNil(err) {
-		return requestVO, responseVO.Error(err)
+		return requestVO, responseVO.Error(executeData.Endpoint().Path(), err)
 	}
 	// chamamos para fechar o body assim que possível
 	defer b.closeBodyResponse(httpResponse)
@@ -111,7 +111,7 @@ func (b backend) Execute(ctx context.Context, executeData vo.ExecuteBackend) (vo
 // 5. Replaces the initial requestVO with a new version that includes the backendRequestVO
 // 6. It invokes the Execute method of the modifierService to change the backend request and response and the actual request and response.
 // The method returns a request value object and a possibly changed response value object.
-func (b backend) buildBackendRequest(executeData vo.ExecuteBackend) (vo.Request, vo.Response) {
+func (b backend) buildBackendRequest(executeData *vo.ExecuteBackend) (*vo.Request, *vo.Response) {
 	// instanciamos o objeto de valor de request
 	requestVO := executeData.Request()
 
@@ -155,8 +155,12 @@ func (b backend) closeBodyResponse(response *http.Response) {
 // Returns:
 // - requestVO: the potentially modified backend request.
 // - responseVO: the updated response value object.
-func (b backend) buildBackendResponse(backendVO vo.Backend, requestVO vo.Request, responseVO vo.Response,
-	httpResponse *http.Response) (vo.Request, vo.Response) {
+func (b backend) buildBackendResponse(
+	backendVO *vo.Backend,
+	requestVO *vo.Request,
+	responseVO *vo.Response,
+	httpResponse *http.Response,
+) (*vo.Request, *vo.Response) {
 	// construímos o novo objeto de valor da resposta do backend
 	backendResponseVO := vo.NewBackendResponse(backendVO, httpResponse)
 

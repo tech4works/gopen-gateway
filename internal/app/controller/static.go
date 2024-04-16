@@ -11,7 +11,7 @@ import (
 // static represents a static handler that handles requests for ping and version.
 // It contains a gopenVO field of type vo.Gopen, which holds configuration information.
 type static struct {
-	gopenVO vo.Gopen
+	gopenVO *vo.Gopen
 }
 
 // Static represents an interface for handling requests related to ping, version, and settings.
@@ -31,7 +31,7 @@ type Static interface {
 // NewStatic is a function that creates a new instance of the Static interface.
 // It takes a vo.Gopen parameter and returns a Static object.
 // The returned Static object has a gopenVO field which is initialized with the provided vo.Gopen object.
-func NewStatic(gopenVO vo.Gopen) Static {
+func NewStatic(gopenVO *vo.Gopen) Static {
 	return static{
 		gopenVO: gopenVO,
 	}

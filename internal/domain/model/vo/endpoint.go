@@ -14,6 +14,8 @@ import (
 
 // Endpoint represents the configuration for an API endpoint in the Gopen application.
 type Endpoint struct {
+	// comment is a string field representing the comment associated with an API endpoint.
+	comment string
 	// path is a string representing the path of the API endpoint. It is a field in the Endpoint struct.
 	path string
 	// method represents the HTTP method of an API endpoint.
@@ -24,10 +26,10 @@ type Endpoint struct {
 	timeout time.Duration
 	// limiter represents the configuration for rate limiting in the Gopen application.
 	// The default value is nil. If not provided, the `limiter` will be Gopen.limiter.
-	limiter EndpointLimiter
+	limiter *EndpointLimiter
 	// cache represents the `cache` configuration for an endpoint.
 	// The default value is EndpointCache empty with enabled false.
-	cache EndpointCache
+	cache *EndpointCache
 	// responseEncode represents the encoding format for the API endpoint response. The ResponseEncode
 	// field is an enum.ResponseEncode value, which can have one of the following values:
 	// - enum.ResponseEncodeText: for encoding the response as plain text.
@@ -77,6 +79,7 @@ func newEndpoint(endpointDTO dto.Endpoint) Endpoint {
 	}
 
 	return Endpoint{
+		comment:            endpointDTO.Comment,
 		path:               endpointDTO.Path,
 		method:             endpointDTO.Method,
 		timeout:            timeout,
@@ -95,7 +98,7 @@ func newEndpoint(endpointDTO dto.Endpoint) Endpoint {
 // The timeout value is obtained from the Gopen object by default, unless a timeout value is specified in the Endpoint,
 // in which case, that value takes priority. The limiter and cache values are constructed using the global configuration
 // from the Gopen object and the Endpoint object. The method returns a new Endpoint object with the default values set.
-func (e Endpoint) fillDefaultValues(gopenVO Gopen) Endpoint {
+func (e *Endpoint) fillDefaultValues(gopenVO *Gopen) Endpoint {
 	// por padrão obtemos o timeout configurado na raiz, caso não informado um valor padrão é retornado
 	timeoutDuration := gopenVO.Timeout()
 	// se o timeout foi informado no endpoint damos prioridade a ele
@@ -106,7 +109,7 @@ func (e Endpoint) fillDefaultValues(gopenVO Gopen) Endpoint {
 	endpointLimiterVO := newEndpointLimiter(gopenVO.Limiter(), e.Limiter())
 
 	// construímos o endpoint cache com os valores de configuração global
-	endpointCacheVO := newEndpointCache(gopenVO, e)
+	endpointCacheVO := newEndpointCache(gopenVO.Cache(), e.Cache())
 
 	// construímos o VO com os valores padrões construídos a partir do Gopen e o próprio endpoint
 	return Endpoint{
@@ -124,19 +127,24 @@ func (e Endpoint) fillDefaultValues(gopenVO Gopen) Endpoint {
 	}
 }
 
+// Comment returns the comment field of the Endpoint struct.
+func (e *Endpoint) Comment() string {
+	return e.comment
+}
+
 // Path returns the path field of the Endpoint struct.
-func (e Endpoint) Path() string {
+func (e *Endpoint) Path() string {
 	return e.path
 }
 
 // Method returns the value of the method field in the Endpoint struct.
-func (e Endpoint) Method() string {
+func (e *Endpoint) Method() string {
 	return e.method
 }
 
 // Equals checks if the given route is equal to the Endpoint's path and method.
 // If the route is equal, it returns an error indicating a repeat route endpoint.
-func (e Endpoint) Equals(route gin.RouteInfo) (err error) {
+func (e *Endpoint) Equals(route gin.RouteInfo) (err error) {
 	if helper.Equals(route.Path, e.path) && helper.Equals(route.Method, e.method) {
 		err = errors.New("Error path:", e.path, "method:", e.method, "repeat route endpoint")
 	}
@@ -144,76 +152,95 @@ func (e Endpoint) Equals(route gin.RouteInfo) (err error) {
 }
 
 // HasTimeout returns true if the timeout field in the Endpoint struct is greater than 0, false otherwise.
-func (e Endpoint) HasTimeout() bool {
+func (e *Endpoint) HasTimeout() bool {
 	return helper.IsGreaterThan(e.timeout, 0)
 }
 
 // Timeout returns the value of the timeout field in the Endpoint struct.
-func (e Endpoint) Timeout() time.Duration {
+func (e *Endpoint) Timeout() time.Duration {
 	return e.timeout
 }
 
+// TimeoutStr returns the string representation of the timeout value in the Endpoint struct.
+// If the Endpoint has a timeout value greater than 0, it returns the string representation of the timeout value.
+// Otherwise, an empty string is returned.
+func (e *Endpoint) TimeoutStr() string {
+	if e.HasTimeout() {
+		return e.timeout.String()
+	}
+	return ""
+}
+
 // Limiter returns the limiter field of the Endpoint struct.
-func (e Endpoint) Limiter() EndpointLimiter {
+func (e *Endpoint) Limiter() *EndpointLimiter {
 	return e.limiter
 }
 
 // HasLimiter returns true if the Endpoint has a Limiter set, otherwise false.
-func (e Endpoint) HasLimiter() bool {
+func (e *Endpoint) HasLimiter() bool {
 	return helper.IsNotEmpty(e.limiter)
 }
 
 // Cache returns the cache field of the Endpoint struct.
-func (e Endpoint) Cache() EndpointCache {
+func (e *Endpoint) Cache() *EndpointCache {
 	return e.cache
 }
 
 // HasCache returns a boolean value indicating whether the Endpoint has a cache.
-func (e Endpoint) HasCache() bool {
-	return e.cache.enabled
+func (e *Endpoint) HasCache() bool {
+	return helper.IsNotNil(e.cache) && e.cache.enabled
 }
 
 // Beforeware returns the slice of strings representing the beforeware keys configured for the Endpoint.Beforeware
 // middlewares are executed before the main backends.
-func (e Endpoint) Beforeware() []string {
+func (e *Endpoint) Beforeware() []string {
 	return e.beforeware
 }
 
 // Backends returns the slice of backends in the Endpoint struct.
-func (e Endpoint) Backends() []Backend {
+func (e *Endpoint) Backends() []Backend {
 	return e.backends
 }
 
 // Afterware returns the slice of strings representing the afterware keys configured for the Endpoint.Afterware
 // middlewares are executed after the main backends.
-func (e Endpoint) Afterware() []string {
+func (e *Endpoint) Afterware() []string {
 	return e.afterware
 }
 
 // CountAllBackends calculates the total number of beforeware, backends, and afterware in the Endpoint struct.
 // It returns the sum of the lengths of these slices.
-func (e Endpoint) CountAllBackends() int {
-	return len(e.beforeware) + len(e.backends) + len(e.afterware)
+func (e *Endpoint) CountAllBackends() int {
+	return e.CountBeforewares() + e.CountBackends() + e.CountAfterwares()
 }
 
 // CountBeforewares returns the number of beforewares in the Endpoint struct.
-func (e Endpoint) CountBeforewares() int {
-	return len(e.beforeware)
+func (e *Endpoint) CountBeforewares() int {
+	if helper.IsNil(e.Beforeware()) {
+		return 0
+	}
+	return len(e.Beforeware())
 }
 
 // CountAfterwares returns the number of afterwares in the Endpoint struct.
-func (e Endpoint) CountAfterwares() int {
-	return len(e.afterware)
+func (e *Endpoint) CountAfterwares() int {
+	if helper.IsNil(e.Afterware()) {
+		return 0
+	}
+	return len(e.Afterware())
 }
 
 // CountBackends returns the number of backends in the Endpoint struct.
-func (e Endpoint) CountBackends() int {
-	return len(e.backends)
+func (e *Endpoint) CountBackends() int {
+	if helper.IsNil(e.Backends()) {
+		return 0
+	}
+	return len(e.Backends())
 }
 
 // CountModifiers counts the total number of modifiers in an Endpoint by summing the count of modifiers in each
 // Backend associated with it.
-func (e Endpoint) CountModifiers() (count int) {
+func (e *Endpoint) CountModifiers() (count int) {
 	for _, backendDTO := range e.backends {
 		count += backendDTO.CountModifiers()
 	}
@@ -221,7 +248,7 @@ func (e Endpoint) CountModifiers() (count int) {
 }
 
 // Completed checks if the response history size is equal to the count of all backends in the Endpoint struct.
-func (e Endpoint) Completed(responseHistorySize int) bool {
+func (e *Endpoint) Completed(responseHistorySize int) bool {
 	return helper.Equals(responseHistorySize, e.CountAllBackends())
 }
 
@@ -229,7 +256,7 @@ func (e Endpoint) Completed(responseHistorySize int) bool {
 // field of the Endpoint struct. It returns true if the response status code matches any of the abortIfStatusCodes,
 // otherwise it returns false. If the abortIfStatusCodes field is empty, it returns true if the response status code is
 // greater than or equal to http.StatusBadRequest.
-func (e Endpoint) AbortSequencial(responseVO Response) bool {
+func (e *Endpoint) AbortSequencial(responseVO *Response) bool {
 	if helper.IsEmpty(e.abortIfStatusCodes) {
 		return helper.IsGreaterThanOrEqual(responseVO.statusCode, http.StatusBadRequest)
 	}
@@ -237,17 +264,17 @@ func (e Endpoint) AbortSequencial(responseVO Response) bool {
 }
 
 // ResponseEncode returns the value of the responseEncode field in the Endpoint struct.
-func (e Endpoint) ResponseEncode() enum.ResponseEncode {
+func (e *Endpoint) ResponseEncode() enum.ResponseEncode {
 	return e.responseEncode
 }
 
 // AggregateResponses returns the value of the aggregateResponses field in the Endpoint struct.
-func (e Endpoint) AggregateResponses() bool {
+func (e *Endpoint) AggregateResponses() bool {
 	return e.aggregateResponses
 }
 
 // AbortIfStatusCodes returns the value of the abortIfStatusCodes field in the Endpoint struct.
-func (e Endpoint) AbortIfStatusCodes() []int {
+func (e *Endpoint) AbortIfStatusCodes() []int {
 	return e.abortIfStatusCodes
 }
 
@@ -255,7 +282,7 @@ func (e Endpoint) AbortIfStatusCodes() []int {
 // path, the number of beforewares, afterwares, backends, and modifiers.
 // The format of the string is as follows:
 // "{method} -> \"{path}\" [beforeware: {CountBeforewares} afterware: {CountAfterwares} backends: {CountBackends} modifiers: {CountModifiers}]"
-func (e Endpoint) Resume() string {
-	return fmt.Sprintf("%s -> \"%s\" [beforeware: %v afterware: %v backends: %v modifiers: %v]", e.method, e.path,
+func (e *Endpoint) Resume() string {
+	return fmt.Sprintf("%s --> \"%s\" [beforeware: %v afterware: %v backends: %v modifiers: %v]", e.method, e.path,
 		e.CountBeforewares(), e.CountAfterwares(), e.CountBackends(), e.CountModifiers())
 }

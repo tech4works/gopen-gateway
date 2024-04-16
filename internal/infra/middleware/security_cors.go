@@ -11,7 +11,7 @@ import (
 // securityCors implements the SecurityCors interface.
 // It represents the configuration options for Cross-Origin Resource Sharing (CORS) settings in Gopen.
 type securityCors struct {
-	securityCorsVO vo.SecurityCors
+	securityCorsVO *vo.SecurityCors
 }
 
 // SecurityCors is an interface that defines the behavior of handling Cross-Origin Resource Sharing (CORS) settings in Gopen.
@@ -25,21 +25,29 @@ type SecurityCors interface {
 
 // NewSecurityCors is a function that creates a new instance of SecurityCors with the given securityCorsVO configuration.
 // It returns the new SecurityCors object.
-func NewSecurityCors(securityCorsVO vo.SecurityCors) SecurityCors {
+func NewSecurityCors(securityCorsVO *vo.SecurityCors) SecurityCors {
 	return securityCors{
 		securityCorsVO: securityCorsVO,
 	}
 }
 
-// Do perform CORS validation for the incoming request.
-// It checks if the origin IP, HTTP method, and headers are allowed based on the provided securityCorsVO configuration.
-//
-// If the origin IP is not allowed, it writes a forbidden error response and exits the method.
-// If the HTTP method is not allowed, it writes a forbidden error response and exits the method.
-// If the headers are not allowed, it writes a forbidden error response and exits the method.
-//
-// If all validations passed, it proceeds to the next middleware or endpoint handler.
+// Do is a method that handles the Cross-Origin Resource Sharing (CORS) settings in Gopen.
+// It allows or denies access to resources on a web page from another domain.
+// It checks if the configuration is set. If not, it proceeds to the next middleware.
+// It validates if the origin IP is allowed based on the provided SecurityCors configuration.
+// It validates if the HTTP method is allowed based on the provided SecurityCors configuration.
+// It validates if the headers are allowed based on the provided SecurityCors configuration.
+// If any validation fails, it returns a forbidden error.
+// If all validations pass, it proceeds to the next middleware.
+// The method takes a Context as the input parameter.
+// The method does not return anything.
 func (c securityCors) Do(ctx *api.Context) {
+	// se a configuração não foi feita ja damos próximo
+	if helper.IsNil(c.securityCorsVO) {
+		ctx.Next()
+		return
+	}
+
 	// chamamos o objeto de valor para validar se o ip de origem é permitida a partir do objeto de valor fornecido
 	if err := c.securityCorsVO.AllowOrigins(ctx.HeaderValue(consts.XForwardedFor)); helper.IsNotNil(err) {
 		ctx.WriteError(http.StatusForbidden, err)

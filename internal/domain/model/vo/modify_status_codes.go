@@ -8,7 +8,7 @@ type modifyStatusCodes struct {
 
 // NewModifyStatusCodes creates a new instance of modifyStatusCodes struct
 // with the provided Modifier, Request, and Response.
-func NewModifyStatusCodes(modifierVO Modifier, requestVO Request, responseVO Response) ModifierStrategy {
+func NewModifyStatusCodes(modifierVO *Modifier, requestVO *Request, responseVO *Response) ModifierStrategy {
 	return modifyStatusCodes{
 		modify: newModify(modifierVO, requestVO, responseVO),
 	}
@@ -17,7 +17,7 @@ func NewModifyStatusCodes(modifierVO Modifier, requestVO Request, responseVO Res
 // Execute executes the modifyStatusCodes by calling the executeResponseScope method and returns the original Request
 // and modified Response.
 // It starts execution from the default scope.
-func (m modifyStatusCodes) Execute() (Request, Response) {
+func (m modifyStatusCodes) Execute() (*Request, *Response) {
 	// executamos a partir do escopo padrão
 	return m.executeResponseScope()
 }
@@ -36,7 +36,7 @@ func (m modifyStatusCodes) Execute() (Request, Response) {
 // Returns:
 //   - Request: The original (possibly modified) request.
 //   - Response: The modified response after operations.
-func (m modifyStatusCodes) executeResponseScope() (Request, Response) {
+func (m modifyStatusCodes) executeResponseScope() (*Request, *Response) {
 	// chamamos o modify de status code passando os status codes a ser modificado e o mesmo retorna modificados
 	statusCode := m.statusCodes(m.response.LastBackendResponse().StatusCode())
 
@@ -50,7 +50,7 @@ func (m modifyStatusCodes) executeResponseScope() (Request, Response) {
 // modifyLocalResponse modifies the status code of the last backend response in the history of the response object to
 // the given statusCode.
 // It returns a new backendResponse object with the modified status code.
-func (m modifyStatusCodes) modifyLocalResponse(statusCode int) backendResponse {
+func (m modifyStatusCodes) modifyLocalResponse(statusCode int) *backendResponse {
 	return m.response.LastBackendResponse().ModifyStatusCode(statusCode)
 }
 
@@ -58,6 +58,6 @@ func (m modifyStatusCodes) modifyLocalResponse(statusCode int) backendResponse {
 // It takes a backendResponseVO parameter and returns the modified Response.
 // The modified Response is obtained by calling the ModifyLastBackendResponse method on the Response object,
 // passing the backendResponseVO as the argument.
-func (m modifyStatusCodes) modifyGlobalResponse(backendResponseVO backendResponse) Response {
+func (m modifyStatusCodes) modifyGlobalResponse(backendResponseVO *backendResponse) *Response {
 	return m.response.ModifyLastBackendResponse(backendResponseVO)
 }

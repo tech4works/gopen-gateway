@@ -21,14 +21,14 @@ type Context struct {
 	framework *gin.Context
 	// gopen represents a variable of type vo.Gopen. It is used to access and manipulate data using the desired
 	// application settings
-	gopen vo.Gopen
+	gopen *vo.Gopen
 	// endpoint represents the configuration of the endpoint that is receiving the current request, widely used to take
 	// execution guidelines and response customization
-	endpoint vo.Endpoint
+	endpoint *vo.Endpoint
 	// request represents a data structure for current `request`.
-	request vo.Request
+	request *vo.Request
 	// response is a structure that represents the HTTP response, written by the context.
-	response vo.Response
+	response *vo.Response
 }
 
 // Context returns the context of the Context. It delegates the call to the underlying framework's Context.Context() method.
@@ -37,25 +37,25 @@ func (c *Context) Context() context.Context {
 }
 
 // Gopen returns the Gopen object associated with the Context. It retrieves the Gopen value from the Context object.
-func (c *Context) Gopen() vo.Gopen {
+func (c *Context) Gopen() *vo.Gopen {
 	return c.gopen
 }
 
 // Endpoint returns the endpoint associated with the request.
 // It retrieves the endpoint value from the `endpoint` field of the Context struct.
-func (c *Context) Endpoint() vo.Endpoint {
+func (c *Context) Endpoint() *vo.Endpoint {
 	return c.endpoint
 }
 
 // Request returns the request object of the Context.
 // It returns the `request` field of the Context struct.
-func (c *Context) Request() vo.Request {
+func (c *Context) Request() *vo.Request {
 	return c.request
 }
 
 // Response returns the response of the Context. It returns the response object stored
 // in the Context struct.
-func (c *Context) Response() vo.Response {
+func (c *Context) Response() *vo.Response {
 	return c.response
 }
 
@@ -141,7 +141,7 @@ func (c *Context) Uri() string {
 
 // Body returns the body of the Context. It delegates the call to the
 // underlying framework's Request.Body() method.
-func (c *Context) Body() vo.Body {
+func (c *Context) Body() *vo.Body {
 	return c.Request().Body()
 }
 
@@ -175,7 +175,7 @@ func (c *Context) Next() {
 // It retrieves the status code and body from the responseVO.
 // If the body is not empty, it writes the body along with the status code.
 // Otherwise, it only writes the status code.
-func (c *Context) Write(responseVO vo.Response) {
+func (c *Context) Write(responseVO *vo.Response) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
@@ -190,7 +190,7 @@ func (c *Context) Write(responseVO vo.Response) {
 	// instanciamos os valores a serem utilizados
 	statusCode := responseVO.StatusCode()
 	contentType := responseVO.ContentType()
-	bodyBytes := responseVO.BodyBytes()
+	bodyBytes := responseVO.BytesBody()
 
 	// verificamos se tem valor o body
 	if helper.IsNotEmpty(bodyBytes) {
@@ -208,7 +208,7 @@ func (c *Context) Write(responseVO vo.Response) {
 
 // WriteCacheResponse writes the cache response to the client's response.
 // It creates a new response using the cache response and writes it.
-func (c *Context) WriteCacheResponse(cacheResponse vo.CacheResponse) {
+func (c *Context) WriteCacheResponse(cacheResponse *vo.CacheResponse) {
 	// preparamos a resposta
 	responseVO := vo.NewResponseByCache(c.endpoint, cacheResponse)
 	// escrevemos a resposta
@@ -219,8 +219,10 @@ func (c *Context) WriteCacheResponse(cacheResponse vo.CacheResponse) {
 // It creates a new Response object with the provided code and error, and delegates the writing of the response to the
 // Write method.
 func (c *Context) WriteError(code int, err error) {
+	// preparamos a resposta
+	responseVO := vo.NewResponseByErr(c.Endpoint(), code, err)
 	// escrevemos a resposta
-	c.Write(vo.NewResponseByErr(c.endpoint, code, err))
+	c.Write(responseVO)
 }
 
 // writeHeader sets the headers in the HTTP response as received in the `header` argument, excluding certain headers.

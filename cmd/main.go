@@ -99,7 +99,7 @@ func loadGopenEnvs(env string) {
 // Next, it converts the JSON bytes into a dto.Gopen object by using the helper.ConvertToDest function.
 // If the conversion fails, the function panics with the error message.
 // Finally, the function returns the dto.Gopen object.
-func loadGopenJson(env string) dto.Gopen {
+func loadGopenJson(env string) *dto.Gopen {
 	// carregamos o arquivo de json de configuração do Gopen
 	fileJsonUri := getFileJsonUri(env)
 	printInfoLogf("Loading Gopen json from file: %s...", fileJsonUri)
@@ -124,7 +124,7 @@ func loadGopenJson(env string) dto.Gopen {
 	}
 
 	// retornamos o DTO que é a configuração do Gopen
-	return gopenDTO
+	return &gopenDTO
 }
 
 // fillEnvValues fills the environment variables in a JSON string using the $word syntax.
@@ -205,9 +205,9 @@ func validateJsonBySchema(fileJsonUri string, fileJsonBytes []byte) error {
 // buildCacheStore builds and configures a cache store based on the provided storeDTO.
 // If storeDTO.Redis is not empty, it returns a new Redis cache store initialized with the Redis address and password.
 // Otherwise, it returns a new Memory cache store.
-func buildCacheStore(storeDTO dto.Store) infra.CacheStore {
+func buildCacheStore(storeDTO *dto.Store) infra.CacheStore {
 	printInfoLog("Configuring cache store...")
-	if helper.IsNotEmpty(storeDTO.Redis) {
+	if helper.IsNotNil(storeDTO) {
 		return infra.NewRedisStore(storeDTO.Redis.Address, storeDTO.Redis.Password)
 	}
 	return infra.NewMemoryStore()
@@ -216,7 +216,7 @@ func buildCacheStore(storeDTO dto.Store) infra.CacheStore {
 // listerAndServer initializes and runs the Gopen application with the provided cache store and Gopen configuration.
 // It builds the necessary infrastructures, services, middlewares, controllers, and the Gopen application.
 // The Gopen application is then started by calling its ListAndServer() method.
-func listerAndServer(cacheStore infra.CacheStore, gopenVO vo.Gopen) {
+func listerAndServer(cacheStore infra.CacheStore, gopenVO *vo.Gopen) {
 	printInfoLog("Building infra..")
 	restTemplate := infra.NewRestTemplate()
 	traceProvider := infra.NewTraceProvider()
@@ -269,13 +269,13 @@ func listerAndServer(cacheStore infra.CacheStore, gopenVO vo.Gopen) {
 // Parameters:
 // - gopenVO: The Gopen value object.
 // - storeDTO: The Store DTO.
-func writeGopenJsonResult(gopenVO vo.Gopen, storeDTO dto.Store) {
+func writeGopenJsonResult(gopenVO *vo.Gopen, storeDTO *dto.Store) {
 	gopenBytes, err := json.MarshalIndent(mapper.BuildGopenDTOFromCMD(gopenVO, storeDTO), "", "\t")
 	if helper.IsNil(err) {
 		err = os.WriteFile(gopenJsonResult, gopenBytes, 0644)
 	}
 	if helper.IsNotNil(err) {
-		printWarningLog("Error write file gopen.json result:", err)
+		printWarningLogf("Error write file %s result: %s", gopenJsonResult, err)
 	}
 }
 
@@ -289,7 +289,7 @@ func writeGopenJsonResult(gopenVO vo.Gopen, storeDTO dto.Store) {
 //
 // Returns:
 // - *fsnotify.Watcher: the configured watcher, or nil if hot reload is disabled
-func configureWatcher(env string, gopenDTO dto.Gopen) *fsnotify.Watcher {
+func configureWatcher(env string, gopenDTO *dto.Gopen) *fsnotify.Watcher {
 	if !gopenDTO.HotReload {
 		return nil
 	}
@@ -372,7 +372,7 @@ func executeErrorEvent(err error, ok bool) {
 // startApp configures the store interface, sets up the watcher
 // for listening to configuration file changes, builds the value
 // objects, and calls the listerAndServer function.
-func startApp(env string, gopenDTO dto.Gopen) {
+func startApp(env string, gopenDTO *dto.Gopen) {
 	// configuramos o store interface
 	cacheStore := buildCacheStore(gopenDTO.Store)
 	defer closeCacheStore(cacheStore)

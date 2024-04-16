@@ -1,5 +1,7 @@
 package enum
 
+import "github.com/GabrielHCataldo/go-helper/helper"
+
 // ModifierContext represents the context in which a modification should be applied.
 // It is a string value that can be either "REQUEST" or "RESPONSE".
 type ModifierContext string
@@ -50,6 +52,23 @@ const (
 	ContentTypeYml  ContentType = "YML"
 	ContentTypeText ContentType = "TEXT"
 )
+
+// ContentTypeFromString converts a string representation of a content type
+// to its corresponding ContentType value. It checks if the given string
+// contains the string representation of ContentTypeJson or ContentTypeText case-insensitively.
+// If the string contains ContentTypeJson, it returns ContentTypeJson.
+// If the string contains ContentTypeText, it returns ContentTypeText.
+// Otherwise, it returns an empty string.
+// This function is used to convert a string content type to the ContentType enumeration value.
+func ContentTypeFromString(s string) ContentType {
+	// todo: aqui podemos ter XML, YAML, form-data
+	if helper.ContainsIgnoreCase(s, ContentTypeJson.String()) {
+		return ContentTypeJson
+	} else if helper.ContainsIgnoreCase(s, ContentTypeText.String()) {
+		return ContentTypeText
+	}
+	return ""
+}
 
 // IsEnumValid checks if the ModifierScope is a valid enumeration value.
 // It returns true if the ModifierScope is either ModifierScopeRequest or ModifierScopeResponse,

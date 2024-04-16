@@ -38,7 +38,7 @@ var httpServer *http.Server
 // It also includes middleware implementations such as traceMiddleware, logMiddleware, securityCorsMiddleware,
 // timeoutMiddleware, limiterMiddleware, cacheMiddleware, as well as static and endpoint controllers to handle requests.
 type gopen struct {
-	gopenVO                vo.Gopen
+	gopenVO                *vo.Gopen
 	traceMiddleware        middleware.Trace
 	logMiddleware          middleware.Log
 	securityCorsMiddleware middleware.SecurityCors
@@ -66,7 +66,7 @@ type Gopen interface {
 // NewGopen creates and returns a new `Gopen` object.
 // It returns a `Gopen` interface, which represents the Gopen object that stores the provided configuration and middleware.
 func NewGopen(
-	gopenVO vo.Gopen,
+	gopenVO *vo.Gopen,
 	traceMiddleware middleware.Trace,
 	logMiddleware middleware.Log,
 	securityCorsMiddleware middleware.SecurityCors,
@@ -121,7 +121,7 @@ func (g gopen) ListerAndServer() {
 		handles := g.buildEndpointHandles(endpointVO)
 
 		// cadastramos as rotas no nosso wrapper
-		api.Handle(engine, g.gopenVO, endpointVO, handles...)
+		api.Handle(engine, g.gopenVO, &endpointVO, handles...)
 
 		// imprimimos a informação dos endpoints cadastrado
 		printInfoLogf("registered route %s", endpointVO.Resume())
@@ -166,7 +166,7 @@ func (g gopen) buildStaticRoutes(engine *gin.Engine) {
 	printInfoLog("Configuring static routes...")
 
 	// format
-	formatLog := "registered route %s -> \"%s\""
+	formatLog := "registered route %s --> \"%s\""
 
 	// ping route
 	pingMethod := http.MethodGet

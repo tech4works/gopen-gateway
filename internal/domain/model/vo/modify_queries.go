@@ -9,7 +9,7 @@ type modifyQueries struct {
 
 // NewModifyQueries creates a new instance of modifyQueries struct
 // with the provided Modifier, Request, and Response.
-func NewModifyQueries(modifierVO Modifier, requestVO Request, responseVO Response) ModifierStrategy {
+func NewModifyQueries(modifierVO *Modifier, requestVO *Request, responseVO *Response) ModifierStrategy {
 	return modifyQueries{
 		modify: newModify(modifierVO, requestVO, responseVO),
 	}
@@ -24,7 +24,7 @@ func NewModifyQueries(modifierVO Modifier, requestVO Request, responseVO Respons
 //
 //	Request: The executed request.
 //	Response: The response from the executed request.
-func (m modifyQueries) Execute() (Request, Response) {
+func (m modifyQueries) Execute() (*Request, *Response) {
 	// executamos a partir do escopo padrão
 	return m.executeRequestScope()
 }
@@ -42,7 +42,7 @@ func (m modifyQueries) Execute() (Request, Response) {
 // Returns:
 //  1. Request: The modified global request
 //  2. Response: The result of the executeRequestScope operation
-func (m modifyQueries) executeRequestScope() (Request, Response) {
+func (m modifyQueries) executeRequestScope() (*Request, *Response) {
 	// chamamos o modify de queries passando as queries a ser modificado e o mesmo retorna os modificados
 	globalQuery, localQuery := m.queries(m.globalRequestQuery(), m.localRequestQuery())
 
@@ -68,13 +68,13 @@ func (m modifyQueries) localRequestQuery() Query {
 // The local query is modified using the ModifyQuery method of the current backend request.
 // The modified backend request is created with the updated local query and the other existing properties of the current backend request.
 // The modified backend request is then returned.
-func (m modifyQueries) modifyLocalRequest(localQuery Query) backendRequest {
+func (m modifyQueries) modifyLocalRequest(localQuery Query) *backendRequest {
 	return m.request.CurrentBackendRequest().ModifyQuery(localQuery)
 }
 
 // modifyGlobalRequest takes a propagate Query and a backendRequest as inputs.
 // This function calls the ModifyQuery method on the m.request with globalQuery and backendRequestVO as parameters.
 // It returns a modified Request.
-func (m modifyQueries) modifyGlobalRequest(globalQuery Query, backendRequestVO backendRequest) Request {
+func (m modifyQueries) modifyGlobalRequest(globalQuery Query, backendRequestVO *backendRequest) *Request {
 	return m.request.ModifyQuery(globalQuery, backendRequestVO)
 }

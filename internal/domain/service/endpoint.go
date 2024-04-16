@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/go-logger/logger"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
 )
@@ -21,7 +20,7 @@ type endpoint struct {
 type Endpoint interface {
 	// Execute executes a specific endpoint in the Gopen server.
 	// It takes a context and a vo.ExecuteEndpoint object as parameters and returns a vo.Response object.
-	Execute(ctx context.Context, executeData vo.ExecuteEndpoint) vo.Response
+	Execute(ctx context.Context, executeData *vo.ExecuteEndpoint) *vo.Response
 }
 
 // NewEndpoint returns a new instance of the endpoint struct with the provided backendService.
@@ -57,7 +56,7 @@ func NewEndpoint(backendService Backend) Endpoint {
 //
 // Returns:
 // The vo.Response object representing the response of the executed endpoint.
-func (e endpoint) Execute(ctx context.Context, executeData vo.ExecuteEndpoint) vo.Response {
+func (e endpoint) Execute(ctx context.Context, executeData *vo.ExecuteEndpoint) *vo.Response {
 	// instanciamos o objeto gopenVO
 	gopenVO := executeData.Gopen()
 	// instanciamos o objeto de valor do endpoint
@@ -68,26 +67,40 @@ func (e endpoint) Execute(ctx context.Context, executeData vo.ExecuteEndpoint) v
 	responseVO := vo.NewResponse(endpointVO)
 
 	// iteramos o beforeware, chaves configuradas para middlewares antes das requisições principais
-	requestVO, responseVO = e.processMiddlewares(ctx, gopenVO, "beforeware", endpointVO.Beforeware(),
-		requestVO, responseVO)
+	requestVO, responseVO = e.processMiddlewares(
+		ctx,
+		"beforeware",
+		endpointVO.Beforeware(),
+		gopenVO,
+		endpointVO,
+		requestVO,
+		responseVO,
+	)
 	// verificamos a resposta precisa ser abortada
-	if abortResponseVO := responseVO.AbortResponse(); helper.IsNotNil(abortResponseVO) {
-		return *abortResponseVO
+	if endpointVO.AbortSequencial(responseVO) {
+		return responseVO.AbortResponse()
 	}
 
 	// iteramos os backends principais para executa-las
-	requestVO, responseVO = e.processBackends(ctx, endpointVO.Backends(), requestVO, responseVO)
+	requestVO, responseVO = e.processBackends(ctx, endpointVO, requestVO, responseVO)
 	// verificamos a resposta precisa ser abortada
-	if abortResponseVO := responseVO.AbortResponse(); helper.IsNotNil(abortResponseVO) {
-		return *abortResponseVO
+	if endpointVO.AbortSequencial(responseVO) {
+		return responseVO.AbortResponse()
 	}
 
 	// iteramos o afterware, chaves configuradas para middlewares depois das requisições principais
-	requestVO, responseVO = e.processMiddlewares(ctx, gopenVO, "afterware", endpointVO.Afterware(),
-		requestVO, responseVO)
+	requestVO, responseVO = e.processMiddlewares(
+		ctx,
+		"afterware",
+		endpointVO.Afterware(),
+		gopenVO,
+		endpointVO,
+		requestVO,
+		responseVO,
+	)
 	// verificamos a resposta precisa ser abortada
-	if abortResponseVO := responseVO.AbortResponse(); helper.IsNotNil(abortResponseVO) {
-		return *abortResponseVO
+	if endpointVO.AbortSequencial(responseVO) {
+		return responseVO.AbortResponse()
 	}
 
 	// retornamos o objeto de valor de resposta final
@@ -115,12 +128,13 @@ func (e endpoint) Execute(ctx context.Context, executeData vo.ExecuteEndpoint) v
 // The vo.Request and vo.Response objects after executing the middleware backends.
 func (e endpoint) processMiddlewares(
 	ctx context.Context,
-	gopenVO vo.Gopen,
 	middlewareType string,
 	middlewareKeys []string,
-	requestVO vo.Request,
-	responseVO vo.Response,
-) (vo.Request, vo.Response) {
+	gopenVO *vo.Gopen,
+	endpointVO *vo.Endpoint,
+	requestVO *vo.Request,
+	responseVO *vo.Response,
+) (*vo.Request, *vo.Response) {
 	// iteramos as chaves de middlewares
 	for _, middlewareKey := range middlewareKeys {
 		// verificamos se essa chave foram configuradas no campo middlewares
@@ -130,11 +144,11 @@ func (e endpoint) processMiddlewares(
 			continue
 		}
 		// instanciamos o objeto de valor de execução do backend
-		executeBackendVO := vo.NewExecuteBackend(middlewareBackendVO, requestVO, responseVO)
+		executeBackendVO := vo.NewExecuteBackend(endpointVO, &middlewareBackendVO, requestVO, responseVO)
 		// processamos o backend do middleware
 		requestVO, responseVO = e.backendService.Execute(ctx, executeBackendVO)
 		// verificamos a resposta precisa ser abortada
-		if responseVO.IsAbortResponse() {
+		if endpointVO.AbortSequencial(responseVO) {
 			break
 		}
 	}
@@ -155,15 +169,21 @@ func (e endpoint) processMiddlewares(
 //
 // Returns:
 // The updated vo.Request and vo.Response objects after executing the backends.
-func (e endpoint) processBackends(ctx context.Context, backends []vo.Backend, requestVO vo.Request, responseVO vo.Response,
-) (vo.Request, vo.Response) {
+func (e endpoint) processBackends(
+	ctx context.Context,
+	endpointVO *vo.Endpoint,
+	requestVO *vo.Request,
+	responseVO *vo.Response,
+) (*vo.Request, *vo.Response) {
 	// iteramos os backends fornecidos
-	for _, backendVO := range backends {
+	for _, backendVO := range endpointVO.Backends() {
+		// instanciamos
+		executeBackendVO := vo.NewExecuteBackend(endpointVO, &backendVO, requestVO, responseVO)
 		// processamos o backend principal iterado
-		requestVO, responseVO = e.backendService.Execute(ctx, vo.NewExecuteBackend(backendVO, requestVO, responseVO))
+		requestVO, responseVO = e.backendService.Execute(ctx, executeBackendVO)
 		// verificamos a resposta precisa ser abortada
-		if responseVO.IsAbortResponse() {
-			break
+		if endpointVO.AbortSequencial(responseVO) {
+			return requestVO, responseVO.AbortResponse()
 		}
 	}
 	return requestVO, responseVO

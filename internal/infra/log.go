@@ -28,7 +28,7 @@ type LogProvider interface {
 	// It takes a responseVO object that represents the response of an API call, and a startTime
 	// object that represents the start time of the API call. It returns a string containing the
 	// finish request message.
-	BuildFinishRequestMessage(responseVO vo.Response, startTime time.Time) string
+	BuildFinishRequestMessage(responseVO *vo.Response, startTime time.Time) string
 }
 
 // NewLogProvider creates and returns a new instance of LogProvider.
@@ -91,7 +91,7 @@ func (l logProvider) BuildInitialRequestMessage(ctx *api.Context) string {
 // The method obtains the status code text, latency text, and response body text.
 // It then constructs the message by appending the status code, latency, and response body (if not empty) to the string builder.
 // Finally, it returns the build log message as a string.
-func (l logProvider) BuildFinishRequestMessage(responseVO vo.Response, startTime time.Time) string {
+func (l logProvider) BuildFinishRequestMessage(responseVO *vo.Response, startTime time.Time) string {
 	// obtemos quanto tempo demorou a requisição
 	latency := time.Now().Sub(startTime)
 
@@ -103,7 +103,7 @@ func (l logProvider) BuildFinishRequestMessage(responseVO vo.Response, startTime
 	// obtemos o text de latência
 	textLatency := latency.String()
 	// obtemos o text do body de resposta
-	bodyBytes := responseVO.BodyBytes()
+	bodyBytes := responseVO.BytesBody()
 
 	// montamos o texto
 	text.WriteString(textStatusCode)

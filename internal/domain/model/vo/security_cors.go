@@ -21,10 +21,11 @@ type SecurityCors struct {
 	allowHeaders []string
 }
 
-// newSecurityCors creates a new instance of SecurityCors based on the provided securityCorsDTO.
-// It sets the allowOrigins, allowMethods, and allowHeaders fields of SecurityCors based on the values from securityCorsDTO.
-func newSecurityCors(securityCorsDTO dto.SecurityCors) SecurityCors {
-	return SecurityCors{
+func newSecurityCors(securityCorsDTO *dto.SecurityCors) *SecurityCors {
+	if helper.IsNil(securityCorsDTO) {
+		return nil
+	}
+	return &SecurityCors{
 		allowOrigins: securityCorsDTO.AllowOrigins,
 		allowMethods: securityCorsDTO.AllowMethods,
 		allowHeaders: securityCorsDTO.AllowHeaders,

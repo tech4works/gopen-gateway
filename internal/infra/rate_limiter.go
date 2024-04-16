@@ -45,7 +45,7 @@ type RateLimiterProvider interface {
 // NewRateLimiterProvider creates a new instance of the RateLimiterProvider interface.
 // It takes a time duration 'every' and an integer 'limit' as parameters.
 // It returns a RateLimiterProvider object.
-func NewRateLimiterProvider(endpointRateVO vo.EndpointRate) RateLimiterProvider {
+func NewRateLimiterProvider(endpointRateVO *vo.EndpointRate) RateLimiterProvider {
 	return &rateLimiterProvider{
 		keys:  map[string]*rate.Limiter{},
 		mutex: &sync.RWMutex{},

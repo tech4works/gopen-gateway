@@ -26,10 +26,10 @@ type Request struct {
 	query Query
 	// Body represents the body of an HTTP request.
 	// It is a field in the Request struct.
-	body Body
+	body *Body
 	// history represents the history of backend requests made by the Request object.
 	// It is a slice of backendRequest objects.
-	history []backendRequest
+	history []*backendRequest
 }
 
 // NewRequest creates a new Request object from a gin.Context object.
@@ -44,7 +44,7 @@ type Request struct {
 //
 // Returns:
 // Request - A new Request object with the extracted request information.
-func NewRequest(gin *gin.Context) Request {
+func NewRequest(gin *gin.Context) *Request {
 	// instanciamos o query VO para obter funções de montagem da url por ele
 	query := NewQuery(gin.Request.URL.Query())
 
@@ -56,17 +56,18 @@ func NewRequest(gin *gin.Context) Request {
 
 	// obtemos os bytes da requisição
 	bodyBytes, _ := io.ReadAll(gin.Request.Body)
-	gin.Request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+	bodyBuffer := bytes.NewBuffer(bodyBytes)
+	gin.Request.Body = io.NopCloser(bodyBuffer)
 
 	// montamos o VO de requisição
-	return Request{
+	return &Request{
 		path:   gin.Request.URL.Path,
 		url:    url,
 		method: gin.Request.Method,
 		header: NewHeader(gin.Request.Header),
 		params: NewParams(gin.Params),
 		query:  query,
-		body:   NewBody(gin.GetHeader("Content-Type"), bodyBytes),
+		body:   NewBody(gin.GetHeader("Content-Type"), bodyBuffer),
 	}
 }
 
@@ -78,8 +79,8 @@ func NewRequest(gin *gin.Context) Request {
 //
 // Returns:
 // Request - A new Request instance with the updated header and the original values for the other fields.
-func (r Request) SetHeader(header Header) Request {
-	return Request{
+func (r *Request) SetHeader(header Header) *Request {
+	return &Request{
 		url:     r.url,
 		method:  r.method,
 		header:  header,
@@ -95,11 +96,11 @@ func (r Request) SetHeader(header Header) Request {
 // 'header' which is an instance of Header will replace the existing request header.
 // 'backendRequestVO' is an instance of a backend request object to be changed in the history array.
 // The function returns a new instance of Request with the modified header and history.
-func (r Request) ModifyHeader(header Header, backendRequestVO backendRequest) Request {
+func (r *Request) ModifyHeader(header Header, backendRequestVO *backendRequest) *Request {
 	history := r.history
 	history[len(history)-1] = backendRequestVO
 
-	return Request{
+	return &Request{
 		url:     r.url,
 		method:  r.method,
 		header:  header,
@@ -114,11 +115,11 @@ func (r Request) ModifyHeader(header Header, backendRequestVO backendRequest) Re
 // It modifies the history of the request by replacing the last element with the provided backendRequest object,
 // and updates the params of the original request.
 // It returns a new Request with the updated history and params.
-func (r Request) ModifyParams(params Params, backendRequestVO backendRequest) Request {
+func (r *Request) ModifyParams(params Params, backendRequestVO *backendRequest) *Request {
 	history := r.history
 	history[len(history)-1] = backendRequestVO
 
-	return Request{
+	return &Request{
 		url:     r.url,
 		method:  r.method,
 		header:  r.header,
@@ -144,11 +145,11 @@ func (r Request) ModifyParams(params Params, backendRequestVO backendRequest) Re
 //
 // Returns:
 // Request - a new Request object with updated query and history fields.
-func (r Request) ModifyQuery(query Query, backendRequestVO backendRequest) Request {
+func (r *Request) ModifyQuery(query Query, backendRequestVO *backendRequest) *Request {
 	history := r.history
 	history[len(history)-1] = backendRequestVO
 
-	return Request{
+	return &Request{
 		url:     r.url,
 		method:  r.method,
 		header:  r.header,
@@ -170,11 +171,10 @@ func (r Request) ModifyQuery(query Query, backendRequestVO backendRequest) Reque
 //
 // Returns:
 // A new Request instance with the updated history.
-func (r Request) ModifyBody(body Body, backendRequestVO backendRequest) Request {
+func (r *Request) ModifyBody(body *Body, backendRequestVO *backendRequest) *Request {
 	history := r.history
 	history[len(history)-1] = backendRequestVO
-
-	return Request{
+	return &Request{
 		url:     r.url,
 		method:  r.method,
 		header:  r.header,
@@ -199,8 +199,8 @@ func (r Request) ModifyBody(body Body, backendRequestVO backendRequest) Request 
 // Returns:
 //
 //	Request - A new Request with the backendRequest added to its history.
-func (r Request) Append(backendRequest backendRequest) Request {
-	return Request{
+func (r *Request) Append(backendRequest *backendRequest) *Request {
+	return &Request{
 		url:     r.url,
 		method:  r.method,
 		header:  r.header,
@@ -212,47 +212,47 @@ func (r Request) Append(backendRequest backendRequest) Request {
 }
 
 // CurrentBackendRequest returns the last backendRequest object in the request's history array.
-func (r Request) CurrentBackendRequest() backendRequest {
+func (r *Request) CurrentBackendRequest() *backendRequest {
 	return r.history[len(r.history)-1]
 }
 
 // Url returns the URL of the Request.
 // It retrieves the value of the `url` field from the Request struct.
-func (r Request) Url() string {
+func (r *Request) Url() string {
 	return r.url
 }
 
 // Path returns the URI of the Request.
 // It retrieves the value of the `path` field from the Request struct.
-func (r Request) Path() string {
+func (r *Request) Path() string {
 	return r.path
 }
 
 // Method returns the HTTP method of the Request.
 // It retrieves the value of the `method` field from the Request struct.
-func (r Request) Method() string {
+func (r *Request) Method() string {
 	return r.method
 }
 
 // Header returns the request header of a Request.
 // It returns an instance of Header.
-func (r Request) Header() Header {
+func (r *Request) Header() Header {
 	return r.header
 }
 
 // Params returns the parameters associated with the request.
 // The returned value is of type Params.
-func (r Request) Params() Params {
+func (r *Request) Params() Params {
 	return r.params
 }
 
 // Query returns the query parameter map of the Request.
-func (r Request) Query() Query {
+func (r *Request) Query() Query {
 	return r.query
 }
 
 // Body returns the body of the request.
-func (r Request) Body() Body {
+func (r *Request) Body() *Body {
 	return r.body
 }
 
@@ -261,7 +261,7 @@ func (r Request) Body() Body {
 // This method returns a map where the keys are strings (specifically "header", "params", "query", "body")
 // and the values are of any type. These values correspond to data within the Request: header data,
 // parameters, query information, and request body, respectively.
-func (r Request) Eval() string {
+func (r *Request) Eval() string {
 	mapEval := map[string]any{
 		"header": r.header,
 		"params": r.params,

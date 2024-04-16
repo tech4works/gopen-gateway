@@ -25,27 +25,26 @@ type modify struct {
 	// value represents the value to be inserted to modify the object
 	value string
 	// request represents an HTTP `request` object.
-	request Request
+	request *Request
 	// response represents an HTTP `response` object.
-	response Response
+	response *Response
 }
 
 // ModifierStrategy represents a strategy for executing a modification operation on a Request and Response.
 // It defines a single method Execute() which takes no arguments and returns a Request and Response.
 // Implementations of this interface should provide their own Execute() method implementation.
 type ModifierStrategy interface {
-	// Execute executes the modification operation on a Request and Response.
-	// It returns a Request and Response.
-	//
-	// Returns:
-	// Request - The modified Request object.
-	// Response - The modified Response object.
-	Execute() (Request, Response)
+
+	// Execute is a method of the ModifierStrategy interface which represents a strategy for executing a modification
+	// operation on a Request and Response.
+	// It takes no arguments and returns a Request and Response.
+	// The implementation of this method should define the logic for executing the modification operation.
+	Execute() (*Request, *Response)
 }
 
 // NewModifyVOFunc represents a function type that takes a Modifier, Request, and Response as input parameters,
 // and returns a ModifierStrategy.
-type NewModifyVOFunc func(modifierVO Modifier, requestVO Request, responseVO Response) ModifierStrategy
+type NewModifyVOFunc func(modifierVO *Modifier, requestVO *Request, responseVO *Response) ModifierStrategy
 
 // newModify initializes a new modify object based on the given inputs.
 // It first retrieves the scope from modifierVO.
@@ -59,7 +58,7 @@ type NewModifyVOFunc func(modifierVO Modifier, requestVO Request, responseVO Res
 // - request: the requestVO
 // - response: the responseVO
 // The modify object is then returned.
-func newModify(modifierVO Modifier, requestVO Request, responseVO Response) modify {
+func newModify(modifierVO *Modifier, requestVO *Request, responseVO *Response) modify {
 	// inicializamos o escopo padrão
 	scope := modifierVO.Scope()
 
@@ -91,7 +90,7 @@ func newModify(modifierVO Modifier, requestVO Request, responseVO Response) modi
 // Otherwise, it sets the modifierValue as the new statusCode and returns it.
 func (m modify) statusCodes(statusCode int) int {
 	// obtemos o valor a ser usado para modificar
-	modifierValue := m.valueInt()
+	modifierValue := m.intValue()
 
 	// se nao tiver valor nao fazemos nada
 	if helper.IsEmpty(modifierValue) {
@@ -116,7 +115,7 @@ func (m modify) statusCodes(statusCode int) int {
 // It returns the modified globalHeader and localHeader.
 func (m modify) headers(globalHeader, localHeader Header) (Header, Header) {
 	// obtemos o valor a ser usado para modificar
-	modifierValue := m.valueStr()
+	modifierValue := m.strValue()
 
 	// alteramos os headers conforme o action indicada
 	switch m.action {
@@ -179,7 +178,7 @@ func (m modify) headers(globalHeader, localHeader Header) (Header, Header) {
 // If there's no action matching in modify struct, it
 func (m modify) params(localPath string, globalParams, localParams Params) (string, Params, Params) {
 	// obtemos o valor a ser usado para modificar
-	modifierValue := m.valueStr()
+	modifierValue := m.strValue()
 
 	// construímos o valor do key com padrão a ser modificado caso não exista
 	paramKeyUrl := fmt.Sprintf("/:%s", m.key)
@@ -252,7 +251,7 @@ func (m modify) params(localPath string, globalParams, localParams Params) (stri
 // Finally, it returns the modified globalQuery and localQuery.
 func (m modify) queries(globalQuery, localQuery Query) (Query, Query) {
 	// obtemos o valor a ser usado para modificar
-	modifierValue := m.valueStr()
+	modifierValue := m.strValue()
 
 	// alteramos o query local e global pela action indicada
 	switch m.action {
@@ -298,46 +297,59 @@ func (m modify) queries(globalQuery, localQuery Query) (Query, Query) {
 }
 
 // bodies modifies the globalBody and localBody based on the receiver 'm' of the type modify.
-// It obtains the value to be used for modification using the m.valueEval() method.
-// If localBody is of type JSON, it calls m.bodyJson to modify localBody with the modifierValue.
-// If localBody is of type string, it calls m.bodyString to modify localBody with the modifierValue.
-// If propagate is true, it also modifies globalBody using the same logic as above.
-// The method returns the modified globalBody and localBody.
-func (m modify) bodies(globalBody, localBody Body) (Body, Body) {
+// It obtains the value to be used for modification using the m.evalValue() method.
+// If the localBody is not nil, it checks the content type of the localBody and performs the corresponding modification.
+// If the content type is "json", it calls the m.bodyJson() method with the localBody and modifierValue as arguments.
+// If the content type is "text", it calls the m.bodyString() method with the localBody and modifierValue as arguments.
+// If the globalBody is not nil and the propagate flag is true, it performs the same steps as above for the globalBody.
+// Finally, it returns the modified globalBody and localBody.
+func (m modify) bodies(globalBody, localBody *Body) (*Body, *Body) {
 	// obtemos o valor a ser usado para modificar
-	modifierValue := m.valueEval()
+	modifierValue := m.evalValue()
 
 	// modificamos o body atual pelo tipo de dado
-	if helper.IsJsonType(localBody) {
-		localBody = m.bodyJson(localBody, modifierValue)
-	} else if helper.IsStringType(localBody) {
-		localBody = m.bodyString(localBody, modifierValue)
+	if helper.IsNotNil(localBody) {
+		switch localBody.ContentType() {
+		case enum.ContentTypeJson:
+			localBody = m.bodyJson(localBody, modifierValue)
+			break
+		case enum.ContentTypeText:
+			localBody = m.bodyString(localBody, modifierValue)
+			break
+		}
 	}
 
 	// caso seja em um escopo propagate, modificamos pelo tipo de dado também, OBS: no response o propagate
 	// sempre sera false
-	if m.propagate {
-		if helper.IsJsonType(globalBody) {
+	if helper.IsNotNil(globalBody) && m.propagate {
+		switch localBody.ContentType() {
+		case enum.ContentTypeJson:
 			globalBody = m.bodyJson(globalBody, modifierValue)
-		} else if helper.IsStringType(globalBody) {
+			break
+		case enum.ContentTypeText:
 			globalBody = m.bodyString(globalBody, modifierValue)
+			break
 		}
 	}
-
 	// retornamos o body global e local possivelmente alterados
 	return globalBody, localBody
 }
 
-// bodyJson takes a body and a modifierValue of any type and returns a modified Body.
-// It uses the modify field key to determine which part of the body to modify.
-// Based on the modify action field, it performs different actions:
-// - For ModifierActionSet, ModifierActionAdd, ModifierActionReplace it sets the new value to the body.
-// - For ModifierActionDel, it deletes the key from the body.
-// - For ModifierActionRename, it changes the key of the body to the new value, retaining the original value.
-// After modification, it uses the body's ModifyLastBackendResponse method to apply the changes.
-func (m modify) bodyJson(body Body, modifierValue any) Body {
-	// instanciamos a interface do body para ser modificada
-	valueBody := body.Value()
+// bodyJson modifies the body of a request based on the receiver 'm' of the type modify.
+// It takes a Body pointer as input and modifies its value according to the modifier action
+// and the key-value pairs specified in 'm'.
+// It returns the modified Body pointer.
+// The modifier action can be one of the following:
+// - enum.ModifierActionSet: Set the value of the specified key in the body to the modifier value.
+// - enum.ModifierActionDel: Delete the specified key from the body.
+// - enum.ModifierActionRename: Rename the specified key to the new key and set its value to the original value.
+// If the modifier action is not one of the above, it returns the original Body pointer without any modifications.
+// If any error occurs during the modification process, it returns the original Body pointer without any modifications.
+// The modified Body is converted to a buffer before being set as the new value.
+// If an error occurs during the conversion process, it returns the original Body pointer without any modifications.
+func (m modify) bodyJson(body *Body, modifierValue any) *Body {
+	// instanciamos o valor do body em string
+	bodyStr := body.String()
 
 	// instanciamos o meu novo body
 	var modifiedValue string
@@ -346,55 +358,61 @@ func (m modify) bodyJson(body Body, modifierValue any) Body {
 	// abaixo verificamos qual ação desejada para modificar o valor body
 	switch m.action {
 	case enum.ModifierActionSet:
-		modifiedValue, err = sjson.Set(valueBody, m.key, modifierValue)
+		modifiedValue, err = sjson.Set(bodyStr, m.key, modifierValue)
 		break
 	case enum.ModifierActionDel:
-		modifiedValue, err = sjson.Delete(valueBody, m.key)
+		modifiedValue, err = sjson.Delete(bodyStr, m.key)
 		break
 	case enum.ModifierActionRename:
-		result := gjson.Get(valueBody, m.key)
+		result := gjson.Get(bodyStr, m.key)
 		if result.Exists() {
-			modifiedValue, err = sjson.Delete(valueBody, m.key)
+			modifiedValue, err = sjson.Delete(bodyStr, m.key)
 			if helper.IsNil(err) {
 				modifiedValue, err = sjson.Set(modifiedValue, m.value, result.Value())
 			}
 		} else {
-			modifiedValue = valueBody
+			modifiedValue = bodyStr
 		}
 		break
 	default:
-		modifiedValue = valueBody
-		break
-	}
-	// tratamos o erro e retornamos o próprio body
-	if helper.IsNotNil(err) {
 		return body
 	}
+
+	// tratamos o erro e retornamos o próprio body
+	if helper.IsNotNil(err) {
+		// todo: imprimir log?
+		return body
+	}
+
+	// convertemos o body modificado em buffer
+	buffer, err := helper.ConvertToBuffer(modifiedValue)
+	if helper.IsNotNil(err) {
+		// todo: imprimir log?
+		return body
+	}
+
 	// setamos o novo valor gerando um novo objeto de valor
-	return body.SetValue(modifiedValue)
+	return body.SetValue(buffer)
 }
 
-// bodyString modifies the body based on the provided action and returns the modified body.
+// bodyString modifies the string representation of the provided `body` based on the receiver `m` of the type `modify`.
+// It converts the `modifierValue` to a string using the `helper.SimpleConvertToString` method.
+// It converts the `body` to a string using the `body.String` method.
+// It initializes the `modifiedValue` variable to store the modified string.
+// It modifies the string based on the `action` provided in `m` using a switch statement:
+//   - If the action is `enum.ModifierActionAdd`, the `modifiedValue` is set by concatenating `bodyStr` and `modifierValueStr`.
+//   - If the action is `enum.ModifierActionSet`, the `modifiedValue` is set by replacing all occurrences of `m.key` in `bodyStr` with `modifierValueStr`.
+//   - If the action is `enum.ModifierActionDel`, the `modifiedValue` is set by replacing all occurrences of `m.key` in `bodyStr` with an empty string.
+//   - If the action is `enum.ModifierActionReplace`, the `modifiedValue` is set to `modifierValueStr`.
+//   - If none of the above actions match, it returns the original `body` without any modifications.
 //
-// It converts the provided modifierValue to a string, ensures the body is also a string,
-// and then modifies the body according to the provided action. The actions can Add, Set, Del, or Replace.
-//
-// For the Add action, modifierValue is appended to the body.
-// For the Set action, all instances of the key in the body are replaced with the modifierValue.
-// For the Del action, all instances of the key in the body are deleted.
-// For the Replace action, the body is replaced entirely with the modifierValue.
-//
-// Parameters:
-// body - the original body to be modified.
-// modifierValue - the value to be used for modification.
-//
-// Returns:
-// The modified body.
-func (m modify) bodyString(body Body, modifierValue any) Body {
+// It converts the modified string to a buffer using the `helper.ConvertToBuffer` method, and if there is an error, it returns the original `body`.
+// Finally, it returns the new `body` with the modified value, set using the `body.SetValue` method.
+func (m modify) bodyString(body *Body, modifierValue any) *Body {
 	// convertemos o valor a ser modificado em str
 	modifierValueStr := helper.SimpleConvertToString(modifierValue)
 	// convertemos o body para string para garantir
-	bodyToModify := helper.SimpleConvertToString(body.Interface())
+	bodyStr := body.String()
 
 	// inicializamos o valor a ser modificado
 	var modifiedValue string
@@ -402,49 +420,56 @@ func (m modify) bodyString(body Body, modifierValue any) Body {
 	// modificamos a string com base no action fornecido
 	switch m.action {
 	case enum.ModifierActionAdd:
-		modifiedValue = bodyToModify + modifierValueStr
+		modifiedValue = bodyStr + modifierValueStr
 		break
 	case enum.ModifierActionSet:
-		modifiedValue = strings.ReplaceAll(bodyToModify, m.key, modifierValueStr)
+		modifiedValue = strings.ReplaceAll(bodyStr, m.key, modifierValueStr)
 		break
 	case enum.ModifierActionDel:
-		modifiedValue = strings.ReplaceAll(bodyToModify, m.key, "")
+		modifiedValue = strings.ReplaceAll(bodyStr, m.key, "")
 		break
 	case enum.ModifierActionReplace:
 		modifiedValue = modifierValueStr
 		break
 	default:
-		modifiedValue = bodyToModify
-		break
+		return body
 	}
+
+	// convertemos o body modificado em buffer
+	buffer, err := helper.ConvertToBuffer(modifiedValue)
+	if helper.IsNotNil(err) {
+		// todo: imprimir log?
+		return body
+	}
+
 	// retornamos o novo body com o valor modificado
-	return body.SetValue(modifiedValue)
+	return body.SetValue(buffer)
 }
 
-// valueInt method in the modify struct initializes the modifier value by calling
-// the valueEval method, and then returns either the modified value or the original value.
+// intValue method in the modify struct initializes the modifier value by calling
+// the evalValue method, and then returns either the modified value or the original value.
 // The return value is converted to an integer using the SimpleConvertToInt helper function.
-func (m modify) valueInt() int {
+func (m modify) intValue() int {
 	// inicializamos o valor a ser usado para modificar
-	modifierValue := m.valueEval()
+	modifierValue := m.evalValue()
 
 	// retornamos o valor modificado ou não
 	return helper.SimpleConvertToInt(modifierValue)
 }
 
-// valueStr returns the modified value as a string.
+// strValue returns the modified value as a string.
 // The value is obtained by evaluating the `valueEval()` method, which initializes the value to be used for modification.
 // The modified value is then converted to a string using the `helper.SimpleConvertToString()` function.
 // The function returns the modified value as a string.
-func (m modify) valueStr() string {
+func (m modify) strValue() string {
 	// inicializamos o valor a ser usado para modificar
-	modifierValue := m.valueEval()
+	modifierValue := m.evalValue()
 
 	// retornamos o valor modificado ou não
 	return helper.SimpleConvertToString(modifierValue)
 }
 
-// valueEval method of the modify struct performs value evaluation.
+// evalValue method of the modify struct performs value evaluation.
 // It initializes the value to be potentially modified.
 // If the action is DEL, it returns nil.
 // It uses a regex to find all the eval values within modifierValue.
@@ -456,7 +481,7 @@ func (m modify) valueStr() string {
 // If it is, it transforms it into an object.
 // It finally returns the modified value.
 // Note: Uses helper functions and requires encoding/json for json operations.
-func (m modify) valueEval() any {
+func (m modify) evalValue() any {
 	// inicializamos o valor a ser modificado ou não
 	modifierValue := m.value
 
@@ -520,7 +545,7 @@ func (m modify) valueEval() any {
 // It replaces the "request." substring with an empty string in the evaluation string to form the expression.
 // Using the gjson.Get method, it retrieves the value from the evaluation string in the Request object.
 // If the value exists, it returns the result. Otherwise, it returns nil.
-func (m modify) requestValueByEval(requestVO Request, eval string) any {
+func (m modify) requestValueByEval(requestVO *Request, eval string) any {
 	expr := strings.Replace(eval, "request.", "", 1)
 	result := gjson.Get(requestVO.Eval(), expr)
 	if result.Exists() {
@@ -533,7 +558,7 @@ func (m modify) requestValueByEval(requestVO Request, eval string) any {
 // The expression is modified by replacing "response." with an empty string using strings.Replace() method.
 // The modified expression is then used to extract the value from the response using gjson.Get() method.
 // If the value exists, it is returned as result.Value(). Otherwise, it returns nil.
-func (m modify) responseValueByEval(responseVO Response, eval string) any {
+func (m modify) responseValueByEval(responseVO *Response, eval string) any {
 	expr := strings.Replace(eval, "response.", "", 1)
 	result := gjson.Get(responseVO.Eval(), expr)
 	if result.Exists() {
