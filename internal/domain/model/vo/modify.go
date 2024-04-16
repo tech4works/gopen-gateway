@@ -425,11 +425,15 @@ func (m modify) bodyString(body *Body, modifierValue any) *Body {
 	case enum.ModifierActionSet:
 		if helper.IsNotEmpty(m.key) {
 			modifiedValue = strings.ReplaceAll(bodyStr, m.key, modifierValueStr)
+		} else {
+			modifiedValue = bodyStr
 		}
 		break
 	case enum.ModifierActionDel:
 		if helper.IsNotEmpty(m.key) {
 			modifiedValue = strings.ReplaceAll(bodyStr, m.key, "")
+		} else {
+			modifiedValue = bodyStr
 		}
 		break
 	case enum.ModifierActionReplace:
