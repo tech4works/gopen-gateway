@@ -106,6 +106,7 @@ func NewResponseByErr(endpointVO *Endpoint, statusCode int, err error) *Response
 		endpoint:   endpointVO,
 		statusCode: statusCode,
 		header:     newHeaderFailed(),
+		abort:      true,
 		body:       newErrorBody(endpointVO.path, err),
 	}
 }
@@ -147,6 +148,11 @@ func (r *Response) ModifyLastBackendResponse(backendResponseVO *backendResponse)
 // Returns the modified Response object with updated history.
 // Does not modify other properties of the Response object.
 func (r *Response) Append(backendResponseVO *backendResponse) *Response {
+	// verificamos se o backendResponse precisa ser abortado
+	if r.endpoint.AbortSequencial(backendResponseVO.StatusCode()) {
+		return r.AbortResponse(backendResponseVO)
+	}
+
 	// adicionamos na nova lista de histórico
 	history := r.history
 	history = append(history, backendResponseVO)
@@ -189,25 +195,25 @@ func (r *Response) Abort() bool {
 	return r.abort
 }
 
-// AbortResponse returns a new *Response object with the last backend response aborted.
-// The method retrieves the last backend response from the history list and aggregates its header.
-// Then, it constructs a new response with the status code, header, body, and history of the last backend response.
-// Returns the new Response object with the aborted backend response.
-func (r *Response) AbortResponse() *Response {
-	// instanciamos o último backend response, que é para ser abortado
-	lastBackendResponseVO := r.LastBackendResponse()
-
+// AbortResponse creates a new Response object with the provided backendResponseVO.
+// It sets the abort flag to true, indicating that the response should be aborted.
+// The method combines the headers of the Response object and the backendResponseVO to create a new header.
+// The created header is set in the new Response object along with the endpoint, status code, body,
+// and history from the original Response object.
+// Returns the modified Response object representing the aborted response.
+func (r *Response) AbortResponse(backendResponseVO *backendResponse) *Response {
 	// instanciamos o novo header
 	header := newResponseHeader(false, false)
 	// agregamos o header do backend abortado
-	header = header.Aggregate(lastBackendResponseVO.Header())
+	header = header.Aggregate(backendResponseVO.Header())
 
 	// construímos o response com os dados do backend abortado
 	return &Response{
 		endpoint:   r.endpoint,
-		statusCode: lastBackendResponseVO.statusCode,
+		statusCode: backendResponseVO.statusCode,
 		header:     header,
-		body:       lastBackendResponseVO.body,
+		body:       backendResponseVO.body,
+		abort:      true,
 		history:    r.history,
 	}
 }
@@ -377,9 +383,9 @@ func (r responseHistory) MultipleResponse() bool {
 // If there is a single response, it returns the HTTP status code of that particular response.
 // If there are no responses, it returns HTTP status code 204 (No Content).
 func (r responseHistory) StatusCode() int {
-	// se tiver mais de 1 resposta
+	// se tiver mais de 1 resposta obtemos o código de status mais frequente
 	if r.MultipleResponse() {
-		return http.StatusOK
+		return r.mostFrequentStatusCode()
 	} else if r.SingleResponse() {
 		return r[0].statusCode
 	}
@@ -495,4 +501,22 @@ func (r responseHistory) sliceOfBodies() *Body {
 	}
 	// se tudo ocorrer bem, teremos o body agregado
 	return newSliceBody(bodies)
+}
+
+func (r responseHistory) mostFrequentStatusCode() int {
+	statusCodes := make(map[int]int)
+	for _, backendResponseVO := range r {
+		statusCodes[backendResponseVO.statusCode]++
+	}
+
+	maxCount := 0
+	mostFrequentCode := 0
+	for code, count := range statusCodes {
+		if count >= maxCount {
+			mostFrequentCode = code
+			maxCount = count
+		}
+	}
+
+	return mostFrequentCode
 }

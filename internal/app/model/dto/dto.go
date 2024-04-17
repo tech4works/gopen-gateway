@@ -183,7 +183,7 @@ type Endpoint struct {
 	AggregateResponses bool `json:"aggregate-responses,omitempty"`
 	// AbortIfStatusCodes represents a slice of integers representing the HTTP status codes
 	// for which the API endpoint should abort. It is a field in the Endpoint struct.
-	AbortIfStatusCodes []int `json:"abort-if-status-codes,omitempty"`
+	AbortIfStatusCodes *[]int `json:"abort-if-status-codes,omitempty"`
 	// Beforeware represents a slice of strings containing the names of the beforeware middlewares that should be
 	// applied before processing the API endpoint.
 	Beforeware []string `json:"beforeware,omitempty"`

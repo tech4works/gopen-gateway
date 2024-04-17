@@ -43,7 +43,7 @@ type Endpoint struct {
 	aggregateResponses bool
 	// abortIfStatusCodes represents a slice of integers representing the HTTP status codes
 	// for which the API endpoint should abort. It is a field in the Endpoint struct.
-	abortIfStatusCodes []int
+	abortIfStatusCodes *[]int
 	// beforeware represents a slice of strings containing the names of the beforeware middlewares that should be
 	// applied before processing the API endpoint.
 	beforeware []string
@@ -252,15 +252,16 @@ func (e *Endpoint) Completed(responseHistorySize int) bool {
 	return helper.Equals(responseHistorySize, e.CountAllBackends())
 }
 
-// AbortSequencial checks if the response should be aborted based on the status codes defined in the abortIfStatusCodes
-// field of the Endpoint struct. It returns true if the response status code matches any of the abortIfStatusCodes,
-// otherwise it returns false. If the abortIfStatusCodes field is empty, it returns true if the response status code is
-// greater than or equal to http.StatusBadRequest.
-func (e *Endpoint) AbortSequencial(responseVO *Response) bool {
-	if helper.IsEmpty(e.abortIfStatusCodes) {
-		return helper.IsGreaterThanOrEqual(responseVO.statusCode, http.StatusBadRequest)
+// AbortSequencial checks if the given statusCode is present in the abortIfStatusCodes
+// slice of the Endpoint struct. If the abortIfStatusCodes slice is nil, it returns
+// true if the statusCode is greater than or equal to http.StatusBadRequest, otherwise false.
+// Otherwise, it returns true if the given statusCode is present in the abortIfStatusCodes
+// slice, otherwise false.
+func (e *Endpoint) AbortSequencial(statusCode int) bool {
+	if helper.IsNil(e.abortIfStatusCodes) {
+		return helper.IsGreaterThanOrEqual(statusCode, http.StatusBadRequest)
 	}
-	return helper.Contains(e.abortIfStatusCodes, responseVO.statusCode)
+	return helper.Contains(e.abortIfStatusCodes, statusCode)
 }
 
 // ResponseEncode returns the value of the responseEncode field in the Endpoint struct.
@@ -274,7 +275,7 @@ func (e *Endpoint) AggregateResponses() bool {
 }
 
 // AbortIfStatusCodes returns the value of the abortIfStatusCodes field in the Endpoint struct.
-func (e *Endpoint) AbortIfStatusCodes() []int {
+func (e *Endpoint) AbortIfStatusCodes() *[]int {
 	return e.abortIfStatusCodes
 }
 

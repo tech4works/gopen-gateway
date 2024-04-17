@@ -48,7 +48,7 @@ func (m modifier) Execute(executeData *vo.ExecuteModifier) (*vo.Request, *vo.Res
 
 	// executamos o modificador de código de status
 	if helper.IsNotNil(executeData.ModifierStatusCode()) &&
-		helper.Equals(enum.ModifierContextResponse, executeData.ModifierStatusCode().Context()) {
+		helper.Equals(enum.ModifierContextResponse, executeData.Context()) {
 		modifyVO := vo.NewModifyStatusCodes(executeData.ModifierStatusCode(), requestVO, responseVO)
 		requestVO, responseVO = modifyVO.Execute()
 	}

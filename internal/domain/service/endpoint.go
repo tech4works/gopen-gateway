@@ -77,15 +77,15 @@ func (e endpoint) Execute(ctx context.Context, executeData *vo.ExecuteEndpoint) 
 		responseVO,
 	)
 	// verificamos a resposta precisa ser abortada
-	if endpointVO.AbortSequencial(responseVO) {
-		return responseVO.AbortResponse()
+	if responseVO.Abort() {
+		return responseVO
 	}
 
 	// iteramos os backends principais para executa-las
 	requestVO, responseVO = e.processBackends(ctx, endpointVO, requestVO, responseVO)
 	// verificamos a resposta precisa ser abortada
-	if endpointVO.AbortSequencial(responseVO) {
-		return responseVO.AbortResponse()
+	if responseVO.Abort() {
+		return responseVO
 	}
 
 	// iteramos o afterware, chaves configuradas para middlewares depois das requisições principais
@@ -99,8 +99,8 @@ func (e endpoint) Execute(ctx context.Context, executeData *vo.ExecuteEndpoint) 
 		responseVO,
 	)
 	// verificamos a resposta precisa ser abortada
-	if endpointVO.AbortSequencial(responseVO) {
-		return responseVO.AbortResponse()
+	if responseVO.Abort() {
+		return responseVO
 	}
 
 	// retornamos o objeto de valor de resposta final
@@ -148,7 +148,7 @@ func (e endpoint) processMiddlewares(
 		// processamos o backend do middleware
 		requestVO, responseVO = e.backendService.Execute(ctx, executeBackendVO)
 		// verificamos a resposta precisa ser abortada
-		if endpointVO.AbortSequencial(responseVO) {
+		if responseVO.Abort() {
 			break
 		}
 	}
@@ -182,8 +182,8 @@ func (e endpoint) processBackends(
 		// processamos o backend principal iterado
 		requestVO, responseVO = e.backendService.Execute(ctx, executeBackendVO)
 		// verificamos a resposta precisa ser abortada
-		if endpointVO.AbortSequencial(responseVO) {
-			return requestVO, responseVO.AbortResponse()
+		if responseVO.Abort() {
+			break
 		}
 	}
 	return requestVO, responseVO
