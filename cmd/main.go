@@ -25,6 +25,8 @@ import (
 	"time"
 )
 
+// TODO: pensarmos em futuramente ter backends para chamadas paralelas
+
 const gopenJsonResult = "./gopen.json"
 const gopenJsonSchema = "file://./json-schema.json"
 
