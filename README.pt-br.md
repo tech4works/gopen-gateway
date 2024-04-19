@@ -544,7 +544,7 @@ Campo opcional, do tipo string, campo livre para anotações relacionadas ao seu
 
 Campo obrigatório, do tipo string, responsável pelo caminho URI do endpoint, exemplo `"/users/:id"`.
 
-Caso queira ter parâmetros dinâmicos nesse endpoint, apenas use o padrão `":{nome do parâmetro}"` por exemplo
+Caso queira ter parâmetros dinâmicos nesse endpoint, apenas use o padrão `":nome do parâmetro"` por exemplo
 `"/users/:id/status/:status"`, a API Gateway irá entender que teremos 2 parâmetros dinâmicos desse endpoint,
 esses valores podem ser repassados para os backends subjacentes.
 
