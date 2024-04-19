@@ -62,7 +62,7 @@ Documentação
 Para entender como funciona, precisamos explicar primeiro a estrutura dos ambientes dinâmicos que GOPEN aceita para sua
 configuração em json e arquivo de variáveis de ambiente, então vamos lá!
 
-### Estrutura de pastas
+### ESTRUTURA DE PASTAS
 
 Na estrutura do projeto, em sua raiz precisará ter uma pasta chamada "gopen" e dentro dela precisa ter as pastas
 contendo
@@ -94,7 +94,9 @@ de configuração da API Gateway, ficará mais o menos assim, por exemplo:
       |   - .json
       |   - .env
 
-### Json de configuração
+--- 
+
+### JSON DE CONFIGURAÇÃO
 
 Com base nesse arquivo json de configuração obtido pela env desejada a aplicação terá seus endpoints e suas regras
 definidas, veja abaixo um exemplo simples com todos os campos possíveis e seus conceitos e regras:
@@ -286,7 +288,7 @@ seguiremos com o valor informado ou padrão desse campo, na raiz do json de conf
 
 Campo opcional, se informado, o campo `duration` passa a ser obrigatório!
 
-Caso o objeto seja informado na estrutura do [endpoint.cache](#cache-1), damos prioridade aos valores informados lá,
+Caso o objeto seja informado na estrutura do [endpoint.cache](#cache), damos prioridade aos valores informados lá,
 caso contrário seguiremos com os valores informados nesse campo.
 
 O valor do cache é apenas gravado 1 vez a cada X duração informada no campo `every`.
@@ -500,7 +502,7 @@ permite receber nas requisições.
 ### middlewares
 
 Campo opcional, é responsável pela configuração de seus middlewares de aplicação, é um mapa com chaves
-em string mencionando o nome do seu middleware, esse nome poderá ser utilizado em seu [endpoint](#endpoint)
+em string mencionando o nome do seu middleware, esse nome poderá ser utilizado em seus [endpoints](#endpoints)
 como `beforeware` e `afterware`.
 
 O valor da chave é um objeto de [backend](#backendname), porém, com uma observação, esse objeto terá
@@ -517,7 +519,7 @@ seguintes retornando o que o backend de device respondeu, caso tenha retornado u
 modificar o header de todas as requisições seguintes (`propagate:true`), adicionando o campo `X-Device-Id`, com o valor
 do id do body de resposta do próprio backend, podendo ser utilizado nos outros backends seguintes do endpoint.
 
-Para saber mais sobre os `modifiers` [veja](#modifiers).
+Para saber mais sobre os `modifiers` [veja](#backendmodifiers).
 
 Para entender melhor essa ferramenta poderosa, na prática, veja os exemplos de middlewares usados como
 `beforeware` e `afterware` feitos no projeto
@@ -658,7 +660,7 @@ as diretrizes de [resposta](#resposta) da API Gateway, sem forçar a codificaç�
 
 Campo opcional, do tipo booleano, o valor padrão é `false`, indicando que a resposta do endpoint não será agregada.
 
-Caso informado com o valor `true` e tiver mais de uma resposta dos backends informados no endpoint ele irá agregar as 
+Caso informado com o valor `true` e tiver mais de uma resposta dos backends informados no endpoint ele irá agregar as
 respostas dos backends, veja mais sobre as regras de resposta da API Gateway clicando [aqui](#resposta).
 
 #### endpoint.abort-if-status-codes
@@ -666,7 +668,7 @@ respostas dos backends, veja mais sobre as regras de resposta da API Gateway cli
 Campo opcional, do tipo lista de inteiros, o valor padrão é vazio, indicando que qualquer backend executado no endpoint
 que tenha respondido o status code maior ou igual a `400 (Bad request)` será abortado.
 
-Caso informado, e um backend retorna o status code indicado na configuração, o endpoint será abortado, isso significa 
+Caso informado, e um backend retorna o status code indicado na configuração, o endpoint será abortado, isso significa
 que os outros backends configurados após o mesmo, não serão executados, e o endpoint irá retornar a resposta do mesmo
 ao cliente final.
 
@@ -678,7 +680,8 @@ Campo opcional, do tipo lista de string, o valor padrão é vazio, indicando que
 de pré-requisições.
 
 Caso informado, o endpoint irá executar as requisições, posição por posição, começando no início da lista. Caso o valor
-em string da posição a ser executada estiver configurada no campo [middlewares](#middlewares) corretamente, será executado
+em string da posição a ser executada estiver configurada no campo [middlewares](#middlewares) corretamente, será
+executado
 o backend configurado no mesmo. Caso contrário irá ignorar a posição apenas imprimindo um log de atenção.
 
 #### endpoint.afterware
@@ -687,24 +690,34 @@ Campo opcional, do tipo lista de string, o valor padrão é vazio, indicando que
 de pós-requisições.
 
 Caso informado, o endpoint irá executar as requisições, posição por posição, começando no início da lista. Caso o valor
-em string da posição a ser executada estiver configurada no campo [middlewares](#middlewares) corretamente, será executado
-o backend configurado no mesmo. Caso contrário irá ignorar a posição apenas imprimindo um log de atenção.
+em string da posição a ser executada estiver configurada no campo [middlewares](#middlewares) corretamente, será
+executado o backend configurado no mesmo. Caso contrário irá ignorar a posição apenas imprimindo um log de atenção.
 
 #### endpoint.backends
 
-TODO
+Campo obrigatório, do tipo lista de objeto, responsável pela execução principal do endpoint, o próprio nome já diz tudo,
+é uma lista que indica todos os serviços necessários para que o endpoint retorne a resposta esperada.
+
+Veja abaixo como funciona o fluxo básico de um backend na imagem abaixo:
+
+#### TODO: colocar imagem
+
+Abaixo iremos listar e explicar cada campo desse objeto tão importante:
 
 ### backend.name
 
 TODO
 
-### 
+---
+
+### RESPOSTA
+
 
 Usabilidade
 -----------
 ---
 Use o projeto [playground](https://github.com/GabrielHCataldo/gopen-gateway-playground) para começar a explorar e
-utilizar na prática o GOPEN API Gateway!
+utilizar na prática o Gopen API Gateway!
 
 
 Como contríbuir?
