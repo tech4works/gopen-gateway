@@ -249,7 +249,7 @@ houver alguma alteração no arquivo .json e .env na pasta do ambiente seleciona
 ### store
 
 Campo opcional, valor padrão é o armazenamento local em cache, caso seja informado, o campo `redis` passa
-a ser obrigatório e os outros dois campos que acompanham o mesmo `address` e `password` também.
+a ser obrigatório e o campo `address` também.
 
 Caso utilize o armazenamento global de cache o Redis, é indicado que os valores de endereço e senha sejam preenchidos
 utilizando variável de ambiente, como no exemplo acima.
@@ -503,7 +503,7 @@ Campo opcional, é responsável pela configuração de seus middlewares de aplic
 em string mencionando o nome do seu middleware, esse nome poderá ser utilizado em seu [endpoint](#endpoint)
 como `beforeware` e `afterware`.
 
-O valor da chave é um objeto de [backend](#backend), porém, com uma observação, esse objeto terá
+O valor da chave é um objeto de [backend](#backendname), porém, com uma observação, esse objeto terá
 sua resposta de sucesso omitida automáticamente pelo endpoint, já que respostas de sucesso de middlewares não são
 exibidas para o cliente final HTTP, porém sua resposta será armazenada ao longo da requisição HTTP feita no endpoint,
 podendo ser manipulada.
@@ -527,6 +527,10 @@ de [playground](https://github.com/GabrielHCataldo/gopen-gateway-playground).
 
 Campo obrigatório, é uma lista de objeto, representa cada endpoint da API Gateway que será registrado para ouvir e
 servir as requisições HTTP.
+
+Veja abaixo como funciona o fluxo básico de um endpoint na imagem abaixo:
+
+#### TODO: colocar imagem
 
 Abaixo iremos listar e explicar cada campo desse objeto tão importante:
 
@@ -619,7 +623,7 @@ para o endpoint em questão.
 É semelhante ao campo [cache.only-if-status-codes](#cacheonly-if-status-codes), porém, será aplicado apenas para o
 endpoint em questão.
 
-Caso omitido, será herdado o valor do campo [cache.only-if-status-codes](#cacheonly-if-status-codes)).
+Caso omitido, será herdado o valor do campo [cache.only-if-status-codes](#cacheonly-if-status-codes).
 
 Caso seja informado vazio, o valor do não será herdado, porém, será aplicado o
 valor [padrão](#cacheonly-if-status-codes) para o endpoint em questão.
@@ -629,11 +633,72 @@ valor [padrão](#cacheonly-if-status-codes) para o endpoint em questão.
 É semelhante ao campo [cache.allow-cache-control](#cacheallow-cache-control), porém, será aplicado apenas para o
 endpoint em questão.
 
-Caso omitido, será herdado o valor do campo [cache.allow-cache-control](#cacheallow-cache-control)).
+Caso omitido, será herdado o valor do campo [cache.allow-cache-control](#cacheallow-cache-control).
 
 #### endpoint.limiter
 
+É semelhante ao campo [limiter](#limiter), porém, será aplicado apenas para o endpoint
+em questão.
 
+Caso omitido, será herdado o valor do campo [limiter](#limiter).
+
+#### endpoint.response-encode
+
+Campo opcional, do tipo string, o valor padrão é vazio, indicando que a resposta do endpoint será codificada seguindo
+as diretrizes de [resposta](#resposta) da API Gateway, sem forçar a codificação indicada.
+
+```
+- Valores aceitos:
+  - JSON 
+  - XML
+  - TEXT
+```
+
+#### endpoint.aggregate-responses
+
+Campo opcional, do tipo booleano, o valor padrão é `false`, indicando que a resposta do endpoint não será agregada.
+
+Caso informado com o valor `true` e tiver mais de uma resposta dos backends informados no endpoint ele irá agregar as 
+respostas dos backends, veja mais sobre as regras de resposta da API Gateway clicando [aqui](#resposta).
+
+#### endpoint.abort-if-status-codes
+
+Campo opcional, do tipo lista de inteiros, o valor padrão é vazio, indicando que qualquer backend executado no endpoint
+que tenha respondido o status code maior ou igual a `400 (Bad request)` será abortado.
+
+Caso informado, e um backend retorna o status code indicado na configuração, o endpoint será abortado, isso significa 
+que os outros backends configurados após o mesmo, não serão executados, e o endpoint irá retornar a resposta do mesmo
+ao cliente final.
+
+Veja como o endpoint será respondido após um backend ser abortado clicando [aqui](#resposta).
+
+#### endpoint.beforeware
+
+Campo opcional, do tipo lista de string, o valor padrão é vazio, indicando que o endpoint não tem nenhum middleware
+de pré-requisições.
+
+Caso informado, o endpoint irá executar as requisições, posição por posição, começando no início da lista. Caso o valor
+em string da posição a ser executada estiver configurada no campo [middlewares](#middlewares) corretamente, será executado
+o backend configurado no mesmo. Caso contrário irá ignorar a posição apenas imprimindo um log de atenção.
+
+#### endpoint.afterware
+
+Campo opcional, do tipo lista de string, o valor padrão é vazio, indicando que o endpoint não tem nenhum middleware
+de pós-requisições.
+
+Caso informado, o endpoint irá executar as requisições, posição por posição, começando no início da lista. Caso o valor
+em string da posição a ser executada estiver configurada no campo [middlewares](#middlewares) corretamente, será executado
+o backend configurado no mesmo. Caso contrário irá ignorar a posição apenas imprimindo um log de atenção.
+
+#### endpoint.backends
+
+TODO
+
+### backend.name
+
+TODO
+
+### 
 
 Usabilidade
 -----------

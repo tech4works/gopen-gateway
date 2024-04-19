@@ -47,8 +47,7 @@
             }
           },
           "required": [
-            "address",
-            "password"
+            "address"
           ],
           "additionalProperties": false
         }
