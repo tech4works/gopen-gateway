@@ -239,9 +239,9 @@ func BuildBackendModifiersDTOFromVO(backendModifiersVO *vo.BackendModifiers) *dt
 		return nil
 	}
 	return &dto.BackendModifiers{
-		StatusCode: BuildModifierDTOFromVO(backendModifiersVO.StatusCode()),
+		StatusCode: backendModifiersVO.StatusCode(),
 		Header:     BuildModifiersDTOFromVO(backendModifiersVO.Header()),
-		Params:     BuildModifiersDTOFromVO(backendModifiersVO.Params()),
+		Param:      BuildModifiersDTOFromVO(backendModifiersVO.Param()),
 		Query:      BuildModifiersDTOFromVO(backendModifiersVO.Query()),
 		Body:       BuildModifiersDTOFromVO(backendModifiersVO.Body()),
 	}

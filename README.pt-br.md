@@ -212,9 +212,9 @@ definidas, veja abaixo um exemplo simples com todos os campos possíveis e seus 
           ],
           "forward-queries": [],
           "modifiers": {
-            "statusCode": {},
+            "status-code": 0,
             "header": [],
-            "params": [],
+            "param": [],
             "query": [],
             "body": []
           },
@@ -262,8 +262,7 @@ Campo opcional, o valor padrão é `30 segundos`, esse campo é responsável pel
 de cada requisição.
 
 Caso a requisição ultrapasse esse tempo informado, á API Gateway irá abortar todas as transações em andamento e
-retornará
-o código de status `504 (Gateway Timeout)`.
+retornará o código de status `504 (Gateway Timeout)`.
 
 IMPORTANTE: Caso seja informado no objeto de endpoint, damos prioridade ao valor informado do endpoint, caso contrário
 seguiremos com o valor informado ou padrão desse campo, na raiz do json de configuração.
@@ -331,11 +330,11 @@ ficaria:
 
 A descrição da lógica por trás dessa chave é:
 
-      {método}:{url}:{X-Forwarded-For}:{Device}
+      método:url:X-Forwarded-For:Device
 
 Sem a estrátegia preenchida, a lógica padrão fica assim:
 
-      {método}:{url}
+      método:url
 
 Então o valor padrão para esse endpoint fica assim sem a estrátegia preenchida:
 
@@ -647,7 +646,7 @@ Caso omitido, será herdado o valor do campo [limiter](#limiter).
 #### endpoint.response-encode
 
 Campo opcional, do tipo string, o valor padrão é vazio, indicando que a resposta do endpoint será codificada seguindo
-as diretrizes de [resposta](#resposta) da API Gateway, sem forçar a codificação indicada.
+a [lógica de resposta](#lógica-de-resposta) da API Gateway, sem forçar a codificação indicada.
 
 ```
 - Valores aceitos:
@@ -661,7 +660,7 @@ as diretrizes de [resposta](#resposta) da API Gateway, sem forçar a codificaç�
 Campo opcional, do tipo booleano, o valor padrão é `false`, indicando que a resposta do endpoint não será agregada.
 
 Caso informado com o valor `true` e tiver mais de uma resposta dos backends informados no endpoint ele irá agregar as
-respostas dos backends, veja mais sobre as regras de resposta da API Gateway clicando [aqui](#resposta).
+respostas dos backends, veja mais sobre as regras de resposta da API Gateway clicando [aqui](#lógica-de-resposta).
 
 #### endpoint.abort-if-status-codes
 
@@ -672,7 +671,7 @@ Caso informado, e um backend retorna o status code indicado na configuração, o
 que os outros backends configurados após o mesmo, não serão executados, e o endpoint irá retornar a resposta do mesmo
 ao cliente final.
 
-Veja como o endpoint será respondido após um backend ser abortado clicando [aqui](#resposta).
+Veja como o endpoint será respondido após um backend ser abortado clicando [aqui](#lógica-de-resposta).
 
 #### endpoint.beforeware
 
@@ -706,12 +705,472 @@ Abaixo iremos listar e explicar cada campo desse objeto tão importante:
 
 ### backend.name
 
-TODO
+Campo opcional, do tipo string, é responsável pelo nome do seu serviço backend, é utilizado para dar nome ao campo de
+resposta agregada do mesmo, caso o campo [backend.extra-config.group-response](#backendextra-configgroup-response)
+esteja como `true`.
+
+### backend.hosts
+
+Campo obrigatório, do tipo lista de string, é responsável pelos hosts do seu serviço que a API Gateway irá chamar
+juntamente com o campo [backend.path](#backendpath).
+
+De certa forma podemos ter um load balancer "burro", pois o backend irá sortear nessa lista qual host irá ser chamado,
+com isso podemos informar múltiplas vezes o mesmo host para balancear as chamadas, veja:
+
+````
+50% cada
+[
+  "https://instance-01", 
+  "https://instance-02"
+]
+````
+
+````
+instance-01: 15%
+instance-02: 75%
+[
+  "https://instance-01", 
+  "https://instance-02",
+  "https://instance-02",
+  "https://instance-02"
+]
+````
+
+````
+instance-01: 33.3%
+instance-02: 66.7%
+[
+  "https://instance-01", 
+  "https://instance-02",
+  "https://instance-02"
+]
+````
+
+### backend.path
+
+Campo obrigatório, do tipo string, o valor indica a URL do caminho do serviço backend.
+
+Utilizamos um dos [backend.hosts](#backendhosts) informados e juntamos com o path fornecido, por exemplo, no campo hosts
+temos o valor
+
+```
+[
+  "https://instance-01", 
+  "https://instance-02"
+]
+```
+
+E nesse campo path temos o valor
+
+```
+/users/status
+```
+
+O backend irá construir a seguinte URL de requisição
+
+```
+https://instance-02/users/status
+```
+
+Veja como o host é balanceado clicando [aqui](#backendhosts).
+
+### backend.method
+
+Campo obrigatório, do tipo string, o valor indica qual método HTTP o serviço backend espera.
+
+### backend.forward-queries
+
+Campo opcional, do tipo lista de string, o valor padrão é vazio, indicando que qualquer parâmetro de busca será
+repassado para o serviço backend.
+
+Caso informado, apenas os campos indicados serão repassados para o serviço backend, por exemplo, recebemos uma
+requisição com a seguinte URL
+
+````
+/users?id=23&email=gabrielcataldo@gmail.com&phone=47991271234
+````
+
+Nesse exemplo temos o campo `forward-queries` com os seguintes valores
+
+````
+[
+  "email",
+  "phone"
+]
+````
+
+A URL de requisição ao backend foi
+
+````
+/users?email=gabrielcataldo@gmail.com&phone=47991271234
+````
+
+Vimos que o parâmetro de busca `id` não foi repassado para o serviço backend, pois ele não foi mencionado na lista.
+
+### backend.forward-headers
+
+Campo opcional, do tipo lista de string, o valor padrão é vazio, indicando que qualquer cabeçalho recebido será
+repassado para o serviço backend.
+
+Caso informado, apenas os campos indicados serão repassados para o serviço backend, por exemplo, recebemos uma
+requisição com o seguinte cabeçalho
+
+````
+{
+  "Device": "95D4AF55-733D-46D7-86B9-7EF7D6634EBC",
+  "User-Agent": "IOS",
+  "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
+}
+````
+
+Nesse exemplo temos o campo `forward-headers` com os seguintes valores
+
+````
+[
+  "User-Agent",
+  "Authorization"
+]
+````
+
+O cabeçalho de requisição ao backend foi
+
+```
+{
+  "User-Agent": "IOS",
+  "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
+}
+```
+
+Vimos que o campo `Device` do cabeçalho recebido não foi repassado para o serviço backend, pois ele não foi mencionado
+na lista.
+
+### backend.extra-config
+
+Campo opcional, do tipo objeto, indica configuração extras do serviço backend, veja abaixo sobre os campos e suas
+responsabilidades:
+
+#### backend.extra-config.omit-request-body
+
+Campo opcional, do tipo booleano, o valor padrão é `false`, indicando que o corpo da requisição será repassado ao
+backend caso tenha.
+
+Caso informado `true` o corpo da requisição não será repassado ao backend.
+
+#### backend.extra-config.group-response
+
+Campo opcional, do tipo booleano, o valor padrão é `false`, indicando que o corpo da resposta do backend não precisará
+ser agrupada em um campo json para a resposta ao cliente final.
+
+Caso informado com o valor `true` o body de resposta caso tenha, será agrupado em um campo json da resposta final,
+o nome do campo será o [nome](#backendname) do serviço backend caso preenchido, se não temos um padrão de nomenclatura
+que é `backend-posição na lista` que seria por exemplo `backend-0`.
+
+Para entender a importância desse campo, veja mais sobre a [lógica de resposta](#lógica-de-resposta) da API Gateway.
+
+#### backend.extra-config.omit-response
+
+Campo opcional, do tipo booleano, o valor padrão é `false`, indicando que a resposta do backend em questão não será
+omitida para o cliente final.
+
+Caso informado com o valor `true` toda a resposta do backend em questão será omitida, tenha cuidado, pois se tiver
+apenas
+esse backend, e o mesmo for omitido, a API Gateway responderá por padrão o código de status HTTP `204 (No Content)`.
+
+Para entender a importância desse campo, veja mais sobre a [lógica de resposta](#lógica-de-resposta) da API Gateway.
+
+### backend.modifiers
+
+Campo opcional, do tipo objeto, o valor padrão é vazio, indicando não haver nenhum processo de modificação nesse
+backend em questão.
+
+Veja abaixo como funciona o fluxo básico de um modificador na imagem abaixo:
+
+#### TODO: colocar imagem
+
+Abaixo iremos listar e explicar cada campo desse objeto tão importante:
+
+### modifiers.status-code
+
+Campo opcional, do tipo inteiro, valor padrão é `0`, indicando não haver nada a ser modificado no código de status HTTP
+de resposta do backend.
+
+Caso informado, o código de status HTTP de resposta do backend será modificado pelo valor inserido, isso pode ter ou não
+influência na resposta final do endpoint, veja a [lógica-de-resposta](#lógica-de-resposta) da API Gateway para saber
+mais.
+
+### modifiers.header
+
+Campo opcional, do tipo lista de objeto, valor padrão é vazio, responsável pelas modificações de cabeçalho da requisição
+e resposta do backend.
+
+Veja abaixo os campos desse objeto e suas responsabilidade:
+
+#### header.context
+
+Campo obrigatório, do tipo string, é responsável por indicar qual contexto a modificação deve atuar.
+
+Valores aceitos:
+
+`REQUEST` para atuar na pré-requisição do backend.
+
+`RESPONSE` para atuar pós-requisição do backend.
+
+Importante lembrar que caso o valor for `REQUEST` poderá utilizar no campo [header.scope](#headerscope) apenas o valor
+`REQUEST`.
+
+#### header.scope
+
+Campo opcional, do tipo string, o valor padrão será baseado no campo [header.context](#headercontext) informado, o valor
+indica qual escopo devemos alterar, se o escopo de requisição ou de resposta.
+
+Valores aceitos:
+
+`REQUEST` para modificar o escopo de requisição, esse tipo de escopo pode ter uma atuação global propagando essa mudança
+nas requisições backends seguintes, basta utilizar o campo [header.propagate](#headerpropagate) como `true`.
+
+`RESPONSE` para modificar o escopo de resposta do backend.
+
+#### header.action
+
+Campo obrigatório, do tipo string, responsável pela ação a ser tomada na modificação do cabeçalho.
+
+Valores aceitos:
+
+`ADD` adiciona a chave informada no campo [header.key](#headerkey) caso não exista, e agrega o valor informado no
+campo [header.value](#headervalue).
+
+`SET` modifica o valor da chave informada no campo [header.key](#headerkey) pelo valor passado no
+campo [header.value](#headervalue).
+
+`DEL` remove a chave informada no campo [header.key](#headerkey).
+
+`REN` renomeia a chave informada no campo [header.key](#headerkey) pelo valor passado no
+campo [header.value](#headervalue).
+
+#### header.key
+
+Campo obrigatório, do tipo string, utilizado para indicar qual chave do cabeçalho deve ser modificada.
+
+#### header.value
+
+Campo obrigatório, do tipo string, utilizado como valor a ser usado para modificar a chave indicada no
+campo [header.key](#headerkey).
+
+Temos possibilidades de utilização de [valores dinâmicos](#valores-dinâmicos-para-modificação),
+e de [variáveis de ambiente](#variáveis-de-ambiente) para esse campo.
+
+OBS: se torna opcional apenas se [query.action](#queryaction) tiver o valor `DEL`.
+
+#### header.propagate
+
+Campo opcional, do tipo booleano, o valor padrão é `false` indicando que o modificador não deve propagar essa mudança
+em questão para os backends seguintes.
+
+Caso informado como `true` essa modificação será propagada para os seguintes backends.
+
+IMPORTANTE: Esse campo só é aceito se o [escopo](#headerscope) tiver o valor `REQUEST`.
+
+### modifiers.param
+
+Campo opcional, do tipo lista de objeto, valor padrão é vazio, responsável pelas modificações de parâmetros da
+requisição para o backend.
+
+Veja abaixo os campos desse objeto e suas responsabilidade:
+
+#### param.context
+
+Campo obrigatório, do tipo string, é responsável por indicar qual contexto a modificação deve atuar.
+
+Valores aceitos:
+
+`REQUEST` para atuar na pré-requisição do backend.
+
+`RESPONSE` para atuar pós-requisição do backend.
+
+#### param.action
+
+Campo obrigatório, do tipo string, responsável pela ação a ser tomada na modificação dos parâmetros da requisição.
+
+Valores aceitos:
+
+`SET` modifica o valor da chave informada no campo [param.key](#paramkey) pelo valor passado no
+campo [param.value](#paramvalue).
+
+`DEL` remove a chave informada no campo [param.key](#paramkey).
+
+`REN` renomeia a chave informada no campo [param.key](#paramkey) pelo valor passado no
+campo [param.value](#paramvalue).
+
+#### param.key
+
+Campo obrigatório, do tipo string, utilizado para indicar qual chave de parâmetro deve ser modificada.
+
+#### param.value
+
+Campo obrigatório, do tipo string, utilizado como valor a ser usado para modificar a chave indicada no
+campo [param.key](#paramkey).
+
+Temos possibilidades de utilização de [valores dinâmicos](#valores-dinâmicos-para-modificação),
+e de [variáveis de ambiente](#variáveis-de-ambiente) para esse campo.
+
+OBS: se torna opcional apenas se [query.action](#queryaction) tiver o valor `DEL`.
+
+#### param.propagate
+
+Campo opcional, do tipo booleano, o valor padrão é `false` indicando que o modificador não deve propagar essa mudança
+em questão para os backends seguintes.
+
+Caso informado como `true` essa modificação será propagada para os seguintes backends.
+
+### modifiers.query
+
+Campo opcional, do tipo lista de objeto, valor padrão é vazio, responsável pelas modificações de parâmetros de busca da
+requisição para o backend.
+
+Veja abaixo os campos desse objeto e suas responsabilidade:
+
+#### query.context
+
+Campo obrigatório, do tipo string, é responsável por indicar qual contexto a modificação deve atuar.
+
+Valores aceitos:
+
+`REQUEST` para atuar na pré-requisição do backend.
+
+`RESPONSE` para atuar pós-requisição do backend.
+
+#### query.action
+
+Campo obrigatório, do tipo string, responsável pela ação a ser tomada na modificação dos parâmetros de busca da
+requisição.
+
+Valores aceitos:
+
+`ADD` adiciona a chave informada no campo [query.key](#querykey) caso não exista, e agrega o valor informado no
+campo [query.value](#queryvalue).
+
+`SET` modifica o valor da chave informada no campo [query.key](#querykey) pelo valor passado no
+campo [query.value](#queryvalue).
+
+`DEL` remove a chave informada no campo [query.key](#querykey).
+
+`REN` renomeia a chave informada no campo [query.key](#querykey) pelo valor passado no
+campo [query.value](#queryvalue).
+
+#### query.key
+
+Campo obrigatório, do tipo string, utilizado para indicar qual chave de parâmetro de busca deve ser modificada.
+
+#### query.value
+
+Campo obrigatório, do tipo string, utilizado como valor a ser usado para modificar a chave indicada no
+campo [query.key](#querykey).
+
+Temos possibilidades de utilização de [valores dinâmicos](#valores-dinâmicos-para-modificação),
+e de [variáveis de ambiente](#variáveis-de-ambiente) para esse campo.
+
+OBS: se torna opcional apenas se [query.action](#queryaction) tiver o valor `DEL`.
+
+#### query.propagate
+
+Campo opcional, do tipo booleano, o valor padrão é `false` indicando que o modificador não deve propagar essa mudança
+em questão para os backends seguintes.
+
+Caso informado como `true` essa modificação será propagada para os seguintes backends.
+
+### modifiers.body
+
+Campo opcional, do tipo lista de objeto, valor padrão é vazio, responsável pelas modificações de body de
+requisição ou resposta do backend.
+
+Veja abaixo os campos desse objeto e suas responsabilidade:
+
+#### body.context
+
+Campo obrigatório, do tipo string, é responsável por indicar qual contexto a modificação deve atuar.
+
+Valores aceitos:
+
+`REQUEST` para atuar na pré-requisição do backend.
+
+`RESPONSE` para atuar pós-requisição do backend.
+
+Importante lembrar que caso o valor for `REQUEST` poderá utilizar no campo [body.scope](#bodyscope) apenas o valor
+`REQUEST`.
+
+#### body.scope
+
+Campo opcional, do tipo string, o valor padrão será baseado no campo [body.context](#bodycontext) informado, o valor
+indica qual escopo devemos alterar, se o escopo de requisição ou de resposta.
+
+Valores aceitos:
+
+`REQUEST` para modificar o escopo de requisição, esse tipo de escopo pode ter uma atuação global propagando essa mudança
+nas requisições de backend seguintes, basta utilizar o campo [body.propagate](#bodypropagate) como `true`.
+
+`RESPONSE` para modificar o escopo de resposta do backend.
+
+#### body.action
+
+Campo obrigatório, do tipo string, responsável pela ação a ser tomada na modificação do body.
+
+Valores aceitos se o body for JSON:
+
+`SET` modifica o valor da chave informada no campo [body.key](#bodykey) pelo valor passado no
+campo [body.value](#bodyvalue).
+
+`REN` renomeia a chave informada no campo [body.key](#bodykey) pelo valor passado no
+campo [body.value](#bodyvalue).
+
+`DEL` remove a chave informada no campo [body.key](#bodykey).
+
+Valores aceitos se o body for TEXTO:
+
+`ADD` agrega o valor informado no campo [body.value](#bodyvalue) ao texto.
+
+`SET` irá substituir todos os valores semelhantes à chave informada no campo [body.key](#bodykey) pelo valor passado no
+campo [body.value](#bodyvalue).
+
+`DEL` remove todos os valores semelhantes à chave informada no campo [body.key](#bodykey).
+
+#### body.key
+
+Campo obrigatório, do tipo string, utilizado para indicar qual chave do cabeçalho deve ser modificada.
+
+OBS: se torna opcional se seu body for do tipo TEXTO e [body.action](#bodyaction) tiver o valor `ADD`.
+
+#### body.value
+
+Campo obrigatório, do tipo string, utilizado como valor a ser usado para modificar a chave indicada no
+campo [header.key](#headerkey).
+
+Temos possibilidades de utilização de [valores dinâmicos](#valores-dinâmicos-para-modificação),
+e de [variáveis de ambiente](#variáveis-de-ambiente) para esse campo.
+
+OBS: se torna opcional apenas se [header.action](#headeraction) tiver o valor `DEL`.
+
+#### body.propagate
+
+Campo opcional, do tipo booleano, o valor padrão é `false` indicando que o modificador não deve propagar essa mudança
+em questão para os backends seguintes.
+
+Caso informado como `true` essa modificação será propagada para os seguintes backends.
+
+IMPORTANTE: Esse campo só é aceito se o [escopo](#bodyscope) tiver o valor `REQUEST`.
 
 ---
 
-### RESPOSTA
+### VARIÁVEIS DE AMBIENTE
 
+---
+
+### VALORES DINÂMICOS PARA MODIFICAÇÃO
+
+---
+
+### LÓGICA DE RESPOSTA
+
+--- 
 
 Usabilidade
 -----------

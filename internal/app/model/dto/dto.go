@@ -234,14 +234,16 @@ type Backend struct {
 // BackendModifiers represents a set of modifiers that can be applied to different parts of the request and response
 // in the Gopen application.
 type BackendModifiers struct {
-	// StatusCode represents a modifier that can be applied to the status code of Backend response.
-	StatusCode *Modifier `json:"status-code,omitempty"`
+	// StatusCode represents the status code that can be applied to a request or response. It is an integer value and is
+	// specified in the Gopen configuration JSON file. The status code is used to indicate the status of the response,
+	// such as success, failure, or error. The status code is optional and can be omitted from the configuration.
+	StatusCode int `json:"status-code,omitempty"`
 	// Header represents a slice of modifying structures that can be applied to the header of a request or response from
 	// the Endpoint or just the current Backend.
 	Header []Modifier `json:"header,omitempty"`
-	// Params is a slice of modifiers that can be applied to the parameters of a request from the Endpoint
+	// Param is a slice of modifiers that can be applied to the parameters of a request from the Endpoint
 	// or just the current Backend.
-	Params []Modifier `json:"params,omitempty"`
+	Param []Modifier `json:"param,omitempty"`
 	// Query represents a slice of Modifier structs that can be applied to the query parameters of a request
 	// from the Endpoint or just the current Backend.
 	Query []Modifier `json:"query,omitempty"`

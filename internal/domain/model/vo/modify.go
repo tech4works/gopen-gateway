@@ -84,11 +84,11 @@ func newModify(modifierVO *Modifier, requestVO *Request, responseVO *Response) m
 	}
 }
 
-// statusCodes modifies the statusCode based on the receiver 'm' of the type modify.
+// statusCode modifies the statusCode based on the receiver 'm' of the type modify.
 // It obtains the value to be used for modification using the m.valueInt() method.
 // If the modifierValue is empty, it returns the original statusCode without any modifications.
 // Otherwise, it sets the modifierValue as the new statusCode and returns it.
-func (m modify) statusCodes(statusCode int) int {
+func (m modify) statusCode(statusCode int) int {
 	// obtemos o valor a ser usado para modificar
 	modifierValue := m.intValue()
 
@@ -319,8 +319,7 @@ func (m modify) bodies(globalBody, localBody *Body) (*Body, *Body) {
 		}
 	}
 
-	// caso seja em um escopo propagate, modificamos pelo tipo de dado também, OBS: no response o propagate
-	// sempre sera false
+	// caso seja em um escopo propagate, modificamos pelo tipo de dado também
 	if helper.IsNotNil(globalBody) && m.propagate {
 		switch localBody.ContentType() {
 		case enum.ContentTypeJson:
@@ -422,7 +421,7 @@ func (m modify) bodyString(body *Body, modifierValue any) *Body {
 	case enum.ModifierActionAdd:
 		modifiedValue = bodyStr + modifierValueStr
 		break
-	case enum.ModifierActionSet:
+	case enum.ModifierActionRename:
 		if helper.IsNotEmpty(m.key) {
 			modifiedValue = strings.ReplaceAll(bodyStr, m.key, modifierValueStr)
 		} else {
@@ -437,9 +436,6 @@ func (m modify) bodyString(body *Body, modifierValue any) *Body {
 			// todo: adicionar mensagem warning?
 			modifiedValue = bodyStr
 		}
-		break
-	case enum.ModifierActionReplace:
-		modifiedValue = modifierValueStr
 		break
 	default:
 		return body

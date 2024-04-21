@@ -47,7 +47,7 @@ func (m modifier) Execute(executeData *vo.ExecuteModifier) (*vo.Request, *vo.Res
 	responseVO := executeData.Response()
 
 	// executamos o modificador de código de status
-	if helper.IsNotNil(executeData.ModifierStatusCode()) &&
+	if helper.IsNotEmpty(executeData.ModifierStatusCode()) &&
 		helper.Equals(enum.ModifierContextResponse, executeData.Context()) {
 		modifyVO := vo.NewModifyStatusCodes(executeData.ModifierStatusCode(), requestVO, responseVO)
 		requestVO, responseVO = modifyVO.Execute()
@@ -58,8 +58,8 @@ func (m modifier) Execute(executeData *vo.ExecuteModifier) (*vo.Request, *vo.Res
 	requestVO, responseVO = m.modify(modifierHeader, executeData.Context(), requestVO, responseVO, vo.NewHeaders)
 
 	// executamos os modificadores de parâmetros
-	modifierParams := executeData.ModifierParams()
-	requestVO, responseVO = m.modify(modifierParams, executeData.Context(), requestVO, responseVO, vo.NewModifyParams)
+	modifierParam := executeData.ModifierParam()
+	requestVO, responseVO = m.modify(modifierParam, executeData.Context(), requestVO, responseVO, vo.NewModifyParam)
 
 	// executamos os modificadores de queries
 	modifierQuery := executeData.ModifierQuery()

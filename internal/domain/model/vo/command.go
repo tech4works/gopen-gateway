@@ -139,9 +139,9 @@ func (e ExecuteModifier) ModifierHeader() []Modifier {
 	return e.backendModifiers.header
 }
 
-// ModifierParams returns the params modifiers associated with the ExecuteModifier object.
-func (e ExecuteModifier) ModifierParams() []Modifier {
-	return e.backendModifiers.params
+// ModifierParam returns the params modifiers associated with the ExecuteModifier object.
+func (e ExecuteModifier) ModifierParam() []Modifier {
+	return e.backendModifiers.param
 }
 
 // ModifierQuery returns the query modifiers associated with the ExecuteModifier object.
@@ -155,7 +155,7 @@ func (e ExecuteModifier) ModifierBody() []Modifier {
 }
 
 // ModifierStatusCode returns the status code modifier associated with the ExecuteModifier object.
-func (e ExecuteModifier) ModifierStatusCode() *Modifier {
+func (e ExecuteModifier) ModifierStatusCode() int {
 	return e.backendModifiers.statusCode
 }
 

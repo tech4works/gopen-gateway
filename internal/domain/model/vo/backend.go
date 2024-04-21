@@ -35,17 +35,16 @@ type Backend struct {
 // BackendModifiers is a type that represents the set of modifiers for a backend configuration.
 // It contains fields for the status code, header, params, query, and body modifiers.
 type BackendModifiers struct {
-	// StatusCode is a field in the BackendModifiers struct.
-	// It represents the status code modifier for the current backend response.
-	// The status code modifier is an instance of the Modifier struct.
-	statusCode *Modifier
+	// statusCode represents the status code modifier for a BackendModifiers instance.
+	// It is an integer value that specifies the desired status code for a response.
+	statusCode int
 	// header represents an array of Modifier instances that modify the modifyHeaders of a request or response
 	// from Endpoint or only current backend.
 	header []Modifier
-	// params is a field in the BackendModifiers struct.
+	// param is a field in the BackendModifiers struct.
 	// It represents an array of Modifier instances that modify the parameters of a request from Endpoint or only current
 	// backend.
-	params []Modifier
+	param []Modifier
 	// `query` is a field in the `BackendModifiers` struct. It represents an array of `Modifier` instances that
 	// modify the query parameters of a request from `Endpoint` or only the current backend.
 	query []Modifier
@@ -225,6 +224,15 @@ func newMiddlewareBackend(backendVO *Backend, backendExtraConfigVO *BackendExtra
 	}
 }
 
+// newBackendModifier creates a new instance of BackendModifiers based on the provided backendModifierDTO.
+// If the backendModifierDTO is nil, it returns nil.
+// Otherwise, it initializes a new BackendModifiers object and populates its fields with the values from the
+// backendModifierDTO. The header, params, query, and body fields of the BackendModifiers struct are populated from the
+// corresponding fields in the backendModifierDTO. It uses the newModifier function to create a new Modifier for each
+// element in the backendModifierDTO slice. The newModifier function initializes the context, scope, action, propagate,
+// key, and value fields of the Modifier struct. Once all the Modifiers are created, the BackendModifiers object is
+// returned. The StatusCode field of the BackendModifiers struct is set to the value of the StatusCode field in the
+// backendModifierDTO.
 func newBackendModifier(backendModifierDTO *dto.BackendModifiers) *BackendModifiers {
 	if helper.IsNil(backendModifierDTO) {
 		return nil
@@ -235,7 +243,7 @@ func newBackendModifier(backendModifierDTO *dto.BackendModifiers) *BackendModifi
 		header = append(header, *newModifier(&modifierDTO))
 	}
 	var params []Modifier
-	for _, modifierDTO := range backendModifierDTO.Params {
+	for _, modifierDTO := range backendModifierDTO.Param {
 		params = append(params, *newModifier(&modifierDTO))
 	}
 	var query []Modifier
@@ -248,9 +256,9 @@ func newBackendModifier(backendModifierDTO *dto.BackendModifiers) *BackendModifi
 	}
 
 	return &BackendModifiers{
-		statusCode: newModifier(backendModifierDTO.StatusCode),
+		statusCode: backendModifierDTO.StatusCode,
 		header:     header,
-		params:     params,
+		param:      params,
 		query:      query,
 		body:       body,
 	}
@@ -338,7 +346,7 @@ func (b *Backend) CountModifiers() int {
 }
 
 // StatusCode returns the status code Modifier of the BackendModifiers instance.
-func (b *BackendModifiers) StatusCode() *Modifier {
+func (b *BackendModifiers) StatusCode() int {
 	return b.statusCode
 }
 
@@ -347,9 +355,9 @@ func (b *BackendModifiers) Header() []Modifier {
 	return b.header
 }
 
-// Params returns an array of Modifier instances that represent the params of the BackendModifiers instance.
-func (b *BackendModifiers) Params() []Modifier {
-	return b.params
+// Param returns an array of Modifier instances that represent the params of the BackendModifiers instance.
+func (b *BackendModifiers) Param() []Modifier {
+	return b.param
 }
 
 // Query returns the list of modifiers for the query of the BackendModifiers instance.
@@ -369,7 +377,7 @@ func (b *BackendModifiers) CountAll() (count int) {
 	if helper.IsNotNil(b.statusCode) {
 		count++
 	}
-	count += len(b.header) + len(b.params) + len(b.query) + len(b.body)
+	count += len(b.header) + len(b.param) + len(b.query) + len(b.body)
 	return count
 }
 

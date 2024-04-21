@@ -1,5 +1,10 @@
 package vo
 
+import (
+	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/enum"
+	"strconv"
+)
+
 // modifyStatusCodes is a struct that extends the functionality of the modify type.
 // It is used to modify status codes in HTTP responses.
 type modifyStatusCodes struct {
@@ -8,9 +13,10 @@ type modifyStatusCodes struct {
 
 // NewModifyStatusCodes creates a new instance of modifyStatusCodes struct
 // with the provided Modifier, Request, and Response.
-func NewModifyStatusCodes(modifierVO *Modifier, requestVO *Request, responseVO *Response) ModifierStrategy {
+func NewModifyStatusCodes(statusCodeValue int, requestVO *Request, responseVO *Response) ModifierStrategy {
+	statusCodeStr := strconv.Itoa(statusCodeValue)
 	return modifyStatusCodes{
-		modify: newModify(modifierVO, requestVO, responseVO),
+		modify: newModify(newModifierFromValue(enum.ModifierContextResponse, statusCodeStr), requestVO, responseVO),
 	}
 }
 
@@ -38,7 +44,7 @@ func (m modifyStatusCodes) Execute() (*Request, *Response) {
 //   - Response: The modified response after operations.
 func (m modifyStatusCodes) executeResponseScope() (*Request, *Response) {
 	// chamamos o modify de status code passando os status codes a ser modificado e o mesmo retorna modificados
-	statusCode := m.statusCodes(m.response.LastBackendResponse().StatusCode())
+	statusCode := m.statusCode(m.response.LastBackendResponse().StatusCode())
 
 	// modificamos o status code local
 	backendResponseVO := m.modifyLocalResponse(statusCode)

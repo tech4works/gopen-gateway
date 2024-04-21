@@ -302,13 +302,15 @@
       "type": "object",
       "properties": {
         "status-code": {
-          "$ref": "#/definitions/status-code-modifier"
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 599
         },
         "header": {
           "$ref": "#/definitions/header-modifier-array"
         },
-        "params": {
-          "$ref": "#/definitions/params-modifier-array"
+        "param": {
+          "$ref": "#/definitions/param-modifier-array"
         },
         "query": {
           "$ref": "#/definitions/query-modifier-array"
@@ -322,29 +324,16 @@
     "backend-extra-config": {
       "type": "object",
       "properties": {
+        "omit-request-body": {
+          "type": "boolean"
+        },
         "group-response": {
           "type": "boolean"
         },
         "omit-response": {
           "type": "boolean"
-        },
-        "omit-request-body": {
-          "type": "boolean"
         }
       },
-      "additionalProperties": false
-    },
-    "status-code-modifier": {
-      "type": "object",
-      "properties": {
-        "value": {
-          "type": "string",
-          "pattern": "^[1-5][0-9]{2}$"
-        }
-      },
-      "required": [
-        "value"
-      ],
       "additionalProperties": false
     },
     "header-modifier": {
@@ -370,7 +359,7 @@
             "SET",
             "ADD",
             "DEL",
-            "RENAME"
+            "REN"
           ]
         },
         "key": {
@@ -432,7 +421,7 @@
         "$ref": "#/definitions/header-modifier"
       }
     },
-    "params-modifier": {
+    "param-modifier": {
       "type": "object",
       "properties": {
         "context": {
@@ -447,7 +436,7 @@
           "enum": [
             "SET",
             "DEL",
-            "RENAME"
+            "REN"
           ]
         },
         "propagate": {
@@ -484,10 +473,10 @@
       },
       "additionalProperties": false
     },
-    "params-modifier-array": {
+    "param-modifier-array": {
       "type": "array",
       "items": {
-        "$ref": "#/definitions/params-modifier"
+        "$ref": "#/definitions/param-modifier"
       }
     },
     "query-modifier": {
@@ -506,7 +495,7 @@
             "ADD",
             "SET",
             "DEL",
-            "RENAME"
+            "REN"
           ]
         },
         "propagate": {
@@ -572,8 +561,7 @@
             "ADD",
             "SET",
             "DEL",
-            "REPLACE",
-            "RENAME"
+            "REN"
           ]
         },
         "propagate": {

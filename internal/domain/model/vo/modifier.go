@@ -35,6 +35,10 @@ type Modifier struct {
 	value string
 }
 
+// newModifier creates a new instance of Modifier based on the provided modifierDTO.
+// If the modifierDTO is nil, it returns nil.
+// Otherwise, it initializes a new Modifier with the values from the modifierDTO and returns a pointer to it.
+// The context, scope, action, propagate, key, and value fields of the Modifier struct are populated from the modifierDTO.
 func newModifier(modifierDTO *dto.Modifier) *Modifier {
 	if helper.IsNil(modifierDTO) {
 		return nil
@@ -46,6 +50,13 @@ func newModifier(modifierDTO *dto.Modifier) *Modifier {
 		propagate: modifierDTO.Propagate,
 		key:       modifierDTO.Key,
 		value:     modifierDTO.Value,
+	}
+}
+
+func newModifierFromValue(context enum.ModifierContext, value string) *Modifier {
+	return &Modifier{
+		context: context,
+		value:   value,
 	}
 }
 
