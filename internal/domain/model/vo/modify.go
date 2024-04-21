@@ -140,7 +140,7 @@ func (m modify) headers(globalHeader, localHeader Header) (Header, Header) {
 		}
 		localHeader = localHeader.Del(m.key)
 		break
-	case enum.ModifierActionRename:
+	case enum.ModifierActionRen:
 		// se o modificador tiver o campo propagate como true, modificamos o valor global
 		if m.propagate {
 			valueCopy := globalHeader.Get(m.key)
@@ -211,7 +211,7 @@ func (m modify) params(localPath string, globalParams, localParams Params) (stri
 		// removemos o param de url no backend atual
 		localPath = strings.ReplaceAll(localPath, paramKeyUrl, "")
 		break
-	case enum.ModifierActionRename:
+	case enum.ModifierActionRen:
 		// se o modificador tiver o campo propagate como true, modificamos o valor global
 		if m.propagate {
 			valueCopy := globalParams.Get(m.key)
@@ -276,7 +276,7 @@ func (m modify) queries(globalQuery, localQuery Query) (Query, Query) {
 		}
 		localQuery = localQuery.Del(m.key)
 		break
-	case enum.ModifierActionRename:
+	case enum.ModifierActionRen:
 		// se o modificador tiver o campo propagate como true, modificamos o valor global
 		if m.propagate {
 			valueCopy := globalQuery.Get(m.key)
@@ -341,7 +341,7 @@ func (m modify) bodies(globalBody, localBody *Body) (*Body, *Body) {
 // The modifier action can be one of the following:
 // - enum.ModifierActionSet: Set the value of the specified key in the body to the modifier value.
 // - enum.ModifierActionDel: Delete the specified key from the body.
-// - enum.ModifierActionRename: Rename the specified key to the new key and set its value to the original value.
+// - enum.ModifierActionRen: Rename the specified key to the new key and set its value to the original value.
 // If the modifier action is not one of the above, it returns the original Body pointer without any modifications.
 // If any error occurs during the modification process, it returns the original Body pointer without any modifications.
 // The modified Body is converted to a buffer before being set as the new value.
@@ -362,7 +362,7 @@ func (m modify) bodyJson(body *Body, modifierValue any) *Body {
 	case enum.ModifierActionDel:
 		modifiedValue, err = sjson.Delete(bodyStr, m.key)
 		break
-	case enum.ModifierActionRename:
+	case enum.ModifierActionRen:
 		result := gjson.Get(bodyStr, m.key)
 		if result.Exists() {
 			modifiedValue, err = sjson.Delete(bodyStr, m.key)
@@ -421,7 +421,7 @@ func (m modify) bodyString(body *Body, modifierValue any) *Body {
 	case enum.ModifierActionAdd:
 		modifiedValue = bodyStr + modifierValueStr
 		break
-	case enum.ModifierActionRename:
+	case enum.ModifierActionRen:
 		if helper.IsNotEmpty(m.key) {
 			modifiedValue = strings.ReplaceAll(bodyStr, m.key, modifierValueStr)
 		} else {

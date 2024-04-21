@@ -148,7 +148,8 @@ definidas, veja abaixo um exemplo simples com todos os campos possíveis e seus 
   },
   "middlewares": {
     "save-device": {
-      "name": "Save device",
+      "@comment": "Serviço de middleware para validar e salvar o dispositivo com base nas informações de header.",
+      "name": "device-manager",
       "hosts": [
         "http://192.168.1.2:8051"
       ],
@@ -171,7 +172,7 @@ definidas, veja abaixo um exemplo simples com todos os campos possíveis e seus 
   },
   "endpoints": [
     {
-      "@comment": "Feature: Find user by key",
+      "@comment": "Endpoint responsável por retornar o usuário encontrado pela chave, podendo ser email ou telefone.",
       "path": "/users/find/:key",
       "method": "GET",
       "timeout": "10s",
@@ -199,6 +200,7 @@ definidas, veja abaixo um exemplo simples com todos os campos possíveis e seus 
       ],
       "backends": [
         {
+          "@comment": "Serviço de backend responsável por obter o usuário pela chave.",
           "name": "user",
           "hosts": [
             "$USER_SERVICE_URL"

@@ -254,6 +254,9 @@
     "backend": {
       "type": "object",
       "properties": {
+        "@comment": {
+          "type": "string"
+        },
         "name": {
           "type": "string",
           "pattern": "^[a-zA-Z_][a-zA-Z_0-9- ]*$"
@@ -339,6 +342,9 @@
     "header-modifier": {
       "type": "object",
       "properties": {
+        "@comment": {
+          "type": "string"
+        },
         "context": {
           "type": "string",
           "enum": [
@@ -424,6 +430,9 @@
     "param-modifier": {
       "type": "object",
       "properties": {
+        "@comment": {
+          "type": "string"
+        },
         "context": {
           "type": "string",
           "enum": [
@@ -482,6 +491,9 @@
     "query-modifier": {
       "type": "object",
       "properties": {
+        "@comment": {
+          "type": "string"
+        },
         "context": {
           "type": "string",
           "enum": [
@@ -541,6 +553,9 @@
     "body-modifier": {
       "type": "object",
       "properties": {
+        "@comment": {
+          "type": "string"
+        },
         "context": {
           "type": "string",
           "enum": [
