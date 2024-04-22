@@ -1,4 +1,4 @@
-<img src="logo.png" alt="">
+<img src="assets/logo.png" alt="">
 
 [![Project status](https://img.shields.io/badge/version-v1.0.0_beta-yellow.svg)](https://github.com/GabrielHCataldo/gopen-gateway/releases/tag/v1.0.0-beta)
 [![Open Source Helpers](https://www.codetriage.com/gabrielhcataldo/gopen-gateway/badges/users.svg)](https://www.codetriage.com/gabrielhcataldo/gopen-gateway)
@@ -533,7 +533,7 @@ servir as requisições HTTP.
 
 Veja abaixo como funciona o fluxo básico de um endpoint na imagem abaixo:
 
-#### TODO: colocar imagem
+<img src="assets/basic-endpoint-flowchart-pt-br.png" alt="fluxo básico de endpoint">
 
 Abaixo iremos listar e explicar cada campo desse objeto tão importante:
 
@@ -701,7 +701,7 @@ Campo obrigatório, do tipo lista de objeto, responsável pela execução princi
 
 Veja abaixo como funciona o fluxo básico de um backend na imagem abaixo:
 
-#### TODO: colocar imagem
+<img src="assets/basic-backend-flowchart-pt-br.png" alt="fluxo básico de um backend">
 
 Abaixo iremos listar e explicar cada campo desse objeto tão importante:
 
@@ -884,10 +884,6 @@ Para entender a importância desse campo, veja mais sobre a [lógica de resposta
 
 Campo opcional, do tipo objeto, o valor padrão é vazio, indicando não haver nenhum processo de modificação nesse
 backend em questão.
-
-Veja abaixo como funciona o fluxo básico de um modificador na imagem abaixo:
-
-#### TODO: colocar imagem
 
 Abaixo iremos listar e explicar cada campo desse objeto tão importante:
 
@@ -1163,6 +1159,8 @@ IMPORTANTE: Esse campo só é aceito se o [escopo](#bodyscope) tiver o valor `RE
 ---
 
 ### VARIÁVEIS DE AMBIENTE
+
+
 
 ---
 
