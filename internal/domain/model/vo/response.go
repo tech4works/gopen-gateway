@@ -272,16 +272,20 @@ func (r *Response) BytesBody() []byte {
 	return nil
 }
 
-// Eval returns a map representation of the Response object.
-// The map contains the following key-value pairs:
-// - "statusCode": the integer status code of the response.
-// - "header": the Header object of the response.
-// - "body": the interface representation of the Body object.
+// Eval converts the Response object to a string representation.
+// It creates a map of the Response object's properties, including:
+// - statusCode: the integer HTTP status code
+// - header: the header of the Response object
+// - body: the body of the Response object as an interface{}
+// - history: the history of backend responses as a string representation
+// It then uses the helper.SimpleConvertToString function to convert the map to a string.
+// Returns the string representation of the Response object.
 func (r *Response) Eval() string {
 	mapEval := map[string]any{
 		"statusCode": r.statusCode,
 		"header":     r.header,
 		"body":       r.body.Interface(),
+		"history":    r.history.Eval(),
 	}
 	return helper.SimpleConvertToString(mapEval)
 }
@@ -429,6 +433,17 @@ func (r responseHistory) Body(aggregateResponses bool) *Body {
 		return r.body()
 	}
 	return nil
+}
+
+// Eval iterates over the responseHistory and calls the Eval method on each backendResponseVO.
+// It creates a new list of the return values from each Eval call and returns it.
+// Returns a new list []any containing the results of the Eval calls on each backendResponseVO.
+func (r responseHistory) Eval() []any {
+	var evalHistory []any
+	for _, backendResponseVO := range r {
+		evalHistory = append(evalHistory, backendResponseVO.Eval())
+	}
+	return evalHistory
 }
 
 // last returns the last backendResponse in the responseHistory list.

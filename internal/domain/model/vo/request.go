@@ -262,17 +262,29 @@ func (r *Request) Body() *Body {
 	return r.body
 }
 
-// Eval is a method of the Request type.
+// Eval takes no arguments and returns a string representation of the Request object.
+// It iterates over the Request's history field and calls the Eval method on each element,
+// appending the result to the evalHistory slice.
+// It constructs a map with the following keys:
+//   - "header": The header field of the Request.
+//   - "params": The params field of the Request.
+//   - "query": The query field of the Request.
+//   - "body": The Interface method of the body field of the Request.
+//   - "history": The evalHistory slice.
 //
-// This method returns a map where the keys are strings (specifically "header", "params", "query", "body")
-// and the values are of any type. These values correspond to data within the Request: header data,
-// parameters, query information, and request body, respectively.
+// It then calls the SimpleConvertToString method of the helper package, passing the map as an argument,
+// and returns the resulting string.
 func (r *Request) Eval() string {
+	var evalHistory []any
+	for _, backendRequestVO := range r.history {
+		evalHistory = append(evalHistory, backendRequestVO.Eval())
+	}
 	mapEval := map[string]any{
-		"header": r.header,
-		"params": r.params,
-		"query":  r.query,
-		"body":   r.body.String(),
+		"header":  r.header,
+		"params":  r.params,
+		"query":   r.query,
+		"body":    r.body.Interface(),
+		"history": evalHistory,
 	}
 	return helper.SimpleConvertToString(mapEval)
 }

@@ -137,6 +137,10 @@ func loadGopenJson(env string) *dto.Gopen {
 // The function prints the number of environment variable values found and successfully filled during the process.
 // It also uses the helper functions 'SimpleConvertToString' and 'SimpleConvertToBytes' to convert the byte array to string and vice versa.
 func fillEnvValues(gopenBytesJson []byte) []byte {
+	// todo: aceitar campos não string receber variável de ambiente também
+	//  foi pensado que talvez utilizar campos string e any para isso, convertendo para o tipo desejado apenas
+	//  quando objeto de valor for montado
+
 	printInfoLog("Filling environment variables with $word syntax..")
 
 	// convertemos os bytes do gopen json em string

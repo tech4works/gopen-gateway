@@ -65,9 +65,8 @@ configuração em json e arquivo de variáveis de ambiente, então vamos lá!
 ### ESTRUTURA DE PASTAS
 
 Na estrutura do projeto, em sua raiz precisará ter uma pasta chamada "gopen" e dentro dela precisa ter as pastas
-contendo
-os nomes dos seus ambientes, você pode dar o nome que quiser, essa pasta precisará ter pelo menos o arquivo ".json"
-de configuração da API Gateway, ficará mais o menos assim, por exemplo:
+contendo os nomes dos seus ambientes, você pode dar o nome que quiser, essa pasta precisará ter pelo menos o arquivo
+".json" de configuração da API Gateway, ficará mais o menos assim, por exemplo:
 
 #### Projeto GO:
 
@@ -214,7 +213,7 @@ definidas, veja abaixo um exemplo simples com todos os campos possíveis e seus 
           ],
           "forward-queries": [],
           "modifiers": {
-            "status-code": 0,
+            "status-code": 200,
             "header": [],
             "param": [],
             "query": [],
@@ -752,8 +751,8 @@ instance-02: 66.7%
 
 Campo obrigatório, do tipo string, o valor indica a URL do caminho do serviço backend.
 
-Utilizamos um dos [backend.hosts](#backendhosts) informados e juntamos com o path fornecido, por exemplo, no campo hosts
-temos o valor
+Utilizamos um dos [backend.hosts](#backendhosts) informados e juntamos com o path fornecido, por exemplo, no campo
+hosts temos o valor
 
 ```
 [
@@ -909,9 +908,9 @@ Campo obrigatório, do tipo string, é responsável por indicar qual contexto a 
 
 Valores aceitos:
 
-`REQUEST` para atuar na pré-requisição do backend.
+`REQUEST`: Para atuar na pré-requisição do backend.
 
-`RESPONSE` para atuar pós-requisição do backend.
+`RESPONSE`: Para atuar pós-requisição do backend.
 
 Importante lembrar que caso o valor for `REQUEST` poderá utilizar no campo [header.scope](#headerscope) apenas o valor
 `REQUEST`.
@@ -923,10 +922,11 @@ indica qual escopo devemos alterar, se o escopo de requisição ou de resposta.
 
 Valores aceitos:
 
-`REQUEST` para modificar o escopo de requisição, esse tipo de escopo pode ter uma atuação global propagando essa mudança
+`REQUEST`: Para modificar o escopo de requisição, esse tipo de escopo pode ter uma atuação global propagando essa
+mudança
 nas requisições backends seguintes, basta utilizar o campo [header.propagate](#headerpropagate) como `true`.
 
-`RESPONSE` para modificar o escopo de resposta do backend.
+`RESPONSE`: Para modificar o escopo de resposta do backend.
 
 #### header.action
 
@@ -934,16 +934,16 @@ Campo obrigatório, do tipo string, responsável pela ação a ser tomada na mod
 
 Valores aceitos:
 
-`ADD` adiciona a chave informada no campo [header.key](#headerkey) caso não exista, e agrega o valor informado no
+`ADD`: Adiciona a chave informada no campo [header.key](#headerkey) caso não exista, e agrega o valor informado no
 campo [header.value](#headervalue).
 
-`SET` modifica o valor da chave informada no campo [header.key](#headerkey) pelo valor passado no
+`SET`: Modifica o valor da chave informada no campo [header.key](#headerkey) pelo valor passado no
 campo [header.value](#headervalue).
 
-`DEL` remove a chave informada no campo [header.key](#headerkey).
-
-`REN` renomeia a chave informada no campo [header.key](#headerkey) pelo valor passado no
+`REN`: Renomeia a chave informada no campo [header.key](#headerkey) pelo valor passado no
 campo [header.value](#headervalue).
+
+`DEL`: Remove a chave informada no campo [header.key](#headerkey).
 
 #### header.key
 
@@ -981,9 +981,9 @@ Campo obrigatório, do tipo string, é responsável por indicar qual contexto a 
 
 Valores aceitos:
 
-`REQUEST` para atuar na pré-requisição do backend.
+`REQUEST`: Para atuar na pré-requisição do backend.
 
-`RESPONSE` para atuar pós-requisição do backend.
+`RESPONSE` Para atuar pós-requisição do backend.
 
 #### param.action
 
@@ -991,13 +991,13 @@ Campo obrigatório, do tipo string, responsável pela ação a ser tomada na mod
 
 Valores aceitos:
 
-`SET` modifica o valor da chave informada no campo [param.key](#paramkey) pelo valor passado no
+`SET`: Modifica o valor da chave informada no campo [param.key](#paramkey) pelo valor passado no
 campo [param.value](#paramvalue).
 
-`DEL` remove a chave informada no campo [param.key](#paramkey).
-
-`REN` renomeia a chave informada no campo [param.key](#paramkey) pelo valor passado no
+`REN`: Renomeia a chave informada no campo [param.key](#paramkey) pelo valor passado no
 campo [param.value](#paramvalue).
+
+`DEL`: Remove a chave informada no campo [param.key](#paramkey).
 
 #### param.key
 
@@ -1033,9 +1033,9 @@ Campo obrigatório, do tipo string, é responsável por indicar qual contexto a 
 
 Valores aceitos:
 
-`REQUEST` para atuar na pré-requisição do backend.
+`REQUEST`: Para atuar na pré-requisição do backend.
 
-`RESPONSE` para atuar pós-requisição do backend.
+`RESPONSE`: Para atuar pós-requisição do backend.
 
 #### query.action
 
@@ -1044,16 +1044,16 @@ requisição.
 
 Valores aceitos:
 
-`ADD` adiciona a chave informada no campo [query.key](#querykey) caso não exista, e agrega o valor informado no
+`ADD`: Adiciona a chave informada no campo [query.key](#querykey) caso não exista, e agrega o valor informado no
 campo [query.value](#queryvalue).
 
-`SET` modifica o valor da chave informada no campo [query.key](#querykey) pelo valor passado no
+`SET`: Modifica o valor da chave informada no campo [query.key](#querykey) pelo valor passado no
 campo [query.value](#queryvalue).
 
-`DEL` remove a chave informada no campo [query.key](#querykey).
-
-`REN` renomeia a chave informada no campo [query.key](#querykey) pelo valor passado no
+`REN`: Renomeia a chave informada no campo [query.key](#querykey) pelo valor passado no
 campo [query.value](#queryvalue).
+
+`DEL`: Remove a chave informada no campo [query.key](#querykey).
 
 #### query.key
 
@@ -1089,9 +1089,9 @@ Campo obrigatório, do tipo string, é responsável por indicar qual contexto a 
 
 Valores aceitos:
 
-`REQUEST` para atuar na pré-requisição do backend.
+`REQUEST`: Para atuar na pré-requisição do backend.
 
-`RESPONSE` para atuar pós-requisição do backend.
+`RESPONSE`: Para atuar pós-requisição do backend.
 
 Importante lembrar que caso o valor for `REQUEST` poderá utilizar no campo [body.scope](#bodyscope) apenas o valor
 `REQUEST`.
@@ -1103,10 +1103,11 @@ indica qual escopo devemos alterar, se o escopo de requisição ou de resposta.
 
 Valores aceitos:
 
-`REQUEST` para modificar o escopo de requisição, esse tipo de escopo pode ter uma atuação global propagando essa mudança
+`REQUEST`: Para modificar o escopo de requisição, esse tipo de escopo pode ter uma atuação global propagando essa
+mudança
 nas requisições de backend seguintes, basta utilizar o campo [body.propagate](#bodypropagate) como `true`.
 
-`RESPONSE` para modificar o escopo de resposta do backend.
+`RESPONSE`: Para modificar o escopo de resposta do backend.
 
 #### body.action
 
@@ -1114,22 +1115,22 @@ Campo obrigatório, do tipo string, responsável pela ação a ser tomada na mod
 
 Valores aceitos se o body for JSON:
 
-`SET` modifica o valor da chave informada no campo [body.key](#bodykey) pelo valor passado no
+`SET`: Modifica o valor da chave informada no campo [body.key](#bodykey) pelo valor passado no
 campo [body.value](#bodyvalue).
 
-`REN` renomeia a chave informada no campo [body.key](#bodykey) pelo valor passado no
+`REN`: Renomeia a chave informada no campo [body.key](#bodykey) pelo valor passado no
 campo [body.value](#bodyvalue).
 
-`DEL` remove a chave informada no campo [body.key](#bodykey).
+`DEL`: Remove a chave informada no campo [body.key](#bodykey).
 
 Valores aceitos se o body for TEXTO:
 
-`ADD` agrega o valor informado no campo [body.value](#bodyvalue) ao texto.
+`ADD`: Agrega o valor informado no campo [body.value](#bodyvalue) ao texto.
 
-`SET` irá substituir todos os valores semelhantes à chave informada no campo [body.key](#bodykey) pelo valor passado no
+`SET`: Irá substituir todos os valores semelhantes à chave informada no campo [body.key](#bodykey) pelo valor passado no
 campo [body.value](#bodyvalue).
 
-`DEL` remove todos os valores semelhantes à chave informada no campo [body.key](#bodykey).
+`DEL`: Remove todos os valores semelhantes à chave informada no campo [body.key](#bodykey).
 
 #### body.key
 
@@ -1160,17 +1161,183 @@ IMPORTANTE: Esse campo só é aceito se o [escopo](#bodyscope) tiver o valor `RE
 
 ### VARIÁVEIS DE AMBIENTE
 
+As variáveis de ambiente podem ser fácilmente instânciadas utilizando o arquivo .env, na pasta indicada pelo ambiente
+dinâmico de inicialização como mencionado no tópico [ESTRUTURA DE PASTAS](#estrutura-de-pastas).
 
+Caso preferir inserir os valores utilizando docker-compose também funcionará corretamente, ponto é que a API
+Gateway irá ler o valor gravado na máquina, independente de como foi inserido nela.
+
+Os valores podem ser utilizados na configuração do json da API Gateway, basta utilizar a sintaxe `$NOME` como
+um valor string, veja no exemplo abaixo.
+
+Um trecho de um json de configuração, temo os seguintes valores:
+
+```json
+{
+  "version": "$VERSION",
+  "port": 8080,
+  "hot-reload": true,
+  "store": {
+    "redis": {
+      "address": "$REDIS_URL",
+      "password": "$REDIS_PASSWORD"
+    }
+  },
+  "timeout": "$TIMEOUT"
+}
+```
+
+E na nossa máquina temos as seguintes variáveis de ambiente:
+
+```dotenv
+VERSION=1.0.0
+
+REDIS_URL=redis-18885.c259.us-east-1-4.ec2.cloud.redislabs.com:18985
+REDIS_PASSWORD=12345
+
+TIMEOUT=5m
+```
+
+Quando a API Gateway faz o build da aplicação, ela gera um arquivo json na raiz indicando os valores e configuração do
+projeto que está em execução, veja o resultado para desse arquivo após o build:
+
+```json
+{
+  "version": "1.0.0",
+  "port": 8080,
+  "hot-reload": true,
+  "store": {
+    "redis": {
+      "address": "redis-18885.c259.us-east-1-4.ec2.cloud.redislabs.com:18985",
+      "password": "12345"
+    }
+  },
+  "timeout": "5m"
+}
+```
+
+Vimos que todos os valores com a sintaxe `$NOME` foram substituídos pelos seus devidos valores, caso um valor
+tenha sido mencionado por essa sintaxe, porém não existe nas variáveis de ambiente, o mesmo valor informado
+será mantido.
 
 ---
 
 ### VALORES DINÂMICOS PARA MODIFICAÇÃO
+
+Podemos utilizar valores de requisição e resposta do tempo de execução do endpoint, conforme o mesmo foi configurado.
+Esses valores podem ser obtidos por uma sintaxe específica, temos as seguintes possibilidades de obtenção desses
+valores, veja:
+
+### Requisição:
+
+Quando menciona a sintaxe `#request...` você estará obtendo os valores da requisição recebida, caso mencione o campo
+`#request.history...` você estará obtendo os valores
+do [histórico temporário de requisições](#histórico-temporário-de-requisições).
+
+`#request.header...`
+
+Esse trecho da sintaxe irá obter do cabeçalho da requisição o valor indicado, por exemplo,
+`#request.header.X-Forwarded-For.0` irá obter o primeiro valor do campo `X-Forwarded-For` do cabeçalho da requisição
+caso exista, substituindo a sintaxe pelo valor, o resultado foi `127.0.0.1`.
+
+`#request.params...`
+
+Esse trecho da sintaxe irá obter dos parâmetros da requisição o valor indicado, por exemplo,
+`#request.params.id` irá obter o valor do campo `id` dos parâmetros da requisição caso exista,
+substituindo a sintaxe pelo valor, o resultado foi `72761`.
+
+`#request.query...`
+
+Esse trecho da sintaxe irá obter dos parâmetros de busca da requisição o valor indicado, por exemplo,
+`#request.query.email.0` irá obter o primeiro valor do campo `email` dos parâmetros de busca da requisição caso exista,
+substituindo a sintaxe pelo valor, o resultado foi `gabrielcataldo.adm@gmail.com`.
+
+`#request.body...`
+
+Esse trecho da sintaxe irá obter do body da requisição o valor indicado, por exemplo,
+`#request.body.deviceId` irá obter o valor do campo `deviceId` do body da requisição caso exista,
+substituindo a sintaxe pelo valor, o resultado foi `991238`.
+
+#### Histórico temporário de requisições
+
+Caso queira obter os valores de requisição especificamente de um backend, basta adicionar o campo `history` na sintaxe,
+e a posição do seu backend na história, lembrando que os middlewares `beforeware` e `afterware` conta como um backend
+no histórico, outro ponto é que só terá as informações de requisição neste campo se o backend já tenha sido processado,
+ou o backend está em processamento. Veja como ficaria um exemplo abaixo:
+
+No exemplo, eu tenho apenas um backend e o mesmo está sendo processado, então posso está utilizando a sintaxe:
+
+`#request.history.0.params.phone`
+
+Nesse outro exemplo de sintaxe temos três backends configurados e dois já foram processados, então podemos utilizar a
+seguinte sintaxe no processo do terceiro backend:
+
+`#request.history.1.body.id`
+
+Nesses exemplos citados vemos que podemos obter o valor da requisição que esta sendo feita ou já foi feita por um
+backend configurado, e que estão armazenados em um tipo de histórico temporário.
+
+### Resposta
+
+Quando menciona a sintaxe `#response...` você estará obtendo os valores da resposta da API Gateway preparada com base
+na [lógica de resposta](#lógica-de-resposta), caso mencione o campo `#response.history...` você estará obtendo os
+valores do [histórico temporário de respostas](#histórico-temporário-de-respostas).
+
+`#response.statusCode`
+
+Essa sintaxe irá obter o código de status HTTP da resposta atual do endpoint. Caso queira obter da
+resposta de um backend específico use o [histórico temporário de respostas](#histórico-temporário-de-respostas).
+
+`#response.header...`
+
+Esse trecho da sintaxe irá obter do cabeçalho de resposta do endpoint o valor indicado, por exemplo,
+`#response.header.X-Trace-Id` irá obter os valores em lista do campo `X-Trace-Id` do cabeçalho de resposta caso exista,
+substituindo a sintaxe pelo valor, o resultado foi `["4ae6c92d16089e521626", "5ae7c93d16089e521628"]`.
+
+`#response.body...`
+
+Esse trecho da sintaxe irá obter do body de resposta do endpoint o valor indicado, por exemplo,
+`#response.body.role` irá obter o valor do campo `role` do body da requisição caso exista,
+substituindo a sintaxe pelo valor, o resultado foi `ADMIN`.
+
+#### Histórico temporário de respostas
+
+Caso queira obter os valores de resposta especificamente de um backend, basta adicionar o campo `history` na sintaxe,
+e a posição do seu backend na história, lembrando que os middlewares `beforeware` e `afterware` conta como um backend
+no histórico, outro ponto é que só terá as informações de resposta neste campo se o backend já tenha sido processado.
+Veja como ficaria um exemplo abaixo:
+
+No exemplo, eu tenho apenas um backend e o mesmo foi processado, então posso está utilizando a sintaxe:
+
+`#response.history.0.header.X-Value.0`
+
+Nesse outro exemplo de sintaxe temos três backends configurados e dois já foram processados, então podemos utilizar a
+seguinte sintaxe no processo do terceiro backend:
+
+`#request.history.1.body.users.0`
+
+Nesses exemplos citados vemos que podemos obter o valor da resposta de um backend que já foi processado,
+e que estão armazenados em um tipo de histórico temporário.
+
+### Importante
+
+Você pode utilizar com base nesses campos,
+a [sintaxe de json path](https://github.com/tidwall/gjson/blob/master/README.md#path-syntax) que se enquadra em seus
+valores, apenas se lembre que, os objetos header, query são mapas de lista de string, e o params é um mapa de string.
+
+Veja mais sobre a configuração de modificadores de backend clicando [aqui](#backendmodifiers).
+
+Aprenda na prática como utilizar os valores dinâmicos para modificação usando o
+projeto [playground](https://github.com/GabrielHCataldo/gopen-gateway-playground) que já vem com alguns exemplos de
+modificadores com valores dinâmicos.
 
 ---
 
 ### LÓGICA DE RESPOSTA
 
 --- 
+
+
 
 Usabilidade
 -----------

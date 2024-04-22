@@ -558,6 +558,15 @@ func (b *backendRequest) Http(ctx context.Context) (*http.Request, error) {
 	return httpRequest, nil
 }
 
+func (b *backendRequest) Eval() any {
+	return map[string]any{
+		"header": b.header,
+		"params": b.params,
+		"query":  b.query,
+		"body":   b.body.Interface(),
+	}
+}
+
 // ModifyStatusCode returns a new instance of backendResponse with the given statusCode modified.
 // The method creates a copy of the original backendResponse and sets the statusCode to the provided value.
 // The other fields are copied from the original backendResponse.
@@ -647,4 +656,16 @@ func (b *backendResponse) GroupResponseByType() bool {
 // field to true or by the value of the body being a text or a slice. Otherwise, it returns false.
 func (b *backendResponse) GroupResponse() bool {
 	return b.group || b.GroupResponseByType()
+}
+
+// Eval returns a map containing the evaluated fields of the backendResponse instance.
+// The returned map includes the "statusCode" field, which represents the HTTP statusCode of the response,
+// the "header" field, which represents the body fields of the response, and the "body" field, which represents
+// the body of the response as an interface{} type.
+func (b *backendResponse) Eval() any {
+	return map[string]any{
+		"statusCode": b.statusCode,
+		"header":     b.header,
+		"body":       b.body.Interface(),
+	}
 }
