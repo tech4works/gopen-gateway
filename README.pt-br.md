@@ -1403,3 +1403,7 @@ Agradecimentos
 ------------
 ---
 
+Licença Apache 2.0
+------------
+---
+
