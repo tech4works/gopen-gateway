@@ -1220,6 +1220,11 @@ Vimos que todos os valores com a sintaxe `$NOME` foram substituídos pelos seus 
 tenha sido mencionado por essa sintaxe, porém não existe nas variáveis de ambiente, o mesmo valor informado
 será mantido.
 
+#### Observação
+
+Nessa primeira versão podemos utilizar essa sintaxe apenas em campos do tipo string, caso queira
+[contríbuir](#como-contríbuir) com uma solução que aceitará essa sintaxe independente do tipo, ficaríamos gratos!
+
 ---
 
 ### VALORES DINÂMICOS PARA MODIFICAÇÃO
@@ -1325,11 +1330,13 @@ Você pode utilizar com base nesses campos,
 a [sintaxe de json path](https://github.com/tidwall/gjson/blob/master/README.md#path-syntax) que se enquadra em seus
 valores, apenas se lembre que, os objetos header, query são mapas de lista de string, e o params é um mapa de string.
 
-Veja mais sobre a configuração de modificadores de backend clicando [aqui](#backendmodifiers).
+### Veja também
 
-Aprenda na prática como utilizar os valores dinâmicos para modificação usando o
-projeto [playground](https://github.com/GabrielHCataldo/gopen-gateway-playground) que já vem com alguns exemplos de
-modificadores com valores dinâmicos.
+- Configuração de modificadores de backend clicando [aqui](#backendmodifiers).
+
+- Aprenda na prática como utilizar os valores dinâmicos para modificação usando o
+  projeto [playground](https://github.com/GabrielHCataldo/gopen-gateway-playground) que já vem com alguns exemplos de
+  modificadores com valores dinâmicos.
 
 ---
 
@@ -1337,19 +1344,60 @@ modificadores com valores dinâmicos.
 
 --- 
 
-
+TODO:
 
 Usabilidade
 -----------
 ---
 Use o projeto [playground](https://github.com/GabrielHCataldo/gopen-gateway-playground) para começar a explorar e
-utilizar na prática o Gopen API Gateway!
+utilizar na prática o GOPEN API Gateway!
 
 
 Como contríbuir?
 ------------
 ---
 
+### Download do projeto
+
+Para conseguir rodar o projeto primeiro faça o download da [linguagem Go](https://go.dev/dl/)
+versão 1.22 ou superior na sua máquina.
+
+Com o Go instalado na sua máquina, faça o pull do projeto
+
+```
+git pull https://github.com/GabrielHCataldo/gopen-gateway.git
+```
+
+Depois abra o mesmo usando o próprio terminal com a IDE de sua preferência
+
+Goland:
+
+```
+goland gopen-gateway
+```
+
+VSCode:
+
+```
+code gopen-gateway
+```
+
+### Air
+
+Caso queira utilizar o hot reload para otimizar no desenvolvimento, o projeto já tem o arquivo
+`.air.toml` como exemplo para você utilizar como quiser.
+
+Veja a documentação sobre esse projeto fantástico clicando [aqui](https://github.com/cosmtrek/air).
+
+### Gitflow
+
+Para inicializar o desenvolvimento, você pode criar uma branch a partir da main, para um futuro
+pull request.
+
+### Pull request
+
+Crie um PR apontando para a master, é necessário que os termos de uso sejam aceitos por parte
+do autor do PR.
 
 Agradecimentos
 ------------
