@@ -236,6 +236,12 @@
             "type": "string"
           }
         },
+        "afterware": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "backends": {
           "type": "array",
           "minItems": 1,
