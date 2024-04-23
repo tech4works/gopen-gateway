@@ -2,7 +2,7 @@ module github.com/GabrielHCataldo/gopen-gateway
 
 go 1.22
 
-// Copyright (c) [ [nome do autor]
+// Copyright (c) 2024 Gabriel Cataldo
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
