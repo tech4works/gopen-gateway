@@ -62,11 +62,40 @@ func (p Params) Set(key, value string) (r Params) {
 	return r
 }
 
-// Del removes a key-value pair from the Params map.
+// Replace replaces the value of a specific key in the Params map with a new value.
+// It checks if the key exists in the Params map using the NotExists method.
+// If the key does not exist, it returns the original Params map as is.
+// If the key exists, it calls the Set method to create a new Params map with the updated value,
+// and returns the new Params map.
+// The original Params map is not modified.
+func (p Params) Replace(key string, value string) Params {
+	if p.NotExists(key) {
+		return p
+	}
+	return p.Set(key, value)
+}
+
+// Rename renames a key in the Params map.
+// It first checks if the oldKey exists in the Params map using the NotExists method.
+// If the oldKey does not exist, it returns the original Params map as is.
+// If the oldKey exists, it creates a shallow copy of the original Params map using the copy() method,
+// assigns the value of the oldKey to the newKey in the copied map, and deletes the oldKey from the copied map.
+// The copied Params map with the newKey and without the oldKey is returned.
+func (p Params) Rename(oldKey, newKey string) (r Params) {
+	if p.NotExists(oldKey) {
+		return p
+	}
+	r = p.copy()
+	r[newKey] = r[oldKey]
+	delete(r, oldKey)
+	return r
+}
+
+// Delete removes a key-value pair from the Params map.
 // It creates a shallow copy of the original Params map using the copy() method
 // and deletes the specified key from the copied map.
 // The copied Params map with the key-value pair removed is returned.
-func (p Params) Del(key string) (r Params) {
+func (p Params) Delete(key string) (r Params) {
 	r = p.copy()
 	delete(r, key)
 	return r
@@ -77,6 +106,19 @@ func (p Params) Del(key string) (r Params) {
 func (p Params) Get(key string) string {
 	value, _ := p[key]
 	return value
+}
+
+// Exists checks if a key exists in the Params map.
+// It returns true if the key exists, otherwise it returns false.
+func (p Params) Exists(key string) bool {
+	_, ok := p[key]
+	return ok
+}
+
+// NotExists checks if a key exists in the Params map.
+// It returns true if the key does not exist, otherwise it returns false.
+func (p Params) NotExists(key string) bool {
+	return !p.Exists(key)
 }
 
 // copy creates a shallow copy of the Params map.

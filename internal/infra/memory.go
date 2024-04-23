@@ -50,6 +50,11 @@ func (r memoryStore) Set(_ context.Context, key string, value any, expire time.D
 	return r.ttlCache.SetWithTTL(key, value, expire)
 }
 
+// Del removes a key-value pair from the memory cache with the specified key.
+// The key is a string that serves as the identifier for the key-value pair to be removed.
+// The error returned indicates any issues encountered while removing the key-value pair.
+// Implementing the CacheStore interface, this method uses the underlying ttlCache to remove the data.
+// The ttlCache.Remove function is used to remove the key-value pair from the cache.
 func (r memoryStore) Del(_ context.Context, key string) error {
 	return r.ttlCache.Remove(key)
 }

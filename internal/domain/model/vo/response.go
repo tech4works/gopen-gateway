@@ -164,11 +164,6 @@ func (r *Response) ModifyLastBackendResponse(backendResponseVO *backendResponse)
 // Returns the modified Response object with updated history.
 // Does not modify other properties of the Response object.
 func (r *Response) Append(backendResponseVO *backendResponse) *Response {
-	// verificamos se o backendResponse precisa ser abortado
-	if r.endpoint.AbortSequencial(backendResponseVO.StatusCode()) {
-		return r.AbortResponse(backendResponseVO)
-	}
-
 	// adicionamos na nova lista de histórico
 	history := r.history
 	history = append(history, backendResponseVO)
@@ -211,24 +206,36 @@ func (r *Response) Abort() bool {
 	return r.abort
 }
 
-// AbortResponse creates a new Response object with the provided backendResponseVO.
-// It sets the abort flag to true, indicating that the response should be aborted.
-// The method combines the headers of the Response object and the backendResponseVO to create a new header.
-// The created header is set in the new Response object along with the endpoint, status code, body,
-// and history from the original Response object.
-// Returns the modified Response object representing the aborted response.
-func (r *Response) AbortResponse(backendResponseVO *backendResponse) *Response {
+// AbortResponse constructs a new Response object to represent an aborted response.
+// It obtains the last backendResponse from the history of the original Response object.
+// It checks if all backends of the endpoint have been processed.
+// It filters the history to include only successful responses.
+// It creates a new response header based on the completed status and success status of the filtered history.
+// It aggregates the header of the lastBackendResponseVO to the new response header.
+// It constructs the new Response object with the data of the aborted backend, including the endpoint, status code,
+// header, body, abort flag, and history.
+// The new Response object is returned.
+func (r *Response) AbortResponse() *Response {
+	// obtemos a última resposta do histórico
+	lastBackendResponseVO := r.LastBackendResponse()
+
+	// verificamos se passou por todos os backends do endpoint
+	completed := r.endpoint.Completed(r.history.Size())
+
+	// filtramos as respostas
+	filteredHistory := r.history.Filter(true)
+
 	// instanciamos o novo header
-	header := newResponseHeader(false, false)
+	header := newResponseHeader(completed, filteredHistory.Success())
 	// agregamos o header do backend abortado
-	header = header.Aggregate(backendResponseVO.Header())
+	header = header.Aggregate(lastBackendResponseVO.Header())
 
 	// construímos o response com os dados do backend abortado
 	return &Response{
 		endpoint:   r.endpoint,
-		statusCode: backendResponseVO.statusCode,
+		statusCode: lastBackendResponseVO.statusCode,
 		header:     header,
-		body:       backendResponseVO.body,
+		body:       lastBackendResponseVO.body,
 		abort:      true,
 		history:    r.history,
 	}
@@ -254,6 +261,13 @@ func (r *Response) Header() Header {
 	return r.header
 }
 
+// ContentType returns the content type of the Response object.
+// It checks the content type of the response encode from the endpoint,
+// and if it is valid, returns its content type.
+// Otherwise, it checks the content type of the body,
+// and if it is not nil, returns its content type.
+// If neither the response encode nor the body have a valid content type,
+// it returns an empty string.
 func (r *Response) ContentType() enum.ContentType {
 	responseEncode := r.endpoint.ResponseEncode()
 	if responseEncode.IsEnumValid() {
@@ -275,17 +289,19 @@ func (r *Response) Body() *Body {
 // If the response encoding is not valid and the body is not nil, it returns the body bytes.
 // If the body is nil, it returns nil.
 func (r *Response) BytesBody() []byte {
+	// se o body for nil retornamos nil
+	if helper.IsNil(r.body) {
+		return nil
+	}
+
 	// instanciamos o response encode do endpoint
 	responseEncode := r.endpoint.ResponseEncode()
 	// retornamos pelo responseEncode caso ele seja valido
 	if responseEncode.IsEnumValid() {
 		return r.body.BytesByContentType(responseEncode.ContentType())
-	} else if helper.IsNotNil(r.Body()) {
-		// se não tiver nil respondemos pelo tipo do body
-		return r.body.Bytes()
 	}
 	// se nao tiver respondemos nil
-	return nil
+	return r.body.Bytes()
 }
 
 // Eval converts the Response object to a string representation.
@@ -297,23 +313,29 @@ func (r *Response) BytesBody() []byte {
 // It then uses the helper.SimpleConvertToString function to convert the map to a string.
 // Returns the string representation of the Response object.
 func (r *Response) Eval() string {
+	var evalBody any
+	if helper.IsNotNil(r.body) {
+		evalBody = r.body.Interface()
+	}
 	mapEval := map[string]any{
 		"statusCode": r.statusCode,
 		"header":     r.header,
-		"body":       r.body.Interface(),
+		"body":       evalBody,
 		"history":    r.history.Eval(),
 	}
 	return helper.SimpleConvertToString(mapEval)
 }
 
-// notifyDataChanged updates the Response object based on the modified history.
-// It checks if the endpoint has reached its completion and returns the completion status.
-// Then it filters the history based on the completion status to determine if it was a success or not.
-// The method retrieves the status code from the filtered history and creates a new Response header
-// by aggregating the completion and success values.
-// It also aggregates the modifyHeaders from the filtered history.
-// The method retrieves the body from the filtered history based on the endpoint's aggregateResponses flag.
-// Finally, it constructs and returns a new Response object with the updated values.
+// notifyDataChanged updates the Response object with the provided history.
+// It checks if the endpoint has reached completion and sets it to the default value.
+// It filters the history based on completion and obtains the status code from the filtered history.
+// It creates a response header based on completion and the success of the filtered history.
+// It aggregates the headers from the filtered history into the response header.
+// It obtains the body from the filtered history based on the endpoint's response aggregation strategy.
+// It constructs a new Response object with the updated values.
+// The new Response object includes the updated history, response header, status code, abort status,
+// and body.
+// The method returns the new Response object.
 func (r *Response) notifyDataChanged(history responseHistory) *Response {
 	// checamos se ele chegou ao final para o valor padrão
 	completed := r.endpoint.Completed(history.Size())
@@ -332,14 +354,33 @@ func (r *Response) notifyDataChanged(history responseHistory) *Response {
 	// obtemos o body a partir do histórico filtrado
 	bodyByHistory := filteredHistory.Body(r.endpoint.AggregateResponses())
 
-	// construímos o novo objeto de valor
+	// construímos o novo objeto de valor,
 	return &Response{
 		endpoint:   r.endpoint,
 		statusCode: statusCodeByHistory,
+		abort:      r.abortByLastResponse(),
 		header:     header,
 		body:       bodyByHistory,
 		history:    history,
 	}
+}
+
+// abortByLastResponse retrieves the last backend response from the history
+// to determine if it needs to be aborted. If the last backend response is not nil,
+// it checks if it should be aborted by calling AbortSequencial on the endpoint
+// with the status code of the last backend response. Returns true if the backend response
+// should be aborted, otherwise returns false.
+func (r *Response) abortByLastResponse() (abortSequencial bool) {
+	// obtemos a última resposta do histórico para saber se precisa ser abortada
+	lastBackendResponseVO := r.LastBackendResponse()
+
+	// verificamos sé para abortar esse backend
+	if helper.IsNotNil(lastBackendResponseVO) {
+		abortSequencial = r.endpoint.AbortSequencial(lastBackendResponseVO.StatusCode())
+	}
+
+	// retornamos o resultado
+	return abortSequencial
 }
 
 // TTL calculates the time to live (TTL) for the CacheResponse object.
@@ -356,27 +397,28 @@ func (r responseHistory) Size() int {
 	return len(r)
 }
 
-// Success returns a boolean value indicating whether all backend responses in the response history were successful.
-// It checks if the status code of each backend response is greater than or equal to http.StatusBadRequest.
-// Returns true if all backend responses are successful, otherwise returns false.
+// Success returns a boolean value indicating whether all backend responses in the responseHistory are successful.
+// It iterates through each backend response in the responseHistory.
+// If any backend response is not successful (Ok() returns false), it returns false.
+// Otherwise, it returns true, indicating that all backend responses are successful.
 func (r responseHistory) Success() bool {
 	for _, backendResponseVO := range r {
-		if helper.IsGreaterThanOrEqual(backendResponseVO.statusCode, http.StatusBadRequest) {
+		if !backendResponseVO.Ok() {
 			return false
 		}
 	}
 	return true
 }
 
-// Filter filters the response history based on the completed flag.
-// It iterates over the history and filters out the responses that need to be omitted and have passed through all backends.
-// The filtered responses are then added to the filtered history.
-// Returns the filtered response history.
-func (r responseHistory) Filter(completed bool) (filteredHistory responseHistory) {
+// Filter filters the response history based on the performOmission flag.
+// If performOmission is true, backend responses with the omit flag set to true are skipped.
+// The filtered backend responses are added to a new responseHistory slice, which is returned.
+// Does not modify the original responseHistory slice.
+func (r responseHistory) Filter(performOmission bool) (filteredHistory responseHistory) {
 	// iteramos o histórico para ser filtrado
 	for _, backendResponseVO := range r {
-		if backendResponseVO.omit && completed {
-			//se a resposta do histórico quer ser omitida, e passou por todos os backends, pulamos ela
+		if performOmission && backendResponseVO.omit {
+			//se a resposta do histórico quer ser omitida, e o parâmetro para executar as omissões então fazemos
 			continue
 		}
 		// setamos a resposta filtrada
@@ -534,6 +576,11 @@ func (r responseHistory) sliceOfBodies() *Body {
 	return newSliceBody(bodies)
 }
 
+// mostFrequentStatusCode returns the most frequent status code from the response history.
+// It counts the occurrences of each status code and finds the one with the highest count.
+// If multiple status codes have the same highest count, it returns the first one encountered.
+// Returns the most frequent status code as an integer.
+// If the response history is empty, it returns 0.
 func (r responseHistory) mostFrequentStatusCode() int {
 	statusCodes := make(map[int]int)
 	for _, backendResponseVO := range r {

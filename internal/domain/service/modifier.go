@@ -52,6 +52,10 @@ func NewModifier() Modifier {
 // - *vo.Request: The potentially altered request object.
 // - *vo.Response: The potentially altered response object.
 func (m modifier) Execute(executeData *vo.ExecuteModifier) (*vo.Request, *vo.Response) {
+	// todo: podemos ter uma configuração que executa o modificador caso o status code seja tal, parecido com o cache
+	//  usando o campo "only-if-status-codes" para o contexto de resposta.
+	//  podemos também ter um campo "ignore-if-aborted" para ignorar a modificação se o backend for abortado.
+
 	// checamos se o backendModifier veio nil e ja retornamos
 	if helper.IsNil(executeData.BackendModifiers()) {
 		return executeData.Request(), executeData.Response()

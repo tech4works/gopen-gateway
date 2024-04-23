@@ -75,7 +75,7 @@ func NewSizeLimiterProvider(endpointLimiterVO *vo.EndpointLimiter) SizeLimiterPr
 // Finally, it returns nil to indicate success.
 func (s sizeLimiterProvider) Allow(request *http.Request) error {
 	// checamos primeiramente o tamanho do header
-	headerSize := s.GetHeadersSize(request)
+	headerSize := s.HeadersSize(request)
 	if helper.IsGreaterThan(headerSize, s.maxHeaderSize) {
 		return domainmapper.NewErrHeaderTooLarge(s.maxHeaderSize.String())
 	}
@@ -97,12 +97,12 @@ func (s sizeLimiterProvider) Allow(request *http.Request) error {
 	return nil
 }
 
-// GetHeadersSize calculates the size of the headers in the given http.Request.
+// HeadersSize calculates the size of the headers in the given http.Request.
 // It iterates through each header and adds the length of the name, the separating ": ", and the values.
 // Each value is separated by ", " and the last value has the trailing ", " removed.
 // It also adds "\r\n" to the end of each header line and "\r\n" at the end of all headers.
 // The total size of the headers is returned.
-func (s sizeLimiterProvider) GetHeadersSize(r *http.Request) int {
+func (s sizeLimiterProvider) HeadersSize(r *http.Request) int {
 	size := 0
 	for name, values := range r.Header {
 		// o tamanho da chave mais o ': ' que o separa do valor

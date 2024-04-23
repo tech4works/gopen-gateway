@@ -69,6 +69,11 @@ func newModifier(modifierDTO *dto.Modifier) *Modifier {
 	}
 }
 
+// newModifierFromValue creates a new instance of Modifier with the provided context and value.
+// It initializes a new Modifier with the given context and value, and returns a pointer to it.
+// The context field of the Modifier struct is populated with the provided context value,
+// and the value field is populated with the provided value.
+// Other fields of the Modifier struct are not populated and will have their zero values.
 func newModifierFromValue(context enum.ModifierContext, value string) *Modifier {
 	return &Modifier{
 		context: context,

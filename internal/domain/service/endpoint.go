@@ -82,6 +82,8 @@ func (e endpoint) Execute(ctx context.Context, executeData *vo.ExecuteEndpoint) 
 	// inicializamos o objeto de valor de resposta do serviço
 	responseVO := vo.NewResponse(endpointVO)
 
+	// TODO: pensarmos em futuramente ter backends para chamadas paralelas
+
 	// iteramos o beforeware, chaves configuradas para middlewares antes das requisições principais
 	requestVO, responseVO = e.processMiddlewares(
 		ctx,

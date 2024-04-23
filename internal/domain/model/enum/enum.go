@@ -56,10 +56,12 @@ const (
 	ModifierContextResponse ModifierContext = "RESPONSE"
 )
 const (
-	ModifierActionSet ModifierAction = "SET"
 	ModifierActionAdd ModifierAction = "ADD"
-	ModifierActionDel ModifierAction = "DEL"
+	ModifierActionApd ModifierAction = "APD"
+	ModifierActionSet ModifierAction = "SET"
+	ModifierActionRpl ModifierAction = "RPL"
 	ModifierActionRen ModifierAction = "REN"
+	ModifierActionDel ModifierAction = "DEL"
 )
 const (
 	ContentTypeJson ContentType = "JSON"
@@ -108,11 +110,12 @@ func (m ModifierContext) IsEnumValid() bool {
 }
 
 // IsEnumValid checks if the ModifierAction is a valid enumeration value.
-// It returns true if the ModifierAction is either ModifierActionSet, ModifierActionAdd,
-// ModifierActionDel, ModifierActionReplace, or ModifierActionRen, otherwise it returns false.
+// It returns true if the ModifierAction is either ModifierActionSet, ModifierActionApd,
+// ModifierActionRpl, ModifierActionAdd, ModifierActionDel, or ModifierActionRen,
+// otherwise it returns false.
 func (m ModifierAction) IsEnumValid() bool {
 	switch m {
-	case ModifierActionSet, ModifierActionAdd, ModifierActionDel, ModifierActionRen:
+	case ModifierActionSet, ModifierActionApd, ModifierActionRpl, ModifierActionAdd, ModifierActionDel, ModifierActionRen:
 		return true
 	}
 	return false

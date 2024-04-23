@@ -362,10 +362,12 @@
         "action": {
           "type": "string",
           "enum": [
-            "SET",
             "ADD",
-            "DEL",
-            "REN"
+            "APD",
+            "SET",
+            "RPL",
+            "REN",
+            "DEL"
           ]
         },
         "key": {
@@ -444,8 +446,9 @@
           "type": "string",
           "enum": [
             "SET",
-            "DEL",
-            "REN"
+            "RPL",
+            "REN",
+            "DEL"
           ]
         },
         "propagate": {
@@ -505,9 +508,11 @@
           "type": "string",
           "enum": [
             "ADD",
+            "APD",
             "SET",
-            "DEL",
-            "REN"
+            "RPL",
+            "REN",
+            "DEL"
           ]
         },
         "propagate": {
@@ -574,9 +579,11 @@
           "type": "string",
           "enum": [
             "ADD",
+            "APD",
             "SET",
-            "DEL",
-            "REN"
+            "RPL",
+            "REN",
+            "DEL"
           ]
         },
         "propagate": {
@@ -608,11 +615,31 @@
         },
         {
           "if": {
-            "not": {
-              "properties": {
-                "action": {
-                  "const": "DEL"
-                }
+            "properties": {
+              "action": {
+                "enum": [
+                  "ADD",
+                  "APD",
+                  "RPL",
+                  "REN"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "context",
+              "action",
+              "key",
+              "value"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "action": {
+                "const": "SET"
               }
             }
           },

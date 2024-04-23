@@ -17,11 +17,9 @@
 package vo
 
 import (
-	"fmt"
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/enum"
 	"github.com/tidwall/gjson"
-	"github.com/tidwall/sjson"
 	"regexp"
 	"strings"
 )
@@ -50,7 +48,6 @@ type modify struct {
 // It defines a single method Execute() which takes no arguments and returns a Request and Response.
 // Implementations of this interface should provide their own Execute() method implementation.
 type ModifierStrategy interface {
-
 	// Execute is a method of the ModifierStrategy interface which represents a strategy for executing a modification
 	// operation on a Request and Response.
 	// It takes no arguments and returns a Request and Response.
@@ -106,7 +103,7 @@ func newModify(modifierVO *Modifier, requestVO *Request, responseVO *Response) m
 // Otherwise, it sets the modifierValue as the new statusCode and returns it.
 func (m modify) statusCode(statusCode int) int {
 	// obtemos o valor a ser usado para modificar
-	modifierValue := m.intValue()
+	modifierValue := m.intEvalValue()
 
 	// se nao tiver valor nao fazemos nada
 	if helper.IsEmpty(modifierValue) {
@@ -117,278 +114,240 @@ func (m modify) statusCode(statusCode int) int {
 	return modifierValue
 }
 
-// modifyHeaders modifies the globalHeader and localHeader based on the receiver 'm' of the type modify.
-// It obtains the value to be used for modification using the m.valueStr() method.
-// It alters the modifyHeaders based on the action indicated by m.action.
-// If the action is ModifierActionSet, it sets the value of the key in the localHeader.
-// If the propagate field is true, it also sets the value in the globalHeader.
-// If the action is ModifierActionAdd, it adds the value to the key in the localHeader.
-// If the propagate field is true, it also adds the value to the key in the globalHeader.
-// If the action is ModifierActionDel, it deletes the key from the localHeader.
-// If the propagate field is true, it also deletes the key from the globalHeader.
-// If the action is ModifierActionRename, it renames the key in the localHeader.
-// If the propagate field is true, it renames the key in the globalHeader as well.
-// It returns the modified globalHeader and localHeader.
+// headers modifies the globalHeader and localHeader based on the receiver 'm' of the type modify.
+// It obtains the slice of string values to be used for modification using the m.sliceOfStrEvalValue() method.
+// If m.propagate is true, it modifies the globalHeader by calling the m.header method with globalHeader and modifierValue.
+// Finally, it returns the modified globalHeader and the result of calling the m.header method with localHeader and modifierValue.
 func (m modify) headers(globalHeader, localHeader Header) (Header, Header) {
 	// obtemos o valor a ser usado para modificar
-	modifierValue := m.strValue()
+	modifierValue := m.sliceOfStrEvalValue()
 
-	// alteramos os headers conforme o action indicada
-	switch m.action {
-	case enum.ModifierActionSet:
-		// se o modificador tiver o campo propagate como true, modificamos o valor global
-		if m.propagate {
-			globalHeader = globalHeader.Set(m.key, modifierValue)
-		}
-		localHeader = localHeader.Set(m.key, modifierValue)
-		break
-	case enum.ModifierActionAdd:
-		// se o modificador tiver o campo propagate como true, modificamos o valor global
-		if m.propagate {
-			globalHeader = globalHeader.Add(m.key, modifierValue)
-		}
-		localHeader = localHeader.Add(m.key, modifierValue)
-		break
-	case enum.ModifierActionDel:
-		// se o modificador tiver o campo propagate como true, modificamos o valor global
-		if m.propagate {
-			globalHeader = globalHeader.Del(m.key)
-		}
-		localHeader = localHeader.Del(m.key)
-		break
-	case enum.ModifierActionRen:
-		// se o modificador tiver o campo propagate como true, modificamos o valor global
-		if m.propagate {
-			valueCopy := globalHeader.Get(m.key)
-			globalHeader = globalHeader.Del(m.key)
-			globalHeader = globalHeader.Set(modifierValue, valueCopy)
-		}
-		valueCopy := localHeader.Get(m.key)
-		localHeader = localHeader.Del(m.key)
-		localHeader = localHeader.Set(modifierValue, valueCopy)
-		break
+	// caso seja em um escopo propagate, modificamos o header global
+	if m.propagate {
+		globalHeader = m.header(globalHeader, modifierValue)
 	}
+
 	// retornamos os objetos de valores modificados, ou não
-	return globalHeader, localHeader
+	return globalHeader, m.header(localHeader, modifierValue)
 }
 
-// params alters the input path and parameters based on the action set in the modify struct.
-// It accepts a local path, and two parameters, global and local Params.
-// It returns an updated string representing the path, as well as updated global and local Params (in that order).
+// header modifies the provided header based on the action specified in the receiver 'm' of the type modify.
+// It accepts a Header object and an array of string values as parameters.
+// It performs different modifications on the header based on the action value:
+// - If the action is enum.ModifierActionAdd, it adds all the modifier values to the header under the specified key.
+// - If the action is enum.ModifierActionApd, it appends the modifier values to the existing values associated with the key.
+// - If the action is enum.ModifierActionSet, it sets the modifier values as the new values associated with the key.
+// - If the action is enum.ModifierActionRpl, it replaces the existing values associated with the key with the modifier values.
+// - If the action is enum.ModifierActionRen, it renames the key to the last value in the modifier values array.
+// - If the action is enum.ModifierActionDel, it deletes the entry for the specified key from the header.
+// If the action is not any of the above, it returns the original header unchanged.
+// Finally, it returns the modified header.
+func (m modify) header(header Header, modifierValue []string) Header {
+	// alteramos os headers conforme o action indicada
+	switch m.action {
+	case enum.ModifierActionAdd:
+		return header.AddAll(m.key, modifierValue)
+	case enum.ModifierActionApd:
+		return header.Append(m.key, modifierValue)
+	case enum.ModifierActionSet:
+		return header.SetAll(m.key, modifierValue)
+	case enum.ModifierActionRpl:
+		return header.Replace(m.key, modifierValue)
+	case enum.ModifierActionRen:
+		return header.Rename(m.key, modifierValue[len(modifierValue)-1])
+	case enum.ModifierActionDel:
+		return header.Delete(m.key)
+	default:
+		return header
+	}
+}
+
+// params modifies the localPath, globalParams, and localParams based on the receiver 'm' of the type modify.
+// It obtains the value to be used for modification using the m.strEvalValue() method.
+// If m.propagate is true, it modifies the globalParams by calling the m.param() method with the modifierValue.
+// It then returns the modified localPath, globalParams, and localParams
+// by calling the m.urlPath(), m.param(), and m.param() methods respectively with the modifierValue.
 //
-// The function carries out a different behavior and modifies the incoming parameters,
-// based on whether the pre-set action is Set, Del or Rename.
-// For each case, it checks a bool propagated field in the modify struct to decide whether to change the global Params.
-// The local Params and path are always updated.
-//
-// In all cases, the function returns the (possibly updated) path and the global and local Params.
-//
-// The Switch Cases:
-// - The Set case, sets a new key-value pair in the global Params and local Params based on the modify structs key and value.
-// It also updates the path by appending a new param key.
-// - The Del case deletes a key-value pair from global Params and local Params using modify structs key. It also removes the
-// param key from path.
-// - The Rename case, changes the key name of a key-value pair in the global and local Params to the value held by modify struct.
-// Depending upon the presence of old and new param keys in path, it updates path accordingly.
-//
-// If there's no action matching in modify struct, it
-func (m modify) params(localPath string, globalParams, localParams Params) (string, Params, Params) {
+// Returns:
+//   - UrlPath: The modified local request path.
+//   - Params: The modified global request parameters.
+//   - Params: The modified local request parameters.
+func (m modify) params(localPath UrlPath, globalParams, localParams Params) (UrlPath, Params, Params) {
 	// obtemos o valor a ser usado para modificar
-	modifierValue := m.strValue()
+	modifierValue := m.strEvalValue()
 
-	// construímos o valor do key com padrão a ser modificado caso não exista
-	paramKeyUrl := fmt.Sprintf("/:%s", m.key)
-	paramValueUrl := fmt.Sprintf("/:%s", modifierValue)
+	// caso seja em um escopo propagate, modificamos o params global
+	if m.propagate {
+		globalParams = m.param(globalParams, modifierValue)
+	}
 
-	// alteramos o path local e parâmetros local e global pela action indicada
+	// retornamos o path possívelmente alterado, o globa e local params possívelmente alterados
+	return m.urlPath(localPath, modifierValue), globalParams, m.param(localParams, modifierValue)
+}
+
+// urlPath modifies the given `urlPath` based on the receiver `m` of the type `modify`.
+// It performs different actions based on the value of `m.action`:
+// - enum.ModifierActionSet or enum.ModifierActionRpl: It sets the parameter key `m.key` in the `urlPath`.
+// - enum.ModifierActionRen: It renames the parameter key `m.key` to `modifierValue` in the `urlPath`.
+// - enum.ModifierActionDel: It deletes the parameter key `m.key` from the `urlPath`.
+// If `m.action` is not any of the above, it returns the unchanged `urlPath`.
+// It returns the modified `urlPath`.
+func (m modify) urlPath(urlPath UrlPath, modifierValue string) UrlPath {
+	// alteramos o parâmetro pela action indicada
+	switch m.action {
+	case enum.ModifierActionSet, enum.ModifierActionRpl:
+		return urlPath.SetParamKey(m.key)
+	case enum.ModifierActionRen:
+		return urlPath.RenameParamKey(m.key, modifierValue)
+	case enum.ModifierActionDel:
+		return urlPath.DeleteParamKey(m.key)
+	default:
+		return urlPath
+	}
+}
+
+// param modifies the `params` based on the `action`, `key`, and `modifierValue` provided.
+// It performs the following operations based on the `action`:
+//   - If the `action` is `enum.ModifierActionSet`, it sets the `modifierValue` for the
+//     specified `key` in the `params` and returns the updated `params`.
+//   - If the `action` is `enum.ModifierActionRpl`, it replaces the value of the specified `key`
+//     in the `params` with the `modifierValue` and returns the updated `params`.
+//   - If the `action` is `enum.ModifierActionRen`, it renames the specified `key` to the
+//     `modifierValue` in the `params` and returns the updated `params`.
+//   - If the `action` is `enum.ModifierActionDel`, it deletes the specified `key` from the `params`
+//     and returns the updated `params`.
+//   - If the `action` does not match any of the above cases, it returns the original `params` as is.
+func (m modify) param(params Params, modifierValue string) Params {
+	// alteramos o parâmetro pela action indicada
 	switch m.action {
 	case enum.ModifierActionSet:
-		// se o modificador tiver o campo propagate como true, modificamos o valor global
-		if m.propagate {
-			globalParams = globalParams.Set(m.key, modifierValue)
-		}
-		localParams = localParams.Set(m.key, modifierValue)
-		// se o parâmetro não conte no path atual, adicionamos
-		if !strings.Contains(localPath, paramKeyUrl) {
-			// checamos se no fim da url tem o /
-			if helper.Equals(localPath[len(localPath)-1], '/') {
-				localPath = fmt.Sprintf("%s:%s", localPath, m.key)
-			} else {
-				localPath = fmt.Sprintf("%s/:%s", localPath, m.key)
-			}
-		}
-		break
-	case enum.ModifierActionDel:
-		// se o modificador tiver o campo propagate como true, modificamos o valor global
-		if m.propagate {
-			globalParams = globalParams.Del(m.key)
-		}
-		localParams = localParams.Del(m.key)
-		// removemos o param de url no backend atual
-		localPath = strings.ReplaceAll(localPath, paramKeyUrl, "")
-		break
+		return params.Set(m.key, modifierValue)
+	case enum.ModifierActionRpl:
+		return params.Replace(m.key, modifierValue)
 	case enum.ModifierActionRen:
-		// se o modificador tiver o campo propagate como true, modificamos o valor global
-		if m.propagate {
-			valueCopy := globalParams.Get(m.key)
-			if helper.IsNotEmpty(valueCopy) {
-				globalParams = globalParams.Del(m.key)
-				globalParams = globalParams.Set(modifierValue, valueCopy)
-			}
-		}
-		valueCopy := localParams.Get(m.key)
-		if helper.IsNotEmpty(valueCopy) {
-			localParams = localParams.Del(m.key)
-			localParams = localParams.Set(modifierValue, valueCopy)
-			// checamos se o valor do parâmetro antigo contem no path para substituir pelo pela nova chave
-			// caso nao tem, e o valor nao tem na url, adicionamos
-			if strings.Contains(localPath, paramKeyUrl) {
-				localPath = strings.ReplaceAll(localPath, paramKeyUrl, paramValueUrl)
-			} else if !strings.Contains(localPath, paramValueUrl) {
-				// checamos se no fim da url tem o /
-				if helper.Equals(localPath[len(localPath)-1], '/') {
-					localPath = fmt.Sprintf("%s:%s", localPath, modifierValue)
-				} else {
-					localPath = fmt.Sprintf("%s/:%s", localPath, modifierValue)
-				}
-			}
-		}
-		break
+		return params.Rename(m.key, modifierValue)
+	case enum.ModifierActionDel:
+		return params.Delete(m.key)
+	default:
+		return params
 	}
-	// retornamos o path possívelmente alterado, o globa e local params possívelmente alterados
-	return localPath, globalParams, localParams
 }
 
 // queries modifies the globalQuery and localQuery based on the receiver 'm' of the type modify.
-// It obtains the value to be used for modification using the m.valueStr() method.
-// It then modifies the globalQuery and localQuery based on the action indicated by 'm'.
-// If the modifier's propagate field is true, it modifies the corresponding field in globalQuery.
-// The switch statement handles different actions and modifies the queries accordingly.
-// Finally, it returns the modified globalQuery and localQuery.
+// It obtains the value to be used for modification using the m.sliceOfStrEvalValue() method.
+// If m.propagate is true, it modifies the globalQuery by calling the m.query() method.
+// It then returns the modified globalQuery and localQuery by calling the m.query() method.
 func (m modify) queries(globalQuery, localQuery Query) (Query, Query) {
 	// obtemos o valor a ser usado para modificar
-	modifierValue := m.strValue()
+	modifierValue := m.sliceOfStrEvalValue()
 
-	// alteramos o query local e global pela action indicada
-	switch m.action {
-	case enum.ModifierActionSet:
-		// se o modificador tiver o campo propagate como true, modificamos o valor global
-		if m.propagate {
-			globalQuery = globalQuery.Set(m.key, modifierValue)
-		}
-		localQuery = localQuery.Set(m.key, modifierValue)
-		break
-	case enum.ModifierActionAdd:
-		// se o modificador tiver o campo propagate como true, modificamos o valor global
-		if m.propagate {
-			globalQuery = globalQuery.Add(m.key, modifierValue)
-		}
-		localQuery = localQuery.Add(m.key, modifierValue)
-		break
-	case enum.ModifierActionDel:
-		// se o modificador tiver o campo propagate como true, modificamos o valor global
-		if m.propagate {
-			globalQuery = globalQuery.Del(m.key)
-		}
-		localQuery = localQuery.Del(m.key)
-		break
-	case enum.ModifierActionRen:
-		// se o modificador tiver o campo propagate como true, modificamos o valor global
-		if m.propagate {
-			valueCopy := globalQuery.Get(m.key)
-			if helper.IsNotEmpty(valueCopy) {
-				globalQuery = globalQuery.Del(m.key)
-				globalQuery = globalQuery.Set(modifierValue, valueCopy)
-			}
-		}
-		valueCopy := localQuery.Get(m.key)
-		if helper.IsNotEmpty(valueCopy) {
-			localQuery = localQuery.Del(m.key)
-			localQuery = localQuery.Set(modifierValue, valueCopy)
-		}
-		break
+	// caso seja em um escopo propagate, modificamos o query global
+	if m.propagate {
+		globalQuery = m.query(globalQuery, modifierValue)
 	}
+
 	// retornamos a query global e local possivelmente alteradas
-	return globalQuery, localQuery
+	return globalQuery, m.query(localQuery, modifierValue)
 }
 
-// bodies modifies the globalBody and localBody based on the receiver 'm' of the type modify.
+// query modifies the given query based on the action specified in the receiver 'm' of the type modify.
+// It takes a Query and modifierValue as parameters and returns a modified Query.
+//
+// If the action is ModifierActionAdd, it calls the Add method of the Query with the specified key and modifierValue.
+// If the action is ModifierActionApd, it calls the Append method of the Query with the specified key and modifierValue.
+// If the action is ModifierActionSet, it calls the Set method of the Query with the specified key and modifierValue.
+// If the action is ModifierActionRpl, it calls the Replace method of the Query with the specified key and modifierValue.
+// If the action is ModifierActionRen, it calls the Rename method of the Query with the specified key and the last element of modifierValue.
+// If the action is ModifierActionDel, it calls the Delete method of the Query with the specified key.
+//
+// If the action is not one of the predefined actions above, it returns the original Query without any modifications.
+//
+// Returns:
+//
+//	A modified Query based on the action and key specified in the receiver 'm'.
+//
+// Note:
+//
+//	The original Query is not modified.
+func (m modify) query(query Query, modifierValue []string) Query {
+	// alteramos o query pela action indicada
+	switch m.action {
+	case enum.ModifierActionAdd:
+		return query.Add(m.key, modifierValue)
+	case enum.ModifierActionApd:
+		return query.Append(m.key, modifierValue)
+	case enum.ModifierActionSet:
+		return query.Set(m.key, modifierValue)
+	case enum.ModifierActionRpl:
+		return query.Replace(m.key, modifierValue)
+	case enum.ModifierActionRen:
+		return query.Rename(m.key, modifierValue[len(modifierValue)-1])
+	case enum.ModifierActionDel:
+		return query.Delete(m.key)
+	default:
+		return query
+	}
+}
+
+// bodies modifies the globalBody and localBody based on the receiver 'm' of the type modifyBodies.
 // It obtains the value to be used for modification using the m.evalValue() method.
-// If the localBody is not nil, it checks the content type of the localBody and performs the corresponding modification.
-// If the content type is "json", it calls the m.bodyJson() method with the localBody and modifierValue as arguments.
-// If the content type is "text", it calls the m.bodyString() method with the localBody and modifierValue as arguments.
-// If the globalBody is not nil and the propagate flag is true, it performs the same steps as above for the globalBody.
-// Finally, it returns the modified globalBody and localBody.
+// If m.propagate is true, it calls the m.body method on globalBody and assigns the modified result back to globalBody.
+// The method then calls m.body method on localBody and assigns the modified result back to localBody.
+// The modified globalBody and localBody are then returned.
 func (m modify) bodies(globalBody, localBody *Body) (*Body, *Body) {
 	// obtemos o valor a ser usado para modificar
 	modifierValue := m.evalValue()
 
-	// modificamos o body atual pelo tipo de dado
-	if helper.IsNotNil(localBody) {
-		switch localBody.ContentType() {
-		case enum.ContentTypeJson:
-			localBody = m.bodyJson(localBody, modifierValue)
-			break
-		case enum.ContentTypeText:
-			localBody = m.bodyString(localBody, modifierValue)
-			break
-		}
+	// caso seja em um escopo propagate, modificamos pelo tipo de dado também
+	if m.propagate {
+		globalBody = m.body(globalBody, modifierValue)
 	}
 
-	// caso seja em um escopo propagate, modificamos pelo tipo de dado também
-	if helper.IsNotNil(globalBody) && m.propagate {
-		switch localBody.ContentType() {
-		case enum.ContentTypeJson:
-			globalBody = m.bodyJson(globalBody, modifierValue)
-			break
-		case enum.ContentTypeText:
-			globalBody = m.bodyString(globalBody, modifierValue)
-			break
-		}
-	}
 	// retornamos o body global e local possivelmente alterados
-	return globalBody, localBody
+	return globalBody, m.body(localBody, modifierValue)
 }
 
-// bodyJson modifies the body of a request based on the receiver 'm' of the type modify.
-// It takes a Body pointer as input and modifies its value according to the modifier action
-// and the key-value pairs specified in 'm'.
-// It returns the modified Body pointer.
-// The modifier action can be one of the following:
-// - enum.ModifierActionSet: Set the value of the specified key in the body to the modifier value.
-// - enum.ModifierActionDel: Delete the specified key from the body.
-// - enum.ModifierActionRen: Rename the specified key to the new key and set its value to the original value.
-// If the modifier action is not one of the above, it returns the original Body pointer without any modifications.
-// If any error occurs during the modification process, it returns the original Body pointer without any modifications.
-// The modified Body is converted to a buffer before being set as the new value.
-// If an error occurs during the conversion process, it returns the original Body pointer without any modifications.
-func (m modify) bodyJson(body *Body, modifierValue any) *Body {
-	// instanciamos o valor do body em string
-	bodyStr := body.String()
+// body modifies the body based on the receiver 'm' of the type modify.
+// It takes a pointer to a Body object and a modifierValue of any type.
+// If the body pointer is nil, it returns nil.
+// If the action is enum.ModifierActionAdd, it calls the Add method of the body object and assigns the modifiedBody and
+// error to modifiedBody and err, respectively.
+// If the action is enum.ModifierActionApd, it calls the Append method of the body object and assigns the modifiedBody
+// and error to modifiedBody and err, respectively.
+// If the action is enum.ModifierActionSet, it calls the Set method of the body object and assigns the modifiedBody and
+// error to modifiedBody and err, respectively.
+// If the action is enum.ModifierActionRpl, it calls the Replace method of the body object and assigns the modifiedBody
+// and error to modifiedBody and err, respectively.
+// If the action is enum.ModifierActionRen, it calls the Rename method of the body object and assigns the modifiedBody
+// and error to modifiedBody and err, respectively.
+// If the action is enum.ModifierActionDel, it calls the Delete method of the body object and assigns the modifiedBody
+// and error to modifiedBody and err, respectively.
+// If an error occurs during the modification, it is handled but not logged.
+// It returns the modifiedBody, which is the body object after the modification.
+func (m modify) body(body *Body, modifierValue any) *Body {
+	// se for nil ja retornamo
+	if helper.IsNil(body) {
+		return nil
+	}
 
-	// instanciamos o meu novo body
-	var modifiedValue string
+	// instânciamos o body a ser modificado
+	var modifiedBody = body
 	var err error
 
 	// abaixo verificamos qual ação desejada para modificar o valor body
 	switch m.action {
+	case enum.ModifierActionAdd:
+		modifiedBody, err = body.Add(m.key, modifierValue)
+	case enum.ModifierActionApd:
+		modifiedBody, err = body.Append(m.key, modifierValue)
 	case enum.ModifierActionSet:
-		modifiedValue, err = sjson.Set(bodyStr, m.key, modifierValue)
-		break
-	case enum.ModifierActionDel:
-		modifiedValue, err = sjson.Delete(bodyStr, m.key)
-		break
+		modifiedBody, err = body.Set(m.key, modifierValue)
+	case enum.ModifierActionRpl:
+		modifiedBody, err = body.Replace(m.key, modifierValue)
 	case enum.ModifierActionRen:
-		result := gjson.Get(bodyStr, m.key)
-		if result.Exists() {
-			modifiedValue, err = sjson.Delete(bodyStr, m.key)
-			if helper.IsNil(err) {
-				modifiedValue, err = sjson.Set(modifiedValue, m.value, result.Value())
-			}
-		} else {
-			modifiedValue = bodyStr
-		}
-		break
+		modifiedBody, err = body.Rename(m.key, modifierValue)
+	case enum.ModifierActionDel:
+		modifiedBody, err = body.Delete(m.key)
 	default:
 		return body
 	}
@@ -396,171 +355,131 @@ func (m modify) bodyJson(body *Body, modifierValue any) *Body {
 	// tratamos o erro e retornamos o próprio body
 	if helper.IsNotNil(err) {
 		// todo: imprimir log?
-		return body
 	}
 
-	// convertemos o body modificado em buffer
-	buffer, err := helper.ConvertToBuffer(modifiedValue)
-	if helper.IsNotNil(err) {
-		// todo: imprimir log?
-		return body
-	}
-
-	// setamos o novo valor gerando um novo objeto de valor
-	return body.SetValue(buffer)
+	// caso tenha dado tudo certo retornamos o body modificado
+	return modifiedBody
 }
 
-// bodyString modifies the string representation of the provided `body` based on the receiver `m` of the type `modify`.
-// It converts the `modifierValue` to a string using the `helper.SimpleConvertToString` method.
-// It converts the `body` to a string using the `body.String` method.
-// It initializes the `modifiedValue` variable to store the modified string.
-// It modifies the string based on the `action` provided in `m` using a switch statement:
-//   - If the action is `enum.ModifierActionAdd`, the `modifiedValue` is set by concatenating `bodyStr` and `modifierValueStr`.
-//   - If the action is `enum.ModifierActionSet`, the `modifiedValue` is set by replacing all occurrences of `m.key` in `bodyStr` with `modifierValueStr`.
-//   - If the action is `enum.ModifierActionDel`, the `modifiedValue` is set by replacing all occurrences of `m.key` in `bodyStr` with an empty string.
-//   - If the action is `enum.ModifierActionReplace`, the `modifiedValue` is set to `modifierValueStr`.
-//   - If none of the above actions match, it returns the original `body` without any modifications.
-//
-// It converts the modified string to a buffer using the `helper.ConvertToBuffer` method, and if there is an error, it returns the original `body`.
-// Finally, it returns the new `body` with the modified value, set using the `body.SetValue` method.
-func (m modify) bodyString(body *Body, modifierValue any) *Body {
-	// convertemos o valor a ser modificado em str
-	modifierValueStr := helper.SimpleConvertToString(modifierValue)
-	// convertemos o body para string para garantir
-	bodyStr := body.String()
-
-	// inicializamos o valor a ser modificado
-	var modifiedValue string
-
-	// modificamos a string com base no action fornecido
-	switch m.action {
-	case enum.ModifierActionAdd:
-		modifiedValue = bodyStr + modifierValueStr
-		break
-	case enum.ModifierActionRen:
-		if helper.IsNotEmpty(m.key) {
-			modifiedValue = strings.ReplaceAll(bodyStr, m.key, modifierValueStr)
-		} else {
-			// todo: adicionar mensagem warning?
-			modifiedValue = bodyStr
-		}
-		break
-	case enum.ModifierActionDel:
-		if helper.IsNotEmpty(m.key) {
-			modifiedValue = strings.ReplaceAll(bodyStr, m.key, "")
-		} else {
-			// todo: adicionar mensagem warning?
-			modifiedValue = bodyStr
-		}
-		break
-	default:
-		return body
-	}
-
-	// convertemos o body modificado em buffer
-	buffer, err := helper.ConvertToBuffer(modifiedValue)
-	if helper.IsNotNil(err) {
-		// todo: imprimir log?
-		return body
-	}
-
-	// retornamos o novo body com o valor modificado
-	return body.SetValue(buffer)
-}
-
-// intValue method in the modify struct initializes the modifier value by calling
+// intEvalValue method in the modify struct initializes the modifier value by calling
 // the evalValue method, and then returns either the modified value or the original value.
 // The return value is converted to an integer using the SimpleConvertToInt helper function.
-func (m modify) intValue() int {
+func (m modify) intEvalValue() int {
 	// inicializamos o valor a ser usado para modificar
 	modifierValue := m.evalValue()
-
 	// retornamos o valor modificado ou não
 	return helper.SimpleConvertToInt(modifierValue)
 }
 
-// strValue returns the modified value as a string.
+// strEvalValue returns the modified value as a string.
 // The value is obtained by evaluating the `valueEval()` method, which initializes the value to be used for modification.
 // The modified value is then converted to a string using the `helper.SimpleConvertToString()` function.
 // The function returns the modified value as a string.
-func (m modify) strValue() string {
+func (m modify) strEvalValue() string {
 	// inicializamos o valor a ser usado para modificar
 	modifierValue := m.evalValue()
-
 	// retornamos o valor modificado ou não
 	return helper.SimpleConvertToString(modifierValue)
 }
 
-// evalValue method of the modify struct performs value evaluation.
-// It initializes the value to be potentially modified.
-// If the action is DEL, it returns nil.
-// It uses a regex to find all the eval values within modifierValue.
-// Iterates over these values and performs various operations based on them.
-// Checks if evalValue comes from requests or responses.
-// If the evalValue doesn't exist, it skips to the next one.
-// If the value found equals the pre-defined word, it returns, otherwise replacing the eval key with the value obtained.
-// Trying to parse the modifierValue string to bytes to check if it's JSON.
-// If it is, it transforms it into an object.
-// It finally returns the modified value.
-// Note: Uses helper functions and requires encoding/json for json operations.
-func (m modify) evalValue() any {
-	// inicializamos o valor a ser modificado ou não
-	modifierValue := m.value
+// sliceOfStrEvalValue returns a slice of string values to be used for modification.
+// It initializes the modifierValue by calling the evalValue method of the receiver 'm'.
+// If the modifierValue is a slice, it converts it to a []string using the SimpleConvertToDest method.
+// If the converted slice is not empty, it returns the slice.
+// Otherwise, it converts the modifierValue to a string using the SimpleConvertToString method,
+// and returns it as a single-element []string.
+func (m modify) sliceOfStrEvalValue() []string {
+	// inicializamos o valor a ser usado para modificar
+	modifierValue := m.evalValue()
+	// verificamos se o mesmo é um slice
+	if helper.IsSliceType(modifierValue) {
+		var ss []string
+		helper.SimpleConvertToDest(modifierValue, &ss)
+		if helper.IsNotEmpty(ss) {
+			return ss
+		}
+	}
+	return []string{helper.SimpleConvertToString(modifierValue)}
+}
 
+// evalValue evaluates the modifierValue based on the receiver 'm' of the type modify.
+// If the action is "DEL", it returns nil.
+// Otherwise, it iterates through the values and processes them based on eval syntax.
+// Finally, it parses the modifierValue to the appropriate data type and returns it.
+func (m modify) evalValue() any {
 	// caso a action seja DEL retornamos nil
 	if helper.Equals(m.action, enum.ModifierActionDel) {
 		return nil
 	}
+	// inicializamos o valor a ser modificado ou não
+	modifierValue := m.value
+	// iteramos os valores com base na sintaxe eval
+	for _, word := range m.findAllByEvalSintaxe(modifierValue) {
+		// processamos o palavra para converter em um valor eval
+		modifierValue = m.processEvalWord(modifierValue, word)
+	}
+	// damos o parse do valor em string caso tenha um valor do tipo não string
+	return m.parseModifierValueToRealType(modifierValue)
+}
 
+// findAllByEvalSintaxe searches for all values in 'value' that match the expected evaluation regex.
+// It creates the regex pattern for the expected evaluation syntax to obtain the value.
+// It returns an array with all values found in 'value' that match the evaluation syntax.
+func (m modify) findAllByEvalSintaxe(value string) []string {
 	// criamos o regex de evaluation esperado para obter o valor
 	regex := regexp.MustCompile(`\B#[a-zA-Z0-9_.\[\]]+`)
 	// buscamos todos os valores no modifierValue com esse valor eval
-	find := regex.FindAllString(modifierValue, -1)
-	// iteramos os valores eval
-	for _, word := range find { //response.body.token or //request.body.auth.token
-		// limpamos a #
-		eval := strings.ReplaceAll(word, "#", "")
+	return regex.FindAllString(value, -1)
+}
 
-		// damos o split pela pontuação
-		split := strings.Split(eval, ".")
-		// caso esteja vazio vamos para o próximo
-		if helper.IsEmpty(split) {
-			continue
-		}
+// processEvalWord takes a modifierValue and a word as input.
+// It searches for the evalValue based on the word using the evalValueByWord method of the receiver 'm' of type modify.
+// If the evalValue is not found, it returns the modifierValue as it is.
+// Otherwise, it converts the evalValue to a string using the SimpleConvertToString helper function and returns it.
+func (m modify) processEvalWord(modifierValue, word string) string {
+	// obtemos o valor pela palavra
+	evalValue := m.evalValueByWord(word)
 
-		// obtemos o valor da eval vindo pela requests or responses
-		var evalValue any
-		if helper.Contains(split[0], "request") {
-			evalValue = m.requestValueByEval(m.request, eval)
-		} else if helper.Contains(split[0], "response") {
-			evalValue = m.responseValueByEval(m.response, eval)
-		}
-		// caso o valor não encontrado, vamos para próximo
-		if helper.IsNil(evalValue) {
-			continue
-		}
-
-		// se a palavra é igual ao valor prescrito ja retornamos, caso contrário damos o replace do eval key pelo valor obtido
-		if helper.Equals(word, modifierValue) {
-			return evalValue
-		} else {
-			evalValueString := helper.SimpleConvertToString(evalValue)
-			modifierValue = strings.Replace(modifierValue, word, evalValueString, 1)
-		}
+	// caso o valor não encontrado, vamos para próximo
+	if helper.IsNil(evalValue) {
+		return modifierValue
 	}
 
-	// verificamos qual o tipo
-	if helper.IsJson(modifierValue) || helper.IsInt(modifierValue) || helper.IsFloat(modifierValue) ||
-		helper.IsBool(modifierValue) || helper.IsTime(modifierValue) {
-		var obj any
-		err := helper.ConvertToDest(modifierValue, &obj)
-		if helper.IsNil(err) {
-			return obj
-		}
+	// retornamos o valor substituído pelo valor do eval encontrado
+	evalValueString := helper.SimpleConvertToString(evalValue)
+	return strings.Replace(modifierValue, word, evalValueString, 1)
+}
+
+// evalValueByWord evaluates the value associated with the given word.
+// It removes all instances of "#" from the word.
+// It then splits the modified word by "." to obtain individual components.
+// If the split result is empty, it returns nil.
+// It extracts the value from either the request or response based on the first component of split.
+// If the first component contains "request", it calls m.requestValueByEval() with m.request and eval as arguments.
+// If the first component contains "response", it calls m.responseValueByEval() with m.response and eval as arguments.
+// Otherwise, it sets evalValue to nil.
+// It returns the obtained evalValue.
+func (m modify) evalValueByWord(word string) any {
+	// limpamos a #
+	eval := strings.ReplaceAll(word, "#", "")
+	// damos o split pela pontuação
+	split := strings.Split(eval, ".")
+	// caso esteja vazio vamos para o próximo
+	if helper.IsEmpty(split) {
+		return nil
 	}
 
-	// retornamos o valor modificado
-	return modifierValue
+	// obtemos o valor da eval vindo pela requests or responses
+	var evalValue any
+	if helper.Contains(split[0], "request") {
+		evalValue = m.requestValueByEval(m.request, eval)
+	} else if helper.Contains(split[0], "response") {
+		evalValue = m.responseValueByEval(m.response, eval)
+	} else {
+		evalValue = nil
+	}
+	// retornamos o valor obtido
+	return evalValue
 }
 
 // requestValueByEval obtains the value from the Request object based on the evaluation string 'eval'.
@@ -587,4 +506,23 @@ func (m modify) responseValueByEval(responseVO *Response, eval string) any {
 		return result.Value()
 	}
 	return nil
+}
+
+// parseModifierValueToRealType converts the modifierValue to its corresponding real type.
+// If the modifierValue is of type json, int, float, bool, or time, it converts it to that type.
+// It uses the ConvertToDest method from the helper package to perform the conversion.
+// If the conversion is successful, it returns the converted value.
+// Otherwise, it returns the original modifierValue.
+func (m modify) parseModifierValueToRealType(modifierValue string) any {
+	// caso seja do tipo json, int, float, bool, time convertemos a esses tipos
+	if helper.IsJson(modifierValue) || helper.IsInt(modifierValue) || helper.IsFloat(modifierValue) ||
+		helper.IsBool(modifierValue) || helper.IsTime(modifierValue) {
+		var obj any
+		err := helper.ConvertToDest(modifierValue, &obj)
+		if helper.IsNil(err) {
+			return obj
+		}
+	}
+	// retornamos o valor modificado
+	return modifierValue
 }

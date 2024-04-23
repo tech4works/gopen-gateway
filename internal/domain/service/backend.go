@@ -157,20 +157,28 @@ func (b backend) closeBodyResponse(response *http.Response) {
 	}
 }
 
-// buildBackendResponse constructs a new backend response value object based on the given parameters.
-// It adds the new backend request to the response value object.
-// If the response object indicates that the response should be aborted, it returns the current request and response.
-// Otherwise, it calls the modifierService to execute the response modifier for the backend.
+// buildBackendResponse is a method in the backend framework that creates a new backend response object based on
+// the provided parameters:
 //
 // Parameters:
-// - backendVO: the backend value object.
-// - requestVO: the current request value object.
-// - responseVO: the current response value object.
-// - httpResponse: the HTTP response object received from the backend.
+//
+//	backendVO: the backend value object.
+//	requestVO: the request value object.
+//	responseVO: the response value object.
+//	httpResponse: the HTTP response object.
+//
+// Steps:
+// 1. Constructs a new backend response value object using backendVO and httpResponse.
+// 2. Appends the new backend request to the response value object.
+// 3. Calls the modifierService's Execute method to modify the backend response.
+// 4. If the response indicates abort, returns the request and an abort response.
+// 5. If all steps are successful, returns the modified request and response.
 //
 // Returns:
-// - requestVO: the potentially modified backend request.
-// - responseVO: the updated response value object.
+//
+//	The function returns two value objects:
+//	- requestVO: the potentially modified backend request.
+//	- responseVO: the backend response. If an error occurred, it contains the error information.
 func (b backend) buildBackendResponse(
 	backendVO *vo.Backend,
 	requestVO *vo.Request,
@@ -183,11 +191,14 @@ func (b backend) buildBackendResponse(
 	// adicionamos o novo backend request no objeto de valor de resposta
 	responseVO = responseVO.Append(backendResponseVO)
 
+	// chamamos o sub-dominio para modificar a resposta do backend
+	requestVO, responseVO = b.modifierService.Execute(vo.NewExecuteResponseModifier(backendVO, requestVO, responseVO))
+
 	// se resposta é para abortar retornamos
 	if responseVO.Abort() {
-		return requestVO, responseVO
+		return requestVO, responseVO.AbortResponse()
 	}
 
-	// chamamos o sub-dominio para modificar a resposta do backend
-	return b.modifierService.Execute(vo.NewExecuteResponseModifier(backendVO, requestVO, responseVO))
+	// se tudo ocorrer bem retornamos a requisição e o response resultante
+	return requestVO, responseVO
 }

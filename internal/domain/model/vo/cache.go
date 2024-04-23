@@ -131,6 +131,17 @@ func newEndpointCache(cacheVO *Cache, endpointCacheVO *EndpointCache) *EndpointC
 	}
 }
 
+// newCacheFromDTO creates a new instance of Cache based on the provided dto.Cache.
+// It initializes the fields of Cache with values from dto.Cache.
+// If cacheDTO is nil, it returns nil.
+// The duration field is set based on the value of dto.Cache.Duration.
+// If dto.Cache.Duration is not empty, it parses the value to a time.Duration using time.ParseDuration.
+// It logs a warning message if there is an error while parsing the duration.
+// The strategyHeaders field is set based on the value of dto.Cache.StrategyHeaders.
+// The onlyIfStatusCodes field is set based on the value of dto.Cache.OnlyIfStatusCodes.
+// The onlyIfMethods field is set based on the value of dto.Cache.OnlyIfMethods.
+// The allowCacheControl field is set based on the value of dto.Cache.AllowCacheControl.
+// Returns a new instance of Cache.
 func newCacheFromDTO(cacheDTO *dto.Cache) *Cache {
 	if helper.IsNil(cacheDTO) {
 		return nil

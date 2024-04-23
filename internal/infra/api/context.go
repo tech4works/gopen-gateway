@@ -161,11 +161,15 @@ func (c *Context) Body() *vo.Body {
 	return c.Request().Body()
 }
 
-// BodyString returns the string representation of the body. It delegates the call to the
-// underlying Body() method and then calls String() on the returned value.
+// BodyString returns the string representation of the body of the Context.
+// It retrieves the body from the Context and converts it to a string using the String() method.
+// If the body is nil, it returns an empty string.
 func (c *Context) BodyString() string {
 	body := c.Body()
-	return body.String()
+	if helper.IsNotNil(body) {
+		return body.String()
+	}
+	return ""
 }
 
 // Params returns the params of the Context.

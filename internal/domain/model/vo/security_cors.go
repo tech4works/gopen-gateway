@@ -37,6 +37,9 @@ type SecurityCors struct {
 	allowHeaders []string
 }
 
+// newSecurityCors creates a new instance of SecurityCors based on the provided securityCorsDTO.
+// It initializes the fields of SecurityCors based on values from securityCorsDTO.
+// If securityCorsDTO is nil, it returns nil.
 func newSecurityCors(securityCorsDTO *dto.SecurityCors) *SecurityCors {
 	if helper.IsNil(securityCorsDTO) {
 		return nil

@@ -147,6 +147,11 @@ func newLimiterFromDTO(limiterDTO *dto.Limiter) Limiter {
 	}
 }
 
+// newRateFromDTO creates a new instance of Rate based on the provided rateDTO.
+// It initializes the fields of Rate based on values from rateDTO.
+// If the every field in rateDTO is not empty, it parses the every field using time.ParseDuration.
+// If an error occurs during parsing, it logs a warning message with the error.
+// The function returns a Rate object with the capacity and every field's set.
 func newRateFromDTO(rateDTO dto.Rate) Rate {
 	var every time.Duration
 	var err error
@@ -162,6 +167,13 @@ func newRateFromDTO(rateDTO dto.Rate) Rate {
 	}
 }
 
+// newEndpointLimiterFromDTO creates a new instance of EndpointLimiter based on the provided limiterDTO.
+// If limiterDTO is nil, it returns nil.
+// It initializes the fields of EndpointLimiter based on values from limiterDTO,
+// converting the byte unit strings to float values using the NewBytes function.
+// The rate field is set to a new instance of EndpointRate, created by calling
+// the newEndpointRateFromDTO function with limiterDTO.Rate as a parameter.
+// The function returns a pointer to the created EndpointLimiter object.
 func newEndpointLimiterFromDTO(limiterDTO *dto.EndpointLimiter) *EndpointLimiter {
 	if helper.IsNil(limiterDTO) {
 		return nil
@@ -174,6 +186,13 @@ func newEndpointLimiterFromDTO(limiterDTO *dto.EndpointLimiter) *EndpointLimiter
 	}
 }
 
+// newEndpointRateFromDTO creates a new instance of EndpointRate based on the provided rateDTO.
+// If rateDTO is nil, it returns nil.
+// It initializes the every field of EndpointRate based on the value of rateDTO.Every.
+// If rateDTO.Every is not empty, it parses rateDTO.Every as a time.Duration using time.ParseDuration.
+// If an error occurs during parsing, it logs a warning message using logger.Warning.
+// It sets the capacity field of EndpointRate to the value of rateDTO.Capacity.
+// The function returns a pointer to the created EndpointRate object.
 func newEndpointRateFromDTO(rateDTO *dto.Rate) *EndpointRate {
 	if helper.IsNil(rateDTO) {
 		return nil
@@ -287,6 +306,9 @@ func (e EndpointRate) Every() time.Duration {
 	return e.every
 }
 
+// EveryStr returns the string representation of the every field in the EndpointRate struct.
+// If the every field is greater than 0, it returns the string representation of that field.
+// Otherwise, it returns an empty string.
 func (e EndpointRate) EveryStr() string {
 	if e.HasEvery() {
 		return e.every.String()

@@ -100,6 +100,8 @@ func BuildRateDTOFromVO(rate vo.Rate) dto.Rate {
 	}
 }
 
+// BuildEndpointRateDTOFromVO builds a `Rate` DTO object using the provided `EndpointRate` object as input.
+// It retrieves the capacity and every field from the `EndpointRate` object and sets them on the `Rate` object.
 func BuildEndpointRateDTOFromVO(rateVO *vo.EndpointRate) *dto.Rate {
 	return &dto.Rate{
 		Capacity: rateVO.Capacity(),
@@ -236,6 +238,10 @@ func BuildBackendDTOFromVO(backendVO vo.Backend) dto.Backend {
 	}
 }
 
+// BuildBackendExtraConfigDTOFromVO builds a `BackendExtraConfig` DTO object using the provided `BackendExtraConfig` object as input.
+// It checks if the input object is nil or if any of the flag properties are false, and returns nil in that case.
+// Otherwise, it sets the properties of the DTO object using the corresponding properties from the input object.
+// The returned DTO object is a pointer to `BackendExtraConfig` struct.
 func BuildBackendExtraConfigDTOFromVO(backendExtraConfigVO *vo.BackendExtraConfig) *dto.BackendExtraConfig {
 	if helper.IsNil(backendExtraConfigVO) || !backendExtraConfigVO.GroupResponse() ||
 		!backendExtraConfigVO.OmitRequestBody() || !backendExtraConfigVO.OmitResponse() {

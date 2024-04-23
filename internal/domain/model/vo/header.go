@@ -80,6 +80,17 @@ func (h Header) Add(key, value string) (r Header) {
 	return r
 }
 
+// Append appends the provided values to the existing values associated with the provided key in the header.
+// If the key does not exist in the header, it returns the original header unchanged.
+// It creates a new copy of the header, adds the values to the existing ones using the AddAll method,
+// and then returns the modified header copy.
+func (h Header) Append(key string, values []string) Header {
+	if h.NotExists(key) {
+		return h
+	}
+	return h.AddAll(key, values)
+}
+
 // Set is a method on the Header type. It takes a key and a value, both of type string, and returns a Header.
 // The method makes a copy of the original Header, sets the value of the given key in the copied Header to a new
 // string slice containing the provided value, and then returns the modified Header copy.
@@ -89,10 +100,44 @@ func (h Header) Set(key, value string) (r Header) {
 	return r
 }
 
-// Del removes the value associated with the given key from the Header h.
+// SetAll is a method on the Header struct.
+// It accepts a key (in string format) and an array of values (in string format) as
+// parameters. It creates a copy of the existing Header, sets the value of the given key
+// in the copied Header to the provided array of values, and then returns the modified
+// Header copy.
+func (h Header) SetAll(key string, values []string) (r Header) {
+	r = h.copy()
+	r[key] = values
+	return r
+}
+
+// Replace replaces the values associated with the provided key in the Header object with the given values.
+// If the key does not exist in the Header, it returns the original Header object without any changes.
+func (h Header) Replace(key string, values []string) Header {
+	if h.NotExists(key) {
+		return h
+	}
+	return h.SetAll(key, values)
+}
+
+// Rename renames the given oldKey to the newKey in the Header object.
+// If the oldKey does not exist in the Header, the method returns the original Header object.
+// Otherwise, it creates a copy of the Header object, assigns the value of oldKey to newKey,
+// deletes the oldKey, and returns the modified Header object.
+func (h Header) Rename(oldKey, newKey string) (r Header) {
+	if h.NotExists(oldKey) {
+		return h
+	}
+	r = h.copy()
+	r[newKey] = r[oldKey]
+	delete(r, oldKey)
+	return r
+}
+
+// Delete removes the value associated with the given key from the Header h.
 // It returns a new Header object with the key removed.
 // If the key does not exist in the Header, the returned Header is identical to the original.
-func (h Header) Del(key string) (r Header) {
+func (h Header) Delete(key string) (r Header) {
 	r = h.copy()
 	delete(r, key)
 	return r
@@ -109,6 +154,20 @@ func (h Header) Get(key string) string {
 	return ""
 }
 
+// Exists checks if a given key exists in the Header object.
+// It returns true if the key exists, false otherwise.
+func (h Header) Exists(key string) bool {
+	_, ok := h[key]
+	return ok
+}
+
+// NotExists checks if a given key does not exist in the Header object.
+// It calls the Exists method of the Header object and returns the negation of the result.
+// It returns true if the key does not exist, false otherwise.
+func (h Header) NotExists(key string) bool {
+	return !h.Exists(key)
+}
+
 // FilterByForwarded filters the Header object by removing certain headers based on the provided list of forwarded headers.
 // It returns a new Header object with the filtered headers.
 // The following conditions are applied to determine whether a header should be removed:
@@ -121,7 +180,7 @@ func (h Header) FilterByForwarded(forwardedHeaders []string) (r Header) {
 	for key := range h.copy() {
 		if helper.IsNotEmpty(forwardedHeaders) && helper.NotContains(forwardedHeaders, key) &&
 			helper.IsNotEqualTo(key, consts.XForwardedFor) && helper.IsNotEqualTo(key, consts.XTraceId) {
-			r = h.Del(key)
+			r = h.Delete(key)
 		}
 	}
 	return r

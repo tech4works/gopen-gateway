@@ -295,11 +295,16 @@ func (r *Request) Eval() string {
 	for _, backendRequestVO := range r.history {
 		evalHistory = append(evalHistory, backendRequestVO.Eval())
 	}
+	var evalBody any
+	if helper.IsNotNil(r.body) {
+		evalBody = r.body.Interface()
+	}
+
 	mapEval := map[string]any{
 		"header":  r.header,
 		"params":  r.params,
 		"query":   r.query,
-		"body":    r.body.Interface(),
+		"body":    evalBody,
 		"history": evalHistory,
 	}
 	return helper.SimpleConvertToString(mapEval)

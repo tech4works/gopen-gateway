@@ -25,7 +25,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"strings"
 )
 
 // Backend is a type that represents a backend server configuration.
@@ -99,7 +98,7 @@ type backendRequest struct {
 	// path is a string field that represents the path of the backend request.
 	// It contains the path information used for constructing the URL.
 	// The value of path can be modified using the ModifyParams() `method`.
-	path string
+	path UrlPath
 	// method is a string field that represents the HTTP method to be used for the backend request.
 	// It contains information about the desired HTTP method, such as GET, POST, PUT, DELETE, etc.
 	// The value of the method field can be accessed using the Method() `method`.
@@ -162,7 +161,7 @@ func NewBackendRequest(backendVO *Backend, balancedHost string, requestVO *Reque
 	return &backendRequest{
 		omitBody: omitBody,
 		host:     balancedHost,
-		path:     backendVO.Path(),
+		path:     UrlPath(backendVO.Path()),
 		method:   backendVO.Method(),
 		header:   header,
 		params:   params,
@@ -436,7 +435,7 @@ func (b *backendRequest) ModifyHeader(header Header) *backendRequest {
 // ModifyParams creates a new backendRequest with modified path and params.
 // It takes in the path string and params Params as arguments and returns a new backendRequest
 // with the original values for host, method, header, query, and body, but with the modified path and params.
-func (b *backendRequest) ModifyParams(path string, params Params) *backendRequest {
+func (b *backendRequest) ModifyParams(path UrlPath, params Params) *backendRequest {
 	return &backendRequest{
 		host:   b.host,
 		path:   path,
@@ -483,27 +482,27 @@ func (b *backendRequest) Host() string {
 }
 
 // Path returns the path string of the backendRequest instance.
-func (b *backendRequest) Path() string {
+func (b *backendRequest) Path() UrlPath {
 	return b.path
 }
 
-// Url constructs the URL string for the backend request instance.
-// It replaces the path placeholders with their corresponding values in the params map.
-// The final URL is formed by concatenating the host and the modified path.
+// Url returns the fully constructed URL for the backendRequest instance.
+// It replaces any path parameters in the path with the corresponding values from the params map.
+// It then concatenates the host and modified path to construct the URL.
+// The returned URL is a string representation of the complete URL for the request.
 func (b *backendRequest) Url() string {
 	// aqui vamos dar o replace nos keys /users/:key para /users/2
 	path := b.path
 	for key, value := range b.params {
-		paramUrl := fmt.Sprintf(":%s", key)
-		if helper.Contains(b.path, paramUrl) {
-			path = strings.ReplaceAll(path, paramUrl, value)
+		if path.ContainsParam(key) {
+			path = path.FillParamValue(key, value)
 		}
 	}
-
 	// retornamos a url para req
-	return fmt.Sprint(b.host, path)
+	return fmt.Sprint(b.host, path.String())
 }
 
+// Method returns the method of the backendRequest instance.
 func (b *backendRequest) Method() string {
 	return b.method
 }
@@ -574,12 +573,23 @@ func (b *backendRequest) Http(ctx context.Context) (*http.Request, error) {
 	return httpRequest, nil
 }
 
+// Eval returns a map[string]any with the evaluated values of the backendRequest instance:
+//   - "header": The header field of the backendRequest.
+//   - "params": The params field of the backendRequest.
+//   - "query": The query field of the backendRequest.
+//   - "body": The Interface method of the body field of the backendRequest.
+//
+// The map is then returned.
 func (b *backendRequest) Eval() any {
+	var evalBody any
+	if helper.IsNotNil(evalBody) {
+		evalBody = b.body.Interface()
+	}
 	return map[string]any{
 		"header": b.header,
 		"params": b.params,
 		"query":  b.query,
-		"body":   b.body.Interface(),
+		"body":   evalBody,
 	}
 }
 
@@ -625,6 +635,7 @@ func (b *backendResponse) ModifyBody(body *Body) *backendResponse {
 	}
 }
 
+// Ok returns a boolean indicating if the statusCode of the backendResponse instance is within the range 200-299.
 func (b *backendResponse) Ok() bool {
 	return helper.IsGreaterThanOrEqual(b.statusCode, 200) && helper.IsLessThanOrEqual(b.statusCode, 299)
 }
@@ -660,18 +671,23 @@ func (b *backendResponse) Body() *Body {
 	return b.body
 }
 
-// GroupResponseByType returns true if the body of the backendResponse is text or if the value of the body is a slice.
+// Group returns the value of the group field of the backendResponse instance.
+func (b *backendResponse) Group() bool {
+	return b.group
+}
+
+// GroupResponseByType returns true if the backendResponse instance should be grouped,
+// either by setting the groupResponse field to true or by the value of the body being a text or a slice.
 // Otherwise, it returns false.
 func (b *backendResponse) GroupResponseByType() bool {
 	body := b.Body()
-	bodyValue := body.Bytes()
-	return body.IsText() || helper.IsSlice(bodyValue)
+	return helper.IsNotNil(body) && body.IsText() || helper.IsSlice(body.Bytes())
 }
 
 // GroupResponse returns true if the backendResponse instance should be grouped, either by setting the groupResponse
 // field to true or by the value of the body being a text or a slice. Otherwise, it returns false.
 func (b *backendResponse) GroupResponse() bool {
-	return b.group || b.GroupResponseByType()
+	return b.Group() || b.GroupResponseByType()
 }
 
 // Eval returns a map containing the evaluated fields of the backendResponse instance.
@@ -679,9 +695,13 @@ func (b *backendResponse) GroupResponse() bool {
 // the "header" field, which represents the body fields of the response, and the "body" field, which represents
 // the body of the response as an interface{} type.
 func (b *backendResponse) Eval() any {
+	var evalBody any
+	if helper.IsNotNil(evalBody) {
+		evalBody = b.body.Interface()
+	}
 	return map[string]any{
 		"statusCode": b.statusCode,
 		"header":     b.header,
-		"body":       b.body.Interface(),
+		"body":       evalBody,
 	}
 }

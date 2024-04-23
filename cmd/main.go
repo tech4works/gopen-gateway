@@ -41,17 +41,34 @@ import (
 	"time"
 )
 
-// TODO: pensarmos em futuramente ter backends para chamadas paralelas
-
+// gopenJsonResult is a constant string representing the filepath of the Gopen JSON result file.
 const gopenJsonResult = "./gopen.json"
+
+// gopenJsonSchema is a constant string representing the URI of the JSON schema file.
 const gopenJsonSchema = "file://./json-schema.json"
 
+// loggerOptions is the configuration options for the logger package.
+// It specifies the custom text to be displayed after the log prefix.
 var loggerOptions = logger.Options{
 	CustomAfterPrefixText: "CMD",
 }
 
+// gopenApp is an instance of the app.Gopen interface that represents the functionality of a Gopen server.
+// It is used to start and shutdown the Gopen application by invoking its ListerAndServer() and
+// Shutdown(ctx context.Context) error methods.
 var gopenApp app.Gopen
 
+// main is the entry point of the application.
+// It starts the application by performing the following steps:
+// 1. Prints a starting message using printInfoLog.
+// 2. Reads the environment argument from command line.
+// 3. Loads the default environment variables for Gopen using loadGopenDefaultEnvs.
+// 4. Loads the environment variables indicated by the env argument using loadGopenEnvs.
+// 5. Builds the Gopen configuration DTO by calling loadGopenJson.
+// 6. Starts the application by calling startApp in a separate goroutine.
+// 7. Waits for interrupt signal to stop the application.
+// 8. Removes the Gopen JSON result file using removeGopenJsonResult.
+// 9. Prints a message indicating the application has stopped using logger.
 func main() {
 	printInfoLog("Starting..")
 
@@ -499,18 +516,22 @@ func getFileJsonUri(env string) string {
 	return fmt.Sprintf("./gopen/%s/.json", env)
 }
 
+// printInfoLog prints an informational log message using the logger package.
 func printInfoLog(msg ...any) {
 	logger.InfoOpts(loggerOptions, msg...)
 }
 
+// printInfoLogf is a function that prints an information log message with formatting capabilities.
 func printInfoLogf(format string, msg ...any) {
 	logger.InfoOptsf(format, loggerOptions, msg...)
 }
 
+// printWarningLog prints a warning log message using the logger package.
 func printWarningLog(msg ...any) {
 	logger.WarningOpts(loggerOptions, msg...)
 }
 
+// printWarningLogf logs a warning message with the given format and arguments using the logger package.
 func printWarningLogf(format string, msg ...any) {
 	logger.WarningOptsf(format, loggerOptions, msg...)
 }

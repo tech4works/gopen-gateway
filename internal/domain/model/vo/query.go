@@ -34,28 +34,61 @@ func NewQuery(httpQuery url.Values) Query {
 	return Query(httpQuery)
 }
 
-// Add appends the given value to the slice associated with the given key in a new copy of the Query map.
-// If the key does not exist in the original Query map, a new slice containing only the given value will be created.
+// Add appends the values to the slice associated with the given key in a new copy of the Query map.
+// If the key does not exist in the original Query map, it creates a new key-value pair with the provided values.
 // The new copy of the Query map is then returned.
-func (q Query) Add(key, value string) (r Query) {
+func (q Query) Add(key string, values []string) (r Query) {
 	r = q.copy()
-	r[key] = append(r[key], value)
+	r[key] = append(r[key], values...)
 	return r
 }
 
-// Set sets the value of the given key in a new copy of the Query map.
-// The value is a string that will be stored in a new single-element string slice.
+// Append appends the values to the slice associated with the given key in a new copy of the Query map.
+// If the key does not exist in the original Query map, it returns the original Query map without any modifications.
 // The new copy of the Query map is then returned.
-func (q Query) Set(key, value string) (r Query) {
+func (q Query) Append(key string, values []string) Query {
+	if q.NotExists(key) {
+		return q
+	}
+	return q.Add(key, values)
+}
+
+// Set sets the slice of values for the given key in a new copy of the Query map.
+// If the key does not exist in the original Query map, it creates a new key-value pair with the provided values.
+// The new copy of the Query map is then returned.
+func (q Query) Set(key string, values []string) (r Query) {
 	r = q.copy()
-	r[key] = []string{value}
+	r[key] = values
 	return r
 }
 
-// Del deletes the slice associated with the given key in a new copy of the Query map.
+// Replace replaces the slice of values associated with the given key in a new copy of the Query map.
+// If the key does not exist in the original Query map, it returns the original Query map without any modifications.
+// The new copy of the Query map is then returned.
+func (q Query) Replace(key string, values []string) Query {
+	if _, ok := q[key]; !ok {
+		return q
+	}
+	return q.Set(key, values)
+}
+
+// Rename renames a key in a new copy of the Query map by replacing the old key with the new key.
+// If the old key does not exist in the original Query map, the original Query map is returned unchanged.
+// The new copy of the Query map is then returned.
+func (q Query) Rename(oldKey, newKey string) (r Query) {
+	if q.NotExists(oldKey) {
+		return q
+	}
+	r = q.copy()
+	r[newKey] = r[oldKey]
+	delete(r, oldKey)
+	return r
+}
+
+// Delete deletes the slice associated with the given key in a new copy of the Query map.
 // If the key does not exist in the original Query map, the new copy remains unchanged.
 // The new copy of the Query map is then returned.
-func (q Query) Del(key string) (r Query) {
+func (q Query) Delete(key string) (r Query) {
 	r = q.copy()
 	delete(r, key)
 	return r
@@ -69,6 +102,19 @@ func (q Query) Get(key string) string {
 		return values[len(values)-1]
 	}
 	return ""
+}
+
+// Exists checks if the given key exists in the Query map.
+// It returns true if the key exists, and false otherwise.
+func (q Query) Exists(key string) bool {
+	_, ok := q[key]
+	return ok
+}
+
+// NotExists checks if the given key does not exist in the Query map.
+// It returns true if the key does not exist, and false if the key exists.
+func (q Query) NotExists(key string) bool {
+	return !q.Exists(key)
 }
 
 // FilterByForwarded filters the Query map by the list of forwardedQueries.
@@ -88,19 +134,8 @@ func (q Query) FilterByForwarded(forwardedQueries []string) (r Query) {
 	r = q.copy()
 	for key := range q.copy() {
 		if helper.IsNotEmpty(forwardedQueries) && helper.NotContains(forwardedQueries, key) {
-			r = q.Del(key)
+			r = q.Delete(key)
 		}
-	}
-	return r
-}
-
-// copy creates a shallow copy of the Query map.
-// It iterates over each key-value pair in the original Query map and assigns them to the new copy.
-// The copied Query map is then returned.
-func (q Query) copy() (r Query) {
-	r = Query{}
-	for key, value := range q {
-		r[key] = value
 	}
 	return r
 }
@@ -146,4 +181,15 @@ func (q Query) Encode() string {
 	}
 	// retornamos o valor da query como string
 	return buf.String()
+}
+
+// copy creates a shallow copy of the Query map.
+// It iterates over each key-value pair in the original Query map and assigns them to the new copy.
+// The copied Query map is then returned.
+func (q Query) copy() (r Query) {
+	r = Query{}
+	for key, value := range q {
+		r[key] = value
+	}
+	return r
 }

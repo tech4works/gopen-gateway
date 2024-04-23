@@ -233,7 +233,11 @@ definidas, veja abaixo um exemplo simples com todos os campos possíveis e seus 
 
 ### $schema
 
-Campo obrigatório, para o auxílio na escrita e regras do próprio json de configuração.
+Campo obrigatório, para o auxílio na escrita e regras do próprio json de configuração, único valor aceito é
+
+```
+https://raw.githubusercontent.com/GabrielHCataldo/gopen-gateway/main/json-schema.json`
+```
 
 ### version
 
@@ -665,12 +669,14 @@ respostas dos backends, veja mais sobre as regras de resposta da API Gateway cli
 
 #### endpoint.abort-if-status-codes
 
-Campo opcional, do tipo lista de inteiros, o valor padrão é vazio, indicando que qualquer backend executado no endpoint
-que tenha respondido o status code maior ou igual a `400 (Bad request)` será abortado.
+Campo opcional, do tipo lista de inteiros, o valor padrão é nulo, indicando que qualquer backend executado no endpoint
+que tenha respondido o código de status HTTP maior ou igual a `400 (Bad request)` será abortado.
 
-Caso informado, e um backend retorna o status code indicado na configuração, o endpoint será abortado, isso significa
-que os outros backends configurados após o mesmo, não serão executados, e o endpoint irá retornar a resposta do mesmo
-ao cliente final.
+Caso informado, e um backend retorna o código de status HTTP indicado na configuração, o endpoint será abortado, isso
+significa que os outros backends configurados após o mesmo, não serão executados, e o endpoint irá retornar a resposta
+do mesmo ao cliente final.
+
+Caso queira que nenhum código de status HTTP seja abortado no endpoint, apenas informe o campo vazio.
 
 Veja como o endpoint será respondido após um backend ser abortado clicando [aqui](#lógica-de-resposta).
 
@@ -1344,7 +1350,78 @@ valores, apenas se lembre que, os objetos header, query são mapas de lista de s
 
 --- 
 
-TODO:
+Quando utilizamos uma API Gateway nos perguntamos, como será retornado ao meu cliente
+a resposta desse endpoint configurado?
+
+Para facilitar o entendimento criamos esse tópico para resumir a lógica de resposta da nossa API Gateway,
+então vamos começar.
+
+### Como funciona?
+
+A API Gateway foi desenvolvida com uma inteligência e flexibilidade ao responder um endpoint, ela se baseia em dois
+pontos importantes, primeiro, na quantidade de respostas de serviços backends que foram processados, e segundo, nos
+campos de customização da resposta configurados nos objetos [endpoint](#endpointcomment) e [backend](#backendname).
+Vamos ver alguns exemplos abaixo para melhor entendimento.
+
+#### Básico
+
+Nesse exemplo, temos todas as configurações básicas de endpoint e backend
+
+```json
+{
+  "$schema": "https://raw.githubusercontent.com/GabrielHCataldo/gopen-gateway/main/json-schema.json",
+  "port": 8080,
+  "endpoints": [
+    {
+      "path": "/users/find/:key",
+      "method": "GET",
+      "backends": [
+        {
+          "hosts": [
+            "$USER_SERVICE_URL"
+          ],
+          "path": "/users/find/:key",
+          "method": "GET"
+        }
+      ]
+    }
+  ]
+}
+```
+
+Ao processar esse endpoint a resposta da API Gateway foi
+
+```
+HTTP/1.1 200 OK
+```
+
+Header
+
+```
+Content-Type: application/json
+X-Gopen-Cache: false
+X-Gopen-Complete: true
+X-Gopen-Success: true
+Date: Tue, 23 Apr 2024 11:37:26 GMT
+Content-Length: 620
+ ```
+
+Body
+
+```json
+{
+  "id": "6499b8826493f85e45eb3794",
+  "name": "Gabriel Cataldo",
+  "birthDate": "1999-01-21T00:00:00Z",
+  "gender": "MALE",
+  "currentPage": "HomePage",
+  "createdAt": "2023-06-26T16:10:42.265Z",
+  "updatedAt": "2024-03-10T20:19:03.452Z"
+}
+```
+
+Vimos que nesse exemplo básico a API Gateway serviu como um proxy redirecionando a requisição para o serviço backend
+configurado e espelhando sua resposta.
 
 Usabilidade
 -----------
@@ -1357,7 +1434,7 @@ Como contríbuir?
 ------------
 ---
 
-### Download do projeto
+### Download
 
 Para conseguir rodar o projeto primeiro faça o download da [linguagem Go](https://go.dev/dl/)
 versão 1.22 ou superior na sua máquina.
@@ -1392,16 +1469,29 @@ Veja a documentação sobre esse projeto fantástico clicando [aqui](https://git
 ### Gitflow
 
 Para inicializar o desenvolvimento, você pode criar uma branch a partir da main, para um futuro
-pull request.
-
-### Pull request
-
-Crie um PR apontando para a master, é necessário que os termos de uso sejam aceitos por parte
-do autor do PR.
+PR para a mesma.
 
 Agradecimentos
 ------------
 ---
+
+Esse projeto teve apoio de bibliotecas fantásticas, esse trecho dedico a cada uma listada
+abaixa:
+
+- [go-errors](https://github.com/GabrielHCataldo/go-errors)
+- [go-helper](https://github.com/GabrielHCataldo/go-helper)
+- [go-redis-template](https://github.com/GabrielHCataldo/go-redis-template)
+- [fsnotify](https://github.com/fsnotify/fsnotify)
+- [gin](https://github.com/gin-gonic/gin)
+- [gjson](https://github.com/tidwall/gjson)
+- [sjson](https://github.com/tidwall/sjson)
+- [uuid](https://github.com/google/uuid)
+- [ttlcache](https://github.com/jellydator/ttlcache)
+- [godotenv](https://github.com/joho/godotenv)
+- [gojsonschema](https://github.com/xeipuuv/gojsonschema)
+- [air](https://github.com/cosmtrek/air)
+
+Obrigado por contribuir para a comunidade Go e facilitar o desenvolvimento desse projeto.
 
 Licença Apache 2.0
 ------------

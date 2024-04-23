@@ -53,7 +53,7 @@ func (m modifyParam) executeRequestScope() (*Request, *Response) {
 }
 
 // localRequestPath returns the path of the current backend request in the modifyParam struct.
-func (m modifyParam) localRequestPath() string {
+func (m modifyParam) localRequestPath() UrlPath {
 	return m.request.CurrentBackendRequest().Path()
 }
 
@@ -76,7 +76,7 @@ func (m modifyParam) localRequestParams() Params {
 // The 'localParams' represents the new local parameters to be used for the backend request.
 //
 // This method is used to modify the parameters of a local backend request with new parameters.
-func (m modifyParam) modifyLocalRequest(localPath string, localParams Params) *backendRequest {
+func (m modifyParam) modifyLocalRequest(localPath UrlPath, localParams Params) *backendRequest {
 	return m.request.CurrentBackendRequest().ModifyParams(localPath, localParams)
 }
 
