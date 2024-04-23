@@ -230,13 +230,13 @@
         "response-encode": {
           "$ref": "#/definitions/response-encode"
         },
-        "beforeware": {
+        "beforewares": {
           "type": "array",
           "items": {
             "type": "string"
           }
         },
-        "afterware": {
+        "afterwares": {
           "type": "array",
           "items": {
             "type": "string"
