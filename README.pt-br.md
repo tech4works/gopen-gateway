@@ -1449,7 +1449,7 @@ Body
 ```
 
 Vimos que no exemplo a API Gateway serviu como um proxy redirecionando a requisição para o serviço backend configurado e
-espelhando sua resposta.
+espelhando seu body de resposta, e agregando seus valores no cabeçalho de resposta tenha.
 
 Nesse mesmo exemplo vamos forçar um cenário de infelicidade na resposta do backend, veja:
 
@@ -1595,7 +1595,7 @@ Vimos que a resposta também foi o espelho do retorno do afterware `increment-at
 chamada de um serviço backend do endpoint, pois caiu na regra de resposta abortada, então, todas as outras respostas
 dos outros backends foram ignoradas e apenas foi retornado a resposta do backend abortado.
 
-Veja mais sobre a [lógica de resposta abortada](#lógica-de-resposta-abortada).
+Veja mais sobre a [resposta abortada](#resposta-abortada).
 
 #### Múltiplos backends
 
@@ -1613,19 +1613,19 @@ Json de configuração
       "method": "GET",
       "backends": [
         {
-          "hosts": [
-            "$DEVICE_SERVICE_URL"
-          ],
-          "path": "/devices",
-          "method": "PUT"
-        },
-        {
           "name": "user",
           "hosts": [
             "$USER_SERVICE_URL"
           ],
           "path": "/users/find/:key",
           "method": "GET"
+        },
+        {
+          "hosts": [
+            "$DEVICE_SERVICE_URL"
+          ],
+          "path": "/devices",
+          "method": "PUT"
         },
         {
           "name": "version",
@@ -1665,17 +1665,6 @@ Body
   {
     "ok": true,
     "code": 200,
-    "id": "661535275d6fc736d831c754",
-    "usersId": [
-      "6499b8826493f85e45eb3793"
-    ],
-    "status": "ACTIVE",
-    "createdAt": "2024-04-09T12:31:35.907Z",
-    "updatedAt": "2024-04-23T23:49:12.759Z"
-  },
-  {
-    "ok": true,
-    "code": 200,
     "id": "6499b8826493f85e45eb3794",
     "name": "Gabriel Cataldo",
     "birthDate": "1999-01-21T00:00:00Z",
@@ -1683,6 +1672,17 @@ Body
     "currentPage": "HomePage",
     "createdAt": "2023-06-26T16:10:42.265Z",
     "updatedAt": "2024-03-10T20:19:03.452Z"
+  },
+  {
+    "ok": true,
+    "code": 200,
+    "id": "661535275d6fc736d831c754",
+    "usersId": [
+      "6499b8826493f85e45eb3793"
+    ],
+    "status": "ACTIVE",
+    "createdAt": "2024-04-09T12:31:35.907Z",
+    "updatedAt": "2024-04-23T23:49:12.759Z"
   },
   {
     "ok": true,
@@ -1751,15 +1751,178 @@ a API Gateway responderá `201 Created`.
 
 a API Gateway responderá `100 Continue`.
 
-Último ponto a ser destacado, é que caso um desses retornos de backend entre no cenário em que o endpoint
-aborta a resposta, ele não seguirá nenhuma diretriz mostrada no tópico em questão e sim 
-[lógica de resposta abortada](#lógica-de-resposta-abortada).
+Quarto ponto a ser destacado, é que como o endpoint tem múltiplas respostas, consequentemente temos múltiplos cabeçalhos
+de resposta, a API Gateway irá agregar todos os campos e valores para o cabeçalho da resposta final, veja mais sobre o
+comportamento do cabeçalho de resposta clicando [aqui](#header-de-resposta).
+
+Último ponto a ser destacado, é que caso um desses retornos de backend entre no cenário em que o endpoint aborta a
+resposta, ele não seguirá nenhuma diretriz mostrada no tópico em questão e sim
+[lógica de resposta abortada](#resposta-abortada).
 
 #### Múltiplos backends agregados
 
-Nesse exemplo iremos
+Nesse exemplo iremos utilizar uma configuração parecida com json de configuração do exemplo acima, porém com
+campo [endpoint](#endpointaggregate-responses) com o valor `true`.
 
+Json de configuração
 
+```json
+{
+  "$schema": "https://raw.githubusercontent.com/GabrielHCataldo/gopen-gateway/main/json-schema.json",
+  "port": 8080,
+  "endpoints": [
+    {
+      "path": "/users/find/:key",
+      "method": "GET",
+      "aggregate-responses": true,
+      "backends": [
+        {
+          "name": "user",
+          "hosts": [
+            "$USER_SERVICE_URL"
+          ],
+          "path": "/users/find/:key",
+          "method": "GET"
+        },
+        {
+          "hosts": [
+            "$DEVICE_SERVICE_URL"
+          ],
+          "path": "/devices",
+          "method": "PUT"
+        },
+        {
+          "name": "version",
+          "hosts": [
+            "$USER_SERVICE_URL"
+          ],
+          "path": "/version",
+          "method": "GET"
+        }
+      ]
+    }
+  ]
+}
+```
+
+Ao processarmos o endpoint a resposta da API Gateway foi
+
+```
+HTTP/1.1 200 OK
+```
+
+Header ([Veja sobre os cabeçalhos de resposta aqui](#cabeçalhos))
+
+```
+Content-Type: application/json
+X-Gopen-Cache: false
+X-Gopen-Complete: true
+X-Gopen-Success: true
+Date: Wed, 24 Apr 2024 10:57:31 GMT
+Content-Length: 665
+```
+
+Body
+
+```json
+{
+  "id": [
+    "6499b8826493f85e45eb3794",
+    "661535275d6fc736d831c754"
+  ],
+  "name": "Gabriel Cataldo",
+  "gender": "MALE",
+  "currentPage": "HomePage",
+  "lastSeenAt": "2024-02-19T11:43:27.324Z",
+  "createdAt": [
+    "2024-04-09T12:31:35.907Z",
+    "2023-06-26T16:10:42.265Z"
+  ],
+  "updatedAt": [
+    "2024-04-24T11:04:32.184Z",
+    "2024-03-10T20:19:03.452Z"
+  ],
+  "usersId": [
+    "6499b8826493f85e45eb3793"
+  ],
+  "status": "ACTIVE",
+  "version": "v1.0.0"
+}
+```
+
+Vimos a única diferença de resposta do tópico [Múltiplos backends](#múltiplos-backends) é que ele agregou os valores
+de todas as respostas em um só json, e os campos que se repetiram foram agregados os valores em lista.
+
+As demais regras como código de status HTTP, a conversão forçada para json, entre outras, seguem as mesmas regras
+mencionadas no tópico [Múltiplos backends](#múltiplos-backends).
+
+No exemplo podemos deixar a resposta agregada um pouco mais organizada, com isso vamos alterar o trecho do nosso
+segundo backend adicionando o campo [backend.extra-config.group-response](#backendextra-configgroup-response) com o
+valor `true` e dar um nome a ele, veja o trecho do json de configuração modificado
+
+```json
+{
+  "name": "device",
+  "hosts": [
+    "$DEVICE_SERVICE_URL"
+  ],
+  "path": "/devices",
+  "method": "PUT",
+  "extra-config": {
+    "group-response": true
+  }
+}
+```
+
+Ao processar novamente o endpoint obtivemos a seguinte resposta
+
+```
+HTTP/1.1 200 OK
+```
+
+Header ([Veja sobre os cabeçalhos de resposta aqui](#cabeçalhos))
+
+```
+Content-Type: application/json
+X-Gopen-Cache: false
+X-Gopen-Complete: true
+X-Gopen-Success: true
+Date: Wed, 24 Apr 2024 11:23:07 GMT
+Content-Length: 697
+```
+
+Body
+
+```json
+{
+  "id": "6499b8826493f85e45eb3793",
+  "name": "Gabriel Cataldo",
+  "birthDate": "1999-01-21T00:00:00Z",
+  "gender": "MALE",
+  "currentPage": "HomePage",
+  "lastSeenAt": "2024-02-19T11:43:27.324Z",
+  "createdAt": "2023-06-26T16:10:42.265Z",
+  "updatedAt": "2024-03-10T20:19:03.452Z",
+  "device": {
+    "id": "661535275d6fc736d831c754",
+    "usersId": [
+      "6499b8826493f85e45eb3793"
+    ],
+    "status": "ACTIVE",
+    "createdAt": "2024-04-09T12:31:35.907Z",
+    "updatedAt": "2024-04-24T11:23:07.832Z"
+  },
+  "version": "v1.0.0"
+}
+```
+
+Com essa configuração vimos que nossa resposta agregada ficou mais organizada, e como é importante entender sobre
+o [json de configuração](#json-de-configuração) e seus campos, para que o GOPEN API Gateway atenda melhor suas
+necessidades.
+
+### Resposta abortada
+
+### Header de resposta
 
 Usabilidade
 -----------
