@@ -60,17 +60,17 @@ type Endpoint struct {
 	// abortIfStatusCodes represents a slice of integers representing the HTTP status codes
 	// for which the API endpoint should abort. It is a field in the Endpoint struct.
 	abortIfStatusCodes *[]int
-	// beforeware represents a slice of strings containing the names of the beforeware middlewares that should be
+	// beforewares represents a slice of strings containing the names of the beforewares middlewares that should be
 	// applied before processing the API endpoint.
-	beforeware []string
-	// afterware represents the configuration for the afterware middlewares to apply after processing the API endpoint.
-	// It is a slice of strings representing the names of the afterware middlewares to apply.
-	// The names specify the behavior and settings of each afterware middleware.
+	beforewares []string
+	// afterwares represents the configuration for the afterwares middlewares to apply after processing the API endpoint.
+	// It is a slice of strings representing the names of the afterwares middlewares to apply.
+	// The names specify the behavior and settings of each afterwares middleware.
 	// If not provided, the default value is an empty slice.
-	// The afterware middleware is executed after processing the API endpoint, allowing for modification or
+	// The afterwares middleware is executed after processing the API endpoint, allowing for modification or
 	// transformation of the response or performing any additional actions.
-	// Afterware can be used for logging, error handling, response modification, etc.
-	afterware []string
+	// Afterwares can be used for logging, error handling, response modification, etc.
+	afterwares []string
 	// Backends represents the backend configurations for an API endpoint in the Gopen application.
 	// It is a slice of Backend structs.
 	backends []Backend
@@ -104,8 +104,8 @@ func newEndpoint(endpointDTO dto.Endpoint) Endpoint {
 		responseEncode:     endpointDTO.ResponseEncode,
 		aggregateResponses: endpointDTO.AggregateResponses,
 		abortIfStatusCodes: endpointDTO.AbortIfStatusCodes,
-		beforeware:         endpointDTO.Beforeware,
-		afterware:          endpointDTO.Afterware,
+		beforewares:        endpointDTO.Beforewares,
+		afterwares:         endpointDTO.Afterwares,
 		backends:           backends,
 	}
 }
@@ -137,8 +137,8 @@ func (e *Endpoint) fillDefaultValues(gopenVO *Gopen) Endpoint {
 		responseEncode:     e.responseEncode,
 		aggregateResponses: e.aggregateResponses,
 		abortIfStatusCodes: e.abortIfStatusCodes,
-		beforeware:         e.beforeware,
-		afterware:          e.afterware,
+		beforewares:        e.beforewares,
+		afterwares:         e.afterwares,
 		backends:           e.backends,
 	}
 }
@@ -207,21 +207,21 @@ func (e *Endpoint) HasCache() bool {
 	return helper.IsNotNil(e.cache) && e.cache.enabled
 }
 
-// Beforeware returns the slice of strings representing the beforeware keys configured for the Endpoint.Beforeware
+// Beforewares returns the slice of strings representing the beforeware keys configured for the Endpoint.Beforewares
 // middlewares are executed before the main backends.
-func (e *Endpoint) Beforeware() []string {
-	return e.beforeware
+func (e *Endpoint) Beforewares() []string {
+	return e.beforewares
+}
+
+// Afterwares returns the slice of strings representing the afterware keys configured for the Endpoint.Afterwares
+// middlewares are executed after the main backends.
+func (e *Endpoint) Afterwares() []string {
+	return e.afterwares
 }
 
 // Backends returns the slice of backends in the Endpoint struct.
 func (e *Endpoint) Backends() []Backend {
 	return e.backends
-}
-
-// Afterware returns the slice of strings representing the afterware keys configured for the Endpoint.Afterware
-// middlewares are executed after the main backends.
-func (e *Endpoint) Afterware() []string {
-	return e.afterware
 }
 
 // CountAllBackends calculates the total number of beforeware, backends, and afterware in the Endpoint struct.
@@ -232,18 +232,18 @@ func (e *Endpoint) CountAllBackends() int {
 
 // CountBeforewares returns the number of beforewares in the Endpoint struct.
 func (e *Endpoint) CountBeforewares() int {
-	if helper.IsNil(e.Beforeware()) {
+	if helper.IsNil(e.Beforewares()) {
 		return 0
 	}
-	return len(e.Beforeware())
+	return len(e.Beforewares())
 }
 
 // CountAfterwares returns the number of afterwares in the Endpoint struct.
 func (e *Endpoint) CountAfterwares() int {
-	if helper.IsNil(e.Afterware()) {
+	if helper.IsNil(e.Afterwares()) {
 		return 0
 	}
-	return len(e.Afterware())
+	return len(e.Afterwares())
 }
 
 // CountBackends returns the number of backends in the Endpoint struct.

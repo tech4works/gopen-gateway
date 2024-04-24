@@ -200,17 +200,17 @@ type Endpoint struct {
 	// AbortIfStatusCodes represents a slice of integers representing the HTTP status codes
 	// for which the API endpoint should abort. It is a field in the Endpoint struct.
 	AbortIfStatusCodes *[]int `json:"abort-if-status-codes,omitempty"`
-	// Beforeware represents a slice of strings containing the names of the beforeware middlewares that should be
+	// Beforewares represents a slice of strings containing the names of the beforeware middlewares that should be
 	// applied before processing the API endpoint.
-	Beforeware []string `json:"beforeware,omitempty"`
-	// Afterware represents the configuration for the afterware middlewares to apply after processing the API endpoint.
+	Beforewares []string `json:"beforewares,omitempty"`
+	// Afterwares represents the configuration for the afterware middlewares to apply after processing the API endpoint.
 	// It is a slice of strings representing the names of the afterware middlewares to apply.
 	// The names specify the behavior and settings of each afterware middleware.
 	// If not provided, the default value is an empty slice.
 	// The afterware middleware is executed after processing the API endpoint, allowing for modification or
 	// transformation of the response or performing any additional actions.
-	// Afterware can be used for logging, error handling, response modification, etc.
-	Afterware []string `json:"afterware,omitempty"`
+	// Afterwares can be used for logging, error handling, response modification, etc.
+	Afterwares []string `json:"afterwares,omitempty"`
 	// Backends represents the backend configurations for an API endpoint in the Gopen application.
 	// It is a slice of Backend structs.
 	Backends []Backend `json:"backends,omitempty"`

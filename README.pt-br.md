@@ -1,12 +1,11 @@
 <img src="assets/logo.png" alt="">
 
 [![Project status](https://img.shields.io/badge/version-v1.0.0_beta-yellow.svg)](https://github.com/GabrielHCataldo/gopen-gateway/releases/tag/v1.0.0-beta)
+[![Texto de exemplo para imagem](https://img.shields.io/badge/%F0%9F%8F%90-playground-9900cc.svg)](https://github.com/GabrielHCataldo/gopen-gateway)
 [![Open Source Helpers](https://www.codetriage.com/gabrielhcataldo/gopen-gateway/badges/users.svg)](https://www.codetriage.com/gabrielhcataldo/gopen-gateway)
-[![TODOs](https://badgen.net/https/api.tickgit.com/badgen/github.com/GabrielHCataldo/gopen-gateway)](https://www.tickgit.com/browse?repo=github.com/GabrielHCataldo/gopen-gateway)
 [![Go Report Card](https://goreportcard.com/badge/github.com/GabrielHCataldo/gopen-gateway)](https://goreportcard.com/report/github.com/GabrielHCataldo/gopen-gateway)
 [![GoDoc](https://godoc.org/github/GabrielHCataldo/gopen-gateway?status.svg)](https://pkg.go.dev/github.com/GabrielHCataldo/gopen-gateway/helper)
-
-[//]: # ([![build workflow]&#40;https://github.com/GabrielHCataldo/gopen-gateway/actions/workflows/go.yml/badge.svg&#41;]&#40;https://github.com/GabrielHCataldo/gopen-gateway/actions&#41;)
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FGabrielHCataldo%2Fgopen-gateway.svg?type=small)](https://app.fossa.com/projects/git%2Bgithub.com%2FGabrielHCataldo%2Fgopen-gateway?ref=badge_small)
 
 ---
 
@@ -194,9 +193,10 @@ definidas, veja abaixo um exemplo simples com todos os campos possíveis e seus 
       "response-encode": "JSON",
       "aggregate-responses": false,
       "abort-if-status-codes": [],
-      "beforeware": [
+      "beforewares": [
         "save-device"
       ],
+      "afterwares": [],
       "backends": [
         {
           "@comment": "Serviço de backend responsável por obter o usuário pela chave.",
@@ -507,7 +507,7 @@ permite receber nas requisições.
 
 Campo opcional, é responsável pela configuração de seus middlewares de aplicação, é um mapa com chaves
 em string mencionando o nome do seu middleware, esse nome poderá ser utilizado em seus [endpoints](#endpoints)
-como `beforeware` e `afterware`.
+como `beforewares` e `afterwares`.
 
 O valor da chave é um objeto de [backend](#backendname), porém, com uma observação, esse objeto terá
 sua resposta de sucesso omitida automáticamente pelo endpoint, já que respostas de sucesso de middlewares não são
@@ -517,7 +517,7 @@ podendo ser manipulada.
 Por exemplo, um `beforeware` quando mencionado no endpoint, ele será utilizado como middleware de pré-requisições, isto
 é, ele será chamado antes dos backends principais do endpoint, então podemos, por exemplo, ter um middleware
 de manipulação de device, como no json de configuração acima, aonde ele irá chamar esse backend de middleware
-configurado no endpoint como `beforeware`, validando e salvando o dispositivo a partir de informações do header da
+configurado no endpoint como `beforewares`, validando e salvando o dispositivo a partir de informações do header da
 requisição, caso o backend responda um código de status de falha, no exemplo, o gateway abortará todos os backends
 seguintes retornando o que o backend de device respondeu, caso tenha retornado um código de status de sucesso, ele irá
 modificar o header de todas as requisições seguintes (`propagate:true`), adicionando o campo `X-Device-Id`, com o valor
@@ -525,9 +525,8 @@ do id do body de resposta do próprio backend, podendo ser utilizado nos outros 
 
 Para saber mais sobre os `modifiers` [veja](#backendmodifiers).
 
-Para entender melhor essa ferramenta poderosa, na prática, veja os exemplos de middlewares usados como
-`beforeware` e `afterware` feitos no projeto
-de [playground](https://github.com/GabrielHCataldo/gopen-gateway-playground).
+Para entender melhor essa ferramenta poderosa, na prática, veja os exemplos de middlewares usados como `beforewares`
+e `afterwares` feitos no projeto de [playground](https://github.com/GabrielHCataldo/gopen-gateway-playground).
 
 ### endpoints
 
@@ -680,7 +679,7 @@ Caso queira que nenhum código de status HTTP seja abortado no endpoint, apenas 
 
 Veja como o endpoint será respondido após um backend ser abortado clicando [aqui](#lógica-de-resposta).
 
-#### endpoint.beforeware
+#### endpoint.beforewares
 
 Campo opcional, do tipo lista de string, o valor padrão é vazio, indicando que o endpoint não tem nenhum middleware
 de pré-requisições.
@@ -690,7 +689,7 @@ em string da posição a ser executada estiver configurada no campo [middlewares
 executado
 o backend configurado no mesmo. Caso contrário irá ignorar a posição apenas imprimindo um log de atenção.
 
-#### endpoint.afterware
+#### endpoint.afterwares
 
 Campo opcional, do tipo lista de string, o valor padrão é vazio, indicando que o endpoint não tem nenhum middleware
 de pós-requisições.
@@ -943,13 +942,19 @@ Valores aceitos:
 `ADD`: Adiciona a chave informada no campo [header.key](#headerkey) caso não exista, e agrega o valor informado no
 campo [header.value](#headervalue).
 
-`SET`: Modifica o valor da chave informada no campo [header.key](#headerkey) pelo valor passado no
+`APD`: Acrescenta o valor informado no campo [header.value](#headervalue) caso a chave informada no
+campo  [header.key](#headerkey) exista.
+
+`SET`: Define o valor da chave informada no campo [header.key](#headerkey) pelo valor passado no
 campo [header.value](#headervalue).
+
+`RPL`: Substitui o valor da chave informada no campo [header.key](#headerkey) pelo valor passado no
+campo [header.value](#headervalue) caso exista.
 
 `REN`: Renomeia a chave informada no campo [header.key](#headerkey) pelo valor passado no
-campo [header.value](#headervalue).
+campo [header.value](#headervalue) caso exista.
 
-`DEL`: Remove a chave informada no campo [header.key](#headerkey).
+`DEL`: Remove a chave informada no campo [header.key](#headerkey) caso exista.
 
 #### header.key
 
@@ -997,13 +1002,16 @@ Campo obrigatório, do tipo string, responsável pela ação a ser tomada na mod
 
 Valores aceitos:
 
-`SET`: Modifica o valor da chave informada no campo [param.key](#paramkey) pelo valor passado no
+`SET`: Define o valor da chave informada no campo [param.key](#paramkey) pelo valor passado no
 campo [param.value](#paramvalue).
+
+`RPL`: Substitui o valor da chave informada no campo [header.key](#headerkey) pelo valor passado no
+campo [header.value](#headervalue) caso exista.
 
 `REN`: Renomeia a chave informada no campo [param.key](#paramkey) pelo valor passado no
-campo [param.value](#paramvalue).
+campo [param.value](#paramvalue) caso exista.
 
-`DEL`: Remove a chave informada no campo [param.key](#paramkey).
+`DEL`: Remove a chave informada no campo [param.key](#paramkey) caso exista.
 
 #### param.key
 
@@ -1053,13 +1061,19 @@ Valores aceitos:
 `ADD`: Adiciona a chave informada no campo [query.key](#querykey) caso não exista, e agrega o valor informado no
 campo [query.value](#queryvalue).
 
-`SET`: Modifica o valor da chave informada no campo [query.key](#querykey) pelo valor passado no
+`APD`: Acrescenta o valor informado no campo [query.value](#queryvalue) caso a chave informada no
+campo [query.key](#querykey) exista.
+
+`SET`: Define o valor da chave informada no campo [query.key](#querykey) pelo valor passado no
 campo [query.value](#queryvalue).
+
+`RPL`: Substitui o valor da chave informada no campo [query.key](#querykey) pelo valor passado no
+campo [query.value](#queryvalue) caso exista.
 
 `REN`: Renomeia a chave informada no campo [query.key](#querykey) pelo valor passado no
-campo [query.value](#queryvalue).
+campo [query.value](#queryvalue) caso exista.
 
-`DEL`: Remove a chave informada no campo [query.key](#querykey).
+`DEL`: Remove a chave informada no campo [query.key](#querykey) caso exista.
 
 #### query.key
 
@@ -1121,19 +1135,30 @@ Campo obrigatório, do tipo string, responsável pela ação a ser tomada na mod
 
 Valores aceitos se o body for JSON:
 
-`SET`: Modifica o valor da chave informada no campo [body.key](#bodykey) pelo valor passado no
+`ADD`: Adiciona a chave informada no campo [body.key](#bodykey) caso não exista, e agrega o valor informado no
 campo [body.value](#bodyvalue).
+
+`APD`: Acrescenta o valor informado no campo [body.value](#bodyvalue) caso a chave informada no
+campo [body.key](#bodykey) exista.
+
+`SET`: Defini o valor da chave informada no campo [body.key](#bodykey) pelo valor passado no
+campo [body.value](#bodyvalue).
+
+`RPL`: Substitui o valor da chave informada no campo [body.key](#bodykey) pelo valor passado no
+campo [body.value](#bodyvalue) caso exista.
 
 `REN`: Renomeia a chave informada no campo [body.key](#bodykey) pelo valor passado no
-campo [body.value](#bodyvalue).
+campo [body.value](#bodyvalue) caso exista.
 
-`DEL`: Remove a chave informada no campo [body.key](#bodykey).
+`DEL`: Remove a chave informada no campo [body.key](#bodykey) caso exista.
 
 Valores aceitos se o body for TEXTO:
 
 `ADD`: Agrega o valor informado no campo [body.value](#bodyvalue) ao texto.
 
-`SET`: Irá substituir todos os valores semelhantes à chave informada no campo [body.key](#bodykey) pelo valor passado no
+`APD`: Acrescenta o valor informado no campo [body.value](#bodyvalue) caso body não for vazio.
+
+`RPL`: Irá substituir todos os valores semelhantes à chave informada no campo [body.key](#bodykey) pelo valor passado no
 campo [body.value](#bodyvalue).
 
 `DEL`: Remove todos os valores semelhantes à chave informada no campo [body.key](#bodykey).
@@ -1147,12 +1172,12 @@ OBS: se torna opcional se seu body for do tipo TEXTO e [body.action](#bodyaction
 #### body.value
 
 Campo obrigatório, do tipo string, utilizado como valor a ser usado para modificar a chave indicada no
-campo [header.key](#headerkey).
+campo [body.key](#bodykey).
 
 Temos possibilidades de utilização de [valores dinâmicos](#valores-dinâmicos-para-modificação),
 e de [variáveis de ambiente](#variáveis-de-ambiente) para esse campo.
 
-OBS: se torna opcional apenas se [header.action](#headeraction) tiver o valor `DEL`.
+OBS: se torna opcional apenas se [body.action](#bodyaction) tiver o valor `DEL`.
 
 #### body.propagate
 
@@ -1272,7 +1297,7 @@ substituindo a sintaxe pelo valor, o resultado foi `991238`.
 #### Histórico temporário de requisições
 
 Caso queira obter os valores de requisição especificamente de um backend, basta adicionar o campo `history` na sintaxe,
-e a posição do seu backend na história, lembrando que os middlewares `beforeware` e `afterware` conta como um backend
+e a posição do seu backend na história, lembrando que os middlewares `beforewares` e `afterwares` conta como um backend
 no histórico, outro ponto é que só terá as informações de requisição neste campo se o backend já tenha sido processado,
 ou o backend está em processamento. Veja como ficaria um exemplo abaixo:
 
@@ -1314,7 +1339,7 @@ substituindo a sintaxe pelo valor, o resultado foi `ADMIN`.
 #### Histórico temporário de respostas
 
 Caso queira obter os valores de resposta especificamente de um backend, basta adicionar o campo `history` na sintaxe,
-e a posição do seu backend na história, lembrando que os middlewares `beforeware` e `afterware` conta como um backend
+e a posição do seu backend na história, lembrando que os middlewares `beforewares` e `afterwares` conta como um backend
 no histórico, outro ponto é que só terá as informações de resposta neste campo se o backend já tenha sido processado.
 Veja como ficaria um exemplo abaixo:
 
@@ -1363,9 +1388,12 @@ pontos importantes, primeiro, na quantidade de respostas de serviços backends q
 campos de customização da resposta configurados nos objetos [endpoint](#endpointcomment) e [backend](#backendname).
 Vamos ver alguns exemplos abaixo para melhor entendimento.
 
-#### Básico
+#### Único backend
 
-Nesse exemplo, temos todas as configurações básicas de endpoint e backend
+Nesse exemplo trabalharemos apenas com um único backend, veja como a API Gateway se comportará ao responder
+a esse cenário
+
+Json de configuração
 
 ```json
 {
@@ -1395,7 +1423,7 @@ Ao processar esse endpoint a resposta da API Gateway foi
 HTTP/1.1 200 OK
 ```
 
-Header
+Header ([Veja sobre os cabeçalhos de resposta aqui](#cabeçalhos))
 
 ```
 Content-Type: application/json
@@ -1404,7 +1432,7 @@ X-Gopen-Complete: true
 X-Gopen-Success: true
 Date: Tue, 23 Apr 2024 11:37:26 GMT
 Content-Length: 620
- ```
+```
 
 Body
 
@@ -1420,15 +1448,325 @@ Body
 }
 ```
 
-Vimos que nesse exemplo básico a API Gateway serviu como um proxy redirecionando a requisição para o serviço backend
-configurado e espelhando sua resposta.
+Vimos que no exemplo a API Gateway serviu como um proxy redirecionando a requisição para o serviço backend configurado e
+espelhando sua resposta.
+
+Nesse mesmo exemplo vamos forçar um cenário de infelicidade na resposta do backend, veja:
+
+```
+HTTP/1.1 404 Not Found
+```
+
+Header ([Veja sobre os cabeçalhos de resposta aqui](#cabeçalhos))
+
+```
+Content-Type: application/json
+X-Gopen-Cache: false
+X-Gopen-Complete: true
+X-Gopen-Success: false
+Date: Tue, 23 Apr 2024 21:56:33 GMT
+Content-Length: 235
+```
+
+Body
+
+```json
+{
+  "file": "datastore/user.go",
+  "line": 227,
+  "endpoint": "/users/find/gabrielcataldo.adma@gmail.com",
+  "message": "user not found"
+}
+```
+
+Neste caso a API Gateway também espelhou a resposta da única chamada de backend do endpoint.
+
+#### Utilizando middlewares
+
+Nesse exemplo, vamos utilizar os middlewares de [beforewares](#endpointbeforewares) e [afterwares](#endpointafterwares),
+como esses backends são omitidos ao cliente final se tiverem sucesso, vamos simular uma chamada com o device bloqueado
+para que o [beforeware](#endpointbeforewares) retorne um erro, e depois um [afterware](#endpointafterwares) que
+responderá também um erro, pois não existe, vamos lá!
+
+Json de configuração
+
+```json
+{
+  "$schema": "https://raw.githubusercontent.com/GabrielHCataldo/gopen-gateway/main/json-schema.json",
+  "port": 8080,
+  "middlewares": {
+    "save-device": {
+      "hosts": [
+        "$DEVICE_SERVICE_URL"
+      ],
+      "path": "/devices",
+      "method": "PUT"
+    },
+    "increment-attempts": {
+      "hosts": [
+        "$SECURITY_SERVICE_URL"
+      ],
+      "path": "/attempts",
+      "method": "POST"
+    }
+  },
+  "endpoints": [
+    {
+      "path": "/users/find/:key",
+      "method": "GET",
+      "beforewares": [
+        "save-device"
+      ],
+      "afterwares": [
+        "increment-attempts"
+      ],
+      "backends": [
+        {
+          "hosts": [
+            "$USER_SERVICE_URL"
+          ],
+          "path": "/users/find/:key",
+          "method": "GET"
+        }
+      ]
+    }
+  ]
+}
+```
+
+Ao processar esse endpoint de exemplo simulando o erro na chamada de [beforeware](#endpointbeforewares) a resposta da
+API Gateway foi
+
+```
+HTTP/1.1 403 Forbidden
+```
+
+Header ([Veja sobre os cabeçalhos de resposta aqui](#cabeçalhos))
+
+```
+Content-Type: application/json
+X-Gopen-Cache: false
+X-Gopen-Complete: false
+X-Gopen-Success: true
+Date: Tue, 23 Apr 2024 23:02:09 GMT
+Content-Length: 154
+```
+
+Body
+
+```json
+{
+  "file": "service/device.go",
+  "line": 49,
+  "endpoint": "/devices",
+  "message": "unprocessed entity: device already exists and is not active"
+}
+```
+
+Vimos que a resposta foi o espelho do retorno do beforeware `save-device`, pois como o mesmo retornou
+falha `403 (Forbidden)`, o endpoint abortou, não chamando os backends seguintes, lembrando que você
+pode configurar os códigos de status HTTP que vão ser abortados pelo seu endpoint, basta preencher o
+campo [endpoint.abort-if-status-codes](#endpointabort-if-status-codes).
+
+No seguinte exemplo iremos forçar um erro no afterware `increment-attempts` a da API Gateway resposta foi
+
+```
+HTTP/1.1 404 Not Found
+```
+
+Header ([Veja sobre os cabeçalhos de resposta aqui](#cabeçalhos))
+
+```
+Content-Type: text/plain
+X-Gopen-Cache: false
+X-Gopen-Complete: true
+X-Gopen-Success: false
+Date: Tue, 23 Apr 2024 23:16:57 GMT
+Content-Length: 18
+```
+
+Body
+
+```text
+404 page not found
+```
+
+Vimos que a resposta também foi o espelho do retorno do afterware `increment-attempts`, por mais que seja a última
+chamada de um serviço backend do endpoint, pois caiu na regra de resposta abortada, então, todas as outras respostas
+dos outros backends foram ignoradas e apenas foi retornado a resposta do backend abortado.
+
+Veja mais sobre a [lógica de resposta abortada](#lógica-de-resposta-abortada).
+
+#### Múltiplos backends
+
+Nesse exemplo iremos trabalhar com três [backends](#endpointbackends) principais no endpoint, então, vamos lá!
+
+Json de configuração
+
+```json
+{
+  "$schema": "https://raw.githubusercontent.com/GabrielHCataldo/gopen-gateway/main/json-schema.json",
+  "port": 8080,
+  "endpoints": [
+    {
+      "path": "/users/find/:key",
+      "method": "GET",
+      "backends": [
+        {
+          "hosts": [
+            "$DEVICE_SERVICE_URL"
+          ],
+          "path": "/devices",
+          "method": "PUT"
+        },
+        {
+          "name": "user",
+          "hosts": [
+            "$USER_SERVICE_URL"
+          ],
+          "path": "/users/find/:key",
+          "method": "GET"
+        },
+        {
+          "name": "version",
+          "hosts": [
+            "$USER_SERVICE_URL"
+          ],
+          "path": "/version",
+          "method": "GET"
+        }
+      ]
+    }
+  ]
+}
+```
+
+No exemplo iremos executar os três backend com sucesso, a API Gateway respondeu
+
+```
+HTTP/1.1 200 OK
+```
+
+Header ([Veja sobre os cabeçalhos de resposta aqui](#cabeçalhos))
+
+```
+Content-Type: application/json
+X-Gopen-Cache: false
+X-Gopen-Complete: true
+X-Gopen-Success: true
+Date: Tue, 23 Apr 2024 23:49:12 GMT
+Content-Length: 755
+```
+
+Body
+
+```json
+[
+  {
+    "ok": true,
+    "code": 200,
+    "id": "661535275d6fc736d831c754",
+    "usersId": [
+      "6499b8826493f85e45eb3793"
+    ],
+    "status": "ACTIVE",
+    "createdAt": "2024-04-09T12:31:35.907Z",
+    "updatedAt": "2024-04-23T23:49:12.759Z"
+  },
+  {
+    "ok": true,
+    "code": 200,
+    "id": "6499b8826493f85e45eb3794",
+    "name": "Gabriel Cataldo",
+    "birthDate": "1999-01-21T00:00:00Z",
+    "gender": "MALE",
+    "currentPage": "HomePage",
+    "createdAt": "2023-06-26T16:10:42.265Z",
+    "updatedAt": "2024-03-10T20:19:03.452Z"
+  },
+  {
+    "ok": true,
+    "code": 200,
+    "version": "v1.0.0"
+  }
+]
+```
+
+Temos alguns pontos nesse exemplo que vale ressaltar, primeiro com o formato, a API Gateway entendeu que seu endpoint
+tem múltiplas respostas e não foi utilizado o campo [endpoint.aggregate-responses](#endpointaggregate-responses)
+com o valor `true`, então ela lista as respostas como json acrescentando os seguintes campos:
+
+`ok`: Indica se a resposta do backend em questão teve o código de status HTTP entre `200` e `299`.
+
+`code`: É preenchido com código de status HTTP respondido pelo seu backend.
+
+Esses campos são apenas acrescentado se houver múltiplas respostas e o
+campo [endpoint.aggregate-responses](#endpointaggregate-responses) não for informado com o valor `true`.
+
+Segundo ponto a destacar é no trecho `"version": "v1.0.0"` do último backend, o mesmo respondeu apenas um texto no body
+de resposta que foi `v1.0.0`, porém para esse cenário como foi mencionado, a API Gateway força o parse desse valor para
+um json, adicionando um novo campo com o nome obtido na configuração [backend.name](#backendname) e com o valor do
+mesmo.
+
+Terceiro ponto é sobre o código de status HTTP, o mesmo é retornado pela maior frequência, isto é, se temos três
+retornos `200 OK` como no exemplo a API Gateway também retornará esse código. Se tivermos um retorno equalitário o
+último código de status HTTP retornado será considerado, veja os cenários possíveis dessa lógica
+
+```json
+[
+  {
+    "ok": true,
+    "code": 204
+  },
+  {
+    "ok": true,
+    "code": 200
+  },
+  {
+    "ok": true,
+    "code": 201
+  }
+]
+```
+
+a API Gateway responderá `201 Created`.
+
+```json
+[
+  {
+    "ok": true,
+    "code": 204
+  },
+  {
+    "ok": true,
+    "code": 204
+  },
+  {
+    "ok": true,
+    "code": 201
+  }
+]
+
+```
+
+a API Gateway responderá `204 No Content`.
+
+Último ponto a ser destacado, é que caso um desses retornos de backend entre no cenário em que o endpoint
+aborta a resposta, ele não seguirá nenhuma diretriz mostrada no tópico em questão e sim 
+[lógica de resposta abortada](#lógica-de-resposta-abortada).
+
+#### Múltiplos backends agregados
+
+Nesse exemplo iremos
+
+
 
 Usabilidade
 -----------
 ---
+
 Use o projeto [playground](https://github.com/GabrielHCataldo/gopen-gateway-playground) para começar a explorar e
 utilizar na prática o GOPEN API Gateway!
-
 
 Como contríbuir?
 ------------
@@ -1496,4 +1834,6 @@ Obrigado por contribuir para a comunidade Go e facilitar o desenvolvimento desse
 Licença Apache 2.0
 ------------
 ---
+
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FGabrielHCataldo%2Fgopen-gateway.svg?type=large&issueType=license)](https://app.fossa.com/projects/git%2Bgithub.com%2FGabrielHCataldo%2Fgopen-gateway?ref=badge_large&issueType=license)
 

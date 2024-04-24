@@ -87,8 +87,8 @@ func (e endpoint) Execute(ctx context.Context, executeData *vo.ExecuteEndpoint) 
 	// iteramos o beforeware, chaves configuradas para middlewares antes das requisições principais
 	requestVO, responseVO = e.processMiddlewares(
 		ctx,
-		"beforeware",
-		endpointVO.Beforeware(),
+		"beforewares",
+		endpointVO.Beforewares(),
 		gopenVO,
 		endpointVO,
 		requestVO,
@@ -109,8 +109,8 @@ func (e endpoint) Execute(ctx context.Context, executeData *vo.ExecuteEndpoint) 
 	// iteramos o afterware, chaves configuradas para middlewares depois das requisições principais
 	requestVO, responseVO = e.processMiddlewares(
 		ctx,
-		"afterware",
-		endpointVO.Afterware(),
+		"afterwares",
+		endpointVO.Afterwares(),
 		gopenVO,
 		endpointVO,
 		requestVO,

@@ -207,8 +207,8 @@ func BuildEndpointDTOFromVO(endpointVO vo.Endpoint) dto.Endpoint {
 		ResponseEncode:     endpointVO.ResponseEncode(),
 		AggregateResponses: endpointVO.AggregateResponses(),
 		AbortIfStatusCodes: endpointVO.AbortIfStatusCodes(),
-		Beforeware:         endpointVO.Beforeware(),
-		Afterware:          endpointVO.Afterware(),
+		Beforewares:        endpointVO.Beforewares(),
+		Afterwares:         endpointVO.Afterwares(),
 		Backends:           BuildBackendsDTOFromVO(endpointVO.Backends()),
 	}
 }

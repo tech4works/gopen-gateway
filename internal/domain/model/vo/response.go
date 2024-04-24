@@ -206,15 +206,14 @@ func (r *Response) Abort() bool {
 	return r.abort
 }
 
-// AbortResponse constructs a new Response object to represent an aborted response.
-// It obtains the last backendResponse from the history of the original Response object.
-// It checks if all backends of the endpoint have been processed.
-// It filters the history to include only successful responses.
-// It creates a new response header based on the completed status and success status of the filtered history.
-// It aggregates the header of the lastBackendResponseVO to the new response header.
-// It constructs the new Response object with the data of the aborted backend, including the endpoint, status code,
-// header, body, abort flag, and history.
-// The new Response object is returned.
+// AbortResponse creates a new Response object based on the last backendResponse in the history list of the Response object.
+// Retrieves the last backendResponse from the history.
+// Checks if all backends of the endpoint have been completed.
+// Creates a new header instance.
+// Aggregates the header of the aborted backend to the new header.
+// Constructs the Response object with the data from the aborted backend.
+// Sets the abort flag to true.
+// Returns the newly created Response object.
 func (r *Response) AbortResponse() *Response {
 	// obtemos a última resposta do histórico
 	lastBackendResponseVO := r.LastBackendResponse()
@@ -222,11 +221,8 @@ func (r *Response) AbortResponse() *Response {
 	// verificamos se passou por todos os backends do endpoint
 	completed := r.endpoint.Completed(r.history.Size())
 
-	// filtramos as respostas
-	filteredHistory := r.history.Filter(true)
-
 	// instanciamos o novo header
-	header := newResponseHeader(completed, filteredHistory.Success())
+	header := newResponseHeader(completed, lastBackendResponseVO.Ok())
 	// agregamos o header do backend abortado
 	header = header.Aggregate(lastBackendResponseVO.Header())
 
@@ -358,21 +354,24 @@ func (r *Response) notifyDataChanged(history responseHistory) *Response {
 	return &Response{
 		endpoint:   r.endpoint,
 		statusCode: statusCodeByHistory,
-		abort:      r.abortByLastResponse(),
+		abort:      r.abortByLastResponse(history.last()),
 		header:     header,
 		body:       bodyByHistory,
 		history:    history,
 	}
 }
 
-// abortByLastResponse retrieves the last backend response from the history
-// to determine if it needs to be aborted. If the last backend response is not nil,
-// it checks if it should be aborted by calling AbortSequencial on the endpoint
-// with the status code of the last backend response. Returns true if the backend response
-// should be aborted, otherwise returns false.
-func (r *Response) abortByLastResponse() (abortSequencial bool) {
-	// obtemos a última resposta do histórico para saber se precisa ser abortada
-	lastBackendResponseVO := r.LastBackendResponse()
+// abortByLastResponse checks if the Response object is already flagged for aborting.
+// If the Response is not flagged for aborting, it checks if the provided lastBackendResponseVO should result in a
+// sequential abort.
+// If lastBackendResponseVO is not nil, the sequential abort is determined by calling the AbortSequencial method of
+// the endpoint with the StatusCode of lastBackendResponseVO.
+// Returns true if the Response is flagged for aborting or if the sequential abort is required, false otherwise.
+func (r *Response) abortByLastResponse(lastBackendResponseVO *backendResponse) (abortSequencial bool) {
+	// se ja tiver como abort true retornamos
+	if r.Abort() {
+		return true
+	}
 
 	// verificamos sé para abortar esse backend
 	if helper.IsNotNil(lastBackendResponseVO) {
