@@ -1,23 +1,33 @@
 # Security Policy
 
+## Supported Versions
+
+| Version | Supported          |
+| ------- | ------------------ |
+| 1.0.x   | :white_check_mark: |
+| < 1.0   | :x:                |
+
 ## Reporting a Vulnerability
 
-We take security very seriously. If you have discovered a security vulnerability in our application, we appreciate your help in disclosing it to us in a responsible manner.
+We take security seriously. If you've discovered a security vulnerability within our API Gateway, we appreciate your help in responsibly reporting it to us.
 
-Please, DO NOT create an Issue reporting the vulnerability. Instead, please send an email directly to us at gabrielcataldo.adm@gmail.com.
+Publicly disclosing a vulnerability could put the entire community at risk, so we ask that you not share such information until we've had a chance to address it.
 
-We will treat your report as high priority.
+Please send us a confidential report via email to gabrielcataldo.adm@gmail.com. We'll work with you to ensure that we fully understand the issue and can address it as rapidly as possible. We treat each report as a top priority.
 
-## How vulnerabilities are managed
+## Security Related Configuration
 
-Vulnerability reports are of great importance to us, so we give them the highest priority.
+API Gateways control traffic to your microservices, so make sure they are configured in a way that minimizes security risks. Here are some tips:
 
-Upon receipt of a report:
+- Enable authentication and authorization to protect sensitive data.
+- Limit the visibility of internal networks, consider using private endpoints or VPCs.
+- Make sure your API Gateway uses HTTPS with up-to-date TLS configurations to protect data in transit.
+- Be aware of and avoid common security pitfalls, such as injection attacks.
 
-1. We will acknowledge receipt of your vulnerability report and will send you regular updates about our progress.
-2. If you correctly identified a vulnerability in our application, we commit to:
-    - Validating, responding, and fixing vulnerabilities within a certain time frame.
-    - Notifying the person who submitted the bug when it is fixed.
-    - Publicly thanking the person who discovered the issue and giving credit for finding it (if you do not want this recognition, we will certainly respect that).
+## Our Commitment
 
-Again, we ask that you do NOT share vulnerabilities publicly, instead, reach out to us via gabrielcataldo.adm@gmail.com.
+We're committed to taking all necessary measures to promptly address security-related issues. We'll keep you informed throughout the process.
+
+By working together, we can strengthen the security of the entire open-source ecosystem.
+
+Please, DO NOT share vulnerabilities publicly. Reach out to us via gabrielcataldo.adm@gmail.com.
