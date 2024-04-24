@@ -1735,11 +1735,11 @@ a API Gateway responderá `201 Created`.
 [
   {
     "ok": true,
-    "code": 204
+    "code": 100
   },
   {
     "ok": true,
-    "code": 204
+    "code": 100
   },
   {
     "ok": true,
@@ -1749,7 +1749,7 @@ a API Gateway responderá `201 Created`.
 
 ```
 
-a API Gateway responderá `204 No Content`.
+a API Gateway responderá `100 Continue`.
 
 Último ponto a ser destacado, é que caso um desses retornos de backend entre no cenário em que o endpoint
 aborta a resposta, ele não seguirá nenhuma diretriz mostrada no tópico em questão e sim 
