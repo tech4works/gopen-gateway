@@ -57,19 +57,20 @@ e ainda otimizará o seu desenvolvimento, veja abaixo todos os recursos disponí
 - Tenha mais observabilidade com o cadastro automático do trace id no header das requisições seguintes e logs bem
   estruturados.
 
-Documentação
------------
+# Documentação
+
 ---
+
 Para entender como funciona, precisamos explicar primeiro a estrutura dos ambientes dinâmicos que GOPEN aceita para sua
 configuração em json e arquivo de variáveis de ambiente, então vamos lá!
 
-### ESTRUTURA DE PASTAS
+## Estrutura de pastas
 
 Na estrutura do projeto, em sua raiz precisará ter uma pasta chamada "gopen" e dentro dela precisa ter as pastas
 contendo os nomes dos seus ambientes, você pode dar o nome que quiser, essa pasta precisará ter pelo menos o arquivo
 ".json" de configuração da API Gateway, ficará mais o menos assim, por exemplo:
 
-#### Projeto GO:
+### Projeto GO
 
     gopen-gateway
     | - cmd
@@ -82,7 +83,7 @@ contendo os nomes dos seus ambientes, você pode dar o nome que quiser, essa pas
       |   - .json
       |   - .env
 
-#### Projeto usando imagem docker:
+### Projeto usando imagem docker
 
     nome-do-seu-projeto
     | - docker-compose.yml
@@ -94,9 +95,7 @@ contendo os nomes dos seus ambientes, você pode dar o nome que quiser, essa pas
       |   - .json
       |   - .env
 
---- 
-
-### JSON DE CONFIGURAÇÃO
+## JSON de configuração
 
 Com base nesse arquivo json de configuração obtido pela env desejada a aplicação terá seus endpoints e suas regras
 definidas, veja abaixo um exemplo simples com todos os campos possíveis e seus conceitos e regras:
@@ -1191,9 +1190,7 @@ Caso informado como `true` essa modificação será propagada para os seguintes 
 
 IMPORTANTE: Esse campo só é aceito se o [escopo](#bodyscope) tiver o valor `REQUEST`.
 
----
-
-### VARIÁVEIS DE AMBIENTE
+## Variáveis de ambiente
 
 As variáveis de ambiente podem ser fácilmente instânciadas utilizando o arquivo .env, na pasta indicada pelo ambiente
 dinâmico de inicialização como mencionado no tópico [ESTRUTURA DE PASTAS](#estrutura-de-pastas).
@@ -1254,14 +1251,14 @@ Vimos que todos os valores com a sintaxe `$NOME` foram substituídos pelos seus 
 tenha sido mencionado por essa sintaxe, porém não existe nas variáveis de ambiente, o mesmo valor informado
 será mantido.
 
-#### Observação
+### Observação
 
 Nessa primeira versão podemos utilizar essa sintaxe apenas em campos do tipo string, caso queira
 [contríbuir](#como-contríbuir) com uma solução que aceitará essa sintaxe independente do tipo, ficaríamos gratos!
 
 ---
 
-### VALORES DINÂMICOS PARA MODIFICAÇÃO
+## Valores dinâmicos para modificação
 
 Podemos utilizar valores de requisição e resposta do tempo de execução do endpoint, conforme o mesmo foi configurado.
 Esses valores podem ser obtidos por uma sintaxe específica, temos as seguintes possibilidades de obtenção desses
@@ -1372,17 +1369,12 @@ valores, apenas se lembre que, os objetos header, query são mapas de lista de s
   projeto [playground](https://github.com/GabrielHCataldo/gopen-gateway-playground) que já vem com alguns exemplos de
   modificadores com valores dinâmicos.
 
-### OBSERVABILIDADE
-
---- 
+## Observabilidade
 
 TODO
 
----
 
-### LÓGICA DE RESPOSTA
-
---- 
+## LÓGICA DE RESPOSTA
 
 Quando utilizamos uma API Gateway nos perguntamos, como será retornado ao meu cliente
 a resposta desse endpoint configurado?
@@ -2073,20 +2065,27 @@ Corpo
 }
 ```
 
-####  
+#### 504 (Gateway Timeout)
 
-Usabilidade
------------
+####   
+
+####    
+
+# Usabilidade
+
 ---
 
 Use o projeto [playground](https://github.com/GabrielHCataldo/gopen-gateway-playground) para começar a explorar e
 utilizar na prática o GOPEN API Gateway!
 
-Como contríbuir?
-------------
+# Como contríbuir?
+
 ---
 
-### Download
+Ficamos felizes quando vemos a comunidade se apoiar, e projetos como esse, está de braços abertos para receber
+suas ideias, veja abaixo como participar.
+
+## Download
 
 Para conseguir rodar o projeto primeiro faça o download da [linguagem Go](https://go.dev/dl/)
 versão 1.22 ou superior na sua máquina.
@@ -2111,20 +2110,20 @@ VSCode:
 code gopen-gateway
 ```
 
-### Air
+## Air
 
 Caso queira utilizar o hot reload para otimizar no desenvolvimento, o projeto já tem o arquivo
 `.air.toml` como exemplo para você utilizar como quiser.
 
 Veja a documentação sobre esse projeto fantástico clicando [aqui](https://github.com/cosmtrek/air).
 
-### Gitflow
+## Gitflow
 
 Para inicializar o desenvolvimento, você pode criar uma branch a partir da main, para um futuro
 PR para a mesma.
 
-Agradecimentos
-------------
+# Agradecimentos
+
 ---
 
 Esse projeto teve apoio de bibliotecas fantásticas, esse trecho dedico a cada uma listada
@@ -2145,8 +2144,8 @@ abaixa:
 
 Obrigado por contribuir para a comunidade Go e facilitar o desenvolvimento desse projeto.
 
-Licença Apache 2.0
-------------
+# Licença Apache 2.0
+
 ---
 
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FGabrielHCataldo%2Fgopen-gateway.svg?type=large&issueType=license)](https://app.fossa.com/projects/git%2Bgithub.com%2FGabrielHCataldo%2Fgopen-gateway?ref=badge_large&issueType=license)
