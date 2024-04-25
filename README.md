@@ -2042,7 +2042,38 @@ foram agrupados e separados por vírgula.
 
 ### Respostas padrões
 
-#### 
+Toda API Gateway tem suas respostas padrão para cada cenário de erro, então iremos listar abaixo cada
+cenário e sua respectiva resposta HTTP:
+
+#### 502 (Bad Gateway)
+
+Esse cenário acontece quando ao tentar se comunicar com o backend, e acontece algum erro de comunicação com o host
+do mesmo.
+
+Cabeçalho
+
+```
+Content-Type: application/json
+X-Gopen-Cache: false
+X-Gopen-Complete: false
+X-Gopen-Success: false
+Date: Thu, 25 Apr 2024 01:07:36 GMT
+Content-Length: 277
+```
+
+Corpo
+
+```json
+{
+  "file": "infra/rest.go",
+  "line": 69,
+  "endpoint": "/multiple/backends/:key",
+  "message": "bad gateway error: Get \"http://192.168.1.8:8090/users/find/gabrielcataldo.adm@gmail.com\": dial tcp 192.168.1.8:8090: connect: connection refused",
+  "timestamp": "2024-04-24T22:07:36.558851-03:00"
+}
+```
+
+####  
 
 Usabilidade
 -----------
