@@ -28,11 +28,11 @@ const (
 	// XGopenCache represents the name of the "X-Gopen-Cache" HTTP header.
 	// It is used to indicate whether a cache is being used for the request.
 	XGopenCache = "X-Gopen-Cache"
-	// XGopenCacheTTL represents the name of the "X-Gopen-Cache-TTL" HTTP header.
+	// XGopenCacheTTL represents the name of the "X-Gopen-Cache-Ttl" HTTP header.
 	// It is used to indicate the time-to-live (TTL) value of a cache response,
 	// which specifies how long the response should be considered valid and can be reused.
-	// The value of X-Gopen-Cache-TTL header is typically a duration in seconds.
-	XGopenCacheTTL = "X-Gopen-Cache-TTL"
+	// The value of X-Gopen-Cache-Ttl header is typically a duration in seconds.
+	XGopenCacheTTL = "X-Gopen-Cache-Ttl"
 	// XGopenComplete represents the name of the "X-Gopen-Complete" HTTP header. It is used to indicate the completion
 	// status of a request.
 	XGopenComplete = "X-Gopen-Complete"

@@ -34,8 +34,7 @@ e ainda otimizará o seu desenvolvimento, veja abaixo todos os recursos disponí
   condições baseada em códigos de status de resposta e método HTTP para ler e salvar o mesmo.
 - Armazenamento de cache local ou global utilizando Redis.
 - Configuração de limitador de tamanho, global e local para cada endpoint, limitando o tamanho do Header, Body e
-  Multipart
-  Memory.
+  Multipart Memory.
 - Configuração de limitador de taxa, global e local para cada endpoint, limitando pelo tempo e rajada pelo IP.
 - Configuração de segurança de CORS com validações de origens, método HTTP e headers.
 - Configuração global de múltiplos middlewares, para serem usados posteriormente no endpoint caso indicado.
@@ -513,9 +512,10 @@ em string mencionando o nome do seu middleware, esse nome poderá ser utilizado 
 como `beforewares` e `afterwares`.
 
 O valor da chave é um objeto de [backend](#backendname), porém, com uma observação, esse objeto terá
-sua resposta de sucesso omitida automáticamente pelo endpoint, já que respostas de sucesso de middlewares não são
-exibidas para o cliente final HTTP, porém sua resposta será armazenada ao longo da requisição HTTP feita no endpoint,
-podendo ser manipulada.
+sua resposta caso não [abortada](#resposta-abortada), omitida automáticamente pelo endpoint, apenas seu cabeçalho de
+resposta poderá ser retornado, caso tenha, já que respostas de middlewares não são exibidas para o cliente final HTTP,
+porém, sua resposta será armazenada ao longo da requisição HTTP feita no endpoint, podendo ter seus valores de
+requisição e resposta obtidos e manipulados.
 
 Por exemplo, um `beforeware` quando mencionado no endpoint, ele será utilizado como middleware de pré-requisições, isto
 é, ele será chamado antes dos backends principais do endpoint, então podemos, por exemplo, ter um middleware
@@ -1372,6 +1372,12 @@ valores, apenas se lembre que, os objetos header, query são mapas de lista de s
   projeto [playground](https://github.com/GabrielHCataldo/gopen-gateway-playground) que já vem com alguns exemplos de
   modificadores com valores dinâmicos.
 
+### OBSERVABILIDADE
+
+--- 
+
+TODO
+
 ---
 
 ### LÓGICA DE RESPOSTA
@@ -1426,7 +1432,7 @@ Ao processar esse endpoint a resposta da API Gateway foi
 HTTP/1.1 200 OK
 ```
 
-Header ([Veja sobre os cabeçalhos de resposta aqui](#cabeçalhos))
+Cabeçalho ([Veja sobre os cabeçalhos de resposta aqui](#cabeçalho-de-resposta))
 
 ```
 Content-Type: application/json
@@ -1437,7 +1443,7 @@ Date: Tue, 23 Apr 2024 11:37:26 GMT
 Content-Length: 620
 ```
 
-Body
+Corpo
 
 ```json
 {
@@ -1460,7 +1466,7 @@ Nesse mesmo exemplo vamos forçar um cenário de infelicidade na resposta do bac
 HTTP/1.1 404 Not Found
 ```
 
-Header ([Veja sobre os cabeçalhos de resposta aqui](#cabeçalhos))
+Cabeçalho ([Veja sobre os cabeçalhos de resposta aqui](#cabeçalho-de-resposta))
 
 ```
 Content-Type: application/json
@@ -1471,7 +1477,7 @@ Date: Tue, 23 Apr 2024 21:56:33 GMT
 Content-Length: 235
 ```
 
-Body
+Corpo
 
 ```json
 {
@@ -1544,7 +1550,7 @@ API Gateway foi
 HTTP/1.1 403 Forbidden
 ```
 
-Header ([Veja sobre os cabeçalhos de resposta aqui](#cabeçalhos))
+Cabeçalho ([Veja sobre os cabeçalhos de resposta aqui](#cabeçalho-de-resposta))
 
 ```
 Content-Type: application/json
@@ -1555,7 +1561,7 @@ Date: Tue, 23 Apr 2024 23:02:09 GMT
 Content-Length: 154
 ```
 
-Body
+Corpo
 
 ```json
 {
@@ -1577,7 +1583,7 @@ No seguinte exemplo iremos forçar um erro no afterware `increment-attempts` a d
 HTTP/1.1 404 Not Found
 ```
 
-Header ([Veja sobre os cabeçalhos de resposta aqui](#cabeçalhos))
+Cabeçalho ([Veja sobre os cabeçalhos de resposta aqui](#cabeçalho-de-resposta))
 
 ```
 Content-Type: text/plain
@@ -1588,7 +1594,7 @@ Date: Tue, 23 Apr 2024 23:16:57 GMT
 Content-Length: 18
 ```
 
-Body
+Corpo
 
 ```text
 404 page not found
@@ -1650,7 +1656,7 @@ No exemplo iremos executar os três backend com sucesso, a API Gateway respondeu
 HTTP/1.1 200 OK
 ```
 
-Header ([Veja sobre os cabeçalhos de resposta aqui](#cabeçalhos))
+Cabeçalho ([Veja sobre os cabeçalhos de resposta aqui](#cabeçalho-de-resposta))
 
 ```
 Content-Type: application/json
@@ -1661,7 +1667,7 @@ Date: Tue, 23 Apr 2024 23:49:12 GMT
 Content-Length: 755
 ```
 
-Body
+Corpo
 
 ```json
 [
@@ -1712,7 +1718,7 @@ um json, adicionando um novo campo com o nome obtido na configuração [backend.
 mesmo.
 
 Terceiro ponto é sobre o código de status HTTP, o mesmo é retornado pela maior frequência, isto é, se temos três
-retornos `200 OK` como no exemplo a API Gateway também retornará esse código. Se tivermos um retorno equalitário o
+retornos `200 OK` como no exemplo a API Gateway também retornará esse código. Se tivermos um retorno igualitário o
 último código de status HTTP retornado será considerado, veja os cenários possíveis dessa lógica
 
 ```json
@@ -1756,7 +1762,7 @@ a API Gateway responderá `100 Continue`.
 
 Quarto ponto a ser destacado, é que como o endpoint tem múltiplas respostas, consequentemente temos múltiplos cabeçalhos
 de resposta, a API Gateway irá agregar todos os campos e valores para o cabeçalho da resposta final, veja mais sobre o
-comportamento do cabeçalho de resposta clicando [aqui](#header-de-resposta).
+comportamento do cabeçalho de resposta clicando [aqui](#cabeçalho-de-resposta).
 
 Último ponto a ser destacado, é que caso um desses retornos de backend entre no cenário em que o endpoint aborta a
 resposta, ele não seguirá nenhuma diretriz mostrada no tópico em questão e sim
@@ -1814,7 +1820,7 @@ Ao processarmos o endpoint a resposta da API Gateway foi
 HTTP/1.1 200 OK
 ```
 
-Header ([Veja sobre os cabeçalhos de resposta aqui](#cabeçalhos))
+Cabeçalho ([Veja sobre os cabeçalhos de resposta aqui](#cabeçalho-de-resposta))
 
 ```
 Content-Type: application/json
@@ -1825,7 +1831,7 @@ Date: Wed, 24 Apr 2024 10:57:31 GMT
 Content-Length: 665
 ```
 
-Body
+Corpo
 
 ```json
 {
@@ -1883,7 +1889,7 @@ Ao processar novamente o endpoint obtivemos a seguinte resposta
 HTTP/1.1 200 OK
 ```
 
-Header ([Veja sobre os cabeçalhos de resposta aqui](#cabeçalhos))
+Cabeçalho ([Veja sobre os cabeçalhos de resposta aqui](#cabeçalho-de-resposta))
 
 ```
 Content-Type: application/json
@@ -1894,7 +1900,7 @@ Date: Wed, 24 Apr 2024 11:23:07 GMT
 Content-Length: 697
 ```
 
-Body
+Corpo
 
 ```json
 {
@@ -1925,7 +1931,118 @@ necessidades.
 
 ### Resposta abortada
 
-### Header de resposta
+Para uma resposta ser abortada pela API Gateway, um dos backends configurados do endpoint tanto middlewares
+como os principais, ao serem processados, na sua resposta, o código de status HTTP precisa seguir valores
+no campo [endpoint.abort-if-status-codes](#endpointabort-if-status-codes) do próprio endpoint.
+
+É importante que você entenda esses dois pontos:
+
+- Ao abortar a resposta do backend, a API Gateway irá espelhar apenas a resposta do mesmo, código de status, cabeçalho e
+  corpo, sendo assim, as outras respostas já processadas serão ignoradas.
+- Mesmo o backend sendo abortado, os [modificadores](#backendmodifiers) serão processados.
+
+Indicamos utilizar essa configuração apenas quando algo fugiu do esperado, como, por exemplo, uma resposta de erro
+`500 (Internal server error)`.
+
+### Cabeçalho de resposta
+
+Na resposta, a API Gateway com exceção dos campos `Content-Length`, `Content-Type` e `Date` agrega todos valores de
+cabeçalho respondidos pelos backends configurados no endpoint, indepêndente da quantidade de backends, isso inclui
+também os [middlewares](#middlewares).
+
+#### Campos de cabeçalho padrão
+
+Também são adicionados até quatro campos no cabeçalho veja abaixo sobre os mesmos:
+
+`X-Gopen-Cache`: Caso a resposta do endpoint não seja "fresca", isto é, foi utilizado a resposta armazenada em cache,
+é retornado o valor `true`, caso contrário retorna o valor `false`.
+
+`X-Gopen-Cache-Ttl`: Caso a resposta do endpoint tenha sido feita utilizando o armazenamento em cache, ele retorna a
+duração do tempo de vida restante desse cache, caso contrário o campo não é retornado.
+
+`X-Gopen-Complete`: Caso todos os backends tenham sido processados pelo endpoint é retornado o valor `true`, caso
+contrário é retornado o valor `false`.
+
+`X-Gopen-Success`: Caso todos os backends tenham retornado sucesso, isto é, o código de status HTTP de resposta entre
+`200` a `299`, ele retorna o valor `true`, caso contrário o valor `false`.
+
+Lembrando que se a resposta de um backend for [abortada](#resposta-abortada), apenas o header do mesmo é agregado e
+considerado as regras dos campos acima.
+
+Agora vamos ver alguns exemplos de cabeçalho de retorno:
+
+#### Campos únicos de cabeçalho
+
+Cabeçalho de resposta do backend 1:
+
+```
+Content-Type: application/json
+X-Value-Id: 4ae6c92d16089e521626
+X-MS: api-user
+Date: Wed, 24 Apr 2024 11:23:07 GMT
+Content-Length: 102
+```
+
+Cabeçalho de resposta do endpoint
+
+```
+Content-Type: application/json
+X-Value-Id: 4ae6c92d16089e521626
+X-MS: api-user
+X-Gopen-Cache: false
+X-Gopen-Complete: true
+X-Gopen-Success: true
+Date: Wed, 24 Apr 2024 11:23:08 GMT
+Content-Length: 102
+```
+
+Vimos que no exemplo foram adicionados os [campos padrões](#campos-de-cabeçalho-padrão), e agregado os valores do
+cabeçalho de resposta, que foram `X-Value-Id` e `X-MS`.
+
+#### Campos duplicados de cabeçalho
+
+Cabeçalho de resposta do backend 1:
+
+```
+Content-Type: application/json
+X-Value-Id: 4ae6c92d16089e521626
+X-MS: api-user
+Date: Wed, 24 Apr 2024 11:23:07 GMT
+Content-Length: 102
+```
+
+Cabeçalho de resposta do backend 2:
+
+```
+Content-Type: application/json
+X-Value-Id: 4ae6c92d16089e521638
+X-MS: api-device
+X-MS-Success: true
+Date: Wed, 24 Apr 2024 11:23:08 GMT
+Content-Length: 402
+```
+
+Cabeçalho de resposta do endpoint
+
+```
+Content-Type: application/json
+X-Value-Id: 4ae6c92d16089e521626, 4ae6c92d16089e521638
+X-MS: api-user, api-device
+X-MS-Success: true
+X-Gopen-Cache: false
+X-Gopen-Complete: true
+X-Gopen-Success: true
+Date: Wed, 24 Apr 2024 11:23:09 GMT
+Content-Length: 504
+```
+
+Vimos que no exemplo também foram adicionados os [campos padrões](#campos-de-cabeçalho-padrão), e agregado os valores do
+cabeçalho de resposta, que foram `X-Value-Id`, `X-MS` e `X-MS-Success`, vale ressaltar que os campos que se repetiram
+foram agrupados e separados por vírgula.
+
+### Respostas padrões
+
+#### 
 
 Usabilidade
 -----------
