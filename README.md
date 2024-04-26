@@ -101,6 +101,7 @@ definidas, veja abaixo um exemplo simples com todos os campos possíveis e seus 
 ````json
 {
   "$schema": "https://raw.githubusercontent.com/GabrielHCataldo/gopen-gateway/main/json-schema.json",
+  "@comment": "Minha primeira API Gateway",
   "version": "v1.0.0",
   "port": 8080,
   "hot-reload": true,
@@ -154,8 +155,10 @@ definidas, veja abaixo um exemplo simples com todos os campos possíveis e seus 
       "method": "PUT",
       "forward-headers": [],
       "modifiers": {
+        "@comment": "Primeiro modificador",
         "header": [
           {
+            "@comment": "Adiciona o campo X-Device-Id com o valor do id do body de resposta do middleware",
             "context": "RESPONSE",
             "scope": "REQUEST",
             "propagate": true,
@@ -212,7 +215,8 @@ definidas, veja abaixo um exemplo simples com todos os campos possíveis e seus 
           ],
           "forward-queries": [],
           "modifiers": {
-            "status-code": 200,
+            "@comment": "Meus primeiros modificadores",
+            "status-code": 0,
             "header": [],
             "param": [],
             "query": [],
