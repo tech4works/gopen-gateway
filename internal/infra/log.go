@@ -21,13 +21,11 @@ import (
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/go-logger/logger"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/consts"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/enum"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/infra/api"
 	"net/http"
 	"strings"
 	"time"
-	"unicode"
 )
 
 type logProvider struct {
@@ -86,7 +84,7 @@ func (l logProvider) BuildInitialRequestMessage(ctx *api.Context) string {
 		helper.ContainsIgnoreCase(bodyType, "application/xml") ||
 		helper.ContainsIgnoreCase(bodyType, "plain/text") {
 		// convertemos esses bytes para o any inicializado
-		bodyInfo = ctx.BodyString()
+		bodyInfo = helper.CompactString(ctx.BodyString())
 	} else if helper.IsNotEmpty(bodyType, bodySize) {
 		var msg string
 		if helper.IsNotEmpty(bodyType) {
@@ -100,7 +98,7 @@ func (l logProvider) BuildInitialRequestMessage(ctx *api.Context) string {
 	}
 
 	// convertemos em string e removemos os breaks lines
-	return l.replaceAllBreakLineText(bodyInfo)
+	return bodyInfo
 }
 
 // BuildFinishRequestMessage builds the finish request message by taking a writer and start time as input.
@@ -129,12 +127,8 @@ func (l logProvider) BuildFinishRequestMessage(responseVO *vo.Response, startTim
 	text.WriteString(" ")
 	text.WriteString(logger.StyleReset)
 	if helper.IsNotEmpty(bodyBytes) {
-		s := string(bodyBytes)
-		if helper.IsNotEqualTo(responseVO.ContentType(), enum.ContentTypeText) {
-			s = l.replaceAllBreakLineText(s)
-		}
 		text.WriteString(" ")
-		text.WriteString(s)
+		text.WriteString(helper.CompactString(bodyBytes))
 	}
 	// retornamos o text de log
 	return text.String()
@@ -239,21 +233,4 @@ func (l logProvider) methodTextStyle(method string) string {
 	default:
 		return fmt.Sprint(logger.StyleBold, logger.BackgroundBlack)
 	}
-}
-
-// replaceAllBreakLineText replaces all the line breaks in the given string with empty spaces.
-// It takes an argument of any type and converts it to a string using the helper.SimpleConvertToString function.
-// Then, it uses strings.Map to iterate over each rune in the string.
-// If the rune is a space, it replaces it with -1 to exclude it from the string.
-// If the rune is not a space, it keeps the original value.
-// Finally, it returns the modified string.
-func (l logProvider) replaceAllBreakLineText(s string) string {
-	return strings.Map(func(r rune) rune {
-		if unicode.IsSpace(r) {
-			// se for um espaço, substitua por -1 para excluir da string
-			return -1
-		}
-		// se não for um espaço, mantenha o valor original
-		return r
-	}, s)
 }

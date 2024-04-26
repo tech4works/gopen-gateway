@@ -10,7 +10,6 @@
 [![HitCount](https://hits.dwyl.com/GabrielHCataldo/gopen-gateway.svg)](http://hits.dwyl.com/GabrielHCataldo/gopen-gateway)
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FGabrielHCataldo%2Fgopen-gateway.svg?type=small)](https://app.fossa.com/projects/git%2Bgithub.com%2FGabrielHCataldo%2Fgopen-gateway?ref=badge_small)
 
-
 ![United States](https://raw.githubusercontent.com/stevenrskelton/flag-icon/master/png/16/country-4x3/us.png "United States")
 [Inglês](https://github.com/GabrielHCataldo/gopen-gateway/blob/main/README.en.md) |
 ![Spain](https://raw.githubusercontent.com/stevenrskelton/flag-icon/master/png/16/country-4x3/es.png "Spain")
@@ -26,7 +25,7 @@ e ainda otimizará o seu desenvolvimento, veja abaixo todos os recursos disponí
 
 - Json de configuração simplificado para múltiplos ambientes.
 - Configuração rápida de variáveis de ambiente para múltiplos ambientes.
-- Versionamento via json de configuração.
+- Versionamento via JSON de configuração.
 - Execução via docker com hot reload opcional.
 - Configuração de timeout global e local para cada endpoint.
 - Configuração de cache global e local para cada endpoint, com customização da estratégia da chave de armazenamento, e
@@ -61,7 +60,7 @@ e ainda otimizará o seu desenvolvimento, veja abaixo todos os recursos disponí
 ---
 
 Para entender como funciona, precisamos explicar primeiro a estrutura dos ambientes dinâmicos que GOPEN aceita para sua
-configuração em json e arquivo de variáveis de ambiente, então vamos lá!
+configuração em JSON e arquivo de variáveis de ambiente, então vamos lá!
 
 ## Estrutura de pastas
 
@@ -96,7 +95,7 @@ contendo os nomes dos seus ambientes, você pode dar o nome que quiser, essa pas
 
 ## JSON de configuração
 
-Com base nesse arquivo json de configuração obtido pela env desejada a aplicação terá seus endpoints e suas regras
+Com base nesse arquivo JSON de configuração obtido pela env desejada a aplicação terá seus endpoints e suas regras
 definidas, veja abaixo um exemplo simples com todos os campos possíveis e seus conceitos e regras:
 
 ````json
@@ -233,7 +232,7 @@ definidas, veja abaixo um exemplo simples com todos os campos possíveis e seus 
 
 ### $schema
 
-Campo obrigatório, para o auxílio na escrita e regras do próprio json de configuração, único valor aceito é
+Campo obrigatório, para o auxílio na escrita e regras do próprio JSON de configuração, único valor aceito é
 
 ```
 https://raw.githubusercontent.com/GabrielHCataldo/gopen-gateway/main/json-schema.json`
@@ -267,10 +266,11 @@ Campo opcional, o valor padrão é `30 segundos`, esse campo é responsável pel
 de cada requisição.
 
 Caso a requisição ultrapasse esse tempo informado, á API Gateway irá abortar todas as transações em andamento e
-retornará o código de status `504 (Gateway Timeout)`.
+retornará o código de status `504 (Gateway Timeout)`. Veja mais sobre esse retorno
+clicando [aqui](#504-gateway-timeout).
 
 IMPORTANTE: Caso seja informado no objeto de endpoint, damos prioridade ao valor informado do endpoint, caso contrário
-seguiremos com o valor informado ou padrão desse campo, na raiz do json de configuração.
+seguiremos com o valor informado ou padrão desse campo, na raiz do JSON de configuração.
 
 ```
 - Valores aceitos:
@@ -386,7 +386,8 @@ Campo opcional, ele é do tipo `byteUnit`, valor padrão é `1MB`, é responsáv
 requisição.
 
 Caso o tamanho do cabeçalho ultrapasse o valor informado, a API Gateway irá abortar a requisição com o código de status
-`431 (Request header fields too large)`.
+`431 (Request header fields too large)`. Veja mais sobre esse retorno
+clicando [aqui](#431-request-header-fields-too-large).
 
 ```
 - Valores aceitos:
@@ -440,7 +441,7 @@ Campo opcional, ele é do tipo `byteUnit`, valor padrão é `5MB`, esse campo é
 corpo multipart/form da requisição, geralmente utilizado para envio de arquivos, imagens, etc.
 
 Caso o tamanho do corpo ultrapasse o valor informado, a API Gateway irá abortar a requisição com o código de status
-`413 (Request entity too large)`.
+`413 (Request entity too large)`. Veja mais sobre esse retorno clicando [aqui](#413-request-entity-too-large).
 
 ```
 - Valores aceitos:
@@ -468,7 +469,7 @@ a taxa de requisição pelo IP, esse limite é imposto obtendo a capacidade máx
 informado no campo `every`.
 
 Caso essa capacidade seja ultrapassada, a API Gateway por segurança abortará a requisição, retornando
-`429 (Too many requests)`.
+`429 (Too many requests)`. Veja mais sobre esse retorno clicando [aqui](#429-too-many-requests).
 
 #### limiter.rate.capacity
 
@@ -517,7 +518,7 @@ requisição e resposta obtidos e manipulados.
 
 Por exemplo, um `beforeware` quando mencionado no endpoint, ele será utilizado como middleware de pré-requisições, isto
 é, ele será chamado antes dos backends principais do endpoint, então podemos, por exemplo, ter um middleware
-de manipulação de device, como no json de configuração acima, aonde ele irá chamar esse backend de middleware
+de manipulação de device, como no JSON de configuração acima, aonde ele irá chamar esse backend de middleware
 configurado no endpoint como `beforewares`, validando e salvando o dispositivo a partir de informações do header da
 requisição, caso o backend responda um código de status de falha, no exemplo, o gateway abortará todos os backends
 seguintes retornando o que o backend de device respondeu, caso tenha retornado um código de status de sucesso, ele irá
@@ -866,9 +867,9 @@ Caso informado `true` o corpo da requisição não será repassado ao backend.
 #### backend.extra-config.group-response
 
 Campo opcional, do tipo booleano, o valor padrão é `false`, indicando que o corpo da resposta do backend não precisará
-ser agrupada em um campo json para a resposta ao cliente final.
+ser agrupada em um campo JSON para a resposta ao cliente final.
 
-Caso informado com o valor `true` o body de resposta caso tenha, será agrupado em um campo json da resposta final,
+Caso informado com o valor `true` o body de resposta caso tenha, será agrupado em um campo JSON da resposta final,
 o nome do campo será o [nome](#backendname) do serviço backend caso preenchido, se não temos um padrão de nomenclatura
 que é `backend-posição na lista` que seria por exemplo `backend-0`.
 
@@ -1197,10 +1198,10 @@ dinâmico de inicialização como mencionado no tópico [ESTRUTURA DE PASTAS](#e
 Caso preferir inserir os valores utilizando docker-compose também funcionará corretamente, ponto é que a API
 Gateway irá ler o valor gravado na máquina, independente de como foi inserido nela.
 
-Os valores podem ser utilizados na configuração do json da API Gateway, basta utilizar a sintaxe `$NOME` como
+Os valores podem ser utilizados na configuração do JSON da API Gateway, basta utilizar a sintaxe `$NOME` como
 um valor string, veja no exemplo abaixo.
 
-Um trecho de um json de configuração, temo os seguintes valores:
+Um trecho de um JSON de configuração, temo os seguintes valores:
 
 ```json
 {
@@ -1228,7 +1229,7 @@ REDIS_PASSWORD=12345
 TIMEOUT=5m
 ```
 
-Quando a API Gateway faz o build da aplicação, ela gera um arquivo json na raiz indicando os valores e configuração do
+Quando a API Gateway faz o build da aplicação, ela gera um arquivo JSON na raiz indicando os valores e configuração do
 projeto que está em execução, veja o resultado para desse arquivo após o build:
 
 ```json
@@ -1355,7 +1356,7 @@ e que estão armazenados em um tipo de histórico temporário.
 ### Importante
 
 Você pode utilizar com base nesses campos,
-a [sintaxe de json path](https://github.com/tidwall/gjson/blob/master/README.md#path-syntax) que se enquadra em seus
+a [sintaxe de JSON path](https://github.com/tidwall/gjson/blob/master/README.md#path-syntax) que se enquadra em seus
 valores, apenas se lembre que, os objetos header, query são mapas de lista de string, e o params é um mapa de string.
 
 ### Veja também
@@ -1368,10 +1369,11 @@ valores, apenas se lembre que, os objetos header, query são mapas de lista de s
 
 ## Observabilidade
 
-TODO
+A API Gateway ao receber uma requisição irá acrescentar o IP do cliente no cabeçalho `X-Forwarded-For` das requisições
+subjacentes, e também adiciona, caso não exista, um valor único gerado ao cabeçalho chamado `X-Trace-Id` para melhor
+observabilidade da requisição recebida tanto nos logs da API Gateway como nos microserviços subjacentes. 
 
-
-## LÓGICA DE RESPOSTA
+## Lógica de resposta
 
 Quando utilizamos uma API Gateway nos perguntamos, como será retornado ao meu cliente
 a resposta desse endpoint configurado?
@@ -1692,7 +1694,7 @@ Corpo
 
 Temos alguns pontos nesse exemplo que vale ressaltar, primeiro com o formato, a API Gateway entendeu que seu endpoint
 tem múltiplas respostas e não foi utilizado o campo [endpoint.aggregate-responses](#endpointaggregate-responses)
-com o valor `true`, então ela lista as respostas como json acrescentando os seguintes campos:
+com o valor `true`, então ela lista as respostas como JSON acrescentando os seguintes campos:
 
 `ok`: Indica se a resposta do backend em questão teve o código de status HTTP entre `200` e `299`.
 
@@ -1703,7 +1705,7 @@ campo [endpoint.aggregate-responses](#endpointaggregate-responses) não for info
 
 Segundo ponto a destacar é no trecho `"version": "v1.0.0"` do último backend, o mesmo respondeu apenas um texto no body
 de resposta que foi `v1.0.0`, porém para esse cenário como foi mencionado, a API Gateway força o parse desse valor para
-um json, adicionando um novo campo com o nome obtido na configuração [backend.name](#backendname) e com o valor do
+um JSON, adicionando um novo campo com o nome obtido na configuração [backend.name](#backendname) e com o valor do
 mesmo.
 
 Terceiro ponto é sobre o código de status HTTP, o mesmo é retornado pela maior frequência, isto é, se temos três
@@ -1759,7 +1761,7 @@ resposta, ele não seguirá nenhuma diretriz mostrada no tópico em questão e s
 
 #### Múltiplos backends agregados
 
-Nesse exemplo iremos utilizar uma configuração parecida com json de configuração do exemplo acima, porém com
+Nesse exemplo iremos utilizar uma configuração parecida com JSON de configuração do exemplo acima, porém com
 campo [endpoint](#endpointaggregate-responses) com o valor `true`.
 
 Json de configuração
@@ -1849,14 +1851,14 @@ Corpo
 ```
 
 Vimos a única diferença de resposta do tópico [Múltiplos backends](#múltiplos-backends) é que ele agregou os valores
-de todas as respostas em um só json, e os campos que se repetiram foram agregados os valores em lista.
+de todas as respostas em um só JSON, e os campos que se repetiram foram agregados os valores em lista.
 
-As demais regras como código de status HTTP, a conversão forçada para json, entre outras, seguem as mesmas regras
+As demais regras como código de status HTTP, a conversão forçada para JSON, entre outras, seguem as mesmas regras
 mencionadas no tópico [Múltiplos backends](#múltiplos-backends).
 
 No exemplo podemos deixar a resposta agregada um pouco mais organizada, com isso vamos alterar o trecho do nosso
 segundo backend adicionando o campo [backend.extra-config.group-response](#backendextra-configgroup-response) com o
-valor `true` e dar um nome a ele, veja o trecho do json de configuração modificado
+valor `true` e dar um nome a ele, veja o trecho do JSON de configuração modificado
 
 ```json
 {
@@ -2034,10 +2036,126 @@ foram agrupados e separados por vírgula.
 Toda API Gateway tem suas respostas padrão para cada cenário de erro, então iremos listar abaixo cada
 cenário e sua respectiva resposta HTTP:
 
+#### 413 (Request Entity Too Large)
+
+Esse cenário acontece quando o tamanho do corpo de requisição é maior do que o permitido para o endpoint, utilizando a
+configuração [limiter.max-body-size](#limitermax-header-size) para corpo normal
+e [limiter.max-multipart-memory-size](#limitermax-multipart-memory-size) para envio do tipo `form-data`. Você pode
+customizar essa configuração para um endpoint específico utilizando o campo [endpoint.limiter](#endpointlimiter).
+
+Cabeçalho
+
+```
+Content-Type: application/json
+X-Gopen-Cache: false
+X-Gopen-Complete: false
+X-Gopen-Success: false
+Date: Fri, 26 Apr 2024 11:56:06 GMT
+Content-Length: 170
+```
+
+Corpo
+
+```json
+{
+  "file": "infra/size_limiter.go",
+  "line": 92,
+  "endpoint": "/users",
+  "message": "payload too large error: permitted limit is 1.0B",
+  "timestamp": "2024-04-26T08:56:06.628636-03:00"
+}
+```
+
+#### 429 (Too many requests)
+
+Esse cenário acontece quando o limite de requisições são atingidas por um determinado IP, esse limite é definido na
+configuração [limiter.rate](#limiterrate). Você pode customizar essa configuração para um endpoint
+específico utilizando o campo [endpoint.limiter](#endpointlimiter).
+
+Cabeçalho
+
+```
+Content-Type: application/json
+X-Gopen-Cache: false
+X-Gopen-Complete: false
+X-Gopen-Success: false
+Date: Fri, 26 Apr 2024 12:12:53 GMT
+Content-Length: 177
+```
+
+Corpo
+
+```json
+{
+  "file": "infra/rate_limiter.go",
+  "line": 100,
+  "endpoint": "/users",
+  "message": "too many requests error: permitted limit is 1 every 1s",
+  "timestamp": "2024-04-26T09:12:53.501804-03:00"
+}
+```
+
+#### 431 (Request Header Fields Too Large)
+
+Esse cenário acontece quando o tamanho do header é maior do que o permitido para o endpoint, utilizando a
+configuração [limiter.max-header-size](#limitermax-header-size). Você pode customizar essa configuração para um endpoint
+específico utilizando o campo [endpoint.limiter](#endpointlimiter).
+
+Cabeçalho
+
+```
+Content-Type: application/json
+X-Gopen-Cache: false
+X-Gopen-Complete: false
+X-Gopen-Success: false
+Date: Fri, 26 Apr 2024 11:39:53 GMT
+Content-Length: 186
+```
+
+Corpo
+
+```json
+{
+  "file": "infra/size_limiter.go",
+  "line": 80,
+  "endpoint": "/multiple/backends/:key",
+  "message": "header too large error: permitted limit is 1.0B",
+  "timestamp": "2024-04-26T08:39:53.944055-03:00"
+}
+```
+
+#### 500 (Internal server erro)
+
+Esse cenário é específico quando algum erro inesperado ocorreu com a API Gateway, caso isso aconteça relate
+o problema [aqui](https://github.com/GabrielHCataldo/gopen-gateway/issues) mostrando a resposta e o log impresso no
+terminal de execução.
+
+Cabeçalho
+
+```
+Content-Type: application/json
+X-Gopen-Cache: false
+X-Gopen-Complete: false
+X-Gopen-Success: false
+Date: Fri, 26 Apr 2024 12:38:16 GMT
+Content-Length: 183
+```
+
+Corpo
+
+```json
+{
+  "file": "middleware/panic_recovery.go",
+  "line": 27,
+  "endpoint": "/users",
+  "message": "gateway panic error occurred! detail: runtime error: invalid memory address or nil pointer dereference",
+  "timestamp": "2024-04-26T09:42:23.938997-03:00"
+}
+```
+
 #### 502 (Bad Gateway)
 
-Esse cenário acontece quando ao tentar se comunicar com o backend, e acontece algum erro de comunicação com o host
-do mesmo.
+Esse cenário acontece quando ao tentar se comunicar com o backend, e ocorre alguma falha de comunicação com o mesmo.
 
 Cabeçalho
 
@@ -2056,7 +2174,7 @@ Corpo
 {
   "file": "infra/rest.go",
   "line": 69,
-  "endpoint": "/multiple/backends/:key",
+  "endpoint": "/users/find/:key",
   "message": "bad gateway error: Get \"http://192.168.1.8:8090/users/find/gabrielcataldo.adm@gmail.com\": dial tcp 192.168.1.8:8090: connect: connection refused",
   "timestamp": "2024-04-24T22:07:36.558851-03:00"
 }
@@ -2064,9 +2182,31 @@ Corpo
 
 #### 504 (Gateway Timeout)
 
-####   
+Esse cenário acontece quando o endpoint excede o limite do tempo configurado no campo [timeout](#timeout). Você pode
+customizar essa configuração para um endpoint específico utilizando o campo [endpoint.timeout](#endpointtimeout).
 
-####    
+Cabeçalho
+
+```
+Content-Type: application/json
+X-Gopen-Cache: false
+X-Gopen-Complete: false
+X-Gopen-Success: false
+Date: Fri, 26 Apr 2024 13:29:55 GMT
+Content-Length: 150
+```
+
+Corpo
+
+```json
+{
+  "file": "middleware/timeout.go",
+  "line": 81,
+  "endpoint": "/users/version",
+  "message": "gateway timeout: 5m",
+  "timestamp": "2024-04-26T10:29:55.908526-03:00"
+}
+```
 
 # Usabilidade
 

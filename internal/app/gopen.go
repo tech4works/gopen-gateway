@@ -54,15 +54,16 @@ var httpServer *http.Server
 // It also includes middleware implementations such as traceMiddleware, logMiddleware, securityCorsMiddleware,
 // timeoutMiddleware, limiterMiddleware, cacheMiddleware, as well as static and endpoint controllers to handle requests.
 type gopen struct {
-	gopenVO                *vo.Gopen
-	traceMiddleware        middleware.Trace
-	logMiddleware          middleware.Log
-	securityCorsMiddleware middleware.SecurityCors
-	timeoutMiddleware      middleware.Timeout
-	limiterMiddleware      middleware.Limiter
-	cacheMiddleware        middleware.Cache
-	staticController       controller.Static
-	endpointController     controller.Endpoint
+	gopenVO                 *vo.Gopen
+	panicRecoveryMiddleware middleware.PanicRecovery
+	traceMiddleware         middleware.Trace
+	logMiddleware           middleware.Log
+	securityCorsMiddleware  middleware.SecurityCors
+	timeoutMiddleware       middleware.Timeout
+	limiterMiddleware       middleware.Limiter
+	cacheMiddleware         middleware.Cache
+	staticController        controller.Static
+	endpointController      controller.Endpoint
 }
 
 // Gopen is an interface that represents the functionality of a Gopen server.
@@ -83,6 +84,7 @@ type Gopen interface {
 // It returns a `Gopen` interface, which represents the Gopen object that stores the provided configuration and middleware.
 func NewGopen(
 	gopenVO *vo.Gopen,
+	panicRecoveryMiddleware middleware.PanicRecovery,
 	traceMiddleware middleware.Trace,
 	logMiddleware middleware.Log,
 	securityCorsMiddleware middleware.SecurityCors,
@@ -93,15 +95,16 @@ func NewGopen(
 	endpointController controller.Endpoint,
 ) Gopen {
 	return gopen{
-		gopenVO:                gopenVO,
-		traceMiddleware:        traceMiddleware,
-		logMiddleware:          logMiddleware,
-		timeoutMiddleware:      timeoutMiddleware,
-		limiterMiddleware:      limiterMiddleware,
-		cacheMiddleware:        cacheMiddleware,
-		securityCorsMiddleware: securityCorsMiddleware,
-		staticController:       staticController,
-		endpointController:     endpointController,
+		gopenVO:                 gopenVO,
+		panicRecoveryMiddleware: panicRecoveryMiddleware,
+		traceMiddleware:         traceMiddleware,
+		logMiddleware:           logMiddleware,
+		timeoutMiddleware:       timeoutMiddleware,
+		limiterMiddleware:       limiterMiddleware,
+		cacheMiddleware:         cacheMiddleware,
+		securityCorsMiddleware:  securityCorsMiddleware,
+		staticController:        staticController,
+		endpointController:      endpointController,
 	}
 }
 
@@ -207,16 +210,19 @@ func (g gopen) buildStaticRoutes(engine *gin.Engine) {
 // It takes an endpointVO of type vo.Endpoint as a parameter and returns a slice of api.HandlerFunc.
 // Each middleware handler is configured based on specific middleware instances defined in the gopen type.
 // The handlers are added to the slice in the following order:
-// 1. traceHandler: Used to handle trace requests.
-// 2. logHandler: Used to handle logging requests.
-// 3. securityCorsHandler: Used to handle security CORS requests.
-// 4. timeoutHandler: Used to handle timeout requests. The timeout duration is determined based on both the endpointVO
+// 1. panicHandler: Used to handle panic errors.
+// 2. traceHandler: Used to handle trace requests.
+// 3. logHandler: Used to handle logging requests.
+// 4. securityCorsHandler: Used to handle security CORS requests.
+// 5. timeoutHandler: Used to handle timeout requests. The timeout duration is determined based on both the endpointVO
 // and the gopenVO configurations.
-// 5. limiterHandler: Used to handle limiter requests. The limiter vo is determined based on both the endpointVO and the
+// 6. limiterHandler: Used to handle limiter requests. The limiter vo is determined based on both the endpointVO and the
 // gopenVO configurations.
-// 6. cacheHandler: Used to handle cache requests. The cache duration, cache strategy headers, and allow cache control
+// 7. cacheHandler: Used to handle cache requests. The cache duration, cache strategy headers, and allow cache control
 // configurations are determined based on both the endpointVO and gopenVO
 func (g gopen) buildEndpointHandles(endpointVO vo.Endpoint) []api.HandlerFunc {
+	// configuramos o handler de panic recovery
+	panicHandler := g.panicRecoveryMiddleware.Do
 	// configuramos o handler do log como o middleware
 	logHandler := g.logMiddleware.Do
 	// configuramos o handler do trace como o middleware
@@ -233,6 +239,7 @@ func (g gopen) buildEndpointHandles(endpointVO vo.Endpoint) []api.HandlerFunc {
 	endpointHandler := g.endpointController.Execute
 	// montamos a lista de manipuladores
 	return []api.HandlerFunc{
+		panicHandler,
 		traceHandler,
 		logHandler,
 		securityCorsHandler,

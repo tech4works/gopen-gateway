@@ -17,7 +17,7 @@ go 1.22
 
 require (
 	github.com/GabrielHCataldo/go-errors v1.2.0
-	github.com/GabrielHCataldo/go-helper v1.6.9
+	github.com/GabrielHCataldo/go-helper v1.7.0
 	github.com/GabrielHCataldo/go-logger v1.3.0
 	github.com/GabrielHCataldo/go-redis-template v1.1.5
 	github.com/clbanning/mxj/v2 v2.7.0
@@ -38,7 +38,6 @@ require (
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/chenzhuoyu/base64x v0.0.0-20230717121745-296ad89f973d // indirect
 	github.com/chenzhuoyu/iasm v0.9.1 // indirect
-	github.com/clarketm/json v1.17.1 // indirect
 	github.com/cockroachdb/apd v1.1.0 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/gabriel-vasile/mimetype v1.4.3 // indirect
