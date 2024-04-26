@@ -700,15 +700,15 @@
   },
   "type": "object",
   "properties": {
-    "@comment": {
-      "type": "string"
-    },
     "$schema": {
       "type": "string",
       "enum": [
         "https://raw.githubusercontent.com/GabrielHCataldo/gopen-gateway/main/json-schema.json",
         "../../json-schema.json"
       ]
+    },
+    "@comment": {
+      "type": "string"
     },
     "version": {
       "type": "string"
