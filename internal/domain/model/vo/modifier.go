@@ -18,7 +18,6 @@ package vo
 
 import (
 	"github.com/GabrielHCataldo/go-helper/helper"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/app/model/dto"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/enum"
 )
 
@@ -51,21 +50,27 @@ type Modifier struct {
 	value string
 }
 
-// newModifier creates a new instance of Modifier based on the provided modifierDTO.
-// If the modifierDTO is nil, it returns nil.
-// Otherwise, it initializes a new Modifier with the values from the modifierDTO and returns a pointer to it.
-// The context, scope, action, propagate, key, and value fields of the Modifier struct are populated from the modifierDTO.
-func newModifier(modifierDTO *dto.Modifier) *Modifier {
-	if helper.IsNil(modifierDTO) {
+// newModifier creates a new instance of Modifier based on the provided ModifierJson.
+// If the provided ModifierJson is nil, it returns nil.
+// It initializes a new Modifier with the values from the ModifierJson and returns a pointer to it.
+// The context field of the Modifier struct is populated with the context value from the ModifierJson,
+// the scope field is populated with the scope value,
+// the action field is populated with the action value,
+// the propagate field is populated with the propagate flag,
+// the key field is populated with the key value,
+// and the value field is populated with the value.
+// Other fields of the Modifier struct are not populated and will have their zero values.
+func newModifier(modifierJsonVO *ModifierJson) *Modifier {
+	if helper.IsNil(modifierJsonVO) {
 		return nil
 	}
 	return &Modifier{
-		context:   modifierDTO.Context,
-		scope:     modifierDTO.Scope,
-		action:    modifierDTO.Action,
-		propagate: modifierDTO.Propagate,
-		key:       modifierDTO.Key,
-		value:     modifierDTO.Value,
+		context:   modifierJsonVO.Context,
+		scope:     modifierJsonVO.Scope,
+		action:    modifierJsonVO.Action,
+		propagate: modifierJsonVO.Propagate,
+		key:       modifierJsonVO.Key,
+		value:     modifierJsonVO.Value,
 	}
 }
 

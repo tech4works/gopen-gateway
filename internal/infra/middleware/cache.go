@@ -89,7 +89,7 @@ func (c cache) Do(endpointCacheVO *vo.EndpointCache) api.HandlerFunc {
 			cacheResponse := vo.NewCacheResponse(ctx.Response(), duration)
 
 			// transformamos em cacheResponse e setamos
-			err := c.cacheStore.Set(ctx.Context(), key, cacheResponse, duration)
+			err := c.cacheStore.Set(ctx.Context(), key, cacheResponse, duration.Time())
 			if helper.IsNotNil(err) {
 				logger.Warning("Error write cache key:", key, "err:", err)
 			}

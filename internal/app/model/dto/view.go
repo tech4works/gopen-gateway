@@ -16,6 +16,8 @@
 
 package dto
 
+import "github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
+
 // SettingView represents the configuration view for the application.
 // It includes properties such as version, founder, code helpers, and various counts.
 // It also contains a setting object of type GopenView, which represents the detailed configuration.
@@ -38,6 +40,6 @@ type SettingView struct {
 	Backends int `json:"backends"`
 	// Modifiers represents the count of modifiers in the SettingView struct.
 	Modifiers int `json:"modifiers"`
-	// Setting represents the detailed configuration view for the Gopen application.
-	Setting Gopen `json:"setting"`
+	// Setting represents the detailed configuration view for the Gopen Json application.
+	Setting *vo.GopenJson `json:"setting"`
 }

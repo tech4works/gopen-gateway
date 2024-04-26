@@ -16,7 +16,11 @@
 
 package vo
 
-import "github.com/GabrielHCataldo/gopen-gateway/internal/app/model/dto"
+// MiddlewaresJson represents a map of string keys to BackendJson values. It is used to configure and store middleware
+// settings in the Gopen application.
+// Each key in the map represents the name of the middleware, and the corresponding BackendJson value defines the
+// properties and behavior of that middleware.
+type MiddlewaresJson map[string]BackendJson
 
 // Middlewares is a type that represents a map of string keys to Backend values.
 // It is used to configure and store middleware settings in the Gopen server.
@@ -24,13 +28,15 @@ import "github.com/GabrielHCataldo/gopen-gateway/internal/app/model/dto"
 // value defines the properties and behavior of that middleware.
 type Middlewares map[string]Backend
 
-// newMiddlewares creates a new Middlewares object based on the provided middlewaresDTO map.
-// Each key-value pair in the middlewaresDTO map will be converted to a Backend object and added to the Middlewares object.
-// The new Middlewares object will then be returned.
-func newMiddlewares(middlewaresDTO map[string]dto.Backend) (m Middlewares) {
+// newMiddlewares creates a new instance of Middlewares based on the provided MiddlewaresJson parameter.
+// It iterates over the keys and values of the MiddlewaresJson map and creates a new Backend instance for each value,
+// using the newBackend function.
+// The newly created Backends are assigned to the corresponding keys in the Middlewares map.
+// The Middlewares map is then returned.
+func newMiddlewares(middlewaresJsonVO MiddlewaresJson) (m Middlewares) {
 	m = Middlewares{}
-	for k, v := range middlewaresDTO {
-		m[k] = newBackend(v)
+	for k, v := range middlewaresJsonVO {
+		m[k] = newBackend(&v)
 	}
 	return m
 }

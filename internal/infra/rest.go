@@ -18,13 +18,11 @@ package infra
 
 import (
 	berrors "errors"
-	"github.com/GabrielHCataldo/go-errors/errors"
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/interfaces"
 	domainmapper "github.com/GabrielHCataldo/gopen-gateway/internal/domain/mapper"
 	"net/http"
 	"net/url"
-	"syscall"
 )
 
 type restTemplate struct {
@@ -51,13 +49,12 @@ func (r restTemplate) MakeRequest(httpRequest *http.Request) (*http.Response, er
 	return httpResponse, r.treatHttpClientErr(err)
 }
 
-// treatHttpClientErr handles an error that occurred during an HTTP request made by the restTemplate.
-// It takes an error as input and returns the corresponding error after handling it, if any.
-// If the input error is nil, it returns nil.
-// If the input error is a connection refused error or host down error, it creates a new domainmapper.ErrBadGateway error and returns it.
-// If the input error is not nil, it checks if it is an url.Error and if it has a timeout.
+// treatHttpClientErr handles the error returned by httpClient.Do method.
+// If the error is nil, it returns nil.
+// If the error is not nil, it checks if it is an url.Error and if it has a timeout.
 // If it has a timeout, it creates a new domainmapper.ErrGatewayTimeout error and returns it.
-// For any other type of error, it returns the error as it is.
+// Otherwise, it creates a new domainmapper.ErrBadGateway error and returns it.
+// If the error is not an url.Error, it returns the error as it is.
 func (r restTemplate) treatHttpClientErr(err error) error {
 	// se tiver nil, retornamos nil
 	if helper.IsNil(err) {
@@ -65,13 +62,13 @@ func (r restTemplate) treatHttpClientErr(err error) error {
 	}
 
 	// caso ocorra algum erro, tratamos
-	if errors.Contains(err, syscall.ECONNREFUSED) || errors.Contains(err, syscall.EHOSTDOWN) {
-		err = domainmapper.NewErrBadGateway(err)
-	} else if helper.IsNotNil(err) {
+	if helper.IsNotNil(err) {
 		var urlErr *url.Error
 		berrors.As(err, &urlErr)
 		if urlErr.Timeout() {
 			err = domainmapper.NewErrGatewayTimeoutByErr(err)
+		} else {
+			err = domainmapper.NewErrBadGateway(err)
 		}
 	}
 

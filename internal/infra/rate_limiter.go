@@ -62,11 +62,13 @@ type RateLimiterProvider interface {
 // It takes a time duration 'every' and an integer 'limit' as parameters.
 // It returns a RateLimiterProvider object.
 func NewRateLimiterProvider(endpointRateVO *vo.EndpointRate) RateLimiterProvider {
+	every := endpointRateVO.Every()
+	everyTime := every.Time()
 	return &rateLimiterProvider{
 		keys:  map[string]*rate.Limiter{},
 		mutex: &sync.RWMutex{},
-		every: endpointRateVO.Every(),
-		limit: rate.Every(endpointRateVO.Every()),
+		every: everyTime,
+		limit: rate.Every(everyTime),
 		burst: endpointRateVO.Capacity(),
 	}
 }
@@ -79,7 +81,7 @@ func NewRateLimiterProvider(endpointRateVO *vo.EndpointRate) RateLimiterProvider
 // Afterward, the mutex is locked again to protect the keys map from concurrent accesses.
 //
 // If the limiter associated with the key does not allow the request (limiter.Allow() returns false),
-// the function returns a new instance of the error ErrTooManyRequests, passing the defined burst and every values.
+// the function returns a new instance of the error ErrTooManyRequests, passing the defined burst and every value.
 // Otherwise, it returns nil to indicate that the request is allowed.
 //
 // Note: The keys map and other related structures should be properly initialized before calling this method.

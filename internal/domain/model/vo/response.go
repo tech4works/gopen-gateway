@@ -41,7 +41,7 @@ type CacheResponse struct {
 	// It is included in the CacheResponse struct and is used to store the body of a cached response.
 	Body *CacheBody `json:"body,omitempty"`
 	// Duration represents the duration for which the response should be cached.
-	Duration string `json:"duration"`
+	Duration Duration `json:"duration"`
 	// CreatedAt is a field of the CacheResponse struct indicating the timestamp of the response's creation.
 	CreatedAt time.Time `json:"createdAt"`
 }
@@ -138,12 +138,12 @@ func NewResponseByErr(endpointVO *Endpoint, statusCode int, err error) *Response
 //
 // Returns:
 //   - A new CacheResponse containing the provided data and the current time of creation.
-func NewCacheResponse(responseVO *Response, duration time.Duration) *CacheResponse {
+func NewCacheResponse(responseVO *Response, duration Duration) *CacheResponse {
 	return &CacheResponse{
 		StatusCode: responseVO.StatusCode(),
 		Header:     responseVO.Header(),
 		Body:       newCacheBody(responseVO.Body()),
-		Duration:   duration.String(),
+		Duration:   duration,
 		CreatedAt:  time.Now(),
 	}
 }
@@ -386,8 +386,8 @@ func (r *Response) abortByLastResponse(lastBackendResponseVO *backendResponse) (
 // It subtracts the current time from the sum of the CreatedAt time and the Duration of the CacheResponse.
 // Returns the TTL duration as a string representation.
 func (c CacheResponse) TTL() string {
-	duration, _ := time.ParseDuration(c.Duration)
-	sub := c.CreatedAt.Add(duration).Sub(time.Now())
+	timeDuration := c.Duration.Time()
+	sub := c.CreatedAt.Add(timeDuration).Sub(time.Now())
 	return sub.String()
 }
 

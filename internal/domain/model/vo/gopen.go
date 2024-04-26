@@ -18,15 +18,11 @@ package vo
 
 import (
 	"github.com/GabrielHCataldo/go-helper/helper"
-	"github.com/GabrielHCataldo/go-logger/logger"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/app/model/dto"
 	"time"
 )
 
 // Gopen is a struct that represents the configuration for a Gopen server.
 type Gopen struct {
-	// env is a string field that represents the environment in which the Gopen server is running.
-	env string
 	// version is a string field that represents the version of the Gopen server configured in the configuration json.
 	version string
 	// port represents the port number on which the Gopen application will listen for incoming requests.
@@ -42,7 +38,7 @@ type Gopen struct {
 	// timeout represents the timeout duration for a request or operation.
 	// It is specified in string format and can be parsed into a time.Duration value.
 	// The default value is empty. If not provided, the timeout will be 30s.
-	timeout time.Duration
+	timeout Duration
 	// limiter represents the configuration for rate limiting.
 	// It specifies the maximum header size, maximum body size, maximum multipart memory size, and the rate of allowed requests.
 	limiter Limiter
@@ -73,37 +69,33 @@ type Gopen struct {
 	endpoints []Endpoint
 }
 
-// NewGopen creates a new instance of Gopen based on the provided environment and gopenDTO.
-// It initializes the fields of Gopen based on values from gopenDTO and sets default values for empty fields.
-func NewGopen(env string, gopenDTO *dto.Gopen) *Gopen {
-	// damos o parse dos endpoints
+// NewGopen initializes a new Gopen struct based on the provided GopenJson object.
+// It populates the fields of the Gopen struct with the corresponding values from the GopenJson object.
+// It also populates the endpoints field by iterating over the EndpointJson objects in the Endpoints slice of the GopenJson object,
+// and converting each EndpointJson object to an Endpoint object using the newEndpoint function.
+// The newly created Gopen struct is returned as a pointer.
+func NewGopen(gopenJsonVO *GopenJson) *Gopen {
+	// montamos o VO
+	gopenVO := &Gopen{
+		version:      gopenJsonVO.Version,
+		port:         gopenJsonVO.Port,
+		hotReload:    gopenJsonVO.HotReload,
+		timeout:      gopenJsonVO.Timeout,
+		limiter:      newLimiter(gopenJsonVO.Limiter),
+		cache:        newCache(gopenJsonVO.Cache),
+		securityCors: newSecurityCors(gopenJsonVO.SecurityCors),
+		middlewares:  newMiddlewares(gopenJsonVO.Middlewares),
+	}
+
+	// damos o parse dos endpoints de VO json para o VO
 	var endpoints []Endpoint
-	for _, endpointDTO := range gopenDTO.Endpoints {
-		endpoints = append(endpoints, newEndpoint(endpointDTO))
+	for _, endpointJsonVO := range gopenJsonVO.Endpoints {
+		endpoints = append(endpoints, newEndpoint(gopenVO, &endpointJsonVO))
 	}
+	gopenVO.endpoints = endpoints
 
-	// damos o parse do timeout
-	var timeout time.Duration
-	var err error
-	if helper.IsNotEmpty(gopenDTO.Timeout) {
-		timeout, err = time.ParseDuration(gopenDTO.Timeout)
-		if helper.IsNotNil(err) {
-			logger.Warning("Parse duration timeout err:", err)
-		}
-	}
-
-	return &Gopen{
-		env:          env,
-		version:      gopenDTO.Version,
-		port:         gopenDTO.Port,
-		hotReload:    gopenDTO.HotReload,
-		timeout:      timeout,
-		limiter:      newLimiterFromDTO(gopenDTO.Limiter),
-		cache:        newCacheFromDTO(gopenDTO.Cache),
-		securityCors: newSecurityCors(gopenDTO.SecurityCors),
-		middlewares:  newMiddlewares(gopenDTO.Middlewares),
-		endpoints:    endpoints,
-	}
+	// retornamos o novo objeto de valor
+	return gopenVO
 }
 
 // Port returns the value of the port field in the Gopen struct.
@@ -111,23 +103,13 @@ func (g Gopen) Port() int {
 	return g.port
 }
 
-// HotReload returns the value of the hotReload field in the Gopen struct.
-func (g Gopen) HotReload() bool {
-	return g.hotReload
-}
-
-// Version returns the value of the version field in the Gopen struct.
-func (g Gopen) Version() string {
-	return g.version
-}
-
 // Timeout returns the value of the timeout field in the Gopen struct. If the timeout is greater than 0,
 // it returns the timeout value. Otherwise, it returns a default timeout of 30 seconds
-func (g Gopen) Timeout() time.Duration {
+func (g Gopen) Timeout() Duration {
 	if helper.IsGreaterThan(g.timeout, 0) {
 		return g.timeout
 	}
-	return 30 * time.Second
+	return Duration(30 * time.Second)
 }
 
 // Cache returns the value of the cache field in the Gopen struct.
@@ -152,62 +134,7 @@ func (g Gopen) Middleware(key string) (Backend, bool) {
 	return g.middlewares.Get(key)
 }
 
-// Middlewares returns the value of the middlewares field in the Gopen struct.
-func (g Gopen) Middlewares() Middlewares {
-	return g.middlewares
-}
-
 // Endpoints returns a slice containing all the endpoints configured in the Gopen struct.
-// It iterates over each EndpointVO in the endpoints slice and fills in default values by calling the
-// fillDefaultValues method on each EndpointVO, passing the Gopen instance as a parameter.
-// The resulting Endpoint slice is returned.
 func (g Gopen) Endpoints() []Endpoint {
-	endpoints := make([]Endpoint, len(g.endpoints))
-	for i, endpointVO := range g.endpoints {
-		endpoints[i] = endpointVO.fillDefaultValues(&g)
-	}
-	return endpoints
-}
-
-// PureEndpoints returns a slice containing all the endpoints configured in the Gopen struct.
-// No default values are filled in for each EndpointVO, unlike the Endpoints method.
-// The resulting Endpoint slice is returned.
-func (g Gopen) PureEndpoints() []Endpoint {
 	return g.endpoints
-}
-
-// CountMiddlewares returns the number of middlewares in the Gopen instance.
-func (g Gopen) CountMiddlewares() int {
-	return len(g.middlewares)
-}
-
-// CountEndpoints returns the number of endpoints in the Gopen struct.
-func (g Gopen) CountEndpoints() int {
-	return len(g.endpoints)
-}
-
-// CountBackends returns the total number of backends present in the `Gopen` struct and its nested `Endpoint` structs.
-// It calculates the count by summing the number of middlewares in `Gopen` and recursively iterating through each `Endpoint`
-// to count their backends.
-// Returns an integer indicating the total count of backends.
-func (g Gopen) CountBackends() (count int) {
-	count += g.CountMiddlewares()
-	for _, endpointVO := range g.endpoints {
-		count += endpointVO.CountBackends()
-	}
-	return count
-}
-
-// CountModifiers counts the total number of modifiers in the Gopen struct.
-// It iterates through all the middleware backends and endpoint VOs,
-// and calls the CountModifiers method on each of them to calculate the count.
-// The count is incremented for each modifier found and the final count is returned.
-func (g Gopen) CountModifiers() (count int) {
-	for _, middlewareBackend := range g.middlewares {
-		count += middlewareBackend.CountModifiers()
-	}
-	for _, endpointDTO := range g.endpoints {
-		count += endpointDTO.CountModifiers()
-	}
-	return count
 }

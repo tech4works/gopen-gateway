@@ -19,7 +19,6 @@ package vo
 import (
 	"github.com/GabrielHCataldo/go-errors/errors"
 	"github.com/GabrielHCataldo/go-helper/helper"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/app/model/dto"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/consts"
 	"strings"
 )
@@ -37,17 +36,19 @@ type SecurityCors struct {
 	allowHeaders []string
 }
 
-// newSecurityCors creates a new instance of SecurityCors based on the provided securityCorsDTO.
-// It initializes the fields of SecurityCors based on values from securityCorsDTO.
-// If securityCorsDTO is nil, it returns nil.
-func newSecurityCors(securityCorsDTO *dto.SecurityCors) *SecurityCors {
-	if helper.IsNil(securityCorsDTO) {
+// newSecurityCors creates a new SecurityCors object based on the given SecurityCorsJson object.
+// If the securityCorsJsonVO is nil, it returns nil.
+// Otherwise, it initializes a new SecurityCors object with the allowOrigins, allowMethods, and allowHeaders fields
+// populated with the corresponding values from the SecurityCorsJson object.
+// The newly created SecurityCors object is returned as a pointer.
+func newSecurityCors(securityCorsJsonVO *SecurityCorsJson) *SecurityCors {
+	if helper.IsNil(securityCorsJsonVO) {
 		return nil
 	}
 	return &SecurityCors{
-		allowOrigins: securityCorsDTO.AllowOrigins,
-		allowMethods: securityCorsDTO.AllowMethods,
-		allowHeaders: securityCorsDTO.AllowHeaders,
+		allowOrigins: securityCorsJsonVO.AllowOrigins,
+		allowMethods: securityCorsJsonVO.AllowMethods,
+		allowHeaders: securityCorsJsonVO.AllowHeaders,
 	}
 }
 

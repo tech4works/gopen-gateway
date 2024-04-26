@@ -81,9 +81,9 @@ func (c *Context) Http() *http.Request {
 	return c.framework.Request
 }
 
-// SetRequestContext sets the context of the Context to the provided context.
+// RequestWithContext sets the context of the Context to the provided context.
 // It updates the underlying framework's Context.Context() method to use the new context.
-func (c *Context) SetRequestContext(ctx context.Context) {
+func (c *Context) RequestWithContext(ctx context.Context) {
 	c.framework.Request = c.framework.Request.WithContext(ctx)
 }
 

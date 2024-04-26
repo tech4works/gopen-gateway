@@ -2,6 +2,8 @@ github.com/GabrielHCataldo/go-errors v1.2.0 h1:T/NgsUBsJXtnG4iX0IJ6hUOolDYaxsyen
 github.com/GabrielHCataldo/go-errors v1.2.0/go.mod h1:baoCS+CM2zjhQeN5Gy23tS1/zukN3+ZXlEOYy5st3uI=
 github.com/GabrielHCataldo/go-helper v1.7.0 h1:xfquq29WK9BDVJgFJcjOOjOn/c+HQxx+fncObgBDdBc=
 github.com/GabrielHCataldo/go-helper v1.7.0/go.mod h1:0lWjHErv57Qkk+w25kbYKTmZYrNe0/0q0wUlt00OmRg=
+github.com/GabrielHCataldo/go-helper v1.7.1 h1:r1J1jRSYRXi8wIyg14/8D9qVR+CidgeeajkfsSJjPSU=
+github.com/GabrielHCataldo/go-helper v1.7.1/go.mod h1:0lWjHErv57Qkk+w25kbYKTmZYrNe0/0q0wUlt00OmRg=
 github.com/GabrielHCataldo/go-logger v1.3.0 h1:fKjEXOYJ0Tk3DrFTOVdFXNhp+szlTUFfZEnByQdInxY=
 github.com/GabrielHCataldo/go-logger v1.3.0/go.mod h1:d68a0zmUQJZCnqMIG8fze8fkBhjCb0A9QpeN7f32vnA=
 github.com/GabrielHCataldo/go-redis-template v1.1.5 h1:vb6/TPmszZhPUiB4337BCACQobBjtFtyjhskq6oQrW8=

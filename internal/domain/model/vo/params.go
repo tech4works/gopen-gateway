@@ -18,7 +18,6 @@ package vo
 
 import (
 	"fmt"
-	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/gin-gonic/gin"
 )
 
@@ -39,13 +38,13 @@ func NewParams(params gin.Params) Params {
 
 // NewParamsByPath filters the params from the parentParams map that contain the keys present in the path string.
 // The filtered params are returned as a new Params map.
-func NewParamsByPath(path string, parentParams Params) Params {
+func NewParamsByPath(path UrlPath, parentParams Params) Params {
 	r := Params{}
 
 	// filtramos os params que contem no path passado
 	for key, value := range parentParams {
 		paramKey := fmt.Sprint(":", key)
-		if helper.ContainsIgnoreCase(path, paramKey) {
+		if path.ContainsParam(paramKey) {
 			r[key] = value
 		}
 	}

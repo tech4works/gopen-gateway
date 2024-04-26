@@ -21,7 +21,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/GabrielHCataldo/go-helper/helper"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/app/model/dto"
 	"io"
 	"net/http"
 	"net/url"
@@ -34,7 +33,7 @@ type Backend struct {
 	// hosts is an array of host addresses.
 	hosts []string
 	// path is a string that represents the path of the backend server configuration.
-	path string
+	path UrlPath
 	// method is the HTTP method to be used for requests to the backend.
 	method string
 	// forwardHeaders is a slice of strings representing the modifyHeaders to be forwarded.
@@ -143,13 +142,13 @@ type backendResponse struct {
 // It constructs the backendRequest object and returns it.
 func NewBackendRequest(backendVO *Backend, balancedHost string, requestVO *Request) *backendRequest {
 	// inicializamos o header a ser utilizado na construção do VO filtrado pelo forward-headers
-	header := requestVO.Header().FilterByForwarded(backendVO.forwardHeaders)
+	header := requestVO.Header().FilterByForwarded(backendVO.ForwardHeaders())
 
 	// inicializamos a query a ser utilizado na construção do VO filtrada pelo forward-queries
-	query := requestVO.Query().FilterByForwarded(backendVO.forwardQueries)
+	query := requestVO.Query().FilterByForwarded(backendVO.ForwardQueries())
 
 	// inicializamos os params
-	params := NewParamsByPath(backendVO.path, requestVO.params)
+	params := NewParamsByPath(backendVO.Path(), requestVO.Params())
 
 	// inicializamos o omitRequestBody como false
 	var omitBody bool
@@ -161,7 +160,7 @@ func NewBackendRequest(backendVO *Backend, balancedHost string, requestVO *Reque
 	return &backendRequest{
 		omitBody: omitBody,
 		host:     balancedHost,
-		path:     UrlPath(backendVO.Path()),
+		path:     backendVO.Path(),
 		method:   backendVO.Method(),
 		header:   header,
 		params:   params,
@@ -202,23 +201,19 @@ func NewBackendResponse(backendVO *Backend, httpResponse *http.Response) *backen
 	}
 }
 
-// newBackend creates a new Backend instance based on the provided backendDTO.
-// It takes the backendDTO fields and assigns them to the corresponding fields in the Backend struct.
-// It also creates a new BackendModifiers instance by calling the newBackendModifier function,
-// passing the modifiers field from the backendDTO.
-// It creates a new BackendExtraConfig instance by calling the newBackendExtraConfig function,
-// passing the extraConfig field from the backendDTO.
-// The function returns the created Backend instance.
-func newBackend(backendDTO dto.Backend) Backend {
+// newBackend creates a new instance of Backend based on the provided BackendJson.
+// It assigns the values from the BackendJson fields to the corresponding fields in Backend.
+// Returns the newly created Backend instance.
+func newBackend(backendJsonVO *BackendJson) Backend {
 	return Backend{
-		name:           backendDTO.Name,
-		hosts:          backendDTO.Hosts,
-		path:           backendDTO.Path,
-		method:         backendDTO.Method,
-		forwardHeaders: backendDTO.ForwardHeaders,
-		forwardQueries: backendDTO.ForwardQueries,
-		modifiers:      newBackendModifier(backendDTO.Modifiers),
-		extraConfig:    newBackendExtraConfig(backendDTO.ExtraConfig),
+		name:           backendJsonVO.Name,
+		hosts:          backendJsonVO.Hosts,
+		path:           backendJsonVO.Path,
+		method:         backendJsonVO.Method,
+		forwardHeaders: backendJsonVO.ForwardHeaders,
+		forwardQueries: backendJsonVO.ForwardQueries,
+		modifiers:      newBackendModifier(backendJsonVO.Modifiers),
+		extraConfig:    newBackendExtraConfig(backendJsonVO.ExtraConfig),
 	}
 }
 
@@ -239,39 +234,35 @@ func newMiddlewareBackend(backendVO *Backend, backendExtraConfigVO *BackendExtra
 	}
 }
 
-// newBackendModifier creates a new instance of BackendModifiers based on the provided backendModifierDTO.
-// If the backendModifierDTO is nil, it returns nil.
-// Otherwise, it initializes a new BackendModifiers object and populates its fields with the values from the
-// backendModifierDTO. The header, params, query, and body fields of the BackendModifiers struct are populated from the
-// corresponding fields in the backendModifierDTO. It uses the newModifier function to create a new Modifier for each
-// element in the backendModifierDTO slice. The newModifier function initializes the context, scope, action, propagate,
-// key, and value fields of the Modifier struct. Once all the Modifiers are created, the BackendModifiers object is
-// returned. The StatusCode field of the BackendModifiers struct is set to the value of the StatusCode field in the
-// backendModifierDTO.
-func newBackendModifier(backendModifierDTO *dto.BackendModifiers) *BackendModifiers {
-	if helper.IsNil(backendModifierDTO) {
+// newBackendModifier creates a new instance of BackendModifiers based on the provided BackendModifiersJson.
+// If the provided BackendModifiersJson is nil, it returns nil.
+// It creates an array of Modifier instances for header, param, query, and body by iterating through the respective slices
+// in the BackendModifiersJson and creating a new Modifier instance for each item.
+// It constructs the BackendModifiers object and returns it.
+func newBackendModifier(backendModifierJsonVO *BackendModifiersJson) *BackendModifiers {
+	if helper.IsNil(backendModifierJsonVO) {
 		return nil
 	}
 
 	var header []Modifier
-	for _, modifierDTO := range backendModifierDTO.Header {
+	for _, modifierDTO := range backendModifierJsonVO.Header {
 		header = append(header, *newModifier(&modifierDTO))
 	}
 	var params []Modifier
-	for _, modifierDTO := range backendModifierDTO.Param {
+	for _, modifierDTO := range backendModifierJsonVO.Param {
 		params = append(params, *newModifier(&modifierDTO))
 	}
 	var query []Modifier
-	for _, modifierDTO := range backendModifierDTO.Query {
+	for _, modifierDTO := range backendModifierJsonVO.Query {
 		query = append(query, *newModifier(&modifierDTO))
 	}
 	var body []Modifier
-	for _, modifierDTO := range backendModifierDTO.Body {
+	for _, modifierDTO := range backendModifierJsonVO.Body {
 		body = append(body, *newModifier(&modifierDTO))
 	}
 
 	return &BackendModifiers{
-		statusCode: backendModifierDTO.StatusCode,
+		statusCode: backendModifierJsonVO.StatusCode,
 		header:     header,
 		param:      params,
 		query:      query,
@@ -279,25 +270,24 @@ func newBackendModifier(backendModifierDTO *dto.BackendModifiers) *BackendModifi
 	}
 }
 
-func newBackendExtraConfig(extraConfigDTO *dto.BackendExtraConfig) *BackendExtraConfig {
-	if helper.IsNil(extraConfigDTO) {
+// newBackendExtraConfig creates a new instance of BackendExtraConfig based on the provided BackendExtraConfigJson.
+// If the BackendExtraConfigJson parameter is nil, it returns nil.
+// Otherwise, it assigns the values from the BackendExtraConfigJson fields to the corresponding fields in BackendExtraConfig.
+// Returns the newly created BackendExtraConfig instance.
+func newBackendExtraConfig(extraConfigJsonVO *BackendExtraConfigJson) *BackendExtraConfig {
+	if helper.IsNil(extraConfigJsonVO) {
 		return nil
 	}
 	return &BackendExtraConfig{
-		groupResponse:   extraConfigDTO.GroupResponse,
-		omitRequestBody: extraConfigDTO.OmitRequestBody,
-		omitResponse:    extraConfigDTO.OmitResponse,
+		groupResponse:   extraConfigJsonVO.GroupResponse,
+		omitRequestBody: extraConfigJsonVO.OmitRequestBody,
+		omitResponse:    extraConfigJsonVO.OmitResponse,
 	}
 }
 
 // Name returns the name of the Backend instance.
 func (b *Backend) Name() string {
 	return b.name
-}
-
-// Hosts returns the host array of the Backend instance.
-func (b *Backend) Hosts() []string {
-	return b.hosts
 }
 
 // BalancedHost returns a balanced host from the Backend instance. If there is only one host, it is returned directly.
@@ -312,7 +302,7 @@ func (b *Backend) BalancedHost() string {
 }
 
 // Path returns the path of the Backend instance.
-func (b *Backend) Path() string {
+func (b *Backend) Path() UrlPath {
 	return b.path
 }
 
@@ -329,16 +319,6 @@ func (b *Backend) ForwardHeaders() []string {
 // ForwardQueries returns the slice of forward queries of the Backend instance.
 func (b *Backend) ForwardQueries() []string {
 	return b.forwardQueries
-}
-
-// BackendModifiers returns the BackendModifiers instance associated with the Backend.
-// BackendModifiers contains methods to access and modify the status code, header, params,
-// query, and body of the Backend.
-//
-// Note: This method returns a copy of the BackendModifiers instance, any modifications made to it will not affect the
-// original Backend instance.
-func (b *Backend) BackendModifiers() *BackendModifiers {
-	return b.modifiers
 }
 
 // ExtraConfig returns the extra configuration options for the Backend instance.
@@ -360,36 +340,11 @@ func (b *Backend) CountModifiers() int {
 	return 0
 }
 
-// StatusCode returns the status code Modifier of the BackendModifiers instance.
-func (b *BackendModifiers) StatusCode() int {
-	return b.statusCode
-}
-
-// Header returns the header modifiers of the BackendModifiers instance.
-func (b *BackendModifiers) Header() []Modifier {
-	return b.header
-}
-
-// Param returns an array of Modifier instances that represent the params of the BackendModifiers instance.
-func (b *BackendModifiers) Param() []Modifier {
-	return b.param
-}
-
-// Query returns the list of modifiers for the query of the BackendModifiers instance.
-func (b *BackendModifiers) Query() []Modifier {
-	return b.query
-}
-
-// Body returns the list of modifiers for the body of the BackendModifiers instance.
-func (b *BackendModifiers) Body() []Modifier {
-	return b.body
-}
-
 // CountAll returns the total count of modifiers for a BackendModifiers instance.
 // It counts the number of valid `statusCode` and the length of `header`, `params`, `query`, and `body` slices,
 // and adds them up to get the total count.
 func (b *BackendModifiers) CountAll() (count int) {
-	if helper.IsNotNil(b.statusCode) {
+	if helper.IsNotEmpty(b.statusCode) {
 		count++
 	}
 	count += len(b.header) + len(b.param) + len(b.query) + len(b.body)
@@ -474,11 +429,6 @@ func (b *backendRequest) ModifyBody(body *Body) *backendRequest {
 		query:  b.query,
 		body:   body,
 	}
-}
-
-// Host returns the value of the `host` attribute of the backendRequest instance.
-func (b *backendRequest) Host() string {
-	return b.host
 }
 
 // Path returns the path string of the backendRequest instance.

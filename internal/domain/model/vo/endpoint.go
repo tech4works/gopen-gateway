@@ -20,15 +20,12 @@ import (
 	"fmt"
 	"github.com/GabrielHCataldo/go-errors/errors"
 	"github.com/GabrielHCataldo/go-helper/helper"
-	"github.com/GabrielHCataldo/go-logger/logger"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/app/model/dto"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/enum"
 	"github.com/gin-gonic/gin"
 	"net/http"
-	"time"
 )
 
-// Endpoint represents the configuration for an API endpoint in the Gopen application.
+// Endpoint represent the configuration for an API endpoint in the Gopen application.
 type Endpoint struct {
 	// comment is a string field representing the comment associated with an API endpoint.
 	comment string
@@ -39,7 +36,7 @@ type Endpoint struct {
 	// timeout represents the timeout duration for the API endpoint.
 	// It is a string value specified in the JSON configuration.
 	// The default value is empty. If not provided, the timeout will be Gopen.timeout.
-	timeout time.Duration
+	timeout Duration
 	// limiter represents the configuration for rate limiting in the Gopen application.
 	// The default value is nil. If not provided, the `limiter` will be Gopen.limiter.
 	limiter *EndpointLimiter
@@ -76,70 +73,42 @@ type Endpoint struct {
 	backends []Backend
 }
 
-// newEndpoint creates a new instance of Endpoint based on the provided endpointDTO.
-// It initializes the fields of Endpoint based on values from endpointDTO and sets default values for empty fields.
-// The function returns the created Endpoint.
-func newEndpoint(endpointDTO dto.Endpoint) Endpoint {
-	var backends []Backend
-	for _, backendDTO := range endpointDTO.Backends {
-		backends = append(backends, newBackend(backendDTO))
-	}
-
-	var timeout time.Duration
-	var err error
-	if helper.IsNotEmpty(endpointDTO.Timeout) {
-		timeout, err = time.ParseDuration(endpointDTO.Timeout)
-		if helper.IsNotNil(err) {
-			logger.Warning("Parse duration endpoint.timeout err:", err)
-		}
-	}
-
-	return Endpoint{
-		comment:            endpointDTO.Comment,
-		path:               endpointDTO.Path,
-		method:             endpointDTO.Method,
-		timeout:            timeout,
-		limiter:            newEndpointLimiterFromDTO(endpointDTO.Limiter),
-		cache:              newEndpointCacheFromDTO(endpointDTO.Cache),
-		responseEncode:     endpointDTO.ResponseEncode,
-		aggregateResponses: endpointDTO.AggregateResponses,
-		abortIfStatusCodes: endpointDTO.AbortIfStatusCodes,
-		beforewares:        endpointDTO.Beforewares,
-		afterwares:         endpointDTO.Afterwares,
-		backends:           backends,
-	}
-}
-
-// fillDefaultValues sets default values for an Endpoint object based on a given Gopen object.
-// The timeout value is obtained from the Gopen object by default, unless a timeout value is specified in the Endpoint,
-// in which case, that value takes priority. The limiter and cache values are constructed using the global configuration
-// from the Gopen object and the Endpoint object. The method returns a new Endpoint object with the default values set.
-func (e *Endpoint) fillDefaultValues(gopenVO *Gopen) Endpoint {
+// newEndpoint constructs and returns a new Endpoint struct based on the given Gopen configuration and EndpointJson.
+// It initializes the timeout duration, endpoint limiter, endpoint cache, and backends based on the global configuration
+// and the provided endpoint JSON. It sets various fields of the Endpoint struct based on the corresponding values in the
+// EndpointJson struct.
+func newEndpoint(gopenVO *Gopen, endpointJsonVO *EndpointJson) Endpoint {
 	// por padrão obtemos o timeout configurado na raiz, caso não informado um valor padrão é retornado
 	timeoutDuration := gopenVO.Timeout()
 	// se o timeout foi informado no endpoint damos prioridade a ele
-	if e.HasTimeout() {
-		timeoutDuration = e.Timeout()
+	if helper.IsGreaterThan(endpointJsonVO.Timeout, 0) {
+		timeoutDuration = endpointJsonVO.Timeout
 	}
 	// construímos o limiter com os valores de configuração global
-	endpointLimiterVO := newEndpointLimiter(gopenVO.Limiter(), e.Limiter())
+	endpointLimiterVO := newEndpointLimiter(gopenVO.Limiter(), endpointJsonVO.Limiter)
 
 	// construímos o endpoint cache com os valores de configuração global
-	endpointCacheVO := newEndpointCache(gopenVO.Cache(), e.Cache())
+	endpointCacheVO := newEndpointCache(gopenVO.Cache(), endpointJsonVO.Cache)
 
-	// construímos o VO com os valores padrões construídos a partir do Gopen e o próprio endpoint
+	// fazemos o parse dos backends
+	var backends []Backend
+	for _, backendJsonVO := range endpointJsonVO.Backends {
+		backends = append(backends, newBackend(&backendJsonVO))
+	}
+
 	return Endpoint{
-		path:               e.path,
-		method:             e.method,
+		comment:            endpointJsonVO.Comment,
+		path:               endpointJsonVO.Path,
+		method:             endpointJsonVO.Method,
 		timeout:            timeoutDuration,
 		limiter:            endpointLimiterVO,
 		cache:              endpointCacheVO,
-		responseEncode:     e.responseEncode,
-		aggregateResponses: e.aggregateResponses,
-		abortIfStatusCodes: e.abortIfStatusCodes,
-		beforewares:        e.beforewares,
-		afterwares:         e.afterwares,
-		backends:           e.backends,
+		responseEncode:     endpointJsonVO.ResponseEncode,
+		aggregateResponses: endpointJsonVO.AggregateResponses,
+		abortIfStatusCodes: endpointJsonVO.AbortIfStatusCodes,
+		beforewares:        endpointJsonVO.Beforewares,
+		afterwares:         endpointJsonVO.Afterwares,
+		backends:           backends,
 	}
 }
 
@@ -167,24 +136,9 @@ func (e *Endpoint) Equals(route gin.RouteInfo) (err error) {
 	return err
 }
 
-// HasTimeout returns true if the timeout field in the Endpoint struct is greater than 0, false otherwise.
-func (e *Endpoint) HasTimeout() bool {
-	return helper.IsGreaterThan(e.timeout, 0)
-}
-
 // Timeout returns the value of the timeout field in the Endpoint struct.
-func (e *Endpoint) Timeout() time.Duration {
+func (e *Endpoint) Timeout() Duration {
 	return e.timeout
-}
-
-// TimeoutStr returns the string representation of the timeout value in the Endpoint struct.
-// If the Endpoint has a timeout value greater than 0, it returns the string representation of the timeout value.
-// Otherwise, an empty string is returned.
-func (e *Endpoint) TimeoutStr() string {
-	if e.HasTimeout() {
-		return e.timeout.String()
-	}
-	return ""
 }
 
 // Limiter returns the limiter field of the Endpoint struct.
@@ -192,19 +146,9 @@ func (e *Endpoint) Limiter() *EndpointLimiter {
 	return e.limiter
 }
 
-// HasLimiter returns true if the Endpoint has a Limiter set, otherwise false.
-func (e *Endpoint) HasLimiter() bool {
-	return helper.IsNotEmpty(e.limiter)
-}
-
 // Cache returns the cache field of the Endpoint struct.
 func (e *Endpoint) Cache() *EndpointCache {
 	return e.cache
-}
-
-// HasCache returns a boolean value indicating whether the Endpoint has a cache.
-func (e *Endpoint) HasCache() bool {
-	return helper.IsNotNil(e.cache) && e.cache.enabled
 }
 
 // Beforewares returns the slice of strings representing the beforeware keys configured for the Endpoint.Beforewares

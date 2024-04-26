@@ -19,8 +19,6 @@ package vo
 import (
 	"fmt"
 	"github.com/GabrielHCataldo/go-helper/helper"
-	"github.com/GabrielHCataldo/go-logger/logger"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/app/model/dto"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/enum"
 	"net/http"
 	"strings"
@@ -30,7 +28,7 @@ import (
 // Cache represents a cache configuration.
 type Cache struct {
 	// duration represents the duration of the cache in the Cache struct.
-	duration time.Duration
+	duration Duration
 	// strategyHeaders is a string slice that represents the list of request modifyHeaders used to generate a cache key.
 	// The `StrategyKey` method in the `Cache` struct extracts values from these modifyHeaders and includes them in the cache key.
 	// If no strategy values are found in the modifyHeaders, the cache key will be generated without them.
@@ -55,7 +53,7 @@ type EndpointCache struct {
 	// ignoreQuery represents a boolean indicating whether to ignore query parameters when caching.
 	ignoreQuery bool
 	// duration represents the duration configuration for caching an endpoint response.
-	duration time.Duration
+	duration Duration
 	// strategyHeaders represents a slice of strings for strategy modifyHeaders
 	strategyHeaders []string
 	// onlyIfStatusCodes represents the status codes that the cache should be applied to.
@@ -68,16 +66,12 @@ type EndpointCache struct {
 	allowCacheControl *bool
 }
 
-// newEndpointCache creates a new instance of EndpointCache based on the provided Cache and EndpointCache.
-// It initializes the fields of EndpointCache with values from Cache and EndpointCache, giving priority to endpointCacheVO.
+// newEndpointCache constructs a new EndpointCache object using the provided cacheVO and endpointCacheVO.
 // If both cacheVO and endpointCacheVO are nil, it returns nil.
-// The ignoreQuery field set based on the value of endpointCacheVO.
-// The duration field set based on the value of cacheVO or endpointCacheVO.
-// The strategyHeaders field set based on the value of cacheVO or endpointCacheVO.
-// The onlyIfStatusCodes field set based on the value of cacheVO or endpointCacheVO.
-// The onlyIfMethods field set based on the value of cacheVO.
-// The allowCacheControl field set based on the value of cacheVO or endpointCacheVO.
-func newEndpointCache(cacheVO *Cache, endpointCacheVO *EndpointCache) *EndpointCache {
+// If cacheVO is not nil, it retrieves values from cacheVO and assigns them to the corresponding fields in EndpointCache.
+// If endpointCacheVO is not nil, it retrieves values from endpointCacheVO and assigns them to the corresponding fields in EndpointCache, overriding the values from cacheVO.
+// It then returns the constructed EndpointCache object.
+func newEndpointCache(cacheVO *Cache, endpointCacheVO *EndpointCacheJson) *EndpointCache {
 	// se os dois cache VO estiver nil retornamos nil
 	if helper.IsNil(cacheVO) && helper.IsNil(endpointCacheVO) {
 		return nil
@@ -86,7 +80,7 @@ func newEndpointCache(cacheVO *Cache, endpointCacheVO *EndpointCache) *EndpointC
 	// obtemos o valor do pai
 	var enabled bool
 	var ignoreQuery bool
-	var duration time.Duration
+	var duration Duration
 	var strategyHeaders []string
 	var onlyIfStatusCodes []int
 	var onlyIfMethods []string
@@ -103,19 +97,19 @@ func newEndpointCache(cacheVO *Cache, endpointCacheVO *EndpointCache) *EndpointC
 
 	// caso seja informado no endpoint, damos prioridade
 	if helper.IsNotNil(endpointCacheVO) {
-		enabled = endpointCacheVO.enabled
-		ignoreQuery = endpointCacheVO.IgnoreQuery()
+		enabled = endpointCacheVO.Enabled
+		ignoreQuery = endpointCacheVO.IgnoreQuery
 		if endpointCacheVO.HasDuration() {
-			duration = endpointCacheVO.Duration()
+			duration = endpointCacheVO.Duration
 		}
 		if endpointCacheVO.HasStrategyHeaders() {
-			strategyHeaders = endpointCacheVO.StrategyHeaders()
+			strategyHeaders = endpointCacheVO.StrategyHeaders
 		}
 		if endpointCacheVO.HasAllowCacheControl() {
-			allowCacheControl = endpointCacheVO.AllowCacheControl()
+			allowCacheControl = endpointCacheVO.AllowCacheControl
 		}
 		if endpointCacheVO.HasOnlyIfStatusCodes() {
-			onlyIfStatusCodes = endpointCacheVO.OnlyIfStatusCodes()
+			onlyIfStatusCodes = endpointCacheVO.OnlyIfStatusCodes
 		}
 	}
 
@@ -131,72 +125,31 @@ func newEndpointCache(cacheVO *Cache, endpointCacheVO *EndpointCache) *EndpointC
 	}
 }
 
-// newCacheFromDTO creates a new instance of Cache based on the provided dto.Cache.
-// It initializes the fields of Cache with values from dto.Cache.
-// If cacheDTO is nil, it returns nil.
-// The duration field is set based on the value of dto.Cache.Duration.
-// If dto.Cache.Duration is not empty, it parses the value to a time.Duration using time.ParseDuration.
-// It logs a warning message if there is an error while parsing the duration.
-// The strategyHeaders field is set based on the value of dto.Cache.StrategyHeaders.
-// The onlyIfStatusCodes field is set based on the value of dto.Cache.OnlyIfStatusCodes.
-// The onlyIfMethods field is set based on the value of dto.Cache.OnlyIfMethods.
-// The allowCacheControl field is set based on the value of dto.Cache.AllowCacheControl.
-// Returns a new instance of Cache.
-func newCacheFromDTO(cacheDTO *dto.Cache) *Cache {
-	if helper.IsNil(cacheDTO) {
+// newCache constructs a new Cache object using the provided cacheJsonVO.
+// If cacheJsonVO is nil, it returns nil.
+// Otherwise, it assigns values from cacheJsonVO to the corresponding fields in Cache,
+// and returns the constructed Cache object.
+func newCache(cacheJsonVO *CacheJson) *Cache {
+	if helper.IsNil(cacheJsonVO) {
 		return nil
-	}
-
-	var duration time.Duration
-	var err error
-	if helper.IsNotEmpty(cacheDTO.Duration) {
-		duration, err = time.ParseDuration(cacheDTO.Duration)
-		if helper.IsNotNil(err) {
-			logger.Warning("Parse duration cache.duration err:", err)
-		}
 	}
 	return &Cache{
-		duration:          duration,
-		strategyHeaders:   cacheDTO.StrategyHeaders,
-		onlyIfStatusCodes: cacheDTO.OnlyIfStatusCodes,
-		onlyIfMethods:     cacheDTO.OnlyIfMethods,
-		allowCacheControl: cacheDTO.AllowCacheControl,
-	}
-}
-
-// newEndpointCacheFromDTO creates a new instance of EndpointCache based on the provided EndpointCacheDTO.
-// It initializes the fields of EndpointCache based on values from EndpointCacheDTO and sets default values for empty fields.
-func newEndpointCacheFromDTO(endpointCacheDTO *dto.EndpointCache) *EndpointCache {
-	if helper.IsNil(endpointCacheDTO) {
-		return nil
-	}
-
-	var duration time.Duration
-	var err error
-	if helper.IsNotEmpty(endpointCacheDTO.Duration) {
-		duration, err = time.ParseDuration(endpointCacheDTO.Duration)
-		if helper.IsNotNil(err) {
-			logger.Warning("Parse duration endpoint.cache.duration err:", err)
-		}
-	}
-	return &EndpointCache{
-		enabled:           endpointCacheDTO.Enabled,
-		ignoreQuery:       endpointCacheDTO.IgnoreQuery,
-		duration:          duration,
-		strategyHeaders:   endpointCacheDTO.StrategyHeaders,
-		onlyIfStatusCodes: endpointCacheDTO.OnlyIfStatusCodes,
-		allowCacheControl: endpointCacheDTO.AllowCacheControl,
+		duration:          cacheJsonVO.Duration,
+		strategyHeaders:   cacheJsonVO.StrategyHeaders,
+		onlyIfStatusCodes: cacheJsonVO.OnlyIfStatusCodes,
+		onlyIfMethods:     cacheJsonVO.OnlyIfMethods,
+		allowCacheControl: cacheJsonVO.AllowCacheControl,
 	}
 }
 
 // Duration returns the value of the duration field in the Cache struct.
 // If the value is greater than zero, it returns the duration value.
 // Otherwise, it returns a default value of 1 minute.
-func (c Cache) Duration() time.Duration {
+func (c Cache) Duration() Duration {
 	if helper.IsGreaterThan(c.duration, 0) {
 		return c.duration
 	}
-	return 1 * time.Minute
+	return Duration(1 * time.Minute)
 }
 
 // StrategyHeaders returns the list of request headers used to generate a cache key.
@@ -247,7 +200,7 @@ func (e EndpointCache) HasDuration() bool {
 }
 
 // Duration returns the value of the duration field in the Cache struct.
-func (e EndpointCache) Duration() time.Duration {
+func (e EndpointCache) Duration() Duration {
 	return e.duration
 }
 
@@ -259,36 +212,6 @@ func (e EndpointCache) DurationStr() string {
 		return ""
 	}
 	return e.duration.String()
-}
-
-// HasStrategyHeaders returns a boolean value indicating whether the `strategyHeaders` field in the EndpointCache.
-// struct is not nil.
-func (e EndpointCache) HasStrategyHeaders() bool {
-	return helper.IsNotNil(e.strategyHeaders)
-}
-
-// StrategyHeaders returns the list of request headers used to generate a cache key.
-func (e EndpointCache) StrategyHeaders() []string {
-	return e.strategyHeaders
-}
-
-// HasAllowCacheControl returns a boolean value indicating whether the `allowCacheControl` field in the EndpointCache struct
-// is not nil. If the field is not nil, it means that the cache control header is allowed for the endpoint cache, and the
-// function returns true. Otherwise, it returns false.
-func (e EndpointCache) HasAllowCacheControl() bool {
-	return helper.IsNotNil(e.allowCacheControl)
-}
-
-// AllowCacheControl returns the value of the allowCacheControl field in the EndpointCache struct.
-func (e EndpointCache) AllowCacheControl() *bool {
-	return e.allowCacheControl
-}
-
-// HasOnlyIfStatusCodes returns a boolean value indicating whether the `onlyIfStatusCodes` field in the EndpointCache struct
-// is not nil. If the field is not nil, it means that the cache should only be applied to the specified status codes, and the
-// function returns true. Otherwise, it returns false.
-func (e EndpointCache) HasOnlyIfStatusCodes() bool {
-	return helper.IsNotNil(e.onlyIfStatusCodes)
 }
 
 // OnlyIfStatusCodes returns the list of status codes that the cache should be applied to.

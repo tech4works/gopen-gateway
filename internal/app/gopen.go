@@ -35,6 +35,7 @@ import (
 // The CustomAfterPrefixText field is used to set a custom text that will be
 // printed after the log prefix. In this example, the value is set to "APP".
 var loggerOptions = logger.Options{
+	HideArgCaller:         true,
 	CustomAfterPrefixText: "APP",
 }
 
@@ -51,8 +52,9 @@ var httpServer *http.Server
 
 // gopen is a struct that holds various components and controllers required for running a Gopen server.
 // It contains a gopenVO field that represents the configuration and settings for the Gopen server.
-// It also includes middleware implementations such as traceMiddleware, logMiddleware, securityCorsMiddleware,
-// timeoutMiddleware, limiterMiddleware, cacheMiddleware, as well as static and endpoint controllers to handle requests.
+// It also includes middleware implementations such as panicRecoveryMiddleware, traceMiddleware, logMiddleware,
+// securityCorsMiddleware, timeoutMiddleware, limiterMiddleware, cacheMiddleware, as well as static and endpoint
+// controllers to handle requests.
 type gopen struct {
 	gopenVO                 *vo.Gopen
 	panicRecoveryMiddleware middleware.PanicRecovery

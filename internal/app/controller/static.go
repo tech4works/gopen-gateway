@@ -25,9 +25,9 @@ import (
 )
 
 // static represents a static handler that handles requests for ping and version.
-// It contains a gopenVO field of type vo.Gopen, which holds configuration information.
+// It contains a gopenJsonVO field of type vo.Gopen, which holds configuration information.
 type static struct {
-	gopenVO *vo.Gopen
+	gopenJsonVO *vo.GopenJson
 }
 
 // Static represents an interface for handling requests related to ping, version, and settings.
@@ -47,9 +47,9 @@ type Static interface {
 // NewStatic is a function that creates a new instance of the Static interface.
 // It takes a vo.Gopen parameter and returns a Static object.
 // The returned Static object has a gopenVO field which is initialized with the provided vo.Gopen object.
-func NewStatic(gopenVO *vo.Gopen) Static {
+func NewStatic(gopenVO *vo.GopenJson) Static {
 	return static{
-		gopenVO: gopenVO,
+		gopenJsonVO: gopenVO,
 	}
 }
 
@@ -63,18 +63,18 @@ func (s static) Ping(ctx *gin.Context) {
 // It checks if the version is not empty and responds with the version string and a status code of 200 (OK).
 // If the version is empty, it responds with a status code of 404 (Not Found).
 func (s static) Version(ctx *gin.Context) {
-	if helper.IsNotEmpty(s.gopenVO.Version()) {
-		ctx.String(http.StatusOK, "%s", s.gopenVO.Version())
+	if helper.IsNotEmpty(s.gopenJsonVO.Version) {
+		ctx.String(http.StatusOK, "%s", s.gopenJsonVO.Version)
 		return
 	}
 	ctx.Status(http.StatusNotFound)
 }
 
 // Settings is a method that handles the "Settings" request.
-// It retrieves the necessary data from the gopenVO object and constructs a dto.SettingView object.
+// It retrieves the necessary data from the gopenJsonVO object and constructs a dto.SettingView object.
 // The SettingView object contains information such as version, version date, founder, code helpers,
 // number of endpoints, number of middlewares, number of backends, number of modifiers, and the gopenVO object itself.
 // The method then responds with the constructed SettingView object in JSON format and a status code of 200 (OK).
 func (s static) Settings(ctx *gin.Context) {
-	ctx.JSON(http.StatusOK, mapper.BuildSettingViewDTO(s.gopenVO))
+	ctx.JSON(http.StatusOK, mapper.BuildSettingViewDTO(s.gopenJsonVO))
 }

@@ -62,6 +62,15 @@ func (m modifyBodies) Execute() (*Request, *Response) {
 	}
 }
 
+// executeRequestScope executes modifications in the context of the request scope.
+// It calls the bodies method of modifyBodies, passing the bodies to be modified,
+// and returns the modified bodies. It then modifies the local request body and the
+// global request body using the modified bodies. Finally, it returns the modified
+// global request body and the original response.
+//
+// Returns:
+// - Request: The modified (or original) HTTP Request
+// - Response: The original HTTP Response
 func (m modifyBodies) executeRequestScope() (*Request, *Response) {
 	// chamamos o modify de bodies passando os bodies a ser modificado e o mesmo retorna modificados
 	globalBody, localBody := m.bodies(m.globalRequestBody(), m.localRequestBody())

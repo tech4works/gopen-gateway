@@ -106,6 +106,8 @@ func (b backend) Execute(ctx context.Context, executeData *vo.ExecuteBackend) (*
 		return requestVO, responseVO.Error(executeData.Endpoint().Path(), err)
 	}
 
+	// todo: adicionar log de execução do backend em questão
+
 	// chamamos a interface de infra para chamar a conexão http e tratar a resposta
 	httpResponse, err := b.restTemplate.MakeRequest(httpRequest)
 	// caso ocorra um erro, retornamos o response como abort = true e a resposta formatada
@@ -187,6 +189,8 @@ func (b backend) buildBackendResponse(
 ) (*vo.Request, *vo.Response) {
 	// construímos o novo objeto de valor da resposta do backend
 	backendResponseVO := vo.NewBackendResponse(backendVO, httpResponse)
+
+	// todo: adicionar log de resposta do backend em questão
 
 	// adicionamos o novo backend request no objeto de valor de resposta
 	responseVO = responseVO.Append(backendResponseVO)
