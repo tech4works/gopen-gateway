@@ -4,15 +4,15 @@
   "definitions": {
     "byte-unit": {
       "type": "string",
-      "pattern": "^\\d+(B|KB|MB|GB|TB|PB|EB|ZB|YB)$"
+      "pattern": "^(?:\\d+(?:B|KB|MB|GB|TB|PB|EB|ZB|YB)|\\$[A-Za-z_][A-Za-z_0-9]*)$"
     },
     "duration": {
       "type": "string",
-      "pattern": "^[0-9]+(\\.[0-9]*)?[nsµumh]$"
+      "pattern": "^(?:\\d+(?:\\.\\d+)?(?:h|m|s|ms|us|ns)|\\$[A-Za-z_][A-Za-z_0-9]*)$"
     },
     "path": {
       "type": "string",
-      "pattern": "^/([^/\\s]*)+(/[^/\\s]+)*$"
+      "pattern": "^(?:/([^/\\s]*)+(/[^/\\s]+)*|\\$[A-Za-z_][A-Za-z_0-9]*)$"
     },
     "http-method": {
       "type": "string",
@@ -39,8 +39,7 @@
           "type": "object",
           "properties": {
             "address": {
-              "type": "string",
-              "format": "uri"
+              "type": "string"
             },
             "password": {
               "type": "string"
@@ -730,7 +729,7 @@
       "$ref": "#/definitions/store"
     },
     "timeout": {
-      "type": "string"
+      "$ref": "#/definitions/duration"
     },
     "cache": {
       "$ref": "#/definitions/cache"
