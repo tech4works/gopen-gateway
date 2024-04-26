@@ -2350,6 +2350,7 @@ abaixa:
 - [go-errors](https://github.com/GabrielHCataldo/go-errors)
 - [go-helper](https://github.com/GabrielHCataldo/go-helper)
 - [go-redis-template](https://github.com/GabrielHCataldo/go-redis-template)
+- [validator](https://github.com/go-playground/validator)
 - [fsnotify](https://github.com/fsnotify/fsnotify)
 - [gin](https://github.com/gin-gonic/gin)
 - [gjson](https://github.com/tidwall/gjson)
