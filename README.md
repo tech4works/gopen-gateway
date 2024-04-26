@@ -10,7 +10,6 @@
 [![HitCount](https://hits.dwyl.com/GabrielHCataldo/gopen-gateway.svg)](http://hits.dwyl.com/GabrielHCataldo/gopen-gateway)
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FGabrielHCataldo%2Fgopen-gateway.svg?type=small)](https://app.fossa.com/projects/git%2Bgithub.com%2FGabrielHCataldo%2Fgopen-gateway?ref=badge_small)
 
----
 
 ![United States](https://raw.githubusercontent.com/stevenrskelton/flag-icon/master/png/16/country-4x3/us.png "United States")
 [Inglês](https://github.com/GabrielHCataldo/gopen-gateway/blob/main/README.en.md) |
@@ -1256,15 +1255,13 @@ será mantido.
 Nessa primeira versão podemos utilizar essa sintaxe apenas em campos do tipo string, caso queira
 [contríbuir](#como-contríbuir) com uma solução que aceitará essa sintaxe independente do tipo, ficaríamos gratos!
 
----
-
 ## Valores dinâmicos para modificação
 
 Podemos utilizar valores de requisição e resposta do tempo de execução do endpoint, conforme o mesmo foi configurado.
 Esses valores podem ser obtidos por uma sintaxe específica, temos as seguintes possibilidades de obtenção desses
 valores, veja:
 
-### Requisição:
+### Requisição
 
 Quando menciona a sintaxe `#request...` você estará obtendo os valores da requisição recebida, caso mencione o campo
 `#request.history...` você estará obtendo os valores
