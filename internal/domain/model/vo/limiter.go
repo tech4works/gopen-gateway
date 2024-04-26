@@ -132,11 +132,14 @@ func newEndpointRate(rateVO Rate, endpointRateVO *RateJson) *EndpointRate {
 }
 
 // newLimiter creates a new instance of Limiter using the provided LimiterJson object.
-// It sets the values of maxHeaderSize, maxBodySize, and maxMultipartMemorySize based on the LimiterJson object.
-// The rate configuration is set using the newRate function.
-//
-// Returns the newly created Limiter object.
+// If the LimiterJson object is nil, it returns a Limiter object with default values.
+// Otherwise, it sets the values of maxHeaderSize, maxBodySize, maxMultipartMemorySize,
+// and rate based on the values of the LimiterJson object.
+// Returns a Limiter object with the configured values.
 func newLimiter(limiterJsonVO *LimiterJson) Limiter {
+	if helper.IsNil(limiterJsonVO) {
+		return Limiter{}
+	}
 	return Limiter{
 		maxHeaderSize:          limiterJsonVO.MaxHeaderSize,
 		maxBodySize:            limiterJsonVO.MaxBodySize,

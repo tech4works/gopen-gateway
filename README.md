@@ -238,9 +238,13 @@ Campo obrigatório, para o auxílio na escrita e regras do próprio JSON de conf
 https://raw.githubusercontent.com/GabrielHCataldo/gopen-gateway/main/json-schema.json`
 ```
 
+### @comment
+
+Campo opcional, do tipo string, livre para anotações relacionadas ao seu projeto.
+
 ### version
 
-Campo opcional, usado para retorno do endpoint estático `/version`.
+Campo opcional, usado para controle de versão e também usado no retorno do endpoint estático [/version](#version-1).
 
 ### port
 
@@ -711,6 +715,10 @@ Veja abaixo como funciona o fluxo básico de um backend na imagem abaixo:
 
 Abaixo iremos listar e explicar cada campo desse objeto tão importante:
 
+### backend.@comment
+
+Campo opcional, do tipo string, campo livre para anotações relacionadas ao seu backend.
+
 ### backend.name
 
 Campo opcional, do tipo string, é responsável pelo nome do seu serviço backend, é utilizado para dar nome ao campo de
@@ -893,6 +901,10 @@ backend em questão.
 
 Abaixo iremos listar e explicar cada campo desse objeto tão importante:
 
+### modifiers.@comment
+
+Campo opcional, do tipo string, campo livre para anotações relacionadas aos seus modificadores.
+
 ### modifiers.status-code
 
 Campo opcional, do tipo inteiro, valor padrão é `0`, indicando não haver nada a ser modificado no código de status HTTP
@@ -908,6 +920,10 @@ Campo opcional, do tipo lista de objeto, valor padrão é vazio, responsável pe
 e resposta do backend.
 
 Veja abaixo os campos desse objeto e suas responsabilidade:
+
+#### header.@comment
+
+Campo opcional, do tipo string, campo livre para anotações relacionadas ao seu modificador.
 
 #### header.context
 
@@ -988,6 +1004,10 @@ requisição para o backend.
 
 Veja abaixo os campos desse objeto e suas responsabilidade:
 
+#### param.@comment
+
+Campo opcional, do tipo string, campo livre para anotações relacionadas ao seu modificador.
+
 #### param.context
 
 Campo obrigatório, do tipo string, é responsável por indicar qual contexto a modificação deve atuar.
@@ -1042,6 +1062,10 @@ Campo opcional, do tipo lista de objeto, valor padrão é vazio, responsável pe
 requisição para o backend.
 
 Veja abaixo os campos desse objeto e suas responsabilidade:
+
+#### query.@comment
+
+Campo opcional, do tipo string, campo livre para anotações relacionadas ao seu modificador.
 
 #### query.context
 
@@ -1104,6 +1128,10 @@ Campo opcional, do tipo lista de objeto, valor padrão é vazio, responsável pe
 requisição ou resposta do backend.
 
 Veja abaixo os campos desse objeto e suas responsabilidade:
+
+#### body.@comment
+
+Campo opcional, do tipo string, campo livre para anotações relacionadas ao seu modificador.
 
 #### body.context
 
@@ -1189,6 +1217,59 @@ em questão para os backends seguintes.
 Caso informado como `true` essa modificação será propagada para os seguintes backends.
 
 IMPORTANTE: Esse campo só é aceito se o [escopo](#bodyscope) tiver o valor `REQUEST`.
+
+## Rotas estáticas
+
+O GOPEN API Gateway tem alguns endpoints estáticos, isto é, indepêndente de qualquer configuração feita, teremos
+atualmente três endpoints cadastrados nas rotas do mesmo, veja abaixo cada um e suas responsabilidades:
+
+### `/ping`
+
+Endpoint para saber se a API Gateway está viva o path, retorna `404 (Not found)` se tiver off, e
+`200 (OK)` se tiver no ar.
+
+### `/version`
+
+Endpoint que retorna a versão obtida na config [version](#version), retorna `404 (Not Found)` se não tiver sido
+informado no [json de configuração](#json-de-configuração), caso contrário retorna o `200 (OK)` com o valor no body
+como texto.
+
+### `/settings`
+
+Endpoint retorna algumas informações sobre o projeto, como versão, data da versão, quantidade de contribuintes e
+um resumo de quantos endpoints, middlewares, backends e modifiers configurados no momento e o json de configuração
+que está rodando ativamente.
+
+```json
+{
+  "version": "v1.0.0",
+  "version-date": "03/27/2024",
+  "founder": "Gabriel Cataldo",
+  "contributors": 1,
+  "endpoints": 1,
+  "middlewares": 0,
+  "backends": 1,
+  "modifiers": 0,
+  "setting": {
+    "port": 8080,
+    "endpoints": [
+      {
+        "path": "/users/find/:key",
+        "method": "GET",
+        "backends": [
+          {
+            "hosts": [
+              "http://192.168.1.8:8090"
+            ],
+            "path": "/users/find/:key",
+            "method": "GET"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
 
 ## Variáveis de ambiente
 
@@ -1371,7 +1452,7 @@ valores, apenas se lembre que, os objetos header, query são mapas de lista de s
 
 A API Gateway ao receber uma requisição irá acrescentar o IP do cliente no cabeçalho `X-Forwarded-For` das requisições
 subjacentes, e também adiciona, caso não exista, um valor único gerado ao cabeçalho chamado `X-Trace-Id` para melhor
-observabilidade da requisição recebida tanto nos logs da API Gateway como nos microserviços subjacentes. 
+observabilidade da requisição recebida tanto nos logs da API Gateway como nos microserviços subjacentes.
 
 ## Lógica de resposta
 

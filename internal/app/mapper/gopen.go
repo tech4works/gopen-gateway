@@ -17,6 +17,7 @@
 package mapper
 
 import (
+	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/app/model/dto"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
 	"os"
@@ -33,18 +34,18 @@ import (
 //
 // Returns:
 //   - A SettingView object that represents the configuration view for the application, including the version,
-//     version date, founder, code helpers, counts of endpoints, middlewares, backends, modifiers,
+//     version date, founder, contributors, counts of endpoints, middlewares, backends, modifiers,
 //     and a copy of the GopenJson object.
 func BuildSettingViewDTO(gopenJsonVO *vo.GopenJson) dto.SettingView {
 	return dto.SettingView{
-		Version:     os.Getenv("VERSION"),
-		VersionDate: os.Getenv("VERSION_DATE"),
-		Founder:     os.Getenv("FOUNDER"),
-		CodeHelpers: os.Getenv("CODE_HELPERS"),
-		Endpoints:   gopenJsonVO.CountEndpoints(),
-		Middlewares: gopenJsonVO.CountMiddlewares(),
-		Backends:    gopenJsonVO.CountBackends(),
-		Modifiers:   gopenJsonVO.CountModifiers(),
-		Setting:     gopenJsonVO.Json(),
+		Version:      os.Getenv("VERSION"),
+		VersionDate:  os.Getenv("VERSION_DATE"),
+		Founder:      os.Getenv("FOUNDER"),
+		Contributors: helper.SimpleConvertToInt(os.Getenv("CONTRIBUTORS")),
+		Endpoints:    gopenJsonVO.CountEndpoints(),
+		Middlewares:  gopenJsonVO.CountMiddlewares(),
+		Backends:     gopenJsonVO.CountBackends(),
+		Modifiers:    gopenJsonVO.CountModifiers(),
+		Setting:      gopenJsonVO.Json(),
 	}
 }

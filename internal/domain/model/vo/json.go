@@ -381,7 +381,7 @@ func (g GopenJson) CountMiddlewares() int {
 
 // CountEndpoints returns the number of endpoints in the Gopen struct.
 func (g GopenJson) CountEndpoints() int {
-	return len(g.Middlewares)
+	return len(g.Endpoints)
 }
 
 // CountBackends returns the total number of backends present in the `Gopen` struct and its nested `Endpoint` structs.

@@ -30,7 +30,7 @@ type SettingView struct {
 	Founder string `json:"founder,omitempty"`
 	// CodeHelpers represents the code helpers configuration in the SettingView struct.
 	// It is a string field that represents the code helpers for the application.
-	CodeHelpers string `json:"code-helpers,omitempty"`
+	Contributors int `json:"contributors,omitempty"`
 	// Endpoints represents the number of APIs in the Gopen application.
 	Endpoints int `json:"endpoints"`
 	// Middlewares represents the number of middlewares in the SettingView struct.
