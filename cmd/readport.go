@@ -23,10 +23,21 @@ import (
 	"os"
 )
 
+// JsonConfig represents the JSON configuration structure.
 type JsonConfig struct {
+	// Port represents the port number in a JSON configuration structure. The port number must be in
+	// the range of 1 to 65535.
 	Port int `json:"port"`
 }
 
+// main is the entry point of the program. It opens the file passed as an argument and reads
+// the JSON configuration from it.
+// If any error occurs while opening or decoding the file, it prints an error message and exits with a non-zero
+// status code.
+// The JSON configuration must have a valid port number in the range of 1 to 65535. If the port is out of range, it
+// prints an error message and exits with a non-zero status code.
+// Finally, it prints the port number to the standard output.
+// The function signature is: `func main()`.
 func main() {
 	// lemos o arquivo passado como argumento
 	file, err := os.Open(os.Args[1])
