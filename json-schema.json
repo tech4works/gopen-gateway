@@ -750,8 +750,7 @@
     }
   },
   "required": [
-    "port",
-    "endpoints"
+    "port"
   ],
   "additionalProperties": false
 }
