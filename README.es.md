@@ -550,11 +550,11 @@ servir las solicitudes HTTP.
 
 Vea cómo funciona el flujo básico de un endpoint en la imagen a continuación:
 
-<img src="assets/basic-endpoint-flowchart-pt-br.png" alt="flujo básico de un endpoint">
+<img src="assets/basic-endpoint-flowchart-es.png" alt="flujo básico de un endpoint">
 
 A continuación vamos a listar y explicar cada campo de este objeto tan importante:
 
-### endpoint.@comment
+### endpoint.@comment`
 
 Campo opcional, de tipo string, campo libre para anotaciones relacionadas con su endpoint.
 
@@ -719,7 +719,7 @@ dice todo, es una lista que indica todos los servicios necesarios para que el en
 
 Vea cómo funciona el flujo básico de un backend en la imagen a continuación:
 
-<img src="assets/basic-backend-flowchart-pt-br.png" alt="flujo básico de un backend">
+<img src="assets/basic-backend-flowchart-es.png" alt="flujo básico de un backend">
 
 A continuación, vamos a listar y explicar cada campo de este objeto tan importante:
 
