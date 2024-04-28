@@ -32,7 +32,7 @@ import (
 const jsonResultUri = "./runtime/.json"
 
 // jsonSchemaUri is a constant string representing the URI of the JSON schema file.
-const jsonSchemaUri = "https://raw.githubusercontent.com/GabrielHCataldo/gopen-gateway/main/json-schema.json"
+const jsonSchemaUri = "https://raw.githubusercontent.com/GabrielHCataldo/gopen-gateway/v1.0.0/json-schema.json"
 
 // LoadGopenJson loads the Gopen configuration JSON file based on the specified environment.
 // The function takes an environment string as input and returns a pointer to a GopenJson object.
