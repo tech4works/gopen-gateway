@@ -149,7 +149,7 @@ func (g gopen) ListerAndServer() {
 	}
 
 	// montamos o endereço com a porta configurada
-	address := fmt.Sprint("127.0.0.1:", g.gopenVO.Port())
+	address := fmt.Sprint(":", g.gopenVO.Port())
 
 	// rodamos o gin engine
 	printInfoLogf("Listening and serving HTTP on %s!", address)

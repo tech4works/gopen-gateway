@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        ENV_NAME: ${ENV_NAME}
+    ports:
+      - "${PORT}:${PORT}"
+    volumes:
+      - ./runtime:/root/runtime
+      - ./gopen/${ENV_NAME}:/root/gopen/${ENV_NAME}
+    restart: unless-stopped

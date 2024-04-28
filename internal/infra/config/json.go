@@ -29,10 +29,10 @@ import (
 )
 
 // jsonResultUri is a constant string representing the filepath of the Gopen JSON result file.
-const jsonResultUri = "./gopen.json"
+const jsonResultUri = "./runtime/.json"
 
 // jsonSchemaUri is a constant string representing the URI of the JSON schema file.
-const jsonSchemaUri = "file://./json-schema.json"
+const jsonSchemaUri = "https://raw.githubusercontent.com/GabrielHCataldo/gopen-gateway/main/json-schema.json"
 
 // LoadGopenJson loads the Gopen configuration JSON file based on the specified environment.
 // The function takes an environment string as input and returns a pointer to a GopenJson object.
@@ -50,7 +50,7 @@ func LoadGopenJson(env string) *vo.GopenJson {
 	PrintInfoLogCmdf("Loading Gopen json from file: %s...", fileJsonUri)
 	fileJsonBytes, err := os.ReadFile(fileJsonUri)
 	if helper.IsNotNil(err) {
-		panic(errors.New("Error read martini config from file json:", fileJsonUri, "err:", err))
+		panic(errors.New("Error read Gopen config from file json:", fileJsonUri, "err:", err))
 	}
 
 	// preenchemos os valores de variável de ambiente com a sintaxe pre-definida

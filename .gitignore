@@ -35,3 +35,6 @@ tmp/
 
 # Gopen config
 gopen/
+
+# Build
+runtime/

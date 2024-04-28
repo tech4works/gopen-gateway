@@ -26,7 +26,7 @@ import (
 func LoadGopenDefaultEnvs() {
 	// carregamos as envs padrões do Gopen
 	PrintInfoLogCmd("Loading Gopen envs default...")
-	if err := godotenv.Load("./internal/infra/config/.env"); helper.IsNotNil(err) {
+	if err := godotenv.Load("./.env"); helper.IsNotNil(err) {
 		panic(errors.New("Error load Gopen envs default:", err))
 	}
 }

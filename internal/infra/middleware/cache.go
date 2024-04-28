@@ -59,6 +59,12 @@ func NewCache(cacheStore infra.CacheStore) Cache {
 // After the next handler is executed, it checks if the response can be cached, sets the cache value, and logs any errors.
 func (c cache) Do(endpointCacheVO *vo.EndpointCache) api.HandlerFunc {
 	return func(ctx *api.Context) {
+		// se for nil vamos para o próximo
+		if helper.IsNil(endpointCacheVO) {
+			ctx.Next()
+			return
+		}
+
 		// inicializamos a chave que vai ser utilizada
 		key := endpointCacheVO.StrategyKey(ctx.Request())
 

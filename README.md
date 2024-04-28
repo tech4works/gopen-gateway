@@ -1222,6 +1222,16 @@ Caso informado como `true` essa modificação será propagada para os seguintes 
 
 IMPORTANTE: Esse campo só é aceito se o [escopo](#bodyscope) tiver o valor `REQUEST`.
 
+## JSON de tempo de execução
+
+O GOPEN API Gateway quando iniciado, gera um arquivo JSON, baseado no [JSON de configuração](#json-de-configuração),
+localizado na pasta `runtime` na raiz da sua aréa de trabalho.
+
+Esse JSON, indica qual foi o entendimento da aplicação ao ler o [JSON de configuração](#json-de-configuração), todas
+as [#variáveis de configuração](#variáveis-de-ambiente) já terão seus valores substituídos, caso exista.
+
+Esse json também pode ser lido utilizando a rota estática [/settings](#settings).
+
 ## Rotas estáticas
 
 O GOPEN API Gateway tem alguns endpoints estáticos, isto é, indepêndente de qualquer configuração feita, teremos
@@ -1314,8 +1324,8 @@ REDIS_PASSWORD=12345
 TIMEOUT=5m
 ```
 
-Quando a API Gateway faz o build da aplicação, ela gera um arquivo JSON na raiz indicando os valores e configuração do
-projeto que está em execução, veja o resultado para desse arquivo após o build:
+A API Gateway gera um arquivo [JSON de tempo de execução](#json-de-tempo-execução) ao rodar a aplicação, veja o
+resultado do mesmo após iniciar a aplicação:
 
 ```json
 {
