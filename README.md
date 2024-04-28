@@ -2305,14 +2305,10 @@ Corpo
 
 # Usabilidade
 
----
-
 Use o projeto [playground](https://github.com/GabrielHCataldo/gopen-gateway-playground) para começar a explorar e
 utilizar na prática o GOPEN API Gateway!
 
 # Como contríbuir?
-
----
 
 Ficamos felizes quando vemos a comunidade se apoiar, e projetos como esse, está de braços abertos para receber
 suas ideias, veja abaixo como participar.
@@ -2356,8 +2352,6 @@ PR para a mesma.
 
 # Agradecimentos
 
----
-
 Esse projeto teve apoio de bibliotecas fantásticas, esse trecho dedico a cada uma listada
 abaixa:
 
@@ -2378,7 +2372,5 @@ abaixa:
 Obrigado por contribuir para a comunidade Go e facilitar o desenvolvimento desse projeto.
 
 # Licença Apache 2.0
-
----
 
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FGabrielHCataldo%2Fgopen-gateway.svg?type=large&issueType=license)](https://app.fossa.com/projects/git%2Bgithub.com%2FGabrielHCataldo%2Fgopen-gateway?ref=badge_large&issueType=license)
