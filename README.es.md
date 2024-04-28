@@ -58,8 +58,6 @@ y aún optimizará tu desarrollo, mira abajo todos los recursos disponibles:
 
 # Documentación
 
----
-
 Para entender cómo funciona, necesitamos explicar primero la estructura de los entornos dinámicos que GOPEN acepta para
 su configuración en JSON y archivo de variables de entorno, ¡así que vamos allá!
 
@@ -2318,14 +2316,10 @@ Cuerpo
 
 # Usabilidad
 
----
-
 ¡Utiliza el proyecto [playground](https://github.com/GabrielHCataldo/gopen-gateway-playground) para comenzar a explorar
 y utilizar en la práctica la API Gateway de GOPEN!
 
 # ¿Cómo contribuir?
-
----
 
 Nos alegra cuando vemos que la comunidad se apoya mutuamente, y proyectos como este, están abiertos para recibir
 tus ideas. A continuación, te presentamos cómo puedes participar.
@@ -2369,8 +2363,6 @@ Pull Request hacia la misma.
 
 # Agradecimientos
 
----
-
 Este proyecto tuvo el apoyo de bibliotecas fantásticas, este segmento está dedicado a cada una de ellas listadas
 a continuación:
 
@@ -2391,8 +2383,6 @@ a continuación:
 Gracias por contribuir a la comunidad Go y facilitar el desarrollo de este proyecto.
 
 # License Apache 2.0
-
----
 
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FGabrielHCataldo%2Fgopen-gateway.svg?type=large&issueType=license)](https://app.fossa.com/projects/git%2Bgithub.com%2FGabrielHCataldo%2Fgopen-gateway?ref=badge_large&issueType=license)
 
