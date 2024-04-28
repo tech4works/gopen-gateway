@@ -57,8 +57,6 @@ e ainda otimizará o seu desenvolvimento, veja abaixo todos os recursos disponí
 
 # Documentação
 
----
-
 Para entender como funciona, precisamos explicar primeiro a estrutura dos ambientes dinâmicos que GOPEN aceita para sua
 configuração em JSON e arquivo de variáveis de ambiente, então vamos lá!
 
