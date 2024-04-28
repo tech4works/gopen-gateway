@@ -543,7 +543,7 @@ e `afterwares` feitos no projeto de [playground](https://github.com/GabrielHCata
 Campo obrigatório, é uma lista de objeto, representa cada endpoint da API Gateway que será registrado para ouvir e
 servir as requisições HTTP.
 
-Veja abaixo como funciona o fluxo básico de um endpoint na imagem abaixo:
+Veja como funciona o fluxo básico de um endpoint na imagem abaixo:
 
 <img src="assets/basic-endpoint-flowchart-pt-br.png" alt="fluxo básico de endpoint">
 
@@ -713,7 +713,7 @@ executado o backend configurado no mesmo. Caso contrário irá ignorar a posiç�
 Campo obrigatório, do tipo lista de objeto, responsável pela execução principal do endpoint, o próprio nome já diz tudo,
 é uma lista que indica todos os serviços necessários para que o endpoint retorne a resposta esperada.
 
-Veja abaixo como funciona o fluxo básico de um backend na imagem abaixo:
+Veja como funciona o fluxo básico de um backend na imagem abaixo:
 
 <img src="assets/basic-backend-flowchart-pt-br.png" alt="fluxo básico de um backend">
 
