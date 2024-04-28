@@ -238,7 +238,7 @@ definidas, veja abaixo um exemplo simples com todos os campos possíveis e seus 
 
 Campo obrigatório, para o auxílio na escrita e regras do próprio JSON de configuração, único valor aceito é
 
-```
+```text
 https://raw.githubusercontent.com/GabrielHCataldo/gopen-gateway/main/json-schema.json`
 ```
 
@@ -280,7 +280,7 @@ clicando [aqui](#504-gateway-timeout).
 IMPORTANTE: Caso seja informado no objeto de endpoint, damos prioridade ao valor informado do endpoint, caso contrário
 seguiremos com o valor informado ou padrão desse campo, na raiz do JSON de configuração.
 
-```
+```text
 - Valores aceitos:
     - s para segundos
     - m para minutos
@@ -316,7 +316,7 @@ caso contrário o valor será `false`.
 
 Indica o tempo que o cache irá durar, ele é do tipo `time.Duration`.
 
-```
+```text
 - Valores aceitos:
     - s para segundos
     - m para minutos
@@ -397,7 +397,7 @@ Caso o tamanho do cabeçalho ultrapasse o valor informado, a API Gateway irá ab
 `431 (Request header fields too large)`. Veja mais sobre esse retorno
 clicando [aqui](#431-request-header-fields-too-large).
 
-```
+```text
 - Valores aceitos:
     - B para Byte
     - KB para KiloByte
@@ -424,7 +424,7 @@ da requisição.
 Caso o tamanho do corpo ultrapasse o valor informado, a API Gateway irá abortar a requisição com o código de status
 `413 (Request entity too large)`.
 
-```
+```text
 - Valores aceitos:
     - B para Byte
     - KB para KiloByte
@@ -451,7 +451,7 @@ corpo multipart/form da requisição, geralmente utilizado para envio de arquivo
 Caso o tamanho do corpo ultrapasse o valor informado, a API Gateway irá abortar a requisição com o código de status
 `413 (Request entity too large)`. Veja mais sobre esse retorno clicando [aqui](#413-request-entity-too-large).
 
-```
+```text
 - Valores aceitos:
   - B para Byte
   - KB para KiloByte
@@ -662,7 +662,7 @@ Caso omitido, será herdado o valor do campo [limiter](#limiter).
 Campo opcional, do tipo string, o valor padrão é vazio, indicando que a resposta do endpoint será codificada seguindo
 a [lógica de resposta](#lógica-de-resposta) da API Gateway, sem forçar a codificação indicada.
 
-```
+```text
 - Valores aceitos:
   - JSON 
   - XML
@@ -773,7 +773,7 @@ Campo obrigatório, do tipo string, o valor indica a URL do caminho do serviço 
 Utilizamos um dos [backend.hosts](#backendhosts) informados e juntamos com o path fornecido, por exemplo, no campo
 hosts temos o valor
 
-```
+```text
 [
   "https://instance-01", 
   "https://instance-02"
@@ -782,13 +782,13 @@ hosts temos o valor
 
 E nesse campo path temos o valor
 
-```
+```text
 /users/status
 ```
 
 O backend irá construir a seguinte URL de requisição
 
-```
+```text
 https://instance-02/users/status
 ```
 
@@ -833,28 +833,28 @@ Campo opcional, do tipo lista de string, o valor padrão é vazio, indicando que
 repassado para o serviço backend.
 
 Caso informado, apenas os campos indicados serão repassados para o serviço backend, por exemplo, recebemos uma
-requisição com o seguinte cabeçalho
+requisição com o seguinte cabeçalho:
 
-````
+```json
 {
   "Device": "95D4AF55-733D-46D7-86B9-7EF7D6634EBC",
   "User-Agent": "IOS",
   "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
 }
-````
+```
 
-Nesse exemplo temos o campo `forward-headers` com os seguintes valores
+Nesse exemplo temos o campo `forward-headers` com os seguintes valores:
 
-````
+```json
 [
   "User-Agent",
   "Authorization"
 ]
-````
-
-O cabeçalho de requisição ao backend foi
-
 ```
+
+O cabeçalho de requisição ao backend foi:
+
+```json
 {
   "User-Agent": "IOS",
   "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
@@ -1324,7 +1324,7 @@ REDIS_PASSWORD=12345
 TIMEOUT=5m
 ```
 
-A API Gateway gera um arquivo [JSON de tempo de execução](#json-de-tempo-execução) ao rodar a aplicação, veja o
+A API Gateway gera um arquivo de [JSON de tempo de execução](#json-de-tempo-de-execução) ao rodar a aplicação, veja o
 resultado do mesmo após iniciar a aplicação:
 
 ```json
@@ -1514,13 +1514,13 @@ Json de configuração
 
 Ao processar esse endpoint a resposta da API Gateway foi
 
-```
+```text
 HTTP/1.1 200 OK
 ```
 
 Cabeçalho ([Veja sobre os cabeçalhos de resposta aqui](#cabeçalho-de-resposta))
 
-```
+```text
 Content-Type: application/json
 X-Gopen-Cache: false
 X-Gopen-Complete: true
@@ -1548,13 +1548,13 @@ espelhando seu body de resposta, e agregando seus valores no cabeçalho de respo
 
 Nesse mesmo exemplo vamos forçar um cenário de infelicidade na resposta do backend, veja:
 
-```
+```text
 HTTP/1.1 404 Not Found
 ```
 
 Cabeçalho ([Veja sobre os cabeçalhos de resposta aqui](#cabeçalho-de-resposta))
 
-```
+```text
 Content-Type: application/json
 X-Gopen-Cache: false
 X-Gopen-Complete: true
@@ -1632,13 +1632,13 @@ Json de configuração
 Ao processar esse endpoint de exemplo simulando o erro na chamada de [beforeware](#endpointbeforewares) a resposta da
 API Gateway foi
 
-```
+```text
 HTTP/1.1 403 Forbidden
 ```
 
 Cabeçalho ([Veja sobre os cabeçalhos de resposta aqui](#cabeçalho-de-resposta))
 
-```
+```text
 Content-Type: application/json
 X-Gopen-Cache: false
 X-Gopen-Complete: false
@@ -1665,13 +1665,13 @@ campo [endpoint.abort-if-status-codes](#endpointabort-if-status-codes).
 
 No seguinte exemplo iremos forçar um erro no afterware `increment-attempts` a da API Gateway resposta foi
 
-```
+```text
 HTTP/1.1 404 Not Found
 ```
 
 Cabeçalho ([Veja sobre os cabeçalhos de resposta aqui](#cabeçalho-de-resposta))
 
-```
+```text
 Content-Type: text/plain
 X-Gopen-Cache: false
 X-Gopen-Complete: true
@@ -1738,13 +1738,13 @@ Json de configuração
 
 No exemplo iremos executar os três backend com sucesso, a API Gateway respondeu
 
-```
+```text
 HTTP/1.1 200 OK
 ```
 
 Cabeçalho ([Veja sobre os cabeçalhos de resposta aqui](#cabeçalho-de-resposta))
 
-```
+```text
 Content-Type: application/json
 X-Gopen-Cache: false
 X-Gopen-Complete: true
@@ -1902,13 +1902,13 @@ Json de configuração
 
 Ao processarmos o endpoint a resposta da API Gateway foi
 
-```
+```text
 HTTP/1.1 200 OK
 ```
 
 Cabeçalho ([Veja sobre os cabeçalhos de resposta aqui](#cabeçalho-de-resposta))
 
-```
+```text
 Content-Type: application/json
 X-Gopen-Cache: false
 X-Gopen-Complete: true
@@ -1971,13 +1971,13 @@ valor `true` e dar um nome a ele, veja o trecho do JSON de configuração modifi
 
 Ao processar novamente o endpoint obtivemos a seguinte resposta
 
-```
+```text
 HTTP/1.1 200 OK
 ```
 
 Cabeçalho ([Veja sobre os cabeçalhos de resposta aqui](#cabeçalho-de-resposta))
 
-```
+```text
 Content-Type: application/json
 X-Gopen-Cache: false
 X-Gopen-Complete: true
@@ -2061,7 +2061,7 @@ Agora vamos ver alguns exemplos de cabeçalho de retorno:
 
 Cabeçalho de resposta do backend 1:
 
-```
+```text
 Content-Type: application/json
 X-Value-Id: 4ae6c92d16089e521626
 X-MS: api-user
@@ -2071,7 +2071,7 @@ Content-Length: 102
 
 Cabeçalho de resposta do endpoint
 
-```
+```text
 Content-Type: application/json
 X-Value-Id: 4ae6c92d16089e521626
 X-MS: api-user
@@ -2089,7 +2089,7 @@ cabeçalho de resposta, que foram `X-Value-Id` e `X-MS`.
 
 Cabeçalho de resposta do backend 1:
 
-```
+```text
 Content-Type: application/json
 X-Value-Id: 4ae6c92d16089e521626
 X-MS: api-user
@@ -2099,7 +2099,7 @@ Content-Length: 102
 
 Cabeçalho de resposta do backend 2:
 
-```
+```text
 Content-Type: application/json
 X-Value-Id: 4ae6c92d16089e521638
 X-MS: api-device
@@ -2110,7 +2110,7 @@ Content-Length: 402
 
 Cabeçalho de resposta do endpoint
 
-```
+```text
 Content-Type: application/json
 X-Value-Id: 4ae6c92d16089e521626, 4ae6c92d16089e521638
 X-MS: api-user, api-device
@@ -2140,7 +2140,7 @@ customizar essa configuração para um endpoint específico utilizando o campo [
 
 Cabeçalho
 
-```
+```text
 Content-Type: application/json
 X-Gopen-Cache: false
 X-Gopen-Complete: false
@@ -2169,7 +2169,7 @@ específico utilizando o campo [endpoint.limiter](#endpointlimiter).
 
 Cabeçalho
 
-```
+```text
 Content-Type: application/json
 X-Gopen-Cache: false
 X-Gopen-Complete: false
@@ -2198,7 +2198,7 @@ específico utilizando o campo [endpoint.limiter](#endpointlimiter).
 
 Cabeçalho
 
-```
+```text
 Content-Type: application/json
 X-Gopen-Cache: false
 X-Gopen-Complete: false
@@ -2219,7 +2219,7 @@ Corpo
 }
 ```
 
-#### 500 (Internal server erro)
+#### 500 (Internal server error)
 
 Esse cenário é específico quando algum erro inesperado ocorreu com a API Gateway, caso isso aconteça relate
 o problema [aqui](https://github.com/GabrielHCataldo/gopen-gateway/issues) mostrando a resposta e o log impresso no
@@ -2227,7 +2227,7 @@ terminal de execução.
 
 Cabeçalho
 
-```
+```text
 Content-Type: application/json
 X-Gopen-Cache: false
 X-Gopen-Complete: false
@@ -2254,7 +2254,7 @@ Esse cenário acontece quando ao tentar se comunicar com o backend, e ocorre alg
 
 Cabeçalho
 
-```
+```text
 Content-Type: application/json
 X-Gopen-Cache: false
 X-Gopen-Complete: false
@@ -2282,7 +2282,7 @@ customizar essa configuração para um endpoint específico utilizando o campo [
 
 Cabeçalho
 
-```
+```text
 Content-Type: application/json
 X-Gopen-Cache: false
 X-Gopen-Complete: false
@@ -2324,7 +2324,7 @@ versão 1.22 ou superior na sua máquina.
 
 Com o Go instalado na sua máquina, faça o pull do projeto
 
-```
+```text
 git pull https://github.com/GabrielHCataldo/gopen-gateway.git
 ```
 
@@ -2332,13 +2332,13 @@ Depois abra o mesmo usando o próprio terminal com a IDE de sua preferência
 
 Goland:
 
-```
+```text
 goland gopen-gateway
 ```
 
 VSCode:
 
-```
+```text
 code gopen-gateway
 ```
 
@@ -2382,4 +2382,3 @@ Obrigado por contribuir para a comunidade Go e facilitar o desenvolvimento desse
 ---
 
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FGabrielHCataldo%2Fgopen-gateway.svg?type=large&issueType=license)](https://app.fossa.com/projects/git%2Bgithub.com%2FGabrielHCataldo%2Fgopen-gateway?ref=badge_large&issueType=license)
-
