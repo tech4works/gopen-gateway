@@ -414,8 +414,6 @@ clicking [here](#431-request-header-fields-too-large).
   - 1.5GB
 ```
 
-TODO:
-
 #### limiter.max-body-size
 
 Optional field, it is of type `byteUnit`, default value is `3MB`, field is responsible for limiting the size of the
