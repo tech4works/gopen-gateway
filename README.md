@@ -10,63 +10,64 @@
 [![HitCount](https://hits.dwyl.com/GabrielHCataldo/gopen-gateway.svg)](http://hits.dwyl.com/GabrielHCataldo/gopen-gateway)
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FGabrielHCataldo%2Fgopen-gateway.svg?type=small)](https://app.fossa.com/projects/git%2Bgithub.com%2FGabrielHCataldo%2Fgopen-gateway?ref=badge_small)
 
-![United States](https://raw.githubusercontent.com/stevenrskelton/flag-icon/master/png/16/country-4x3/us.png)
-[Inglês](https://github.com/GabrielHCataldo/gopen-gateway/blob/main/README.en.md) |
+![Brazil](https://raw.githubusercontent.com/stevenrskelton/flag-icon/master/png/16/country-4x3/br.png)
+[Portuguese](https://github.com/GabrielHCataldo/gopen-gateway/blob/main/README.pt-br.md) |
 ![Spain](https://raw.githubusercontent.com/stevenrskelton/flag-icon/master/png/16/country-4x3/es.png)
-[Espanhol](https://github.com/GabrielHCataldo/gopen-gateway/blob/main/README.es.md)
+[Spanish](https://github.com/GabrielHCataldo/gopen-gateway/blob/main/README.es.md)
 
-O projeto GOPEN foi criado no intuito de ajudar os desenvolvedores a terem uma API Gateway robusta e de fácil manuseio,
-com a oportunidade de atuar em melhorias agregando a comunidade, e o mais importante, sem gastar nada. Foi
-desenvolvida, pois muitas APIs Gateway do mercado de forma gratuita, não atendem muitas necessidades minímas
-para uma aplicação, induzindo-o a fazer o upgrade.
+The GOPEN project was created with the aim of helping developers to have a robust and easy-to-handle API Gateway, with
+the opportunity to act on improvements, contributing to the community, and most importantly, without incurring any
+costs. It was developed because many freely available API Gateways in the market do not meet the many minimum
+requirements for an application, leading you to upgrade.
 
-Com essa nova API Gateway você não precisará equilibrar pratos para economizar em sua infraestrutura e arquitetura,
-e ainda otimizará o seu desenvolvimento, veja abaixo todos os recursos disponíveis:
+With this new API Gateway, you will not need to balance plates to save on your infrastructure and architecture, and you
+will still be able to optimise your development. Below are the features available:
 
-- Json de configuração simplificado para múltiplos ambientes.
-- Configuração rápida de variáveis de ambiente para múltiplos ambientes.
-- Versionamento via JSON de configuração.
-- Execução via docker com hot reload opcional.
-- Configuração de timeout global e local para cada endpoint.
-- Configuração de cache global e local para cada endpoint, com customização da estratégia da chave de armazenamento, e
-  condições baseada em códigos de status de resposta e método HTTP para ler e salvar o mesmo.
-- Armazenamento de cache local ou global utilizando Redis.
-- Configuração de limitador de tamanho, global e local para cada endpoint, limitando o tamanho do Header, Body e
-  Multipart Memory.
-- Configuração de limitador de taxa, global e local para cada endpoint, limitando pelo tempo e rajada pelo IP.
-- Configuração de segurança de CORS com validações de origens, método HTTP e headers.
-- Configuração global de múltiplos middlewares, para serem usados posteriormente no endpoint caso indicado.
-- Filtragem personalizada de envio de headers e query para os backends do endpoint.
-- Processamento de múltiplos backends, sendo eles beforewares, principais e afterwares para o endpoint.
-- Configuração personalizada para abortar processo de execução dos backends pelo código de status retornado.
-- Modificadores para todos os conteúdos de requisição e response (Status Code, Path, Header, Params, Query, Body)
-  ao nível global (requisição/response) e local (requisição backend/response backend) com ações de remoção,
-  adição, alteração, substituição e renomeio.
-- Obtenha o valor a ser modificado de variáveis de ambiente, da requisição atual, do histórico de respostas do endpoint,
-  ou até mesmo do valor passado na configuração.
-- Executa os modificadores no contexto que desejar, antes de uma requisição backend ou depois, você decide.
-- Faça com que as modificações reflitam em todas as requisições/respostas seguintes, usando a mesma ao nível global.
-- Omita a resposta de um backend caso necessite, a mesma não será utilizada na resposta do endpoint.
-- Omita o body de requisição do seu backend caso precise.
-- Agregue suas múltiplas respostas dos backends caso deseje, podendo personalizar o nome do campo a ser alocado a
-  resposta do backend.
-- Agrupe o body de resposta do seu backend em um campo específico de resposta do endpoint.
-- Personalização do tipo de resposta do endpoint podendo ser JSON, TEXT e XML.
-- Tenha mais observabilidade com o cadastro automático do trace id no header das requisições seguintes e logs bem
-  estruturados.
+- Simplified JSON configuration for multiple environments.
+- Quick configuration of environment variables for multiple environments.
+- Versioning via JSON configuration.
+- Docker execution with optional hot reload.
+- Configuration of global and local timeout for each endpoint.
+- Configuration of global and local cache for each endpoint, with customisation of the storage key strategy, and
+  conditions based on response status codes and HTTP method for reading and saving the same.
+- Local or global cache storage using Redis.
+- Configuration of size limit, global and local for each endpoint, limiting the size of the Header, Body and Multipart
+  Memory.
+- Configuration of rate limit, global and local for each endpoint, rate-limited by time and burst by IP.
+- Configuration of CORS security with validations of origins, HTTP method and headers.
+- Global configuration of multiple middlewares, to be used later at the endpoint if indicated.
+- Customised filtering of sending headers and query to the endpoint backends.
+- Processing of multiple backends, being them beforewares, mains and afterwares for the endpoint.
+- Custom configuration to abort the process of backend execution by the status code returned.
+- Modifiers for all request and response contents (Status Code, Path, Header, Params, Query, Body) at global (
+  request/response) and local (backend request/backend response) levels with removal, addition, modification,
+  replacement, and renaming actions.
+- Get the value to be modified from environment variables, the current request, the history of endpoint responses, or
+  even from the value passed in the configuration.
+- Run the modifiers in the context you prefer, before a backend request or after, it's your decision.
+- Make the modifications reflect in all subsequent requests/responses, by using the same at a global level.
+- Omit a backend response if needed, it will not be used in the endpoint response.
+- Omit the request body from your backend if needed.
+- Aggregate multiple responses from your backends if desired, customizing the name of the field to be allocated to the
+  backend response.
+- Group the body response from your backend in a specific field of the endpoint response.
+- Customise the type of endpoint response, which could be JSON, TEXT and XML.
+- Increase your observability with automatic registration of the trace id in the header of the following requests and
+  structured logs.
 
-# Documentação
+# Documentation
 
-Para entender como funciona, precisamos explicar primeiro a estrutura dos ambientes dinâmicos que GOPEN aceita para sua
-configuração em JSON e arquivo de variáveis de ambiente, então vamos lá!
+To understand how it works, we first need to explain the structure of the dynamic environments that GOPEN accepts for
+its JSON configuration and environment variable files, so let's get started!
 
-## Estrutura de pastas
+## Folder Structure
 
-Na estrutura do projeto, em sua raiz precisará ter uma pasta chamada "gopen" e dentro dela precisa ter as pastas
-contendo os nomes dos seus ambientes, você pode dar o nome que quiser, essa pasta precisará ter pelo menos o arquivo
-".json" de configuração da API Gateway, ficará mais o menos assim, por exemplo:
+In the project structure, you will need to have a root folder called "gopen". Inside this folder, you should have
+subfolders containing the names of your environments. You can name these subfolders as you wish. Each of these
+subfolders should contain at least one ".json" configuration file for the API Gateway. For example, the structure might
+look like this:
 
-### Projeto GO
+### GO Project
 
     gopen-gateway
     | - cmd
@@ -79,7 +80,7 @@ contendo os nomes dos seus ambientes, você pode dar o nome que quiser, essa pas
       |   - .json
       |   - .env
 
-### Projeto usando imagem docker
+### Docker Image Project
 
     nome-do-seu-projeto
     | - docker-compose.yml
@@ -91,15 +92,15 @@ contendo os nomes dos seus ambientes, você pode dar o nome que quiser, essa pas
       |   - .json
       |   - .env
 
-## JSON de configuração
+## Configuration JSON
 
-Com base nesse arquivo JSON de configuração obtido pela env desejada a aplicação terá seus endpoints e suas regras
-definidas, veja abaixo um exemplo simples com todos os campos possíveis e seus conceitos e regras:
+Based on this JSON configuration file obtained by the desired environment, the application will have its endpoints and
+rules defined. Below is a simple example with all possible fields and their concepts and rules:
 
 ````json
 {
   "$schema": "https://raw.githubusercontent.com/GabrielHCataldo/gopen-gateway/main/json-schema.json",
-  "@comment": "Minha primeira API Gateway",
+  "@comment": "My First API Gateway",
   "version": "v1.0.0",
   "port": 8080,
   "hot-reload": true,
@@ -144,7 +145,7 @@ definidas, veja abaixo um exemplo simples com todos os campos possíveis e seus 
   },
   "middlewares": {
     "save-device": {
-      "@comment": "Serviço de middleware para validar e salvar o dispositivo com base nas informações de header.",
+      "@comment": "Middleware service to validate and save Device",
       "name": "device-manager",
       "hosts": [
         "http://192.168.1.2:8051"
@@ -156,7 +157,7 @@ definidas, veja abaixo um exemplo simples com todos os campos possíveis e seus 
         "@comment": "Primeiro modificador",
         "header": [
           {
-            "@comment": "Adiciona o campo X-Device-Id com o valor do id do body de resposta do middleware",
+            "@comment": "Adds the X-Device-Id field with the value from the middleware's response body id",
             "context": "RESPONSE",
             "scope": "REQUEST",
             "propagate": true,
@@ -170,7 +171,7 @@ definidas, veja abaixo um exemplo simples com todos os campos possíveis e seus 
   },
   "endpoints": [
     {
-      "@comment": "Endpoint responsável por retornar o usuário encontrado pela chave, podendo ser email ou telefone.",
+      "@comment": "Endpoint responsible for returning the user found by the key, which can be either email or phone.",
       "path": "/users/find/:key",
       "method": "GET",
       "timeout": "10s",
@@ -199,7 +200,7 @@ definidas, veja abaixo um exemplo simples com todos os campos possíveis e seus 
       "afterwares": [],
       "backends": [
         {
-          "@comment": "Serviço de backend responsável por obter o usuário pela chave.",
+          "@comment": "Backend service responsible for retrieving the user by the key.",
           "name": "user",
           "hosts": [
             "$USER_SERVICE_URL"
@@ -213,7 +214,7 @@ definidas, veja abaixo um exemplo simples com todos os campos possíveis e seus 
           ],
           "forward-queries": [],
           "modifiers": {
-            "@comment": "Meus primeiros modificadores",
+            "@comment": "My first modifiers.",
             "status-code": 0,
             "header": [],
             "param": [],
@@ -232,9 +233,11 @@ definidas, veja abaixo um exemplo simples com todos os campos possíveis e seus 
 }
 ````
 
+TODO:
+
 ### $schema
 
-Campo obrigatório, para o auxílio na escrita e regras do próprio JSON de configuração, único valor aceito é
+Mandatory field, to assist in writing and rules of the configuration JSON itself, the only accepted value is:
 
 ```text
 https://raw.githubusercontent.com/GabrielHCataldo/gopen-gateway/main/json-schema.json`
@@ -242,52 +245,51 @@ https://raw.githubusercontent.com/GabrielHCataldo/gopen-gateway/main/json-schema
 
 ### @comment
 
-Campo opcional, do tipo string, livre para anotações relacionadas ao seu projeto.
+Optional field, of type string, free for notes related to your project.
 
 ### version
 
-Campo opcional, usado para controle de versão e também usado no retorno do endpoint estático [/version](#version-1).
+Optional field, used for version control and also used in the return of the static endpoint [/version](#version-1).
 
 ### port
 
-Campo obrigatório, utilizado para indicar a porta a ser ouvida pela API Gateway, valor mínimo `1` e valor
-máximo `65535`.
+Mandatory field, used to indicate the port to be listened to by the API Gateway, minimum value `1` and maximum
+value `65535`.
 
 ### hot-reload
 
-Campo opcional, o valor padrão é `false`, caso seja `true` é utilizado para o carregamento automático quando
-houver alguma alteração no arquivo .json e .env na pasta do ambiente selecionado.
+Optional field, the default value is `false`, if `true` it is used for automatic loading when there is a change in the
+.json and .env file in the selected environment folder.
 
 ### store
 
-Campo opcional, valor padrão é o armazenamento local em cache, caso seja informado, o campo `redis` passa
-a ser obrigatório e o campo `address` também.
+Optional field, default value is the local cache storage, if informed, the `redis` field becomes mandatory and
+the `address` field as well.
 
-Caso utilize o armazenamento global de cache o Redis, é indicado que os valores de endereço e senha sejam preenchidos
-utilizando variável de ambiente, como no exemplo acima.
+If you use Redis for global cache storage, it is recommended that address and password values be filled in using an
+environment variable, as in the example above.
 
 ### timeout
 
-Campo opcional, o valor padrão é `30 segundos`, esse campo é responsável pelo tempo máximo de duração do processamento
-de cada requisição.
+Optional field, the default value is `30 seconds`, this field is responsible for the maximum processing time for each
+request.
 
-Caso a requisição ultrapasse esse tempo informado, á API Gateway irá abortar todas as transações em andamento e
-retornará o código de status `504 (Gateway Timeout)`. Veja mais sobre esse retorno
-clicando [aqui](#504-gateway-timeout).
+If the request exceeds this time, the API Gateway will abort all ongoing transactions and return the status
+code `504 (Gateway Timeout)`. Learn more about this return by clicking [here](#504-gateway-timeout).
 
-IMPORTANTE: Caso seja informado no objeto de endpoint, damos prioridade ao valor informado do endpoint, caso contrário
-seguiremos com o valor informado ou padrão desse campo, na raiz do JSON de configuração.
+IMPORTANT: If it is informed in the endpoint object, we give priority to the informed value of the endpoint, otherwise
+we will continue with the informed or default value of this field, at the root of the JSON configuration.
 
 ```text
-- Valores aceitos:
-    - s para segundos
-    - m para minutos
-    - h para horas
-    - ms para milissegundos
-    - us (ou µs) para microssegundos
-    - ns para nanossegundos
+- Accepted values:
+    - s for seconds
+    - m for minutes
+    - h for hours
+    - ms for milliseconds 
+    - us (or µs) for microseconds
+    - ns for nanoseconds
 
-- Exemplos:
+- Examples:
     - 10s
     - 5ms
     - 1h30m
@@ -296,172 +298,174 @@ seguiremos com o valor informado ou padrão desse campo, na raiz do JSON de conf
 
 ### cache
 
-Campo opcional, se informado, o campo `duration` passa a ser obrigatório!
+Optional field, if informed, the `duration` field becomes mandatory!
 
-Caso o objeto seja informado na estrutura do [endpoint.cache](#cache), damos prioridade aos valores informados lá,
-caso contrário seguiremos com os valores informados nesse campo.
+If the object is informed in the [endpoint.cache](#cache) structure, we give priority to the values informed there,
+otherwise we will follow the values informed in this field.
 
-O valor do cache é apenas gravado 1 vez a cada X duração informada no campo `every`.
+The cache value is only recorded once every X duration informed in the `every` field.
 
-Os campos `only-if-status-codes` e `only-if-methods` são utilizados para verificar se naquele endpoint habilitado
-a ter cache, pode ser lido e escrito o cache com base no método HTTP e código de status de resposta, veja mais sobre
-eles abaixo.
+The `only-if-status-codes` and `only-if-methods` fields are used to check if that enabled endpoint can read and write
+the cache based on the HTTP method and response status code, learn more about them below.
 
-Caso a resposta não seja "fresca", ou seja, foi respondida pelo cache, o header `X-Gopen-Cache` terá o valor `true`
-caso contrário o valor será `false`.
+If the answer is not "fresh", in other words, was answered by the cache, the header `X-Gopen-Cache` will have the
+value `true` otherwise the value will be `false`.
 
 #### cache.duration
 
-Indica o tempo que o cache irá durar, ele é do tipo `time.Duration`.
+Indicates the time that the cache will last, it is of type `time.Duration`.
 
 ```text
-- Valores aceitos:
-    - s para segundos
-    - m para minutos
-    - h para horas
-    - ms para milissegundos
-    - us (ou µs) para microssegundos
-    - ns para nanossegundos
+- Accepted values:
+  - s for seconds
+  - m for minutes
+  - h for hours
+  - ms for milliseconds 
+  - us (or µs) for microseconds
+  - ns for nanoseconds
 
-- Exemplos:
-    - 1h
-    - 15.5ms
-    - 1h30m
-    - 1.5m
+- Examples:
+  - 10s
+  - 5ms
+  - 1h30m
+  - 1.5h
 ```
 
 #### cache.strategy-headers
 
-Campo opcional, a estrátegia padrão de chave de cache é pela url e método HTTP da requisição tornando-o um cache global
-por endpoint, caso informado os cabeçalhos a serem usados na estrátegia eles são agregados nos valores padrões de chave,
-por exemplo, ali no exemplo foi indicado utilizar o campo `X-Forwarded-For` e o `Device` o valor final da chave
-ficaria:
+Optional field, the default cache key strategy is by the request's url and HTTP method making it a global cache per
+endpoint, if the headers to be used in the strategy are informed, they are aggregated in the default key values, for
+example, there in the example it was indicated to use the `X-Forwarded-For` and `Device` fields, the final value of the
+key would be:
 
       GET:/users/find/479976139:177.130.228.66:95D4AF55-733D-46D7-86B9-7EF7D6634EBC
 
-A descrição da lógica por trás dessa chave é:
+The description of the logic behind this key is:
 
-      método:url:X-Forwarded-For:Device
+      method:url:X-Forwarded-For:Device
 
-Sem a estrátegia preenchida, a lógica padrão fica assim:
+Without the filled strategy, the default logic is:
 
-      método:url
+      method:url
 
-Então o valor padrão para esse endpoint fica assim sem a estrátegia preenchida:
+So the default value for this endpoint without the filled strategy is:
 
       GET:/users/find/479976139
 
-Nesse exemplo tornamos o cache antes global para o endpoint em espécifico, passa a ser por cliente! Lembrando que isso
-é um exemplo simples, você pode ter a estrátegia que quiser com base no header de sua aplicação.
+In this example we make the cache that was global for the specific endpoint, to be per client! Remembering that this is
+a simple example, you can have the strategy you want based on the header of your application.
 
 #### cache.only-if-methods
 
-Campo opcional, o valor padrão é uma lista com apenas o método HTTP `GET`, caso informada vazia, qualquer método HTTP
-será aceito.
+Optional field, the default value is a list with only the HTTP `GET` method, if informed empty, any HTTP method will be
+accepted.
 
-Esse campo é responsável por decidir se irá ler e gravar o cache do endpoint (que está habilitado a ter cache) pelo
-método HTTP do mesmo.
+This field is responsible for deciding whether to read and write the cache of the endpoint (which is enabled to have
+cache) by the same HTTP method.
 
 #### cache.only-if-status-codes
 
-Campo opcional, o valor padrão é uma lista de códigos de status HTTP de sucessos reconhecidos, caso informada vazia,
-qualquer código de status HTTP de resposta será aceito.
+Optional field, the default value is a list of recognized success HTTP status codes, if it is informed empty, any HTTP
+response status code will be accepted.
 
-Esse campo é responsável por decidir se irá gravar o cache do endpoint (que está habilitado a ter cache) pelo
-código de status HTTP de resposta do mesmo.
+This field is responsible for deciding whether to write the cache of the endpoint (which is enabled to have cache) by
+the HTTP response status code of the same.
 
 #### cache.allow-cache-control
 
-Campo opcional, o valor padrão é `false`, caso seja informado como `true` a API Gateway irá considerar o header
-`Cache-Control` seguindo as regras a seguir a partir do valor informado na requisição ou na resposta dos backends:
+Optional field, the default value is `false`, if it is informed as `true` the API Gateway will consider
+the `Cache-Control` header following the rules below from the value informed in the request or in the response from the
+backends:
 
-`no-cache`: esse valor é apenas considerado no header da requisição, caso informado desconsideramos a leitura do cache
-e seguimos com o processo normal para obter a resposta "fresca".
+`no-cache`: this value is only considered in the request header, if informed we disregard the cache read and continue
+with the normal process to obtain the "fresh" response.
 
-`no-store`: esse valor é considerado apenas na resposta escrita por seus backends, caso informado não gravamos o
+`no-store`: this value is only considered in the response written by your backends, if informed we do not store the
 cache.
 
 ### limiter
 
-Campo opcional, objeto responsável pelas regras de limitação da API Gateway, seja de tamanho ou taxa, os valores padrões
-variam de campo a campo, veja:
+Optional field, object responsible for the API Gateway limitation rules, whether by size or rate, the default values
+vary from field to field, see:
 
 #### limiter.max-header-size
 
-Campo opcional, ele é do tipo `byteUnit`, valor padrão é `1MB`, é responsável por limitar o tamanho do cabeçalho de
-requisição.
+Optional field, it is of type `byteUnit`, default value is `1MB`, is responsible for limiting the size of the request
+header.
 
-Caso o tamanho do cabeçalho ultrapasse o valor informado, a API Gateway irá abortar a requisição com o código de status
-`431 (Request header fields too large)`. Veja mais sobre esse retorno
-clicando [aqui](#431-request-header-fields-too-large).
+If the size of the header exceeds the informed value, the API Gateway will abort the request with status
+code `431 (Request header fields too large)`. Learn more about this return by
+clicking [here](#431-request-header-fields-too-large).
 
 ```text
-- Valores aceitos:
-    - B para Byte
-    - KB para KiloByte
-    - MB para Megabyte
-    - GB para Gigabyte
-    - TB para Terabyte
-    - PB para Petabyte
-    - EB para Exabyte
-    - ZB para Zettabyte
-    - YB para Yottabyte
+- Accepted values:
+  - B for Byte
+  - KB for KiloByte
+  - MB for Megabyte
+  - GB for Gigabyte
+  - TB for Terabyte
+  - PB for Petabyte
+  - EB for Exabyte
+  - ZB for Zettabyte
+  - YB for Yottabyte
 
-- Exemplos:
-    - 1B
-    - 50KB
-    - 5MB
-    - 1.5GB
+- Examples:
+  - 1B
+  - 50KB
+  - 5MB
+  - 1.5GB
 ```
+
+TODO:
 
 #### limiter.max-body-size
 
-Campo opcional, ele é do tipo `byteUnit`, valor padrão é `3MB`, campo é responsável por limitar o tamanho do corpo
-da requisição.
+Optional field, it is of type `byteUnit`, default value is `3MB`, field is responsible for limiting the size of the
+request body.
 
-Caso o tamanho do corpo ultrapasse o valor informado, a API Gateway irá abortar a requisição com o código de status
-`413 (Request entity too large)`.
+If the size of the body exceeds the informed value, the API Gateway will abort the request with status
+code `413 (Request entity too large)`.
 
 ```text
-- Valores aceitos:
-    - B para Byte
-    - KB para KiloByte
-    - MB para Megabyte
-    - GB para Gigabyte
-    - TB para Terabyte
-    - PB para Petabyte
-    - EB para Exabyte
-    - ZB para Zettabyte
-    - YB para Yottabyte
+- Accepted values:
+  - B for Byte
+  - KB for KiloByte
+  - MB for Megabyte
+  - GB for Gigabyte
+  - TB for Terabyte
+  - PB for Petabyte
+  - EB for Exabyte
+  - ZB for Zettabyte
+  - YB for Yottabyte
 
-- Exemplos:
-    - 1B
-    - 50KB
-    - 5MB
-    - 1.5GB
+- Examples:
+  - 1B
+  - 50KB
+  - 5MB
+  - 1.5GB
 ```
 
 #### limiter.max-multipart-memory-size
 
-Campo opcional, ele é do tipo `byteUnit`, valor padrão é `5MB`, esse campo é responsável por limitar o tamanho do
-corpo multipart/form da requisição, geralmente utilizado para envio de arquivos, imagens, etc.
+Optional field, it is of type `byteUnit`, default value is `5MB`, this field is responsible for limiting the size of the
+multipart/form body of the request, usually used for sending files, images, etc.
 
-Caso o tamanho do corpo ultrapasse o valor informado, a API Gateway irá abortar a requisição com o código de status
-`413 (Request entity too large)`. Veja mais sobre esse retorno clicando [aqui](#413-request-entity-too-large).
+If the size of the body exceeds the informed value, the API Gateway will abort the request with status
+code `413 (Request entity too large)`. Learn more about this return by clicking [here](#413-request-entity-too-large).
 
 ```text
-- Valores aceitos:
-  - B para Byte
-  - KB para KiloByte
-  - MB para Megabyte
-  - GB para Gigabyte
-  - TB para Terabyte
-  - PB para Petabyte
-  - EB para Exabyte
-  - ZB para Zettabyte
-  - YB para Yottabyte
+- Accepted values:
+  - B for Byte
+  - KB for KiloByte
+  - MB for Megabyte
+  - GB for Gigabyte
+  - TB for Terabyte
+  - PB for Petabyte
+  - EB for Exabyte
+  - ZB for Zettabyte
+  - YB for Yottabyte
 
-- Exemplos:
+- Examples:
   - 1B
   - 50KB
   - 5MB
@@ -470,22 +474,22 @@ Caso o tamanho do corpo ultrapasse o valor informado, a API Gateway irá abortar
 
 #### limiter.rate
 
-Campo opcional, caso seja informado, o campo `capacity` torna-se obrigatório, esse objeto é responsável por limitar
-a taxa de requisição pelo IP, esse limite é imposto obtendo a capacidade máxima pelo campo `capacity` por X duração,
-informado no campo `every`.
+Optional field, if informed, the `capacity` field becomes mandatory, this object is responsible for limiting the request
+rate by IP, this limit is imposed by obtaining the maximum capacity by the `capacity` field for X duration, informed on
+the `every` field.
 
-Caso essa capacidade seja ultrapassada, a API Gateway por segurança abortará a requisição, retornando
-`429 (Too many requests)`. Veja mais sobre esse retorno clicando [aqui](#429-too-many-requests).
+If this capacity is exceeded, the API Gateway will abort the request for security, returning `429 (Too Many Requests)`.
+Learn more about this return by clicking [here](#429-too-many-requests).
 
 #### limiter.rate.capacity
 
-Campo opcional, caso o objeto rate seja informado, ele passa a ser obrigatório, o valor padrão é `5`, e o mínimo
-que poderá ser informado é `1`, indica a capacidade máxima de requisições.
+Optional field, if the rate object is informed, it becomes mandatory, the default value is `5`, and the minimum that can
+be informed is `1`, it indicates the maximum capacity of requests.
 
 #### limiter.rate.every
 
-Campo opcional, o valor padrão é `1 segundo`, indica o valor da duração da verificação da capacidade máxima de
-requisições.
+Optional field, the default value is `1 second`, it indicates the value of the duration of the verification of the
+maximum capacity of requests.
 
 ### security-cors
 
@@ -502,166 +506,163 @@ permite receber nas requisições.
 
 #### security-cors.allow-methods
 
-Campo opcional, do tipo lista de string, os itens da lista precisam indicar quais métodos HTTP a API Gateway
-permite receber nas requisições.
+Optional field, of the list of string type, the items in the list need to indicate which HTTP methods the API Gateway
+allows to receive in the requests.
 
 #### security-cors.allow-headers
 
-Campo opcional, do tipo lista de string, os itens da lista precisam indicar quais campos de cabeçalho HTTP a API Gateway
-permite receber nas requisições.
+Optional field, of the list of string type, the items in the list need to indicate which HTTP header fields the API
+Gateway allows to receive in the requests.
 
 ### middlewares
 
-Campo opcional, é responsável pela configuração de seus middlewares de aplicação, é um mapa com chaves
-em string mencionando o nome do seu middleware, esse nome poderá ser utilizado em seus [endpoints](#endpoints)
-como `beforewares` e `afterwares`.
+Optional field, responsible for configuring your application middlewares, it's a map with string keys mentioning the
+name of your middleware, this name can be used in your [endpoints](#endpoints) as `beforewares` and `afterwares`.
 
-O valor da chave é um objeto de [backend](#backendname), porém, com uma observação, esse objeto terá
-sua resposta caso não [abortada](#resposta-abortada), omitida automáticamente pelo endpoint, apenas seu cabeçalho de
-resposta poderá ser retornado, caso tenha, já que respostas de middlewares não são exibidas para o cliente final HTTP,
-porém, sua resposta será armazenada ao longo da requisição HTTP feita no endpoint, podendo ter seus valores de
-requisição e resposta obtidos e manipulados.
+The key value is a [backend](#backendname) object, however, with a note, this object will have its response, if
+not [aborted](#aborted-response), automatically omitted by the endpoint, only its response header may be returned, if
+any, since middleware responses are not displayed to the final HTTP client, however, its response will be stored
+throughout the HTTP request made at the endpoint, being able to have its request and response values obtained and
+manipulated.
 
-Por exemplo, um `beforeware` quando mencionado no endpoint, ele será utilizado como middleware de pré-requisições, isto
-é, ele será chamado antes dos backends principais do endpoint, então podemos, por exemplo, ter um middleware
-de manipulação de device, como no JSON de configuração acima, aonde ele irá chamar esse backend de middleware
-configurado no endpoint como `beforewares`, validando e salvando o dispositivo a partir de informações do header da
-requisição, caso o backend responda um código de status de falha, no exemplo, o gateway abortará todos os backends
-seguintes retornando o que o backend de device respondeu, caso tenha retornado um código de status de sucesso, ele irá
-modificar o header de todas as requisições seguintes (`propagate:true`), adicionando o campo `X-Device-Id`, com o valor
-do id do body de resposta do próprio backend, podendo ser utilizado nos outros backends seguintes do endpoint.
+For example, a `beforeware` when mentioned in the endpoint, it will be used as a pre-request middleware, that is, it
+will be called before the main backends of the endpoint, so we can, for example, have a device handling middleware, as
+in the configuration JSON above, where it will call this middleware backend configured in the endpoint as `beforewares`,
+validating and saving the device from header information of the request, if the backend responds a failure status code,
+in the example, the gateway will abort all following backends returning what the device backend responded, if it has
+returned a successful status code, it will modify the header of all subsequent requests (`propagate:true`), adding
+the `X-Device-Id` field, with the value of the id of the body of the backend's own response, which can be used in the
+other following backends of the endpoint.
 
-Para saber mais sobre os `modifiers` [veja](#backendmodifiers).
+To learn more about the `modifiers` [see](#backendmodifiers).
 
-Para entender melhor essa ferramenta poderosa, na prática, veja os exemplos de middlewares usados como `beforewares`
-e `afterwares` feitos no projeto de [playground](https://github.com/GabrielHCataldo/gopen-gateway-playground).
+To better understand this powerful tool in practice, see the examples of middlewares used as `beforewares`
+and `afterwares` made in the [playground](https://github.com/GabrielHCataldo/gopen-gateway-playground) project.
 
 ### endpoints
 
-Campo obrigatório, é uma lista de objeto, representa cada endpoint da API Gateway que será registrado para ouvir e
-servir as requisições HTTP.
+Mandatory field, it's a list of objects, represents each endpoint of the API Gateway that will be registered to listen
+and serve HTTP requests.
 
-Veja como funciona o fluxo básico de um endpoint na imagem abaixo:
+See how the basic flow of an endpoint works in the image below:
 
-<img src="assets/basic-endpoint-flowchart-pt-br.png" alt="fluxo básico de endpoint">
+<img src="assets/basic-endpoint-flowchart-pt-br.png" alt="basic endpoint flow">
 
-Abaixo iremos listar e explicar cada campo desse objeto tão importante:
+Below we will list and explain each field of this very important object:
 
 ### endpoint.@comment
 
-Campo opcional, do tipo string, campo livre para anotações relacionadas ao seu endpoint.
+Optional field, of string type, free field for annotations related to your endpoint.
 
 ### endpoint.path
 
-Campo obrigatório, do tipo string, responsável pelo caminho URI do endpoint, exemplo `"/users/:id"`.
+Mandatory field, of string type, responsible for the URI path of the endpoint, for example `"/users/:id"`.
 
-Caso queira ter parâmetros dinâmicos nesse endpoint, apenas use o padrão `":nome do parâmetro"` por exemplo
-`"/users/:id/status/:status"`, a API Gateway irá entender que teremos 2 parâmetros dinâmicos desse endpoint,
-esses valores podem ser repassados para os backends subjacentes.
+If you want to have dynamic parameters in this endpoint, just use the standard `":parameter name"` for
+example `"/users/:id/status/:status"`, the API Gateway will understand that we will have 2 dynamic parameters of this
+endpoint, these values can be passed on to the underlying backends.
 
-Exemplo usando o parâmetro dinâmico para os backends subjacentes:
+Example using the dynamic parameter for the underlying backends:
 
 - Endpoint
     - path: `"/users/:id/status/:status"`
-    - resultado: `"/users/1/status/removed"`
+    - result: `"/users/1/status/removed"`
 - Backend 1
     - path: `"/users/:id"`
-    - resultado: `"/users/1"`
+    - result: `"/users/1"`
 - Backend 2
     - path: `"/users/:id/status/:status"`
-    - resultado: `"/users/1/status/removed"`
+    - result: `"/users/1/status/removed"`
 
-No exemplo acima vemos que o parâmetro pode ser utilizado como quiser como path nas requisições de backend do endpoint
-em questão.
+In the example above, we see that the parameter can be used as you wish as a path in the backend requests of the
+endpoint in question.
 
 ### endpoint.method
 
-Campo obrigatório, do tipo string, responsável por definir qual método HTTP o endpoint será registrado.
+Mandatory field, of string type, responsible for defining the HTTP method for which the endpoint will be registered.
 
 #### endpoint.timeout
 
-É semelhante ao campo [timout](#timeout), porém, será aplicado apenas para o endpoint
-em questão.
+It's similar to the [timeout](#timeout) field, however, it will be applied only to the endpoint in question.
 
-Caso omitido, será herdado o valor do campo [timeout](#timeout).
+If omitted, it will inherit the value of the [timeout](#timeout) field.
 
 ### endpoint.cache
 
-Campo opcional, do tipo objeto, por padrão ele virá vazio apenas com o campo `enabled` preenchido com o valor `false`.
+Optional field, of object type, by default it will come empty only with the `enabled` field filled with the
+value `false`.
 
-Caso informado, o campo `enabled` se torna obrigatório, os outros campos, caso omitidos, irá herdar da configuração
-[cache](#cache) na raiz caso exista e se preenchida.
+If informed, the `enabled` field becomes mandatory, the other fields, if omitted, will inherit from the [cache](#cache)
+configuration at root if it exists and if filled.
 
-Se por acaso, tenha omitido o campo `duration` tanto na atual configuração como na configuração [cache](#cache) na raiz,
-o campo `enabled` é ignorado considerando-o sempre como `false` pois não foi informado a duração do cache em ambas
-configurações.
+If by chance, you have omitted the `duration` field both in the current configuration and in the [cache](#cache)
+configuration at root, the `enabled` field is ignored, always considering it as `false` as the cache duration was not
+informed in both settings.
 
 #### endpoint.cache.enabled
 
-Campo obrigatório, do tipo booleano, indica se você deseja que tenha cache em seu endpoint, `true` para habilitado,
-`false` para não habilitado.
+Mandatory field, of boolean type, indicates whether you want to have cache in your endpoint, `true` for enabled, `false`
+for not enabled.
 
-Caso esteja `true` mas não informado o campo `duration` na configuração atual e nem na [raiz](#cache), esse campo
-será ignorado considerando-o sempre como `false`.
+If `true` but the `duration` field is not informed in the current configuration nor at the [root](#cache), this field
+will be ignored, always considering it as `false`.
 
 #### endpoint.cache.ignore-query
 
-Campo opcional, do tipo booleano, caso não informado o valor padrão é `false`.
+Optional field, of boolean type, if not informed the default value is `false`.
 
-Caso o valor seja `true` a API Gateway irá ignorar os parâmetros de busca da URL ao
-criar a chave de armazenamento, caso contrário ela considerára os parâmetros de busca da URL
-ordenando alfabéticamente as chaves e valores.
+If the value is `true`, the API Gateway will ignore the URL query parameters when creating the storage key, otherwise
+it will consider the URL query parameters, alphabetically ordering the keys and values.
 
 #### endpoint.cache.duration
 
-É semelhante ao campo [cache.duration](#cacheduration), porém, será aplicado apenas para o endpoint
-em questão.
+It's similar to the [cache.duration](#cacheduration) field, however, it will be applied only to the endpoint in
+question.
 
-Caso omitido, será herdado o valor do campo [cache.duration](#cacheduration).
+If omitted, it will inherit the value of the [cache.duration](#cacheduration) field.
 
-Caso seja omitido nas duas configurações, o campo `enabled` será ignorado considerando-o sempre como `false`.
+If it is omitted in both configurations, the `enabled` field will be ignored, always considering it as `false`.
 
 #### endpoint.cache.strategy-headers
 
-É semelhante ao campo [cache.strategy-headers](#cachestrategy-headers), porém, será aplicado apenas para o endpoint
-em questão.
+It's similar to the [cache.strategy-headers](#cachestrategy-headers) field, however, it will be applied only to the
+endpoint in question.
 
-Caso omitido, será herdado o valor do campo [cache.strategy-headers](#cachestrategy-headers).
+If omitted, it will inherit the value of the [cache.strategy-headers](#cachestrategy-headers) field.
 
-Caso seja informado vazio, o valor do não será herdado, porém, será aplicado o valor [padrão](#cachestrategy-headers)
-para o endpoint em questão.
+If informed as empty, the value will not be inherited, however, the [default](#cachestrategy-headers) value will be
+applied to the endpoint in question.
 
 #### endpoint.cache.only-if-status-codes
 
-É semelhante ao campo [cache.only-if-status-codes](#cacheonly-if-status-codes), porém, será aplicado apenas para o
-endpoint em questão.
+It's similar to the [cache.only-if-status-codes](#cacheonly-if-status-codes) field, however, it will be applied only to
+the endpoint in question.
 
-Caso omitido, será herdado o valor do campo [cache.only-if-status-codes](#cacheonly-if-status-codes).
+If omitted, it will inherit the value of the [cache.only-if-status-codes](#cacheonly-if-status-codes) field.
 
-Caso seja informado vazio, o valor do não será herdado, porém, será aplicado o
-valor [padrão](#cacheonly-if-status-codes) para o endpoint em questão.
+If informed as empty, the value will not be inherited, however, the [default](#cacheonly-if-status-codes) value will be
+applied to the endpoint in question.
 
 #### endpoint.cache.allow-cache-control
 
-É semelhante ao campo [cache.allow-cache-control](#cacheallow-cache-control), porém, será aplicado apenas para o
-endpoint em questão.
+It's similar to the [cache.allow-cache-control](#cacheallow-cache-control) field, however, it will be applied only to
+the endpoint in question.
 
-Caso omitido, será herdado o valor do campo [cache.allow-cache-control](#cacheallow-cache-control).
+If omitted, it will inherit the value of the [cache.allow-cache-control](#cacheallow-cache-control) field.
 
 #### endpoint.limiter
 
-É semelhante ao campo [limiter](#limiter), porém, será aplicado apenas para o endpoint
-em questão.
+It's similar to the [limiter](#limiter) field, however, it will be applied only to the endpoint in question.
 
-Caso omitido, será herdado o valor do campo [limiter](#limiter).
+If omitted, it will inherit the value of the [limiter](#limiter) field.
 
 #### endpoint.response-encode
 
-Campo opcional, do tipo string, o valor padrão é vazio, indicando que a resposta do endpoint será codificada seguindo
-a [lógica de resposta](#lógica-de-resposta) da API Gateway, sem forçar a codificação indicada.
+Optional field, string type, the default value is empty, indicating that the endpoint response will be encoded following
+the API Gateway [response logic](#response-logic), without forcing the indicated encoding.
 
 ```text
-- Valores aceitos:
+- Accepted values:
   - JSON 
   - XML
   - TEXT
@@ -669,74 +670,74 @@ a [lógica de resposta](#lógica-de-resposta) da API Gateway, sem forçar a codi
 
 #### endpoint.aggregate-responses
 
-Campo opcional, do tipo booleano, o valor padrão é `false`, indicando que a resposta do endpoint não será agregada.
+Optional field, of boolean type, the default value is `false`, indicating that the endpoint response will not be
+aggregated.
 
-Caso informado com o valor `true` e tiver mais de uma resposta dos backends informados no endpoint ele irá agregar as
-respostas dos backends, veja mais sobre as regras de resposta da API Gateway clicando [aqui](#lógica-de-resposta).
+If informed with the value `true` and there is more than one response from the backends mentioned in the endpoint, it
+will aggregate the backend responses. See more about API Gateway response rules by [clicking here](#response-logic).
 
 #### endpoint.abort-if-status-codes
 
-Campo opcional, do tipo lista de inteiros, o valor padrão é nulo, indicando que qualquer backend executado no endpoint
-que tenha respondido o código de status HTTP maior ou igual a `400 (Bad request)` será abortado.
+Optional field, of integer list type, the default value is null, indicating that any backend executed on the endpoint
+that responded with HTTP status code greater than or equal to `400 (Bad request)` will be aborted.
 
-Caso informado, e um backend retorna o código de status HTTP indicado na configuração, o endpoint será abortado, isso
-significa que os outros backends configurados após o mesmo, não serão executados, e o endpoint irá retornar a resposta
-do mesmo ao cliente final.
+If informed, and a backend returns the HTTP status code indicated in the configuration, the endpoint will be aborted.
+This means that the other configured backends, set after it, will not be executed, and the endpoint will return its
+response to the end client.
 
-Caso queira que nenhum código de status HTTP seja abortado no endpoint, apenas informe o campo vazio.
+If you don't want any HTTP status code to be aborted on the endpoint, simply enter the field empty.
 
-Veja como o endpoint será respondido após um backend ser abortado clicando [aqui](#lógica-de-resposta).
+See how the endpoint will be responded to after a backend has been aborted by [clicking here](#aborted-response).
 
 #### endpoint.beforewares
 
-Campo opcional, do tipo lista de string, o valor padrão é vazio, indicando que o endpoint não tem nenhum middleware
-de pré-requisições.
+Optional field, of string list type, the default value is empty, indicating that the endpoint has no pre-request
+middlewares.
 
-Caso informado, o endpoint irá executar as requisições, posição por posição, começando no início da lista. Caso o valor
-em string da posição a ser executada estiver configurada no campo [middlewares](#middlewares) corretamente, será
-executado
-o backend configurado no mesmo. Caso contrário irá ignorar a posição apenas imprimindo um log de atenção.
+If informed, the endpoint will run requests, position by position, starting at the beginning of the list. If the string
+value of the position to be executed is correctly configured in the [middlewares](#middlewares) field, the backend
+configured in it will be executed. Otherwise, it will only ignore the position and print a warning log.
 
 #### endpoint.afterwares
 
-Campo opcional, do tipo lista de string, o valor padrão é vazio, indicando que o endpoint não tem nenhum middleware
-de pós-requisições.
+Optional field, of string list type, the default value is empty, indicating that the endpoint has no post-request
+middlewares.
 
-Caso informado, o endpoint irá executar as requisições, posição por posição, começando no início da lista. Caso o valor
-em string da posição a ser executada estiver configurada no campo [middlewares](#middlewares) corretamente, será
-executado o backend configurado no mesmo. Caso contrário irá ignorar a posição apenas imprimindo um log de atenção.
+If informed, the endpoint will run requests, position by position, starting at the beginning of the list. If the string
+value of the position to be executed is correctly configured in the [middlewares](#middlewares) field, the backend
+configured in it will be executed. Otherwise, it will ignore the position and just print a warning log.
 
 #### endpoint.backends
 
-Campo obrigatório, do tipo lista de objeto, responsável pela execução principal do endpoint, o próprio nome já diz tudo,
-é uma lista que indica todos os serviços necessários para que o endpoint retorne a resposta esperada.
+Required field, of object list type, responsible for the main execution of the endpoint, the name itself says it all,
+it's a list that indicates all the necessary services for the endpoint to return the expected response.
 
-Veja como funciona o fluxo básico de um backend na imagem abaixo:
+See how the basic flow of a backend works in the image below:
 
-<img src="assets/basic-backend-flowchart-pt-br.png" alt="fluxo básico de um backend">
+<img src="assets/basic-backend-flowchart-pt-br.png" alt="basic backend flow chart">
 
-Abaixo iremos listar e explicar cada campo desse objeto tão importante:
+Below we will list and explain each field of this important object:
 
 ### backend.@comment
 
-Campo opcional, do tipo string, campo livre para anotações relacionadas ao seu backend.
+Optional field, of string type, free field for notes related to your backend.
 
 ### backend.name
 
-Campo opcional, do tipo string, é responsável pelo nome do seu serviço backend, é utilizado para dar nome ao campo de
-resposta agregada do mesmo, caso o campo [backend.extra-config.group-response](#backendextra-configgroup-response)
-esteja como `true`.
+Optional field, of string type, is responsible for the name of your backend service, it is used to name the field of its
+aggregate response, if the [backend.extra-config.group-response](#backendextra-configgroup-response) field is set
+to `true`.
 
 ### backend.hosts
 
-Campo obrigatório, do tipo lista de string, é responsável pelos hosts do seu serviço que a API Gateway irá chamar
-juntamente com o campo [backend.path](#backendpath).
+Required field, of string list type, is responsible for the hosts of your service that the API Gateway will call
+together with the [backend.path](#backendpath) field.
 
-De certa forma podemos ter um load balancer "burro", pois o backend irá sortear nessa lista qual host irá ser chamado,
-com isso podemos informar múltiplas vezes o mesmo host para balancear as chamadas, veja:
+In a way, we can have a "dumb" load balancer, because the backend will randomly choose which host will be called from
+this list, so we can inform the same host multiple times to balance the calls, see:
 
 ````
-50% cada
+50% each
 [
   "https://instance-01", 
   "https://instance-02"
@@ -766,72 +767,72 @@ instance-02: 66.7%
 
 ### backend.path
 
-Campo obrigatório, do tipo string, o valor indica a URL do caminho do serviço backend.
+Required field, of string type, the value indicates the URL of the backend service path.
 
-Utilizamos um dos [backend.hosts](#backendhosts) informados e juntamos com o path fornecido, por exemplo, no campo
-hosts temos o valor
+We use one of the informed [backend.hosts](#backendhosts) and join it with the provided path, for example, in the hosts
+field we have the value:
 
-```text
+```json
 [
-  "https://instance-01", 
+  "https://instance-01",
   "https://instance-02"
 ]
 ```
 
-E nesse campo path temos o valor
+And in this path field we have the value:
 
 ```text
 /users/status
 ```
 
-O backend irá construir a seguinte URL de requisição
+The backend will construct the following request URL:
 
 ```text
 https://instance-02/users/status
 ```
 
-Veja como o host é balanceado clicando [aqui](#backendhosts).
+See how the host is balanced [by clicking here](#backendhosts).
 
 ### backend.method
 
-Campo obrigatório, do tipo string, o valor indica qual método HTTP o serviço backend espera.
+Required field, of string type, the value indicates which HTTP method the backend service expects.
 
 ### backend.forward-queries
 
-Campo opcional, do tipo lista de string, o valor padrão é vazio, indicando que qualquer parâmetro de busca será
-repassado para o serviço backend.
+Optional field, of string list type, the default value is empty, indicating that any query parameter will be passed to
+the backend service.
 
-Caso informado, apenas os campos indicados serão repassados para o serviço backend, por exemplo, recebemos uma
-requisição com a seguinte URL
+If informed, only the indicated fields will be passed to the backend service, for example, we receive a request with the
+following URL:
 
-````
+```text
 /users?id=23&email=gabrielcataldo@gmail.com&phone=47991271234
-````
+```
 
-Nesse exemplo temos o campo `forward-queries` com os seguintes valores
+In this example we have the `forward-queries` field with the following values:
 
-````
+```json
 [
   "email",
   "phone"
 ]
-````
+```
 
-A URL de requisição ao backend foi
+The backend request URL was:
 
-````
+```text
 /users?email=gabrielcataldo@gmail.com&phone=47991271234
-````
+```
 
-Vimos que o parâmetro de busca `id` não foi repassado para o serviço backend, pois ele não foi mencionado na lista.
+We saw that the `id` query parameter was not passed to the backend service, as it was not mentioned in the list.
 
 ### backend.forward-headers
 
-Campo opcional, do tipo lista de string, o valor padrão é vazio, indicando que qualquer cabeçalho recebido será
-repassado para o serviço backend.
+Optional field, of string list type, the default value is empty, indicating that any received header will be passed to
+the backend service.
 
-Caso informado, apenas os campos indicados serão repassados para o serviço backend, por exemplo, recebemos uma
-requisição com o seguinte cabeçalho:
+If informed, only the indicated fields will be passed to the backend service, for example, we receive a request with the
+following header:
 
 ```json
 {
@@ -841,7 +842,7 @@ requisição com o seguinte cabeçalho:
 }
 ```
 
-Nesse exemplo temos o campo `forward-headers` com os seguintes valores:
+In this example we have the `forward-headers` field with the following values:
 
 ```json
 [
@@ -850,7 +851,7 @@ Nesse exemplo temos o campo `forward-headers` com os seguintes valores:
 ]
 ```
 
-O cabeçalho de requisição ao backend foi:
+The backend request header was:
 
 ```json
 {
@@ -859,398 +860,393 @@ O cabeçalho de requisição ao backend foi:
 }
 ```
 
-Vimos que o campo `Device` do cabeçalho recebido não foi repassado para o serviço backend, pois ele não foi mencionado
-na lista.
+We saw that the `Device` field of the received header was not passed to the backend service because it was not mentioned
+in the list.
 
 ### backend.extra-config
 
-Campo opcional, do tipo objeto, indica configuração extras do serviço backend, veja abaixo sobre os campos e suas
-responsabilidades:
+Optional field, of object type, indicates additional backend service configuration, see below about the fields and their
+responsibilities:
 
 #### backend.extra-config.omit-request-body
 
-Campo opcional, do tipo booleano, o valor padrão é `false`, indicando que o corpo da requisição será repassado ao
-backend caso tenha.
+Optional field, of boolean type, the default value is `false`, indicating that the request body will be passed to the
+backend if it has one.
 
-Caso informado `true` o corpo da requisição não será repassado ao backend.
+If `true` is informed the request body will not be passed to the backend.
 
 #### backend.extra-config.group-response
 
-Campo opcional, do tipo booleano, o valor padrão é `false`, indicando que o corpo da resposta do backend não precisará
-ser agrupada em um campo JSON para a resposta ao cliente final.
+Optional field, of boolean type, the default value is `false`, indicating that the backend response body does not need
+to be grouped into a JSON field for the final client response.
 
-Caso informado com o valor `true` o body de resposta caso tenha, será agrupado em um campo JSON da resposta final,
-o nome do campo será o [nome](#backendname) do serviço backend caso preenchido, se não temos um padrão de nomenclatura
-que é `backend-posição na lista` que seria por exemplo `backend-0`.
+If informed with the value `true` the response body, if any, will be grouped into a JSON field of the final response,
+the name of the field will be the [name](#backendname) of the backend service if filled, if not we have a naming
+standard that is `backend-position in the list` which would, for example, be `backend-0`.
 
-Para entender a importância desse campo, veja mais sobre a [lógica de resposta](#lógica-de-resposta) da API Gateway.
+To understand the importance of this field, see more about the [response logic](#response-logic) of the API Gateway.
 
 #### backend.extra-config.omit-response
 
-Campo opcional, do tipo booleano, o valor padrão é `false`, indicando que a resposta do backend em questão não será
-omitida para o cliente final.
+Optional field, of boolean type, the default value is `false`, indicating that the response from the backend in question
+will not be omitted to the final client.
 
-Caso informado com o valor `true` toda a resposta do backend em questão será omitida, tenha cuidado, pois se tiver
-apenas
-esse backend, e o mesmo for omitido, a API Gateway responderá por padrão o código de status HTTP `204 (No Content)`.
+If informed with the value `true`, the entire response from the backend in question will be omitted, be careful, because
+if you only have this backend, and it is omitted, the API Gateway will respond by default HTTP status
+code `204 (No Content)`.
 
-Para entender a importância desse campo, veja mais sobre a [lógica de resposta](#lógica-de-resposta) da API Gateway.
+To understand the importance of this field, see more about the [response logic](#response-logic) of the API Gateway.
 
 ### backend.modifiers
 
-Campo opcional, do tipo objeto, o valor padrão é vazio, indicando não haver nenhum processo de modificação nesse
-backend em questão.
+Optional field, of object type, the default value is empty, indicating that there is no modification process in this
+backend in question.
 
-Abaixo iremos listar e explicar cada campo desse objeto tão importante:
+Below we will list and explain each field of this so important object:
 
 ### modifiers.@comment
 
-Campo opcional, do tipo string, campo livre para anotações relacionadas aos seus modificadores.
+Optional field, of string type, free field for notes related to your modifiers.
 
 ### modifiers.status-code
 
-Campo opcional, do tipo inteiro, valor padrão é `0`, indicando não haver nada a ser modificado no código de status HTTP
-de resposta do backend.
+Optional field, of integer type, the default value is `0`, indicating that there is nothing to be modified in the HTTP
+response status code from the backend.
 
-Caso informado, o código de status HTTP de resposta do backend será modificado pelo valor inserido, isso pode ter ou não
-influência na resposta final do endpoint, veja a [lógica-de-resposta](#lógica-de-resposta) da API Gateway para saber
-mais.
+If informed, the HTTP response status code from the backend will be modified by the inserted value, this may or may not
+influence the final response of the endpoint, see the [response-logic](#response-logic) of the API Gateway to learn
+more.
 
 ### modifiers.header
 
-Campo opcional, do tipo lista de objeto, valor padrão é vazio, responsável pelas modificações de cabeçalho da requisição
-e resposta do backend.
+Optional field, of list of object type, the default value is empty, responsible for the modifications of the request and
+response header of the backend.
 
-Veja abaixo os campos desse objeto e suas responsabilidade:
+See below the fields of this object and their responsibility:
 
 #### header.@comment
 
-Campo opcional, do tipo string, campo livre para anotações relacionadas ao seu modificador.
+Optional field, of string type, free field for notes related to your modifier.
 
 #### header.context
 
-Campo obrigatório, do tipo string, é responsável por indicar qual contexto a modificação deve atuar.
+Mandatory field, of string type, is responsible for indicating which context the modification should act on.
 
-Valores aceitos:
+Accepted values:
 
-`REQUEST`: Para atuar na pré-requisição do backend.
+`REQUEST`: To act in the pre-request of the backend.
 
-`RESPONSE`: Para atuar pós-requisição do backend.
+`RESPONSE`: To act post-request of the backend.
 
-Importante lembrar que caso o valor for `REQUEST` poderá utilizar no campo [header.scope](#headerscope) apenas o valor
-`REQUEST`.
+It's important to remember that if the value is `REQUEST` you may use in the [header.scope](#headerscope) field only the
+value `REQUEST`.
 
 #### header.scope
 
-Campo opcional, do tipo string, o valor padrão será baseado no campo [header.context](#headercontext) informado, o valor
-indica qual escopo devemos alterar, se o escopo de requisição ou de resposta.
+Optional field, of string type, the default value will be based on the informed [header.context](#headercontext) field,
+the value indicates which scope we should change, whether the request scope or the response scope.
 
-Valores aceitos:
+Accepted values:
 
-`REQUEST`: Para modificar o escopo de requisição, esse tipo de escopo pode ter uma atuação global propagando essa
-mudança
-nas requisições backends seguintes, basta utilizar o campo [header.propagate](#headerpropagate) como `true`.
+`REQUEST`: To modify the request scope, this type of scope can have global action propagating this change in the
+following backend requests, just use the [header.propagate](#headerpropagate) field as `true`.
 
-`RESPONSE`: Para modificar o escopo de resposta do backend.
+`RESPONSE`: To change the backend response scope.
 
 #### header.action
 
-Campo obrigatório, do tipo string, responsável pela ação a ser tomada na modificação do cabeçalho.
+Mandatory field, of string type, responsible for the action to be taken in the header modification.
 
-Valores aceitos:
+Accepted values:
 
-`ADD`: Adiciona a chave informada no campo [header.key](#headerkey) caso não exista, e agrega o valor informado no
-campo [header.value](#headervalue).
+`ADD`: Adds the key informed in the [header.key](#headerkey) field if it does not exist, and adds the value informed in
+the [header.value](#headervalue) field.
 
-`APD`: Acrescenta o valor informado no campo [header.value](#headervalue) caso a chave informada no
-campo  [header.key](#headerkey) exista.
+`APD`: Adds the value informed in the [header.value](#headervalue) field if the key informed in
+the [header.key](#headerkey) field exists.
 
-`SET`: Define o valor da chave informada no campo [header.key](#headerkey) pelo valor passado no
-campo [header.value](#headervalue).
+`SET`: Sets the value of the key informed in the [header.key](#headerkey) field by the value passed in
+the [header.value](#headervalue) field.
 
-`RPL`: Substitui o valor da chave informada no campo [header.key](#headerkey) pelo valor passado no
-campo [header.value](#headervalue) caso exista.
+`RPL`: Replaces the value of the key informed in the [header.key](#headerkey) field by the value passed in
+the [header.value](#headervalue) field if it exists.
 
-`REN`: Renomeia a chave informada no campo [header.key](#headerkey) pelo valor passado no
-campo [header.value](#headervalue) caso exista.
+`REN`: Renames the key informed in the [header.key](#headerkey) field by the value passed in
+the [header.value](#headervalue) field if it exists.
 
-`DEL`: Remove a chave informada no campo [header.key](#headerkey) caso exista.
+`DEL`: Removes the key informed in the [header.key](#headerkey) field if it exists.
 
 #### header.key
 
-Campo obrigatório, do tipo string, utilizado para indicar qual chave do cabeçalho deve ser modificada.
+Mandatory field, of string type, used to indicate which header key should be modified.
 
 #### header.value
 
-Campo obrigatório, do tipo string, utilizado como valor a ser usado para modificar a chave indicada no
-campo [header.key](#headerkey).
+Mandatory field, of string type, used as the value to be used to modify the key indicated in
+the [header.key](#headerkey) field.
 
-Temos possibilidades de utilização de [valores dinâmicos](#valores-dinâmicos-para-modificação),
-e de [variáveis de ambiente](#variáveis-de-ambiente) para esse campo.
+We have possibilities of using [dynamic values](#dynamic-values-for-modification), and
+of [environment variables](#environment-variables) for this field.
 
-OBS: se torna opcional apenas se [query.action](#queryaction) tiver o valor `DEL`.
+NOTE: it only becomes optional if [query.action](#queryaction) has the `DEL` value.
 
 #### header.propagate
 
-Campo opcional, do tipo booleano, o valor padrão é `false` indicando que o modificador não deve propagar essa mudança
-em questão para os backends seguintes.
+Optional field, of boolean type, the default value is `false` indicating that the modifier should not propagate this
+change to the following backends.
 
-Caso informado como `true` essa modificação será propagada para os seguintes backends.
+If informed as `true` this modification will be propagated to the following backends.
 
-IMPORTANTE: Esse campo só é aceito se o [escopo](#headerscope) tiver o valor `REQUEST`.
+IMPORTANT: This field is only accepted if the [scope](#headerscope) has the `REQUEST` value.
 
 ### modifiers.param
 
-Campo opcional, do tipo lista de objeto, valor padrão é vazio, responsável pelas modificações de parâmetros da
-requisição para o backend.
+Optional field, of object list type, default value is empty, responsible for modifying request parameters for the
+backend.
 
-Veja abaixo os campos desse objeto e suas responsabilidade:
+See below the fields of this object and their responsibilities:
 
 #### param.@comment
 
-Campo opcional, do tipo string, campo livre para anotações relacionadas ao seu modificador.
+Optional field, of string type, free field for annotations related to your modifier.
 
 #### param.context
 
-Campo obrigatório, do tipo string, é responsável por indicar qual contexto a modificação deve atuar.
+Mandatory field, of string type, is responsible for indicating which context the modification should act.
 
-Valores aceitos:
+Accepted values:
 
-`REQUEST`: Para atuar na pré-requisição do backend.
+`REQUEST`: To act on the backend's pre-request.
 
-`RESPONSE` Para atuar pós-requisição do backend.
+`RESPONSE`: To act post-backend request.
 
 #### param.action
 
-Campo obrigatório, do tipo string, responsável pela ação a ser tomada na modificação dos parâmetros da requisição.
+Mandatory field, of string type, responsible for taking action in modifying the request parameters.
 
-Valores aceitos:
+Accepted values:
 
-`SET`: Define o valor da chave informada no campo [param.key](#paramkey) pelo valor passado no
-campo [param.value](#paramvalue).
+`SET`: Sets the value of the key informed in the [param.key](#paramkey) field by the value passed in
+the [param.value](#paramvalue) field.
 
-`RPL`: Substitui o valor da chave informada no campo [header.key](#headerkey) pelo valor passado no
-campo [header.value](#headervalue) caso exista.
+`RPL`: Replaces the value of the key informed in the [header.key](#headerkey) field by the value passed in
+the [header.value](#headervalue) field if it exists.
 
-`REN`: Renomeia a chave informada no campo [param.key](#paramkey) pelo valor passado no
-campo [param.value](#paramvalue) caso exista.
+`REN`: Renames the key informed in the [param.key](#paramkey) field by the value passed in
+the [param.value](#paramvalue) field if it exists.
 
-`DEL`: Remove a chave informada no campo [param.key](#paramkey) caso exista.
+`DEL`: Removes the key informed in the [param.key](#paramkey) field if it exists.
 
 #### param.key
 
-Campo obrigatório, do tipo string, utilizado para indicar qual chave de parâmetro deve ser modificada.
+Mandatory field, of string type, used to indicate which parameter key should be modified.
 
 #### param.value
 
-Campo obrigatório, do tipo string, utilizado como valor a ser usado para modificar a chave indicada no
-campo [param.key](#paramkey).
+Mandatory field, of string type, used as the value to modify the key indicated in the [param.key](#paramkey) field.
 
-Temos possibilidades de utilização de [valores dinâmicos](#valores-dinâmicos-para-modificação),
-e de [variáveis de ambiente](#variáveis-de-ambiente) para esse campo.
+We have possibilities for using [dynamic values](#dynamic-values-for-modification),
+and [environment variables](#environment-variables) for this field.
 
-OBS: se torna opcional apenas se [query.action](#queryaction) tiver o valor `DEL`.
+NOTE: it only becomes optional if [query.action](#queryaction) has the `DEL` value.
 
 #### param.propagate
 
-Campo opcional, do tipo booleano, o valor padrão é `false` indicando que o modificador não deve propagar essa mudança
-em questão para os backends seguintes.
+Optional field, of boolean type, the default value is `false` indicating that the modifier should not propagate this
+change to the following backends.
 
-Caso informado como `true` essa modificação será propagada para os seguintes backends.
+If informed as `true` this modification will be propagated to the following backends.
 
 ### modifiers.query
 
-Campo opcional, do tipo lista de objeto, valor padrão é vazio, responsável pelas modificações de parâmetros de busca da
-requisição para o backend.
+Optional field, of object list type, default value is empty, responsible for modifying the query parameters of the
+request for the backend.
 
-Veja abaixo os campos desse objeto e suas responsabilidade:
+See below the fields of this object and their responsibilities:
 
 #### query.@comment
 
-Campo opcional, do tipo string, campo livre para anotações relacionadas ao seu modificador.
+Optional field, of string type, free field for annotations related to your modifier.
 
 #### query.context
 
-Campo obrigatório, do tipo string, é responsável por indicar qual contexto a modificação deve atuar.
+Mandatory field, of string type, responsible for indicating in which context the modification should take place.
 
-Valores aceitos:
+Accepted values:
 
-`REQUEST`: Para atuar na pré-requisição do backend.
+`REQUEST`: To act in the backend's pre-request.
 
-`RESPONSE`: Para atuar pós-requisição do backend.
+`RESPONSE`: To act post-backend request.
 
 #### query.action
 
-Campo obrigatório, do tipo string, responsável pela ação a ser tomada na modificação dos parâmetros de busca da
-requisição.
+Mandatory field, of string type, responsible for the action to be taken in modifying the query parameters of the
+request.
 
-Valores aceitos:
+Accepted values:
 
-`ADD`: Adiciona a chave informada no campo [query.key](#querykey) caso não exista, e agrega o valor informado no
-campo [query.value](#queryvalue).
+`ADD`: It adds the key informed in the [query.key](#querykey) field if it does not exist, and the value reported in
+the [query.value](#queryvalue) field is added.
 
-`APD`: Acrescenta o valor informado no campo [query.value](#queryvalue) caso a chave informada no
-campo [query.key](#querykey) exista.
+`APD`: It adds the value informed in the [query.value](#queryvalue) field if the key informed in
+the [query.key](#querykey) field exists.
 
-`SET`: Define o valor da chave informada no campo [query.key](#querykey) pelo valor passado no
-campo [query.value](#queryvalue).
+`SET`: It sets the value of the key informed in the [query.key](#querykey) field by the value passed in
+the [query.value](#queryvalue) field.
 
-`RPL`: Substitui o valor da chave informada no campo [query.key](#querykey) pelo valor passado no
-campo [query.value](#queryvalue) caso exista.
+`RPL`: Replaces the value of the key informed in the [query.key](#querykey) field by the value passed in
+the [query.value](#queryvalue) field if it exists.
 
-`REN`: Renomeia a chave informada no campo [query.key](#querykey) pelo valor passado no
-campo [query.value](#queryvalue) caso exista.
+`REN`: Renames the key informed in the [query.key](#querykey) field by the value passed in
+the [query.value](#queryvalue) field if it exists.
 
-`DEL`: Remove a chave informada no campo [query.key](#querykey) caso exista.
+`DEL`: It removes the key informed in the [query.key](#querykey) field if it exists.
 
 #### query.key
 
-Campo obrigatório, do tipo string, utilizado para indicar qual chave de parâmetro de busca deve ser modificada.
+Mandatory field, of string type, used to indicate which query parameter key should be modified.
 
 #### query.value
 
-Campo obrigatório, do tipo string, utilizado como valor a ser usado para modificar a chave indicada no
-campo [query.key](#querykey).
+Mandatory field, of string type, used as the value to be used to modify the key indicated in the [query.key](#querykey)
+field.
 
-Temos possibilidades de utilização de [valores dinâmicos](#valores-dinâmicos-para-modificação),
-e de [variáveis de ambiente](#variáveis-de-ambiente) para esse campo.
+We have possibilities of using [dynamic values](#dynamic-values-for-modification),
+and [environment variables](#environment-variables) for this field.
 
-OBS: se torna opcional apenas se [query.action](#queryaction) tiver o valor `DEL`.
+NOTE: it becomes optional only if [query.action](#queryaction) has the value `DEL`.
 
 #### query.propagate
 
-Campo opcional, do tipo booleano, o valor padrão é `false` indicando que o modificador não deve propagar essa mudança
-em questão para os backends seguintes.
+Optional field, of boolean type, the default value is `false` indicating that the modifier should not propagate this
+change in question to the following backends.
 
-Caso informado como `true` essa modificação será propagada para os seguintes backends.
+If informed as `true` this modification will be propagated to the following backends.
 
 ### modifiers.body
 
-Campo opcional, do tipo lista de objeto, valor padrão é vazio, responsável pelas modificações de body de
-requisição ou resposta do backend.
+Optional field, of list of object type, default value is empty, responsible for modifying the body of request or
+response from backend.
 
-Veja abaixo os campos desse objeto e suas responsabilidade:
+See below the fields of this object and their responsibility:
 
 #### body.@comment
 
-Campo opcional, do tipo string, campo livre para anotações relacionadas ao seu modificador.
+Optional field, of string type, free field for annotations related to your modifier.
 
 #### body.context
 
-Campo obrigatório, do tipo string, é responsável por indicar qual contexto a modificação deve atuar.
+Mandatory field, of string type, responsible for indicating in which context the modification should take place.
 
-Valores aceitos:
+Accepted values:
 
-`REQUEST`: Para atuar na pré-requisição do backend.
+`REQUEST`: To act on the backend's pre-request.
 
-`RESPONSE`: Para atuar pós-requisição do backend.
+`RESPONSE`: To act post-backend request.
 
-Importante lembrar que caso o valor for `REQUEST` poderá utilizar no campo [body.scope](#bodyscope) apenas o valor
-`REQUEST`.
+It's important to remember that if the value is `REQUEST`, you can only use the value `REQUEST` in
+the [body.scope](#bodyscope) field.
 
 #### body.scope
 
-Campo opcional, do tipo string, o valor padrão será baseado no campo [body.context](#bodycontext) informado, o valor
-indica qual escopo devemos alterar, se o escopo de requisição ou de resposta.
+Optional field, of string type, the default value will be based on the [body.context](#bodycontext) field informed, the
+value indicates which scope we should change, whether the request scope or response scope.
 
-Valores aceitos:
+Accepted values:
 
-`REQUEST`: Para modificar o escopo de requisição, esse tipo de escopo pode ter uma atuação global propagando essa
-mudança
-nas requisições de backend seguintes, basta utilizar o campo [body.propagate](#bodypropagate) como `true`.
+`REQUEST`: To modify the request scope, this type of scope can have a global action propagating this change in the
+following backend requests, just use the [body.propagate](#bodypropagate) field as `true`.
 
-`RESPONSE`: Para modificar o escopo de resposta do backend.
+`RESPONSE`: To modify the backend response scope.
 
 #### body.action
 
-Campo obrigatório, do tipo string, responsável pela ação a ser tomada na modificação do body.
+Mandatory field, of string type, responsible for the action to be taken in the body modification.
 
-Valores aceitos se o body for JSON:
+Accepted values if body is JSON:
 
-`ADD`: Adiciona a chave informada no campo [body.key](#bodykey) caso não exista, e agrega o valor informado no
-campo [body.value](#bodyvalue).
+`ADD`: Adds the key informed in the [body.key](#bodykey) field if it does not exist, and aggregates the value informed
+in the [body.value](#bodyvalue) field.
 
-`APD`: Acrescenta o valor informado no campo [body.value](#bodyvalue) caso a chave informada no
-campo [body.key](#bodykey) exista.
+`APD`: Adds the value informed in the [body.value](#bodyvalue) field if the key informed in the [body.key](#bodykey)
+field exists.
 
-`SET`: Defini o valor da chave informada no campo [body.key](#bodykey) pelo valor passado no
-campo [body.value](#bodyvalue).
+`SET`: Sets the value of the key informed in the [body.key](#bodykey) field by the value passed in
+the [body.value](#bodyvalue) field.
 
-`RPL`: Substitui o valor da chave informada no campo [body.key](#bodykey) pelo valor passado no
-campo [body.value](#bodyvalue) caso exista.
+`RPL`: Replaces the value of the key informed in the [body.key](#bodykey) field by the value passed in
+the [body.value](#bodyvalue) field if it exists.
 
-`REN`: Renomeia a chave informada no campo [body.key](#bodykey) pelo valor passado no
-campo [body.value](#bodyvalue) caso exista.
+`REN`: Renames the key informed in the [body.key](#bodykey) field to the value passed in the [body.value](#bodyvalue)
+field if it exists.
 
-`DEL`: Remove a chave informada no campo [body.key](#bodykey) caso exista.
+`DEL`: Removes the key informed in the [body.key](#bodykey) field if it exists.
 
-Valores aceitos se o body for TEXTO:
+Accepted values if body is TEXT:
 
-`ADD`: Agrega o valor informado no campo [body.value](#bodyvalue) ao texto.
+`ADD`: Adds the value informed in the [body.value](#bodyvalue) field to text.
 
-`APD`: Acrescenta o valor informado no campo [body.value](#bodyvalue) caso body não for vazio.
+`APD`: Adds the value informed in the [body.value](#bodyvalue) field if body is not empty.
 
-`RPL`: Irá substituir todos os valores semelhantes à chave informada no campo [body.key](#bodykey) pelo valor passado no
-campo [body.value](#bodyvalue).
+`RPL`: Will replace all values similar to the key informed in the [body.key](#bodykey) field with the value provided in
+the [body.value](#bodyvalue) field.
 
-`DEL`: Remove todos os valores semelhantes à chave informada no campo [body.key](#bodykey).
+`DEL`: Removes all values similar to the key informed in the [body.key](#bodykey) field.
 
 #### body.key
 
-Campo obrigatório, do tipo string, utilizado para indicar qual chave do cabeçalho deve ser modificada.
+Mandatory field, of string type, used to indicate which header key should be modified.
 
-OBS: se torna opcional se seu body for do tipo TEXTO e [body.action](#bodyaction) tiver o valor `ADD`.
+NOTE: it becomes optional if your body is of TEXT type and [body.action](#bodyaction) has the value `ADD`.
 
 #### body.value
 
-Campo obrigatório, do tipo string, utilizado como valor a ser usado para modificar a chave indicada no
-campo [body.key](#bodykey).
+Mandatory field, of string type, used as value to be used to modify the key indicated in the [body.key](#bodykey) field.
 
-Temos possibilidades de utilização de [valores dinâmicos](#valores-dinâmicos-para-modificação),
-e de [variáveis de ambiente](#variáveis-de-ambiente) para esse campo.
+We have possibilities of using [dynamic values](#dynamic-values-for-modification),
+and [environment variables](#environment-variables) for this field.
 
-OBS: se torna opcional apenas se [body.action](#bodyaction) tiver o valor `DEL`.
+NOTE: It becomes optional only if [body.action](#bodyaction) has the value `DEL`.
 
 #### body.propagate
 
-Campo opcional, do tipo booleano, o valor padrão é `false` indicando que o modificador não deve propagar essa mudança
-em questão para os backends seguintes.
+Optional field, of boolean type, the default value is `false`, indicating that the modifier should not propagate this
+change to subsequent backends.
 
-Caso informado como `true` essa modificação será propagada para os seguintes backends.
+If informed as `true`, this modification will be propagated to the following backends.
 
-IMPORTANTE: Esse campo só é aceito se o [escopo](#bodyscope) tiver o valor `REQUEST`.
+IMPORTANT: This field is only accepted if the [scope](#bodyscope) has the value `REQUEST`.
 
-## JSON de tempo de execução
+## Runtime JSON
 
-O GOPEN API Gateway quando iniciado, gera um arquivo JSON, baseado no [JSON de configuração](#json-de-configuração),
-localizado na pasta `runtime` na raiz da sua aréa de trabalho.
+When started, the GOPEN API Gateway generates a JSON file, based on the [configuration JSON](#configuration-json),
+located in the `runtime` folder at the root of your workspace.
 
-Esse JSON, indica qual foi o entendimento da aplicação ao ler o [JSON de configuração](#json-de-configuração), todas
-as [#variáveis de configuração](#variáveis-de-ambiente) já terão seus valores substituídos, caso exista.
+This JSON indicates the application's understanding after reading the [configuration JSON](#configuration-json), all
+[#configuration variables](#environment-variables) will already have their values replaced, if any.
 
-Esse json também pode ser lido utilizando a rota estática [/settings](#settings).
+This json can also be read using the static route [/settings](#settings).
 
-## Rotas estáticas
+## Static Routes
 
-O GOPEN API Gateway tem alguns endpoints estáticos, isto é, indepêndente de qualquer configuração feita, teremos
-atualmente três endpoints cadastrados nas rotas do mesmo, veja abaixo cada um e suas responsabilidades:
+The GOPEN API Gateway has some static endpoints, that is, regardless of any configuration made, there are currently
+three endpoints registered in its routes, see the details for each one and their responsibilities below:
 
 ### `/ping`
 
-Endpoint para saber se a API Gateway está viva o path, retorna `404 (Not found)` se tiver off, e
-`200 (OK)` se tiver no ar.
+Endpoint to know if the API Gateway is alive, returns `404 (Not Found)` if it's off, and `200 (OK)` if it's running.
 
 ### `/version`
 
-Endpoint que retorna a versão obtida na config [version](#version), retorna `404 (Not Found)` se não tiver sido
-informado no [json de configuração](#json-de-configuração), caso contrário retorna o `200 (OK)` com o valor no body
-como texto.
+Endpoint that returns the version obtained from the [version](#version) configuration, returns `404 (Not Found)` if it
+has not been informed in the [configuration json](#configuration-json), otherwise returns `200 (OK)` with the value in
+the body as text.
 
 ### `/settings`
 
-Endpoint retorna algumas informações sobre o projeto, como versão, data da versão, quantidade de contribuintes e
-um resumo de quantos endpoints, middlewares, backends e modifiers configurados no momento e o json de configuração
-que está rodando ativamente.
+Endpoint returns some information about the project, such as version, version date, number of contributors, and a
+summary of how many endpoints, middlewares, backends, and modifiers are currently configured and the configuration json
+that is actively running.
 
 ```json
 {
@@ -1283,18 +1279,18 @@ que está rodando ativamente.
 }
 ```
 
-## Variáveis de ambiente
+## Environment Variables
 
-As variáveis de ambiente podem ser fácilmente instânciadas utilizando o arquivo .env, na pasta indicada pelo ambiente
-dinâmico de inicialização como mencionado no tópico [ESTRUTURA DE PASTAS](#estrutura-de-pastas).
+Environment variables can be easily instantiated using the .env file, in the folder indicated by the dynamic startup
+environment as mentioned in the topic [FOLDER STRUCTURE](#folder-structure).
 
-Caso preferir inserir os valores utilizando docker-compose também funcionará corretamente, ponto é que a API
-Gateway irá ler o valor gravado na máquina, independente de como foi inserido nela.
+If you prefer to insert the values using docker-compose it will also work correctly, the point is that the API Gateway
+will read the value recorded on the machine, regardless of how it was entered there.
 
-Os valores podem ser utilizados na configuração do JSON da API Gateway, basta utilizar a sintaxe `$NOME` como
-um valor string, veja no exemplo abaixo.
+The values can be used in the API Gateway JSON configuration, just use the syntax `$NAME` as a string value, see in the
+example below.
 
-Um trecho de um JSON de configuração, temo os seguintes valores:
+A snippet of a configuration JSON, we have the following values:
 
 ```json
 {
@@ -1311,7 +1307,7 @@ Um trecho de um JSON de configuração, temo os seguintes valores:
 }
 ```
 
-E na nossa máquina temos as seguintes variáveis de ambiente:
+And on our machine we have the following environment variables:
 
 ```dotenv
 VERSION=1.0.0
@@ -1322,8 +1318,8 @@ REDIS_PASSWORD=12345
 TIMEOUT=5m
 ```
 
-A API Gateway gera um arquivo de [JSON de tempo de execução](#json-de-tempo-de-execução) ao rodar a aplicação, veja o
-resultado do mesmo após iniciar a aplicação:
+The API Gateway generates a [runtime JSON](#runtime-json) file when running the application, see the result of the same
+after starting the application:
 
 ```json
 {
@@ -1340,153 +1336,150 @@ resultado do mesmo após iniciar a aplicação:
 }
 ```
 
-Vimos que todos os valores com a sintaxe `$NOME` foram substituídos pelos seus devidos valores, caso um valor
-tenha sido mencionado por essa sintaxe, porém não existe nas variáveis de ambiente, o mesmo valor informado
-será mantido.
+We see that all values with the syntax `$NAME` were replaced with their due values, if a value has been mentioned by
+this syntax, but it does not exist in the environment variables, the same informed value will be kept.
 
-### Observação
+### Note
 
-Nessa primeira versão podemos utilizar essa sintaxe apenas em campos do tipo string, caso queira
-[contríbuir](#como-contríbuir) com uma solução que aceitará essa sintaxe independente do tipo, ficaríamos gratos!
+In this first version, we can use this syntax only in string type fields, if you want
+to [contribute](#how-to-contribute) with a solution that will accept this syntax regardless of the type, we would be
+grateful!
 
-## Valores dinâmicos para modificação
+## Dynamic values for modification
 
-Podemos utilizar valores de requisição e resposta do tempo de execução do endpoint, conforme o mesmo foi configurado.
-Esses valores podem ser obtidos por uma sintaxe específica, temos as seguintes possibilidades de obtenção desses
-valores, veja:
+We can use request and response values from the endpoint runtime, as it was configured. These values can be obtained by
+a specific syntax, we have the following possibilities to obtain these values, see:
 
-### Requisição
+### Request
 
-Quando menciona a sintaxe `#request...` você estará obtendo os valores da requisição recebida, caso mencione o campo
-`#request.history...` você estará obtendo os valores
-do [histórico temporário de requisições](#histórico-temporário-de-requisições).
+When mentioning the syntax `#request...` you will be getting the values from the received request, if you mention the
+field `#request.history...` you will be getting the values from
+the [temporary history of requests](#temporary-history-of-requests).
 
 `#request.header...`
 
-Esse trecho da sintaxe irá obter do cabeçalho da requisição o valor indicado, por exemplo,
-`#request.header.X-Forwarded-For.0` irá obter o primeiro valor do campo `X-Forwarded-For` do cabeçalho da requisição
-caso exista, substituindo a sintaxe pelo valor, o resultado foi `127.0.0.1`.
+This snippet of the syntax will get the value indicated from the request header, for example,
+`#request.header.X-Forwarded-For.0` will get the first value of the field `X-Forwarded-For` from the request header if
+it exists, replacing the syntax with the value, the result was `127.0.0.1`.
 
 `#request.params...`
 
-Esse trecho da sintaxe irá obter dos parâmetros da requisição o valor indicado, por exemplo,
-`#request.params.id` irá obter o valor do campo `id` dos parâmetros da requisição caso exista,
-substituindo a sintaxe pelo valor, o resultado foi `72761`.
+This snippet of the syntax will get the indicated value from the request parameters, for example,
+`#request.params.id` will get the value of the `id` field from the request parameters if it exists, replacing the syntax
+by the value, the result was `72761`.
 
 `#request.query...`
 
-Esse trecho da sintaxe irá obter dos parâmetros de busca da requisição o valor indicado, por exemplo,
-`#request.query.email.0` irá obter o primeiro valor do campo `email` dos parâmetros de busca da requisição caso exista,
-substituindo a sintaxe pelo valor, o resultado foi `gabrielcataldo.adm@gmail.com`.
+This snippet of the syntax will get the indicated value from the request search parameters, for example,
+`#request.query.email.0` will get the first value of the `email` field from the request search parameters if it exists,
+replacing the syntax with the value, the result was `gabrielcataldo.adm@gmail.com`.
 
 `#request.body...`
 
-Esse trecho da sintaxe irá obter do body da requisição o valor indicado, por exemplo,
-`#request.body.deviceId` irá obter o valor do campo `deviceId` do body da requisição caso exista,
-substituindo a sintaxe pelo valor, o resultado foi `991238`.
+This snippet of the syntax will get the indicated value from the request body, for example,
+`#request.body.deviceId` will get the value of the `deviceId` field from the request body if it exists, replacing the
+syntax with the value, the result was `991238`.
 
-#### Histórico temporário de requisições
+#### Temporary History of Requests
 
-Caso queira obter os valores de requisição especificamente de um backend, basta adicionar o campo `history` na sintaxe,
-e a posição do seu backend na história, lembrando que os middlewares `beforewares` e `afterwares` conta como um backend
-no histórico, outro ponto é que só terá as informações de requisição neste campo se o backend já tenha sido processado,
-ou o backend está em processamento. Veja como ficaria um exemplo abaixo:
+If you want to obtain request values specifically from a backend, just add the `history` field in the syntax, and the
+position of your backend in history, remembering that the middlewares `beforewares` and `afterwares` count as a backend
+in history, another point is that you will only have the request information in this field if the backend has already
+been processed, or the backend is in process. Here is what an example would look like:
 
-No exemplo, eu tenho apenas um backend e o mesmo está sendo processado, então posso está utilizando a sintaxe:
+In the example, I have only one backend, and it is being processed, so I can be using the syntax:
 
 `#request.history.0.params.phone`
 
-Nesse outro exemplo de sintaxe temos três backends configurados e dois já foram processados, então podemos utilizar a
-seguinte sintaxe no processo do terceiro backend:
+In this other syntax example we have three configured backends and two have already been processed, so we can use the
+following syntax in the process of the third backend:
 
 `#request.history.1.body.id`
 
-Nesses exemplos citados vemos que podemos obter o valor da requisição que esta sendo feita ou já foi feita por um
-backend configurado, e que estão armazenados em um tipo de histórico temporário.
+In these examples mentioned we see that we can get the value of the request that is being made or has already been made
+by a configured backend, and that they are stored in a type of temporary history.
 
-### Resposta
+### Response
 
-Quando menciona a sintaxe `#response...` você estará obtendo os valores da resposta da API Gateway preparada com base
-na [lógica de resposta](#lógica-de-resposta), caso mencione o campo `#response.history...` você estará obtendo os
-valores do [histórico temporário de respostas](#histórico-temporário-de-respostas).
+When mentioning the syntax `#response...` you will be retrieving the values of the API Gateway response prepared based
+on the [response logic](#response-logic), if you mention the field `#response.history...` you will be retrieving the
+values from the [temporary history of responses](#temporary-history-of-responses).
 
 `#response.statusCode`
 
-Essa sintaxe irá obter o código de status HTTP da resposta atual do endpoint. Caso queira obter da
-resposta de um backend específico use o [histórico temporário de respostas](#histórico-temporário-de-respostas).
+This syntax will get the HTTP status code of the current endpoint response. If you want to get from the response of a
+specific backend use the [temporary history of responses](#temporary-history-of-responses).
 
 `#response.header...`
 
-Esse trecho da sintaxe irá obter do cabeçalho de resposta do endpoint o valor indicado, por exemplo,
-`#response.header.X-Trace-Id` irá obter os valores em lista do campo `X-Trace-Id` do cabeçalho de resposta caso exista,
-substituindo a sintaxe pelo valor, o resultado foi `["4ae6c92d16089e521626", "5ae7c93d16089e521628"]`.
+This snippet of the syntax will get the indicated value from the endpoint response header, for example,
+`#response.header.X-Trace-Id` will get the list values of the field `X-Trace-Id` from the response header if it exists,
+replacing the syntax with the value, the result was `["4ae6c92d16089e521626", "5ae7c93d16089e521628"]`.
 
 `#response.body...`
 
-Esse trecho da sintaxe irá obter do body de resposta do endpoint o valor indicado, por exemplo,
-`#response.body.role` irá obter o valor do campo `role` do body da requisição caso exista,
-substituindo a sintaxe pelo valor, o resultado foi `ADMIN`.
+This snippet of the syntax will get the indicated value from the endpoint response body, for example,
+`#response.body.role` will get the value of the field `role` from the request body if it exists, replacing the syntax
+with the value, the result was `ADMIN`.
 
-#### Histórico temporário de respostas
+#### Temporary History of Responses
 
-Caso queira obter os valores de resposta especificamente de um backend, basta adicionar o campo `history` na sintaxe,
-e a posição do seu backend na história, lembrando que os middlewares `beforewares` e `afterwares` conta como um backend
-no histórico, outro ponto é que só terá as informações de resposta neste campo se o backend já tenha sido processado.
-Veja como ficaria um exemplo abaixo:
+If you want to retrieve the response values specifically from a backend, just add the `history` field in the syntax, and
+the position of your backend in history, remembering that the middlewares `beforewares` and `afterwares` count as a
+backend in history, another point is that you will only have the response information in this field if the backend has
+already been processed. Here is what an example would look like:
 
-No exemplo, eu tenho apenas um backend e o mesmo foi processado, então posso está utilizando a sintaxe:
+In the example, I have only one backend, and it has been processed, so I can be using the syntax:
 
 `#response.history.0.header.X-Value.0`
 
-Nesse outro exemplo de sintaxe temos três backends configurados e dois já foram processados, então podemos utilizar a
-seguinte sintaxe no processo do terceiro backend:
+In this other syntax example, we have three configured backends and two have already been processed, so we can use the
+following syntax in the process of the third backend:
 
 `#request.history.1.body.users.0`
 
-Nesses exemplos citados vemos que podemos obter o valor da resposta de um backend que já foi processado,
-e que estão armazenados em um tipo de histórico temporário.
+In these examples mentioned we see that we can get the value of a response from a backend that has already been
+processed, and that they are stored in a kind of temporary history.
 
-### Importante
+### Important
 
-Você pode utilizar com base nesses campos,
-a [sintaxe de JSON path](https://github.com/tidwall/gjson/blob/master/README.md#path-syntax) que se enquadra em seus
-valores, apenas se lembre que, os objetos header, query são mapas de lista de string, e o params é um mapa de string.
+You can use based on these fields,
+the [JSON path syntax](https://github.com/tidwall/gjson/blob/master/README.md#path-syntax) that fits your values, just
+remember that header, query are maps of list of string, and params is a map of string.
 
-### Veja também
+### See also
 
-- Configuração de modificadores de backend clicando [aqui](#backendmodifiers).
+- Backend modifiers configuration by clicking [here](#backendmodifiers).
 
-- Aprenda na prática como utilizar os valores dinâmicos para modificação usando o
-  projeto [playground](https://github.com/GabrielHCataldo/gopen-gateway-playground) que já vem com alguns exemplos de
-  modificadores com valores dinâmicos.
+- Learn in practice how to use dynamic values for modification using
+  the [playground](https://github.com/GabrielHCataldo/gopen-gateway-playground) project that already comes with some
+  examples of modifiers with dynamic values.
 
-## Observabilidade
+## Observability
 
-A API Gateway ao receber uma requisição irá acrescentar o IP do cliente no cabeçalho `X-Forwarded-For` das requisições
-subjacentes, e também adiciona, caso não exista, um valor único gerado ao cabeçalho chamado `X-Trace-Id` para melhor
-observabilidade da requisição recebida tanto nos logs da API Gateway como nos microserviços subjacentes.
+The API Gateway, upon receiving a request, will add the client's IP to the `X-Forwarded-For` header of the underlying
+requests, and also adds, if it does not exist, a unique generated value to the header called `X-Trace-Id` for better
+observability of the received request in both the API Gateway logs and the underlying microservices.
 
-## Lógica de resposta
+## Response Logic
 
-Quando utilizamos uma API Gateway nos perguntamos, como será retornado ao meu cliente
-a resposta desse endpoint configurado?
+When using an API Gateway, we often wonder, how will the response of this configured endpoint be returned to my client?
 
-Para facilitar o entendimento criamos esse tópico para resumir a lógica de resposta da nossa API Gateway,
-então vamos começar.
+To facilitate understanding, we have created this topic to summarize the response logic of our API Gateway, so let's get
+started.
 
-### Como funciona?
+### How does it work?
 
-A API Gateway foi desenvolvida com uma inteligência e flexibilidade ao responder um endpoint, ela se baseia em dois
-pontos importantes, primeiro, na quantidade de respostas de serviços backends que foram processados, e segundo, nos
-campos de customização da resposta configurados nos objetos [endpoint](#endpointcomment) e [backend](#backendname).
-Vamos ver alguns exemplos abaixo para melhor entendimento.
+The API Gateway was developed with intelligence and flexibility in responding to an endpoint, it is based on two
+important points, first, on the number of responses from backend services that have been processed, and second, on the
+customization fields of the response configured in the [endpoint](#endpointcomment) and [backend](#backendname) objects.
+Let's see some examples below for better understanding.
 
-#### Único backend
+#### Single Backend
 
-Nesse exemplo trabalharemos apenas com um único backend, veja como a API Gateway se comportará ao responder
-a esse cenário
+In this example, we will work with only one backend. See how the API Gateway will respond to this scenario.
 
-Json de configuração
+Configuration JSON
 
 ```json
 {
@@ -1510,13 +1503,13 @@ Json de configuração
 }
 ```
 
-Ao processar esse endpoint a resposta da API Gateway foi
+While processing this endpoint, the API Gateway response was:
 
 ```text
 HTTP/1.1 200 OK
 ```
 
-Cabeçalho ([Veja sobre os cabeçalhos de resposta aqui](#cabeçalho-de-resposta))
+Header ([Read more about response headers here](#response-header))
 
 ```text
 Content-Type: application/json
@@ -1541,16 +1534,16 @@ Corpo
 }
 ```
 
-Vimos que no exemplo a API Gateway serviu como um proxy redirecionando a requisição para o serviço backend configurado e
-espelhando seu body de resposta, e agregando seus valores no cabeçalho de resposta tenha.
+We saw in the example that the API Gateway served as a proxy by redirecting the request to the configured backend
+service and mirroring its response body, and adding its values to the response header.
 
-Nesse mesmo exemplo vamos forçar um cenário de infelicidade na resposta do backend, veja:
+In the same example, let's force an unfortunate scenario in the backend response, see:
 
 ```text
 HTTP/1.1 404 Not Found
 ```
 
-Cabeçalho ([Veja sobre os cabeçalhos de resposta aqui](#cabeçalho-de-resposta))
+Header ([Read more about response headers here](#response-header))
 
 ```text
 Content-Type: application/json
@@ -1561,7 +1554,7 @@ Date: Tue, 23 Apr 2024 21:56:33 GMT
 Content-Length: 235
 ```
 
-Corpo
+Body
 
 ```json
 {
@@ -1572,16 +1565,18 @@ Corpo
 }
 ```
 
-Neste caso a API Gateway também espelhou a resposta da única chamada de backend do endpoint.
+In this case, the API Gateway also mirrored the response from the single backend call of the endpoint.
 
 #### Utilizando middlewares
 
-Nesse exemplo, vamos utilizar os middlewares de [beforewares](#endpointbeforewares) e [afterwares](#endpointafterwares),
-como esses backends são omitidos ao cliente final se tiverem sucesso, vamos simular uma chamada com o device bloqueado
-para que o [beforeware](#endpointbeforewares) retorne um erro, e depois um [afterware](#endpointafterwares) que
-responderá também um erro, pois não existe, vamos lá!
+#### Using middlewares
 
-Json de configuração
+In this example, we will use the [beforewares](#endpointbeforewares) and [afterwares](#endpointafterwares) middlewares,
+since these backends are omitted to the final client if they are successful, we will simulate a call with the blocked
+device so that the [beforeware](#endpointbeforewares) returns an error, and then an [afterware](#endpointafterwares)
+that will also respond an error, because it does not exist, let's go!
+
+Configuration JSON
 
 ```json
 {
@@ -1627,14 +1622,14 @@ Json de configuração
 }
 ```
 
-Ao processar esse endpoint de exemplo simulando o erro na chamada de [beforeware](#endpointbeforewares) a resposta da
-API Gateway foi
+While processing this sample endpoint simulating an error in the [beforeware](#endpointbeforewares) call, the API
+Gateway response was:
 
 ```text
 HTTP/1.1 403 Forbidden
 ```
 
-Cabeçalho ([Veja sobre os cabeçalhos de resposta aqui](#cabeçalho-de-resposta))
+Header ([Read more about response headers here](#response-header))
 
 ```text
 Content-Type: application/json
@@ -1645,7 +1640,7 @@ Date: Tue, 23 Apr 2024 23:02:09 GMT
 Content-Length: 154
 ```
 
-Corpo
+Body
 
 ```json
 {
@@ -1656,18 +1651,18 @@ Corpo
 }
 ```
 
-Vimos que a resposta foi o espelho do retorno do beforeware `save-device`, pois como o mesmo retornou
-falha `403 (Forbidden)`, o endpoint abortou, não chamando os backends seguintes, lembrando que você
-pode configurar os códigos de status HTTP que vão ser abortados pelo seu endpoint, basta preencher o
-campo [endpoint.abort-if-status-codes](#endpointabort-if-status-codes).
+We saw that the response was a mirror of the beforeware `save-device` return, because, as it returned
+failure `403 (Forbidden)`, the endpoint aborted, not calling the following backends. Remember that you
+can configure the HTTP status codes that will be aborted by your endpoint, just fill in the
+field [endpoint.abort-if-status-codes](#endpointabort-if-status-codes).
 
-No seguinte exemplo iremos forçar um erro no afterware `increment-attempts` a da API Gateway resposta foi
+In the following example we will force an error in the afterware `increment-attempts` and the API Gateway response was:
 
 ```text
 HTTP/1.1 404 Not Found
 ```
 
-Cabeçalho ([Veja sobre os cabeçalhos de resposta aqui](#cabeçalho-de-resposta))
+Header ([Read more about response headers here](#response-header))
 
 ```text
 Content-Type: text/plain
@@ -1678,23 +1673,23 @@ Date: Tue, 23 Apr 2024 23:16:57 GMT
 Content-Length: 18
 ```
 
-Corpo
+Body
 
 ```text
 404 page not found
 ```
 
-Vimos que a resposta também foi o espelho do retorno do afterware `increment-attempts`, por mais que seja a última
-chamada de um serviço backend do endpoint, pois caiu na regra de resposta abortada, então, todas as outras respostas
-dos outros backends foram ignoradas e apenas foi retornado a resposta do backend abortado.
+We noticed that the response also mirrored the return of the `increment-attempts` afterware, even though it is the last
+call of a backend service from the endpoint, as it fell under the aborted response rule, so all other responses from
+other backends were ignored and only the response from the aborted backend was returned.
 
-Veja mais sobre a [resposta abortada](#resposta-abortada).
+Learn more about the [aborted response](#aborted-response).
 
 #### Múltiplos backends
 
-Nesse exemplo iremos trabalhar com três [backends](#endpointbackends) principais no endpoint, então, vamos lá!
+In this example, we will be working with three [backends](#endpointbackends) on the endpoint, so let's get started!
 
-Json de configuração
+Configuration JSON:
 
 ```json
 {
@@ -1734,13 +1729,13 @@ Json de configuração
 }
 ```
 
-No exemplo iremos executar os três backend com sucesso, a API Gateway respondeu
+In the example, we will execute all three backends successfully, and the API Gateway responded:
 
 ```text
 HTTP/1.1 200 OK
 ```
 
-Cabeçalho ([Veja sobre os cabeçalhos de resposta aqui](#cabeçalho-de-resposta))
+Header ([Read more about response headers here](#response-header))
 
 ```text
 Content-Type: application/json
@@ -1751,7 +1746,7 @@ Date: Tue, 23 Apr 2024 23:49:12 GMT
 Content-Length: 755
 ```
 
-Corpo
+Body
 
 ```json
 [
@@ -1785,25 +1780,25 @@ Corpo
 ]
 ```
 
-Temos alguns pontos nesse exemplo que vale ressaltar, primeiro com o formato, a API Gateway entendeu que seu endpoint
-tem múltiplas respostas e não foi utilizado o campo [endpoint.aggregate-responses](#endpointaggregate-responses)
-com o valor `true`, então ela lista as respostas como JSON acrescentando os seguintes campos:
+There are several points worth noting in this example. Firstly, regarding the format, the API Gateway understood that
+your endpoint has multiple responses, and the [endpoint.aggregate-responses](#endpointaggregate-responses) field with
+the value `true` was not used. Therefore, it lists the responses as JSON, adding the following fields:
 
-`ok`: Indica se a resposta do backend em questão teve o código de status HTTP entre `200` e `299`.
+`ok`: Indicates whether the response from the respective backend had an HTTP status code between `200` and `299`.
 
-`code`: É preenchido com código de status HTTP respondido pelo seu backend.
+`code`: Filled with the HTTP status code responded by your backend.
 
-Esses campos são apenas acrescentado se houver múltiplas respostas e o
-campo [endpoint.aggregate-responses](#endpointaggregate-responses) não for informado com o valor `true`.
+These fields are only added if there are multiple responses, and
+the [endpoint.aggregate-responses](#endpointaggregate-responses) field is not specified with the value `true`.
 
-Segundo ponto a destacar é no trecho `"version": "v1.0.0"` do último backend, o mesmo respondeu apenas um texto no body
-de resposta que foi `v1.0.0`, porém para esse cenário como foi mencionado, a API Gateway força o parse desse valor para
-um JSON, adicionando um novo campo com o nome obtido na configuração [backend.name](#backendname) e com o valor do
-mesmo.
+The second point to highlight is in the `"version": "v1.0.0"` section of the last backend. It responded with only a text
+in the response body, which was `v1.0.0`. However, in this scenario, as mentioned, the API Gateway forces the parsing of
+this value into JSON, adding a new field with the name obtained from the [backend.name](#backendname) configuration and
+with its value.
 
-Terceiro ponto é sobre o código de status HTTP, o mesmo é retornado pela maior frequência, isto é, se temos três
-retornos `200 OK` como no exemplo a API Gateway também retornará esse código. Se tivermos um retorno igualitário o
-último código de status HTTP retornado será considerado, veja os cenários possíveis dessa lógica
+The third point concerns the HTTP status code. It is returned based on the highest frequency. That is, if we have
+three `200 OK` responses as in the example, the API Gateway will also return this code. If we have an equal frequency of
+different codes, the last HTTP status code returned will be considered. Below are the possible scenarios of this logic:
 
 ```json
 [
@@ -1822,7 +1817,7 @@ retornos `200 OK` como no exemplo a API Gateway também retornará esse código.
 ]
 ```
 
-a API Gateway responderá `201 Created`.
+The API Gateway will respond with `201 Created`.
 
 ```json
 [
@@ -1842,22 +1837,22 @@ a API Gateway responderá `201 Created`.
 
 ```
 
-a API Gateway responderá `100 Continue`.
+The API Gateway will respond with `100 Continue`.
 
-Quarto ponto a ser destacado, é que como o endpoint tem múltiplas respostas, consequentemente temos múltiplos cabeçalhos
-de resposta, a API Gateway irá agregar todos os campos e valores para o cabeçalho da resposta final, veja mais sobre o
-comportamento do cabeçalho de resposta clicando [aqui](#cabeçalho-de-resposta).
+The fourth point to highlight is that since the endpoint has multiple responses, consequently, it has multiple response
+headers. The API Gateway will aggregate all the fields and values for the final response header. Learn more about the
+behavior of the response header by clicking [here](#response-header).
 
-Último ponto a ser destacado, é que caso um desses retornos de backend entre no cenário em que o endpoint aborta a
-resposta, ele não seguirá nenhuma diretriz mostrada no tópico em questão e sim
-[lógica de resposta abortada](#resposta-abortada).
+The last point to emphasize is that if one of these backend returns enters the scenario where the endpoint aborts the
+response, it will not follow any guidelines shown in the respective topic but rather
+the [aborted response logic](#aborted-response).
 
-#### Múltiplos backends agregados
+#### Multiple Aggregated Backends
 
-Nesse exemplo iremos utilizar uma configuração parecida com JSON de configuração do exemplo acima, porém com
-campo [endpoint](#endpointaggregate-responses) com o valor `true`.
+In this example, we will use a configuration similar to the JSON configuration example above, but with
+the [endpoint](#endpointaggregate-responses) field set to `true`.
 
-Json de configuração
+Configuration JSON:
 
 ```json
 {
@@ -1898,13 +1893,13 @@ Json de configuração
 }
 ```
 
-Ao processarmos o endpoint a resposta da API Gateway foi
+When processing the endpoint, the API Gateway responded with:
 
 ```text
 HTTP/1.1 200 OK
 ```
 
-Cabeçalho ([Veja sobre os cabeçalhos de resposta aqui](#cabeçalho-de-resposta))
+Header ([Read more about response headers here](#response-header))
 
 ```text
 Content-Type: application/json
@@ -1915,7 +1910,7 @@ Date: Wed, 24 Apr 2024 10:57:31 GMT
 Content-Length: 665
 ```
 
-Corpo
+Body
 
 ```json
 {
@@ -1943,15 +1938,18 @@ Corpo
 }
 ```
 
-Vimos a única diferença de resposta do tópico [Múltiplos backends](#múltiplos-backends) é que ele agregou os valores
-de todas as respostas em um só JSON, e os campos que se repetiram foram agregados os valores em lista.
+Here's the translation using Markdown code snippet:
 
-As demais regras como código de status HTTP, a conversão forçada para JSON, entre outras, seguem as mesmas regras
-mencionadas no tópico [Múltiplos backends](#múltiplos-backends).
+We noticed the only difference in response from the [Multiple Aggregated Backends](#multiple-aggregated-backends) topic
+is that it aggregated the values of all responses into a single JSON, and for repeated fields, the values were
+aggregated into a list.
 
-No exemplo podemos deixar a resposta agregada um pouco mais organizada, com isso vamos alterar o trecho do nosso
-segundo backend adicionando o campo [backend.extra-config.group-response](#backendextra-configgroup-response) com o
-valor `true` e dar um nome a ele, veja o trecho do JSON de configuração modificado
+Other rules such as HTTP status code, forced conversion to JSON, among others, follow the same rules mentioned in
+the [Multiple Aggregated Backends](#multiple-aggregated-backends) topic.
+
+In this example, we can make the aggregated response a bit more organized. To achieve this, let's modify the snippet of
+our second backend by adding the [backend.extra-config.group-response](#backendextra-configgroup-response) field with
+the value `true` and giving it a name. Below is the modified snippet of the JSON configuration:
 
 ```json
 {
@@ -1967,13 +1965,13 @@ valor `true` e dar um nome a ele, veja o trecho do JSON de configuração modifi
 }
 ```
 
-Ao processar novamente o endpoint obtivemos a seguinte resposta
+Upon processing the endpoint again, we obtained the following response:
 
 ```text
 HTTP/1.1 200 OK
 ```
 
-Cabeçalho ([Veja sobre os cabeçalhos de resposta aqui](#cabeçalho-de-resposta))
+Header ([Read more about response headers here](#response-header))
 
 ```text
 Content-Type: application/json
@@ -1984,7 +1982,7 @@ Date: Wed, 24 Apr 2024 11:23:07 GMT
 Content-Length: 697
 ```
 
-Corpo
+Body
 
 ```json
 {
@@ -2009,55 +2007,54 @@ Corpo
 }
 ```
 
-Com essa configuração vimos que nossa resposta agregada ficou mais organizada, e como é importante entender sobre
-o [json de configuração](#json-de-configuração) e seus campos, para que o GOPEN API Gateway atenda melhor suas
-necessidades.
+With this configuration, we noticed that our aggregated response became more organized. It's important to understand
+the [configuration JSON](#configuration-json) and its fields so that the GOPEN API Gateway can better meet your needs.
 
-### Resposta abortada
+### Aborted Response
 
-Para uma resposta ser abortada pela API Gateway, um dos backends configurados do endpoint tanto middlewares
-como os principais, ao serem processados, na sua resposta, o código de status HTTP precisa seguir valores
-no campo [endpoint.abort-if-status-codes](#endpointabort-if-status-codes) do próprio endpoint.
+For a response to be aborted by the API Gateway, one of the configured backends of the endpoint, either through
+middlewares or main backends, when processed, in its response, the HTTP status code needs to match values in
+the [endpoint.abort-if-status-codes](#endpointabort-if-status-codes) field of the endpoint itself.
 
-É importante que você entenda esses dois pontos:
+It's important to understand these two points:
 
-- Ao abortar a resposta do backend, a API Gateway irá espelhar apenas a resposta do mesmo, código de status, cabeçalho e
-  corpo, sendo assim, as outras respostas já processadas serão ignoradas.
-- Mesmo o backend sendo abortado, os [modificadores](#backendmodifiers) serão processados.
+- When aborting the backend response, the API Gateway will only mirror the response of the backend itself, including the
+  status code, headers, and body; thus, other processed responses will be ignored.
+- Even if the backend is aborted, the [modifiers](#backendmodifiers) will still be processed.
 
-Indicamos utilizar essa configuração apenas quando algo fugiu do esperado, como, por exemplo, uma resposta de erro
-`500 (Internal server error)`.
+We recommend using this configuration only when something unexpected occurs, such as an error response
+like `500 (Internal Server Error)`.
 
-### Cabeçalho de resposta
+### Response Header
 
-Na resposta, a API Gateway com exceção dos campos `Content-Length`, `Content-Type` e `Date` agrega todos valores de
-cabeçalho respondidos pelos backends configurados no endpoint, indepêndente da quantidade de backends, isso inclui
-também os [middlewares](#middlewares).
+In the response, the API Gateway aggregates all header values responded by the configured backends in the endpoint,
+regardless of the number of backends, which also includes the [middlewares](#middlewares), except for
+the `Content-Length`, `Content-Type`, and `Date` fields.
 
-#### Campos de cabeçalho padrão
+#### Default Header Fields
 
-Também são adicionados até quatro campos no cabeçalho veja abaixo sobre os mesmos:
+Additionally, up to four fields are added to the header. See below for details:
 
-`X-Gopen-Cache`: Caso a resposta do endpoint não seja "fresca", isto é, foi utilizado a resposta armazenada em cache,
-é retornado o valor `true`, caso contrário retorna o valor `false`.
+`X-Gopen-Cache`: If the endpoint response is not "fresh", meaning the cached response was used, it returns `true`;
+otherwise, it returns `false`.
 
-`X-Gopen-Cache-Ttl`: Caso a resposta do endpoint tenha sido feita utilizando o armazenamento em cache, ele retorna a
-duração do tempo de vida restante desse cache, caso contrário o campo não é retornado.
+`X-Gopen-Cache-Ttl`: If the endpoint response was made using caching, it returns the remaining time-to-live (TTL) of
+that cache; otherwise, the field is not returned.
 
-`X-Gopen-Complete`: Caso todos os backends tenham sido processados pelo endpoint é retornado o valor `true`, caso
-contrário é retornado o valor `false`.
+`X-Gopen-Complete`: If all backends have been processed by the endpoint, it returns `true`; otherwise, it
+returns `false`.
 
-`X-Gopen-Success`: Caso todos os backends tenham retornado sucesso, isto é, o código de status HTTP de resposta entre
-`200` a `299`, ele retorna o valor `true`, caso contrário o valor `false`.
+`X-Gopen-Success`: If all backends have returned success, meaning the HTTP status code of the response is between `200`
+and `299`, it returns `true`; otherwise, it returns `false`.
 
-Lembrando que se a resposta de um backend for [abortada](#resposta-abortada), apenas o header do mesmo é agregado e
-considerado as regras dos campos acima.
+It's worth noting that if the response from a backend is [aborted](#aborted-response), only the header of that backend
+is aggregated, and the rules of the above fields are considered.
 
-Agora vamos ver alguns exemplos de cabeçalho de retorno:
+Now let's see some examples of response headers:
 
-#### Campos únicos de cabeçalho
+#### Unique Header Fields
 
-Cabeçalho de resposta do backend 1:
+Backend 1 response header:
 
 ```text
 Content-Type: application/json
@@ -2067,7 +2064,7 @@ Date: Wed, 24 Apr 2024 11:23:07 GMT
 Content-Length: 102
 ```
 
-Cabeçalho de resposta do endpoint
+Endpoint response header:
 
 ```text
 Content-Type: application/json
@@ -2080,12 +2077,12 @@ Date: Wed, 24 Apr 2024 11:23:08 GMT
 Content-Length: 102
 ```
 
-Vimos que no exemplo foram adicionados os [campos padrões](#campos-de-cabeçalho-padrão), e agregado os valores do
-cabeçalho de resposta, que foram `X-Value-Id` e `X-MS`.
+We saw that in the example, the [default fields](#default-header-fields) were added, and the values of the response
+header were aggregated, which were `X-Value-Id` and `X-MS`.
 
-#### Campos duplicados de cabeçalho
+#### Duplicate Header Fields
 
-Cabeçalho de resposta do backend 1:
+Backend 1 response header:
 
 ```text
 Content-Type: application/json
@@ -2095,7 +2092,7 @@ Date: Wed, 24 Apr 2024 11:23:07 GMT
 Content-Length: 102
 ```
 
-Cabeçalho de resposta do backend 2:
+Backend 2 response header:
 
 ```text
 Content-Type: application/json
@@ -2106,7 +2103,7 @@ Date: Wed, 24 Apr 2024 11:23:08 GMT
 Content-Length: 402
 ```
 
-Cabeçalho de resposta do endpoint
+Endpoint response header:
 
 ```text
 Content-Type: application/json
@@ -2120,23 +2117,23 @@ Date: Wed, 24 Apr 2024 11:23:09 GMT
 Content-Length: 504
 ```
 
-Vimos que no exemplo também foram adicionados os [campos padrões](#campos-de-cabeçalho-padrão), e agregado os valores do
-cabeçalho de resposta, que foram `X-Value-Id`, `X-MS` e `X-MS-Success`, vale ressaltar que os campos que se repetiram
-foram agrupados e separados por vírgula.
+We also noticed that in the example, the [default fields](#default-header-fields) were added, and the values of the
+response header were aggregated, which were `X-Value-Id`, `X-MS`, and `X-MS-Success`. It's worth noting that the
+duplicated fields were grouped and separated by commas.
 
-### Respostas padrões
+### Default Responses
 
-Toda API Gateway tem suas respostas padrão para cada cenário de erro, então iremos listar abaixo cada
-cenário e sua respectiva resposta HTTP:
+Every API Gateway has its default responses for each error scenario, so we'll list each scenario below along with its
+respective HTTP response:
 
 #### 413 (Request Entity Too Large)
 
-Esse cenário acontece quando o tamanho do corpo de requisição é maior do que o permitido para o endpoint, utilizando a
-configuração [limiter.max-body-size](#limitermax-header-size) para corpo normal
-e [limiter.max-multipart-memory-size](#limitermax-multipart-memory-size) para envio do tipo `form-data`. Você pode
-customizar essa configuração para um endpoint específico utilizando o campo [endpoint.limiter](#endpointlimiter).
+This scenario occurs when the request body size exceeds the limit allowed for the endpoint, using the
+configuration [limiter.max-body-size](#limitermax-header-size) for normal body
+and [limiter.max-multipart-memory-size](#limitermax-multipart-memory-size) for `form-data` type submission. You can
+customize this configuration for a specific endpoint using the [endpoint.limiter](#endpointlimiter) field.
 
-Cabeçalho
+Header
 
 ```text
 Content-Type: application/json
@@ -2147,7 +2144,7 @@ Date: Fri, 26 Apr 2024 11:56:06 GMT
 Content-Length: 170
 ```
 
-Corpo
+Body
 
 ```json
 {
@@ -2159,13 +2156,13 @@ Corpo
 }
 ```
 
-#### 429 (Too many requests)
+#### 429 (Too Many Requests)
 
-Esse cenário acontece quando o limite de requisições são atingidas por um determinado IP, esse limite é definido na
-configuração [limiter.rate](#limiterrate). Você pode customizar essa configuração para um endpoint
-específico utilizando o campo [endpoint.limiter](#endpointlimiter).
+This scenario occurs when the request limit is reached for a particular IP address. This limit is defined in
+the [limiter.rate](#limiterrate) configuration. You can customize this configuration for a specific endpoint using
+the [endpoint.limiter](#endpointlimiter) field.
 
-Cabeçalho
+Header
 
 ```text
 Content-Type: application/json
@@ -2176,7 +2173,7 @@ Date: Fri, 26 Apr 2024 12:12:53 GMT
 Content-Length: 177
 ```
 
-Corpo
+Body
 
 ```json
 {
@@ -2190,11 +2187,11 @@ Corpo
 
 #### 431 (Request Header Fields Too Large)
 
-Esse cenário acontece quando o tamanho do header é maior do que o permitido para o endpoint, utilizando a
-configuração [limiter.max-header-size](#limitermax-header-size). Você pode customizar essa configuração para um endpoint
-específico utilizando o campo [endpoint.limiter](#endpointlimiter).
+This scenario occurs when the size of the header exceeds the limit allowed for the endpoint, using the
+configuration [limiter.max-header-size](#limitermax-header-size). You can customize this configuration for a specific
+endpoint using the [endpoint.limiter](#endpointlimiter) field.
 
-Cabeçalho
+Header
 
 ```text
 Content-Type: application/json
@@ -2205,7 +2202,7 @@ Date: Fri, 26 Apr 2024 11:39:53 GMT
 Content-Length: 186
 ```
 
-Corpo
+Body
 
 ```json
 {
@@ -2219,11 +2216,11 @@ Corpo
 
 #### 500 (Internal server error)
 
-Esse cenário é específico quando algum erro inesperado ocorreu com a API Gateway, caso isso aconteça relate
-o problema [aqui](https://github.com/GabrielHCataldo/gopen-gateway/issues) mostrando a resposta e o log impresso no
-terminal de execução.
+This scenario is specific when an unexpected error occurs with the API Gateway. If this happens, report the
+issue [here](https://github.com/GabrielHCataldo/gopen-gateway/issues) showing the response and the log printed on the
+execution terminal.
 
-Cabeçalho
+Header
 
 ```text
 Content-Type: application/json
@@ -2234,7 +2231,7 @@ Date: Fri, 26 Apr 2024 12:38:16 GMT
 Content-Length: 183
 ```
 
-Corpo
+Body
 
 ```json
 {
@@ -2248,9 +2245,9 @@ Corpo
 
 #### 502 (Bad Gateway)
 
-Esse cenário acontece quando ao tentar se comunicar com o backend, e ocorre alguma falha de comunicação com o mesmo.
+This scenario occurs when trying to communicate with the backend, and there is a communication failure with it.
 
-Cabeçalho
+Header
 
 ```text
 Content-Type: application/json
@@ -2261,7 +2258,7 @@ Date: Thu, 25 Apr 2024 01:07:36 GMT
 Content-Length: 277
 ```
 
-Corpo
+Body
 
 ```json
 {
@@ -2275,10 +2272,10 @@ Corpo
 
 #### 504 (Gateway Timeout)
 
-Esse cenário acontece quando o endpoint excede o limite do tempo configurado no campo [timeout](#timeout). Você pode
-customizar essa configuração para um endpoint específico utilizando o campo [endpoint.timeout](#endpointtimeout).
+This scenario occurs when the endpoint exceeds the time limit configured in the [timeout](#timeout) field. You can
+customize this configuration for a specific endpoint using the [endpoint.timeout](#endpointtimeout) field.
 
-Cabeçalho
+Header
 
 ```text
 Content-Type: application/json
@@ -2289,7 +2286,7 @@ Date: Fri, 26 Apr 2024 13:29:55 GMT
 Content-Length: 150
 ```
 
-Corpo
+Body
 
 ```json
 {
@@ -2301,28 +2298,27 @@ Corpo
 }
 ```
 
-# Usabilidade
+# Usability
 
-Use o projeto [playground](https://github.com/GabrielHCataldo/gopen-gateway-playground) para começar a explorar e
-utilizar na prática o GOPEN API Gateway!
+Use the [playground project](https://github.com/GabrielHCataldo/gopen-gateway-playground) to start exploring and using
+the GOPEN API Gateway in practice!
 
-# Como contríbuir?
+# How to Contribute?
 
-Ficamos felizes quando vemos a comunidade se apoiar, e projetos como esse, está de braços abertos para receber
-suas ideias, veja abaixo como participar.
+We are delighted to see the community come together, and projects like this one are open to receiving your ideas. See
+below how to participate.
 
 ## Download
 
-Para conseguir rodar o projeto primeiro faça o download da [linguagem Go](https://go.dev/dl/)
-versão 1.22 ou superior na sua máquina.
+To run the project, first download the [Go language](https://go.dev/dl/) version 1.22 or higher on your machine.
 
-Com o Go instalado na sua máquina, faça o pull do projeto
+With Go installed on your machine, pull the project:
 
 ```text
 git pull https://github.com/GabrielHCataldo/gopen-gateway.git
 ```
 
-Depois abra o mesmo usando o próprio terminal com a IDE de sua preferência
+Then open it using the terminal and your preferred IDE.
 
 Goland:
 
@@ -2338,20 +2334,18 @@ code gopen-gateway
 
 ## Air
 
-Caso queira utilizar o hot reload para otimizar no desenvolvimento, o projeto já tem o arquivo
-`.air.toml` como exemplo para você utilizar como quiser.
+If you want to use hot reload to optimize development, the project already has the `.air.toml` file as an example for
+you to use as you wish.
 
-Veja a documentação sobre esse projeto fantástico clicando [aqui](https://github.com/cosmtrek/air).
+See the documentation for this fantastic project by [clicking here](https://github.com/cosmtrek/air).
 
 ## Gitflow
 
-Para inicializar o desenvolvimento, você pode criar uma branch a partir da main, para um futuro
-PR para a mesma.
+To initialize development, you can create a branch from the main branch for a future PR to it.
 
-# Agradecimentos
+# Thanks
 
-Esse projeto teve apoio de bibliotecas fantásticas, esse trecho dedico a cada uma listada
-abaixa:
+This project has been supported by fantastic libraries, and this section is dedicated to each one listed below:
 
 - [go-errors](https://github.com/GabrielHCataldo/go-errors)
 - [go-helper](https://github.com/GabrielHCataldo/go-helper)
@@ -2367,8 +2361,8 @@ abaixa:
 - [gojsonschema](https://github.com/xeipuuv/gojsonschema)
 - [air](https://github.com/cosmtrek/air)
 
-Obrigado por contribuir para a comunidade Go e facilitar o desenvolvimento desse projeto.
+Thank you for contributing to the Go community and facilitating the development of this project.
 
-# Licença Apache 2.0
+# Apache 2.0 License
 
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FGabrielHCataldo%2Fgopen-gateway.svg?type=large&issueType=license)](https://app.fossa.com/projects/git%2Bgithub.com%2FGabrielHCataldo%2Fgopen-gateway?ref=badge_large&issueType=license)

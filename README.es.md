@@ -11,9 +11,9 @@
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FGabrielHCataldo%2Fgopen-gateway.svg?type=small)](https://app.fossa.com/projects/git%2Bgithub.com%2FGabrielHCataldo%2Fgopen-gateway?ref=badge_small)
 
 ![United States](https://raw.githubusercontent.com/stevenrskelton/flag-icon/master/png/16/country-4x3/us.png)
-[Inglés](https://github.com/GabrielHCataldo/gopen-gateway/blob/main/README.en.md) |
+[Inglés](https://github.com/GabrielHCataldo/gopen-gateway/blob/main/README.md) |
 ![Brazil](https://raw.githubusercontent.com/stevenrskelton/flag-icon/master/png/16/country-4x3/br.png)
-[Portugués](https://github.com/GabrielHCataldo/gopen-gateway/blob/main/README.md)
+[Portugués](https://github.com/GabrielHCataldo/gopen-gateway/blob/main/README.pt-br.md)
 
 El proyecto GOPEN fue creado con el objetivo de ayudar a los desarrolladores a tener una API Gateway robusta y fácil de
 manejar, con la oportunidad de trabajar en mejoras agregando a la comunidad, y lo más importante, sin coste alguno. Fue

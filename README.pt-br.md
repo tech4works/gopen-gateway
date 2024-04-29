@@ -10,64 +10,63 @@
 [![HitCount](https://hits.dwyl.com/GabrielHCataldo/gopen-gateway.svg)](http://hits.dwyl.com/GabrielHCataldo/gopen-gateway)
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FGabrielHCataldo%2Fgopen-gateway.svg?type=small)](https://app.fossa.com/projects/git%2Bgithub.com%2FGabrielHCataldo%2Fgopen-gateway?ref=badge_small)
 
-![Brazil](https://raw.githubusercontent.com/stevenrskelton/flag-icon/master/png/16/country-4x3/br.png)
-[Portuguese](https://github.com/GabrielHCataldo/gopen-gateway/blob/main/README.md) |
+![United States](https://raw.githubusercontent.com/stevenrskelton/flag-icon/master/png/16/country-4x3/us.png)
+[Inglês](https://github.com/GabrielHCataldo/gopen-gateway/blob/main/README.md) |
 ![Spain](https://raw.githubusercontent.com/stevenrskelton/flag-icon/master/png/16/country-4x3/es.png)
-[Spanish](https://github.com/GabrielHCataldo/gopen-gateway/blob/main/README.es.md)
+[Espanhol](https://github.com/GabrielHCataldo/gopen-gateway/blob/main/README.es.md)
 
-The GOPEN project was created with the aim of helping developers to have a robust and easy-to-handle API Gateway, with
-the opportunity to act on improvements, contributing to the community, and most importantly, without incurring any
-costs. It was developed because many freely available API Gateways in the market do not meet the many minimum
-requirements for an application, leading you to upgrade.
+O projeto GOPEN foi criado no intuito de ajudar os desenvolvedores a terem uma API Gateway robusta e de fácil manuseio,
+com a oportunidade de atuar em melhorias agregando a comunidade, e o mais importante, sem gastar nada. Foi
+desenvolvida, pois muitas APIs Gateway do mercado de forma gratuita, não atendem muitas necessidades minímas
+para uma aplicação, induzindo-o a fazer o upgrade.
 
-With this new API Gateway, you will not need to balance plates to save on your infrastructure and architecture, and you
-will still be able to optimise your development. Below are the features available:
+Com essa nova API Gateway você não precisará equilibrar pratos para economizar em sua infraestrutura e arquitetura,
+e ainda otimizará o seu desenvolvimento, veja abaixo todos os recursos disponíveis:
 
-- Simplified JSON configuration for multiple environments.
-- Quick configuration of environment variables for multiple environments.
-- Versioning via JSON configuration.
-- Docker execution with optional hot reload.
-- Configuration of global and local timeout for each endpoint.
-- Configuration of global and local cache for each endpoint, with customisation of the storage key strategy, and
-  conditions based on response status codes and HTTP method for reading and saving the same.
-- Local or global cache storage using Redis.
-- Configuration of size limit, global and local for each endpoint, limiting the size of the Header, Body and Multipart
-  Memory.
-- Configuration of rate limit, global and local for each endpoint, rate-limited by time and burst by IP.
-- Configuration of CORS security with validations of origins, HTTP method and headers.
-- Global configuration of multiple middlewares, to be used later at the endpoint if indicated.
-- Customised filtering of sending headers and query to the endpoint backends.
-- Processing of multiple backends, being them beforewares, mains and afterwares for the endpoint.
-- Custom configuration to abort the process of backend execution by the status code returned.
-- Modifiers for all request and response contents (Status Code, Path, Header, Params, Query, Body) at global (
-  request/response) and local (backend request/backend response) levels with removal, addition, modification,
-  replacement, and renaming actions.
-- Get the value to be modified from environment variables, the current request, the history of endpoint responses, or
-  even from the value passed in the configuration.
-- Run the modifiers in the context you prefer, before a backend request or afterwards, it's your decision.
-- Make the modifications reflect in all subsequent requests/responses, by using the same at a global level.
-- Omit a backend response if needed, it will not be used in the endpoint response.
-- Omit the request body from your backend if needed.
-- Aggregate multiple responses from your backends if desired, customizing the name of the field to be allocated to the
-  backend response.
-- Group the body response from your backend in a specific field of the endpoint response.
-- Customise the type of endpoint response, which could be JSON, TEXT and XML.
-- Increase your observability with automatic registration of the trace id in the header of the following requests and
-  structured logs.
+- Json de configuração simplificado para múltiplos ambientes.
+- Configuração rápida de variáveis de ambiente para múltiplos ambientes.
+- Versionamento via JSON de configuração.
+- Execução via docker com hot reload opcional.
+- Configuração de timeout global e local para cada endpoint.
+- Configuração de cache global e local para cada endpoint, com customização da estratégia da chave de armazenamento, e
+  condições baseada em códigos de status de resposta e método HTTP para ler e salvar o mesmo.
+- Armazenamento de cache local ou global utilizando Redis.
+- Configuração de limitador de tamanho, global e local para cada endpoint, limitando o tamanho do Header, Body e
+  Multipart Memory.
+- Configuração de limitador de taxa, global e local para cada endpoint, limitando pelo tempo e rajada pelo IP.
+- Configuração de segurança de CORS com validações de origens, método HTTP e headers.
+- Configuração global de múltiplos middlewares, para serem usados posteriormente no endpoint caso indicado.
+- Filtragem personalizada de envio de headers e query para os backends do endpoint.
+- Processamento de múltiplos backends, sendo eles beforewares, principais e afterwares para o endpoint.
+- Configuração personalizada para abortar processo de execução dos backends pelo código de status retornado.
+- Modificadores para todos os conteúdos de requisição e response (Status Code, Path, Header, Params, Query, Body)
+  ao nível global (requisição/response) e local (requisição backend/response backend) com ações de remoção,
+  adição, alteração, substituição e renomeio.
+- Obtenha o valor a ser modificado de variáveis de ambiente, da requisição atual, do histórico de respostas do endpoint,
+  ou até mesmo do valor passado na configuração.
+- Executa os modificadores no contexto que desejar, antes de uma requisição backend ou depois, você decide.
+- Faça com que as modificações reflitam em todas as requisições/respostas seguintes, usando a mesma ao nível global.
+- Omita a resposta de um backend caso necessite, a mesma não será utilizada na resposta do endpoint.
+- Omita o body de requisição do seu backend caso precise.
+- Agregue suas múltiplas respostas dos backends caso deseje, podendo personalizar o nome do campo a ser alocado a
+  resposta do backend.
+- Agrupe o body de resposta do seu backend em um campo específico de resposta do endpoint.
+- Personalização do tipo de resposta do endpoint podendo ser JSON, TEXT e XML.
+- Tenha mais observabilidade com o cadastro automático do trace id no header das requisições seguintes e logs bem
+  estruturados.
 
-# Documentation
+# Documentação
 
-To understand how it works, we first need to explain the structure of the dynamic environments that GOPEN accepts for
-its JSON configuration and environment variable files, so let's get started!
+Para entender como funciona, precisamos explicar primeiro a estrutura dos ambientes dinâmicos que GOPEN aceita para sua
+configuração em JSON e arquivo de variáveis de ambiente, então vamos lá!
 
-## Folder Structure
+## Estrutura de pastas
 
-In the project structure, you will need to have a root folder called "gopen". Inside this folder, you should have
-subfolders containing the names of your environments. You can name these subfolders as you wish. Each of these
-subfolders should contain at least one ".json" configuration file for the API Gateway. For example, the structure might
-look like this:
+Na estrutura do projeto, em sua raiz precisará ter uma pasta chamada "gopen" e dentro dela precisa ter as pastas
+contendo os nomes dos seus ambientes, você pode dar o nome que quiser, essa pasta precisará ter pelo menos o arquivo
+".json" de configuração da API Gateway, ficará mais o menos assim, por exemplo:
 
-### GO Project
+### Projeto GO
 
     gopen-gateway
     | - cmd
@@ -80,7 +79,7 @@ look like this:
       |   - .json
       |   - .env
 
-### Docker Image Project
+### Projeto usando imagem docker
 
     nome-do-seu-projeto
     | - docker-compose.yml
@@ -92,15 +91,15 @@ look like this:
       |   - .json
       |   - .env
 
-## JSON Configuration
+## JSON de configuração
 
-Based on this JSON configuration file obtained by the desired environment, the application will have its endpoints and
-rules defined. Below is a simple example with all possible fields and their concepts and rules:
+Com base nesse arquivo JSON de configuração obtido pela env desejada a aplicação terá seus endpoints e suas regras
+definidas, veja abaixo um exemplo simples com todos os campos possíveis e seus conceitos e regras:
 
 ````json
 {
   "$schema": "https://raw.githubusercontent.com/GabrielHCataldo/gopen-gateway/main/json-schema.json",
-  "@comment": "My First API Gateway",
+  "@comment": "Minha primeira API Gateway",
   "version": "v1.0.0",
   "port": 8080,
   "hot-reload": true,
@@ -145,7 +144,7 @@ rules defined. Below is a simple example with all possible fields and their conc
   },
   "middlewares": {
     "save-device": {
-      "@comment": "Middleware service to validate and save Device",
+      "@comment": "Serviço de middleware para validar e salvar o dispositivo com base nas informações de header.",
       "name": "device-manager",
       "hosts": [
         "http://192.168.1.2:8051"
@@ -157,7 +156,7 @@ rules defined. Below is a simple example with all possible fields and their conc
         "@comment": "Primeiro modificador",
         "header": [
           {
-            "@comment": "Adds the X-Device-Id field with the value from the middleware's response body id",
+            "@comment": "Adiciona o campo X-Device-Id com o valor do id do body de resposta do middleware",
             "context": "RESPONSE",
             "scope": "REQUEST",
             "propagate": true,
@@ -171,7 +170,7 @@ rules defined. Below is a simple example with all possible fields and their conc
   },
   "endpoints": [
     {
-      "@comment": "Endpoint responsible for returning the user found by the key, which can be either email or phone.",
+      "@comment": "Endpoint responsável por retornar o usuário encontrado pela chave, podendo ser email ou telefone.",
       "path": "/users/find/:key",
       "method": "GET",
       "timeout": "10s",
@@ -200,7 +199,7 @@ rules defined. Below is a simple example with all possible fields and their conc
       "afterwares": [],
       "backends": [
         {
-          "@comment": "Backend service responsible for retrieving the user by the key.",
+          "@comment": "Serviço de backend responsável por obter o usuário pela chave.",
           "name": "user",
           "hosts": [
             "$USER_SERVICE_URL"
@@ -214,7 +213,7 @@ rules defined. Below is a simple example with all possible fields and their conc
           ],
           "forward-queries": [],
           "modifiers": {
-            "@comment": "My first modifiers.",
+            "@comment": "Meus primeiros modificadores",
             "status-code": 0,
             "header": [],
             "param": [],
@@ -233,11 +232,9 @@ rules defined. Below is a simple example with all possible fields and their conc
 }
 ````
 
-TODO:
-
 ### $schema
 
-Mandatory field, to assist in writing and rules of the configuration JSON itself, the only accepted value is:
+Campo obrigatório, para o auxílio na escrita e regras do próprio JSON de configuração, único valor aceito é
 
 ```text
 https://raw.githubusercontent.com/GabrielHCataldo/gopen-gateway/main/json-schema.json`
@@ -245,51 +242,52 @@ https://raw.githubusercontent.com/GabrielHCataldo/gopen-gateway/main/json-schema
 
 ### @comment
 
-Optional field, of type string, free for notes related to your project.
+Campo opcional, do tipo string, livre para anotações relacionadas ao seu projeto.
 
 ### version
 
-Optional field, used for version control and also used in the return of the static endpoint [/version](#version-1).
+Campo opcional, usado para controle de versão e também usado no retorno do endpoint estático [/version](#version-1).
 
 ### port
 
-Mandatory field, used to indicate the port to be listened to by the API Gateway, minimum value `1` and maximum
-value `65535`.
+Campo obrigatório, utilizado para indicar a porta a ser ouvida pela API Gateway, valor mínimo `1` e valor
+máximo `65535`.
 
 ### hot-reload
 
-Optional field, the default value is `false`, if `true` it is used for automatic loading when there is a change in the
-.json and .env file in the selected environment folder.
+Campo opcional, o valor padrão é `false`, caso seja `true` é utilizado para o carregamento automático quando
+houver alguma alteração no arquivo .json e .env na pasta do ambiente selecionado.
 
 ### store
 
-Optional field, default value is the local cache storage, if informed, the `redis` field becomes mandatory and
-the `address` field as well.
+Campo opcional, valor padrão é o armazenamento local em cache, caso seja informado, o campo `redis` passa
+a ser obrigatório e o campo `address` também.
 
-If you use Redis for global cache storage, it is recommended that address and password values be filled in using an
-environment variable, as in the example above.
+Caso utilize o armazenamento global de cache o Redis, é indicado que os valores de endereço e senha sejam preenchidos
+utilizando variável de ambiente, como no exemplo acima.
 
 ### timeout
 
-Optional field, the default value is `30 seconds`, this field is responsible for the maximum processing time for each
-request.
+Campo opcional, o valor padrão é `30 segundos`, esse campo é responsável pelo tempo máximo de duração do processamento
+de cada requisição.
 
-If the request exceeds this time, the API Gateway will abort all ongoing transactions and return the status
-code `504 (Gateway Timeout)`. Learn more about this return by clicking [here](#504-gateway-timeout).
+Caso a requisição ultrapasse esse tempo informado, á API Gateway irá abortar todas as transações em andamento e
+retornará o código de status `504 (Gateway Timeout)`. Veja mais sobre esse retorno
+[clicando aqui](#504-gateway-timeout).
 
-IMPORTANT: If it is informed in the endpoint object, we give priority to the informed value of the endpoint, otherwise
-we will continue with the informed or default value of this field, at the root of the JSON configuration.
+IMPORTANTE: Caso seja informado no objeto de endpoint, damos prioridade ao valor informado do endpoint, caso contrário
+seguiremos com o valor informado ou padrão desse campo, na raiz do JSON de configuração.
 
 ```text
-- Accepted values:
-    - s for seconds
-    - m for minutes
-    - h for hours
-    - ms for milliseconds 
-    - us (or µs) for microseconds
-    - ns for nanoseconds
+- Valores aceitos:
+    - s para segundos
+    - m para minutos
+    - h para horas
+    - ms para milissegundos
+    - us (ou µs) para microssegundos
+    - ns para nanossegundos
 
-- Examples:
+- Exemplos:
     - 10s
     - 5ms
     - 1h30m
@@ -298,125 +296,123 @@ we will continue with the informed or default value of this field, at the root o
 
 ### cache
 
-Optional field, if informed, the `duration` field becomes mandatory!
+Campo opcional, se informado, o campo `duration` passa a ser obrigatório!
 
-If the object is informed in the [endpoint.cache](#cache) structure, we give priority to the values informed there,
-otherwise we will follow the values informed in this field.
+Caso o objeto seja informado na estrutura do [endpoint.cache](#cache), damos prioridade aos valores informados lá,
+caso contrário seguiremos com os valores informados nesse campo.
 
-The cache value is only recorded once every X duration informed in the `every` field.
+O valor do cache é apenas gravado 1 vez a cada X duração informada no campo `every`.
 
-The `only-if-status-codes` and `only-if-methods` fields are used to check if that enabled endpoint can read and write
-the cache based on the HTTP method and response status code, learn more about them below.
+Os campos `only-if-status-codes` e `only-if-methods` são utilizados para verificar se naquele endpoint habilitado
+a ter cache, pode ser lido e escrito o cache com base no método HTTP e código de status de resposta, veja mais sobre
+eles abaixo.
 
-If the answer is not "fresh", in other words, was answered by the cache, the header `X-Gopen-Cache` will have the
-value `true` otherwise the value will be `false`.
+Caso a resposta não seja "fresca", ou seja, foi respondida pelo cache, o header `X-Gopen-Cache` terá o valor `true`
+caso contrário o valor será `false`.
 
 #### cache.duration
 
-Indicates the time that the cache will last, it is of type `time.Duration`.
+Indica o tempo que o cache irá durar, ele é do tipo `time.Duration`.
 
 ```text
-- Accepted values:
-    - s for seconds
-    - m for minutes
-    - h for hours
-    - ms for milliseconds 
-    - us (or µs) for microseconds
-    - ns for nanoseconds
+- Valores aceitos:
+    - s para segundos
+    - m para minutos
+    - h para horas
+    - ms para milissegundos
+    - us (ou µs) para microssegundos
+    - ns para nanossegundos
 
-- Examples:
-    - 10s
-    - 5ms
+- Exemplos:
+    - 1h
+    - 15.5ms
     - 1h30m
-    - 1.5h
+    - 1.5m
 ```
 
 #### cache.strategy-headers
 
-Optional field, the default cache key strategy is by the request's url and HTTP method making it a global cache per
-endpoint, if the headers to be used in the strategy are informed, they are aggregated in the default key values, for
-example, there in the example it was indicated to use the `X-Forwarded-For` and `Device` fields, the final value of the
-key would be:
+Campo opcional, a estrátegia padrão de chave de cache é pela url e método HTTP da requisição tornando-o um cache global
+por endpoint, caso informado os cabeçalhos a serem usados na estrátegia eles são agregados nos valores padrões de chave,
+por exemplo, ali no exemplo foi indicado utilizar o campo `X-Forwarded-For` e o `Device` o valor final da chave
+ficaria:
 
       GET:/users/find/479976139:177.130.228.66:95D4AF55-733D-46D7-86B9-7EF7D6634EBC
 
-The description of the logic behind this key is:
+A descrição da lógica por trás dessa chave é:
 
-      method:url:X-Forwarded-For:Device
+      método:url:X-Forwarded-For:Device
 
-Without the filled strategy, the default logic is:
+Sem a estrátegia preenchida, a lógica padrão fica assim:
 
-      method:url
+      método:url
 
-So the default value for this endpoint without the filled strategy is:
+Então o valor padrão para esse endpoint fica assim sem a estrátegia preenchida:
 
       GET:/users/find/479976139
 
-In this example we make the cache that was global for the specific endpoint, to be per client! Remembering that this is
-a simple example, you can have the strategy you want based on the header of your application.
+Nesse exemplo tornamos o cache antes global para o endpoint em espécifico, passa a ser por cliente! Lembrando que isso
+é um exemplo simples, você pode ter a estrátegia que quiser com base no header de sua aplicação.
 
 #### cache.only-if-methods
 
-Optional field, the default value is a list with only the HTTP `GET` method, if informed empty, any HTTP method will be
-accepted.
+Campo opcional, o valor padrão é uma lista com apenas o método HTTP `GET`, caso informada vazia, qualquer método HTTP
+será aceito.
 
-This field is responsible for deciding whether to read and write the cache of the endpoint (which is enabled to have
-cache) by the same HTTP method.
+Esse campo é responsável por decidir se irá ler e gravar o cache do endpoint (que está habilitado a ter cache) pelo
+método HTTP do mesmo.
 
 #### cache.only-if-status-codes
 
-Optional field, the default value is a list of recognized success HTTP status codes, if it is informed empty, any HTTP
-response status code will be accepted.
+Campo opcional, o valor padrão é uma lista de códigos de status HTTP de sucessos reconhecidos, caso informada vazia,
+qualquer código de status HTTP de resposta será aceito.
 
-This field is responsible for deciding whether to write the cache of the endpoint (which is enabled to have cache) by
-the HTTP response status code of the same.
+Esse campo é responsável por decidir se irá gravar o cache do endpoint (que está habilitado a ter cache) pelo
+código de status HTTP de resposta do mesmo.
 
 #### cache.allow-cache-control
 
-Optional field, the default value is `false`, if it is informed as `true` the API Gateway will consider
-the `Cache-Control` header following the rules below from the value informed in the request or in the response from the
-backends:
+Campo opcional, o valor padrão é `false`, caso seja informado como `true` a API Gateway irá considerar o header
+`Cache-Control` seguindo as regras a seguir a partir do valor informado na requisição ou na resposta dos backends:
 
-`no-cache`: this value is only considered in the request header, if informed we disregard the cache read and continue
-with the normal process to obtain the "fresh" response.
+`no-cache`: esse valor é apenas considerado no header da requisição, caso informado desconsideramos a leitura do cache
+e seguimos com o processo normal para obter a resposta "fresca".
 
-`no-store`: this value is only considered in the response written by your backends, if informed we do not store the
+`no-store`: esse valor é considerado apenas na resposta escrita por seus backends, caso informado não gravamos o
 cache.
 
 ### limiter
 
-Optional field, object responsible for the API Gateway limitation rules, whether by size or rate, the default values
-vary from field to field, see:
+Campo opcional, objeto responsável pelas regras de limitação da API Gateway, seja de tamanho ou taxa, os valores padrões
+variam de campo a campo, veja:
 
 #### limiter.max-header-size
 
-Optional field, it is of type `byteUnit`, default value is `1MB`, is responsible for limiting the size of the request
-header.
+Campo opcional, ele é do tipo `byteUnit`, valor padrão é `1MB`, é responsável por limitar o tamanho do cabeçalho de
+requisição.
 
-If the size of the header exceeds the informed value, the API Gateway will abort the request with status
-code `431 (Request header fields too large)`. Learn more about this return by
-clicking [here](#431-request-header-fields-too-large).
+Caso o tamanho do cabeçalho ultrapasse o valor informado, a API Gateway irá abortar a requisição com o código de status
+`431 (Request header fields too large)`. Veja mais sobre esse retorno
+[clicando aqui](#431-request-header-fields-too-large).
 
 ```text
-- Accepted values:
-  - B for Byte
-  - KB for KiloByte
-  - MB for Megabyte
-  - GB for Gigabyte
-  - TB for Terabyte
-  - PB for Petabyte
-  - EB for Exabyte
-  - ZB for Zettabyte
-  - YB for Yottabyte
+- Valores aceitos:
+    - B para Byte
+    - KB para KiloByte
+    - MB para Megabyte
+    - GB para Gigabyte
+    - TB para Terabyte
+    - PB para Petabyte
+    - EB para Exabyte
+    - ZB para Zettabyte
+    - YB para Yottabyte
 
-- Examples:
-  - 1B
-  - 50KB
-  - 5MB
-  - 1.5GB
+- Exemplos:
+    - 1B
+    - 50KB
+    - 5MB
+    - 1.5GB
 ```
-
-TODO:
 
 #### limiter.max-body-size
 
@@ -427,18 +423,18 @@ Caso o tamanho do corpo ultrapasse o valor informado, a API Gateway irá abortar
 `413 (Request entity too large)`.
 
 ```text
-- Accepted values:
-    - B for Byte
-    - KB for KiloByte
-    - MB for Megabyte
-    - GB for Gigabyte
-    - TB for Terabyte
-    - PB for Petabyte
-    - EB for Exabyte
-    - ZB for Zettabyte
-    - YB for Yottabyte
+- Valores aceitos:
+    - B para Byte
+    - KB para KiloByte
+    - MB para Megabyte
+    - GB para Gigabyte
+    - TB para Terabyte
+    - PB para Petabyte
+    - EB para Exabyte
+    - ZB para Zettabyte
+    - YB para Yottabyte
 
-- Examples:
+- Exemplos:
     - 1B
     - 50KB
     - 5MB
@@ -451,25 +447,25 @@ Campo opcional, ele é do tipo `byteUnit`, valor padrão é `5MB`, esse campo é
 corpo multipart/form da requisição, geralmente utilizado para envio de arquivos, imagens, etc.
 
 Caso o tamanho do corpo ultrapasse o valor informado, a API Gateway irá abortar a requisição com o código de status
-`413 (Request entity too large)`. Veja mais sobre esse retorno clicando [aqui](#413-request-entity-too-large).
+`413 (Request entity too large)`. Veja mais sobre esse retorno [clicando aqui](#413-request-entity-too-large).
 
 ```text
-- Accepted values:
-    - B for Byte
-    - KB for KiloByte
-    - MB for Megabyte
-    - GB for Gigabyte
-    - TB for Terabyte
-    - PB for Petabyte
-    - EB for Exabyte
-    - ZB for Zettabyte
-    - YB for Yottabyte
+- Valores aceitos:
+  - B para Byte
+  - KB para KiloByte
+  - MB para Megabyte
+  - GB para Gigabyte
+  - TB para Terabyte
+  - PB para Petabyte
+  - EB para Exabyte
+  - ZB para Zettabyte
+  - YB para Yottabyte
 
-- Examples:
-    - 1B
-    - 50KB
-    - 5MB
-    - 1.5GB
+- Exemplos:
+  - 1B
+  - 50KB
+  - 5MB
+  - 1.5GB
 ```
 
 #### limiter.rate
@@ -479,7 +475,7 @@ a taxa de requisição pelo IP, esse limite é imposto obtendo a capacidade máx
 informado no campo `every`.
 
 Caso essa capacidade seja ultrapassada, a API Gateway por segurança abortará a requisição, retornando
-`429 (Too many requests)`. Veja mais sobre esse retorno clicando [aqui](#429-too-many-requests).
+`429 (Too many requests)`. Veja mais sobre esse retorno [clicando aqui](#429-too-many-requests).
 
 #### limiter.rate.capacity
 
@@ -676,7 +672,7 @@ a [lógica de resposta](#lógica-de-resposta) da API Gateway, sem forçar a codi
 Campo opcional, do tipo booleano, o valor padrão é `false`, indicando que a resposta do endpoint não será agregada.
 
 Caso informado com o valor `true` e tiver mais de uma resposta dos backends informados no endpoint ele irá agregar as
-respostas dos backends, veja mais sobre as regras de resposta da API Gateway clicando [aqui](#lógica-de-resposta).
+respostas dos backends, veja mais sobre as regras de resposta da API Gateway [clicando aqui](#lógica-de-resposta).
 
 #### endpoint.abort-if-status-codes
 
@@ -689,7 +685,7 @@ do mesmo ao cliente final.
 
 Caso queira que nenhum código de status HTTP seja abortado no endpoint, apenas informe o campo vazio.
 
-Veja como o endpoint será respondido após um backend ser abortado clicando [aqui](#lógica-de-resposta).
+Veja como o endpoint será respondido após um backend ser abortado [clicando aqui](#resposta-abortada).
 
 #### endpoint.beforewares
 
@@ -794,7 +790,7 @@ O backend irá construir a seguinte URL de requisição
 https://instance-02/users/status
 ```
 
-Veja como o host é balanceado clicando [aqui](#backendhosts).
+Veja como o host é balanceado [clicando aqui](#backendhosts).
 
 ### backend.method
 
@@ -821,7 +817,7 @@ Nesse exemplo temos o campo `forward-queries` com os seguintes valores
 ]
 ````
 
-A URL de requisição ao backend foi
+A URL de requisição ao backend foi:
 
 ````
 /users?email=gabrielcataldo@gmail.com&phone=47991271234
@@ -1458,7 +1454,7 @@ valores, apenas se lembre que, os objetos header, query são mapas de lista de s
 
 ### Veja também
 
-- Configuração de modificadores de backend clicando [aqui](#backendmodifiers).
+- Configuração de modificadores de backend [clicando aqui](#backendmodifiers).
 
 - Aprenda na prática como utilizar os valores dinâmicos para modificação usando o
   projeto [playground](https://github.com/GabrielHCataldo/gopen-gateway-playground) que já vem com alguns exemplos de
@@ -1488,7 +1484,7 @@ Vamos ver alguns exemplos abaixo para melhor entendimento.
 #### Único backend
 
 Nesse exemplo trabalharemos apenas com um único backend, veja como a API Gateway se comportará ao responder
-a esse cenário
+a esse cenário:
 
 Json de configuração
 
@@ -1514,7 +1510,7 @@ Json de configuração
 }
 ```
 
-Ao processar esse endpoint a resposta da API Gateway foi
+Ao processar esse endpoint a resposta da API Gateway foi:
 
 ```text
 HTTP/1.1 200 OK
@@ -1632,7 +1628,7 @@ Json de configuração
 ```
 
 Ao processar esse endpoint de exemplo simulando o erro na chamada de [beforeware](#endpointbeforewares) a resposta da
-API Gateway foi
+API Gateway foi:
 
 ```text
 HTTP/1.1 403 Forbidden
@@ -1665,7 +1661,7 @@ falha `403 (Forbidden)`, o endpoint abortou, não chamando os backends seguintes
 pode configurar os códigos de status HTTP que vão ser abortados pelo seu endpoint, basta preencher o
 campo [endpoint.abort-if-status-codes](#endpointabort-if-status-codes).
 
-No seguinte exemplo iremos forçar um erro no afterware `increment-attempts` a da API Gateway resposta foi
+No seguinte exemplo iremos forçar um erro no afterware `increment-attempts` a da API Gateway resposta foi:
 
 ```text
 HTTP/1.1 404 Not Found
@@ -1850,7 +1846,7 @@ a API Gateway responderá `100 Continue`.
 
 Quarto ponto a ser destacado, é que como o endpoint tem múltiplas respostas, consequentemente temos múltiplos cabeçalhos
 de resposta, a API Gateway irá agregar todos os campos e valores para o cabeçalho da resposta final, veja mais sobre o
-comportamento do cabeçalho de resposta clicando [aqui](#cabeçalho-de-resposta).
+comportamento do cabeçalho de resposta [clicando aqui](#cabeçalho-de-resposta).
 
 Último ponto a ser destacado, é que caso um desses retornos de backend entre no cenário em que o endpoint aborta a
 resposta, ele não seguirá nenhuma diretriz mostrada no tópico em questão e sim
@@ -1902,7 +1898,7 @@ Json de configuração
 }
 ```
 
-Ao processarmos o endpoint a resposta da API Gateway foi
+Ao processarmos o endpoint a resposta da API Gateway foi:
 
 ```text
 HTTP/1.1 200 OK
@@ -2345,7 +2341,7 @@ code gopen-gateway
 Caso queira utilizar o hot reload para otimizar no desenvolvimento, o projeto já tem o arquivo
 `.air.toml` como exemplo para você utilizar como quiser.
 
-Veja a documentação sobre esse projeto fantástico clicando [aqui](https://github.com/cosmtrek/air).
+Veja a documentação sobre esse projeto fantástico [clicando aqui](https://github.com/cosmtrek/air).
 
 ## Gitflow
 
