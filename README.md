@@ -60,14 +60,14 @@ will still be able to optimise your development. Below are the features availabl
 To understand how it works, we first need to explain the structure of the dynamic environments that GOPEN accepts for
 its JSON configuration and environment variable files, so let's get started!
 
-## Folder Structure
+## Folder structure
 
 In the project structure, you will need to have a root folder called "gopen". Inside this folder, you should have
 subfolders containing the names of your environments. You can name these subfolders as you wish. Each of these
 subfolders should contain at least one ".json" configuration file for the API Gateway. For example, the structure might
 look like this:
 
-### GO Project
+### GO project
 
     gopen-gateway
     | - cmd
@@ -80,7 +80,7 @@ look like this:
       |   - .json
       |   - .env
 
-### Docker Image Project
+### Docker image project
 
     nome-do-seu-projeto
     | - docker-compose.yml
@@ -232,8 +232,6 @@ rules defined. Below is a simple example with all possible fields and their conc
   ]
 }
 ````
-
-TODO:
 
 ### $schema
 
@@ -546,7 +544,7 @@ and serve HTTP requests.
 
 See how the basic flow of an endpoint works in the image below:
 
-<img src="assets/basic-endpoint-flowchart-pt-br.png" alt="basic endpoint flow">
+<img src="assets/basic-endpoint-flowchart-en.png" alt="basic endpoint flow">
 
 Below we will list and explain each field of this very important object:
 
@@ -714,7 +712,7 @@ it's a list that indicates all the necessary services for the endpoint to return
 
 See how the basic flow of a backend works in the image below:
 
-<img src="assets/basic-backend-flowchart-pt-br.png" alt="basic backend flow chart">
+<img src="assets/basic-backend-flowchart-en.png" alt="basic backend flow chart">
 
 Below we will list and explain each field of this important object:
 
@@ -1227,7 +1225,7 @@ This JSON indicates the application's understanding after reading the [configura
 
 This json can also be read using the static route [/settings](#settings).
 
-## Static Routes
+## Static routes
 
 The GOPEN API Gateway has some static endpoints, that is, regardless of any configuration made, there are currently
 three endpoints registered in its routes, see the details for each one and their responsibilities below:
@@ -1279,7 +1277,7 @@ that is actively running.
 }
 ```
 
-## Environment Variables
+## Environment variables
 
 Environment variables can be easily instantiated using the .env file, in the folder indicated by the dynamic startup
 environment as mentioned in the topic [FOLDER STRUCTURE](#folder-structure).
@@ -1461,7 +1459,7 @@ The API Gateway, upon receiving a request, will add the client's IP to the `X-Fo
 requests, and also adds, if it does not exist, a unique generated value to the header called `X-Trace-Id` for better
 observability of the received request in both the API Gateway logs and the underlying microservices.
 
-## Response Logic
+## Response logic
 
 When using an API Gateway, we often wonder, how will the response of this configured endpoint be returned to my client?
 
@@ -1566,8 +1564,6 @@ Body
 ```
 
 In this case, the API Gateway also mirrored the response from the single backend call of the endpoint.
-
-#### Utilizando middlewares
 
 #### Using middlewares
 
@@ -2010,7 +2006,7 @@ Body
 With this configuration, we noticed that our aggregated response became more organized. It's important to understand
 the [configuration JSON](#configuration-json) and its fields so that the GOPEN API Gateway can better meet your needs.
 
-### Aborted Response
+### Aborted response
 
 For a response to be aborted by the API Gateway, one of the configured backends of the endpoint, either through
 middlewares or main backends, when processed, in its response, the HTTP status code needs to match values in
@@ -2025,7 +2021,7 @@ It's important to understand these two points:
 We recommend using this configuration only when something unexpected occurs, such as an error response
 like `500 (Internal Server Error)`.
 
-### Response Header
+### Response header
 
 In the response, the API Gateway aggregates all header values responded by the configured backends in the endpoint,
 regardless of the number of backends, which also includes the [middlewares](#middlewares), except for
@@ -2121,7 +2117,7 @@ We also noticed that in the example, the [default fields](#default-header-fields
 response header were aggregated, which were `X-Value-Id`, `X-MS`, and `X-MS-Success`. It's worth noting that the
 duplicated fields were grouped and separated by commas.
 
-### Default Responses
+### Default responses
 
 Every API Gateway has its default responses for each error scenario, so we'll list each scenario below along with its
 respective HTTP response:
@@ -2303,7 +2299,7 @@ Body
 Use the [playground project](https://github.com/GabrielHCataldo/gopen-gateway-playground) to start exploring and using
 the GOPEN API Gateway in practice!
 
-# How to Contribute?
+# How to contribute?
 
 We are delighted to see the community come together, and projects like this one are open to receiving your ideas. See
 below how to participate.
