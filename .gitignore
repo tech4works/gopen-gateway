@@ -23,10 +23,6 @@ go.work
 # Goland IDE
 .idea
 
-# Gopen result json
-gopen.json
-gopen-clean.json
-
 # Air files
 tmp/
 
@@ -38,3 +34,6 @@ gopen/
 
 # Build
 runtime/
+
+# Bins
+bin/
