@@ -274,7 +274,7 @@ Optional field, the default value is `30 seconds`, this field is responsible for
 request.
 
 If the request exceeds this time, the API Gateway will abort all ongoing transactions and return the status
-code `504 (Gateway Timeout)`. Learn more about this return by clicking [here](#504-gateway-timeout).
+code `504 (Gateway Timeout)`. Learn more about this return by [clicking here](#504-gateway-timeout).
 
 IMPORTANT: If it is informed in the endpoint object, we give priority to the informed value of the endpoint, otherwise
 we will continue with the informed or default value of this field, at the root of the JSON configuration.
@@ -394,7 +394,7 @@ header.
 
 If the size of the header exceeds the informed value, the API Gateway will abort the request with status
 code `431 (Request header fields too large)`. Learn more about this return by
-clicking [here](#431-request-header-fields-too-large).
+[clicking here](#431-request-header-fields-too-large).
 
 ```text
 - Accepted values:
@@ -448,7 +448,7 @@ Optional field, it is of type `byteUnit`, default value is `5MB`, this field is 
 multipart/form body of the request, usually used for sending files, images, etc.
 
 If the size of the body exceeds the informed value, the API Gateway will abort the request with status
-code `413 (Request entity too large)`. Learn more about this return by clicking [here](#413-request-entity-too-large).
+code `413 (Request entity too large)`. Learn more about this return by [clicking here](#413-request-entity-too-large).
 
 ```text
 - Accepted values:
@@ -476,7 +476,7 @@ rate by IP, this limit is imposed by obtaining the maximum capacity by the `capa
 the `every` field.
 
 If this capacity is exceeded, the API Gateway will abort the request for security, returning `429 (Too Many Requests)`.
-Learn more about this return by clicking [here](#429-too-many-requests).
+Learn more about this return by [clicking here](#429-too-many-requests).
 
 #### limiter.rate.capacity
 
@@ -788,7 +788,7 @@ The backend will construct the following request URL:
 https://instance-02/users/status
 ```
 
-See how the host is balanced [by clicking here](#backendhosts).
+See how the host is balanced by [clicking here](#backendhosts).
 
 ### backend.method
 
@@ -1446,7 +1446,7 @@ remember that header, query are maps of list of string, and params is a map of s
 
 ### See also
 
-- Backend modifiers configuration by clicking [here](#backendmodifiers).
+- Backend modifiers configuration by [clicking here](#backendmodifiers).
 
 - Learn in practice how to use dynamic values for modification using
   the [playground](https://github.com/GabrielHCataldo/gopen-gateway-playground) project that already comes with some
@@ -1836,7 +1836,7 @@ The API Gateway will respond with `100 Continue`.
 
 The fourth point to highlight is that since the endpoint has multiple responses, consequently, it has multiple response
 headers. The API Gateway will aggregate all the fields and values for the final response header. Learn more about the
-behavior of the response header by clicking [here](#response-header).
+behavior of the response header by [clicking here](#response-header).
 
 The last point to emphasize is that if one of these backend returns enters the scenario where the endpoint aborts the
 response, it will not follow any guidelines shown in the respective topic but rather

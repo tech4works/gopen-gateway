@@ -276,7 +276,7 @@ de cada petición.
 
 Si la solicitud supera este tiempo establecido, la API Gateway abortará todas las transacciones en curso y
 devolverá el código de estado `504 (Gateway Timeout)`. Consulte más sobre esta respuesta
-haciendo clic [aquí](#504-gateway-timeout).
+haciendo [clic aquí](#504-gateway-timeout).
 
 IMPORTANTE: Si se proporciona información en el objeto de endpoint, le daremos prioridad al valor informado del
 endpoint, de lo contrario seguiremos con el valor informado o predeterminado de este campo, en la raíz del JSON de
@@ -399,7 +399,7 @@ encabezado de la solicitud.
 
 Si el tamaño del encabezado supera el valor informado, la API Gateway abortará la solicitud con el código de estado
 `431 (Request header fields too large)`. Obtenga más información sobre esta devolución haciendo
-clic [aquí](#431-request-header-fields-too-large).
+[clic aquí](#431-request-header-fields-too-large).
 
 ```text
 - Valores aceptados:
@@ -454,7 +454,7 @@ del cuerpo multipart/form de la solicitud, generalmente utilizado para el envío
 
 Si el tamaño del cuerpo supera el valor informado, la API Gateway abortará la solicitud con el código de
 estado `413 (Request entity too large)`. Obtenga más información sobre esta devolución haciendo
-clic [aquí](#413-request-entity-too-large).
+[clic aquí](#413-request-entity-too-large).
 
 ```text
 - Valores aceptados:
@@ -482,7 +482,7 @@ tasa de solicitud por IP, este límite se impone obteniendo la capacidad máxima
 proporcionada en el campo `every`.
 
 Si se supera esta capacidad, la API Gateway por seguridad abortará la solicitud, devolviendo `429 (Too many requests)`.
-Obtenga más información sobre esta devolución haciendo clic [aquí](#429-too-many-requests).
+Obtenga más información sobre esta devolución haciendo [clic aquí](#429-too-many-requests).
 
 #### limiter.rate.capacity
 
@@ -678,7 +678,7 @@ agregada.
 
 Si se informa con el valor `true` y tiene más de una respuesta de los backends informados en el endpoint él agregará las
 respuestas de los backends, vea más sobre las reglas de respuesta de la API Gateway haciendo
-clic [aquí](#lógica-de-respuesta).
+[clic aquí](#lógica-de-respuesta).
 
 ### endpoint.abort-if-status-codes
 
@@ -691,7 +691,7 @@ respuesta del mismo al cliente final.
 
 Si desea que ningún código de estado HTTP sea abortado en el endpoint, simplemente informe el campo vacío.
 
-Vea cómo el endpoint será respondido después de que un backend sea abortado haciendo click [aquí](#lógica-de-respuesta).
+Vea cómo el endpoint será respondido después de que un backend sea abortado haciendo [clic aquí](#lógica-de-respuesta).
 
 ### endpoint.beforewares
 
@@ -797,7 +797,7 @@ El backend construirá la siguiente URL de solicitud
 https://instance-02/users/status
 ```
 
-Vea cómo se equilibra el host haciendo clic [aquí](#backendhosts).
+Vea cómo se equilibra el host haciendo [clic aquí](#backendhosts).
 
 ### backend.method
 
@@ -1463,7 +1463,7 @@ valores, solo recuerda que, los objetos header, query son mapas de lista de stri
 
 ### Véase también
 
-- Configuración de modificadores de backend clicando [aquí](#backendmodifiers).
+- Configuración de modificadores de backend [clicando aquí](#backendmodifiers).
 
 - Aprende en la práctica cómo utilizar los valores dinámicos para modificaciones usando el
   proyecto [playground](https://github.com/GabrielHCataldo/gopen-gateway-playground) que ya viene con algunos ejemplos
@@ -1858,7 +1858,7 @@ la API Gateway responderá `100 Continue`.
 
 El cuarto punto a destacar es que, como el endpoint tiene múltiples respuestas, consecuentemente tenemos múltiples
 encabezados de respuesta, la API Gateway agregará todos los campos y valores para el encabezado de la respuesta final,
-vea más sobre el comportamiento del encabezado de respuesta haciendo clic [aquí](#encabezado-de-respuesta).
+vea más sobre el comportamiento del encabezado de respuesta haciendo [clic aquí](#encabezado-de-respuesta).
 
 El último punto a destacar es que si una de estas devoluciones de backend entra en el escenario en que el endpoint
 aborta la respuesta, no seguirá ninguna directriz mostrada en el tema en cuestión, sino
@@ -2355,7 +2355,7 @@ code gopen-gateway
 Si quieres utilizar la recarga en caliente para optimizar durante el desarrollo, el proyecto ya tiene el archivo
 `.air.toml` como ejemplo para que lo uses como quieras.
 
-Mira la documentación sobre este fantástico proyecto haciendo clic [aquí](https://github.com/cosmtrek/air).
+Mira la documentación sobre este fantástico proyecto haciendo [clic aquí](https://github.com/cosmtrek/air).
 
 ## Gitflow
 
