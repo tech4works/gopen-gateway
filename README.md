@@ -15,7 +15,7 @@
 ![Spain](https://raw.githubusercontent.com/stevenrskelton/flag-icon/master/png/16/country-4x3/es.png)
 [Spanish](https://github.com/GabrielHCataldo/gopen-gateway/blob/main/README.es.md)
 
-The GOPEN project was created with the aim of helping developers to have a robust and easy-to-handle API Gateway, with
+The GOPEN project was created with the aim of helping developers to have a robust and easy to handle API Gateway, with
 the opportunity to act on improvements, contributing to the community, and most importantly, without incurring any
 costs. It was developed because many freely available API Gateways in the market do not meet the many minimum
 requirements for an application, leading you to upgrade.
