@@ -185,6 +185,41 @@
       },
       "additionalProperties": false
     },
+    "endpoint-response": {
+      "type": "object",
+      "properties": {
+        "aggregate": {
+          "type": "boolean"
+        },
+        "encode": {
+          "$ref": "#/definitions/response-encode"
+        },
+        "nomenclature": {
+          "type": "string",
+          "enum": [
+            "LOWER_CAMEL",
+            "CAMEL",
+            "SNAKE",
+            "KEBAB"
+          ]
+        },
+        "omit-empty": {
+          "type": "boolean"
+        },
+        "header-filter": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "body-filter": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
     "endpoint": {
       "type": "object",
       "properties": {
@@ -206,9 +241,6 @@
         "limiter": {
           "$ref": "#/definitions/limiter"
         },
-        "aggregate-responses": {
-          "type": "boolean"
-        },
         "abort-if-status-codes": {
           "type": "array",
           "items": {
@@ -217,8 +249,8 @@
             "maximum": 599
           }
         },
-        "response-encode": {
-          "$ref": "#/definitions/response-encode"
+        "response": {
+          "$ref": "#/definitions/endpoint-response"
         },
         "beforewares": {
           "type": "array",
