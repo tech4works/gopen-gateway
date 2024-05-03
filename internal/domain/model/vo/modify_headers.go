@@ -20,27 +20,17 @@ import (
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/enum"
 )
 
-// modifyHeaders represents a type that allows modifying HTTP headers in a request or response.
-// It is used to customize the headers for a request or response in an HTTP client or server.
-// This type has a `modify` embedded field, which provides a set of methods to modify headers.
 type modifyHeaders struct {
 	modify
 }
 
-// NewHeaders creates a new instance of modifyHeaders struct
-// with the provided Modifier, Request, and Response.
-func NewHeaders(modifierVO *Modifier, requestVO *Request, responseVO *Response) ModifierStrategy {
+func NewHeaders(modifierVO *Modifier, httpRequestVO *HttpRequest, httpResponseVO *HttpResponse) ModifierStrategy {
 	return modifyHeaders{
-		modify: newModify(modifierVO, requestVO, responseVO),
+		modify: newModify(modifierVO, httpRequestVO, httpResponseVO),
 	}
 }
 
-// Execute executes the modifyHeaders functionality.
-// It determines the scope and calls the appropriate method to execute the modification.
-// If the scope is enum.ModifierScopeRequest, it calls executeRequestScope and returns the modified request and original response.
-// If the scope is enum.ModifierScopeResponse, it calls executeResponseScope and returns the original request and modified response.
-// If the scope is neither enum.ModifierScopeRequest nor enum.ModifierScopeResponse, it returns the original request and response.
-func (m modifyHeaders) Execute() (*Request, *Response) {
+func (m modifyHeaders) Execute() (*HttpRequest, *HttpResponse) {
 	// executamos a partir do escopo configurado
 	switch m.scope {
 	case enum.ModifierScopeRequest:
@@ -48,89 +38,65 @@ func (m modifyHeaders) Execute() (*Request, *Response) {
 	case enum.ModifierScopeResponse:
 		return m.executeResponseScope()
 	default:
-		return m.request, m.response
+		return m.httpRequest, m.httpResponse
 	}
 }
 
-// executeRequestScope modifies both the global and local request modifyHeaders as well as the propagate header,
-// and returns the modified requests and the response.
-//
-// The function first calls the modifyHeaders method with the global and local request header as input.
-// It then changes the local request header and modifies the propagate header based on the backendRequestVO.
-//
-// Return values:
-//
-// - Request: The modified global request, which includes the propagate header.
-//
-// - Response: The original response from the `headers` struct.
-func (m modifyHeaders) executeRequestScope() (*Request, *Response) {
+func (m modifyHeaders) executeRequestScope() (*HttpRequest, *HttpResponse) {
 	// chamamos o modify de headers passando o headers a ser modificado e o mesmo retorna os mesmo modificados
-	globalHeader, localHeader := m.headers(m.globalRequestHeader(), m.localRequestHeader())
+	httpRequestHeaderVO, httpBackendRequestHeaderVO := m.headers(m.httpRequestHeader(), m.httpBackendRequestHeader())
 
 	// modificamos o header local
-	backendRequestVO := m.modifyLocalRequest(localHeader)
+	httpBackendRequestVO := m.modifyHttpBackendRequest(httpBackendRequestHeaderVO)
 
 	// modificamos o header propagate e retornamos
-	return m.modifyGlobalRequest(globalHeader, backendRequestVO), m.response
+	return m.modifyHttpRequest(httpRequestHeaderVO, httpBackendRequestVO), m.httpResponse
 }
 
-// executeResponseScope executes the modifyHeaders functionality for the response scope.
-// It calls the modifyHeaders method to get the global and local response modifyHeaders.
-// It then modifies the local header using the modifyLocalResponse method.
-// Finally, it modifies the response using the modifyGlobalResponse method with the modified backendResponseVO.
-// It returns the original request and the modified response.
-func (m modifyHeaders) executeResponseScope() (*Request, *Response) {
+func (m modifyHeaders) executeResponseScope() (*HttpRequest, *HttpResponse) {
+	// se tiver com o histórico vazio, retornamos os mesmos
+	if !m.httpResponse.HasHistory() {
+		return m.httpRequest, m.httpResponse
+	}
+
 	// chamamos o modify de headers passando o headers a ser modificado e o mesmo retorna os mesmo modificados
-	_, localHeader := m.headers(m.globalResponseHeader(), m.localResponseHeader())
+	_, httpBackendHeaderVO := m.headers(m.httpResponseHeader(), m.httpBackendResponseHeader())
 
 	// modificamos o header local
-	backendResponseVO := m.modifyLocalResponse(localHeader)
+	httpBackendResponseVO := m.modifyHttpBackendResponse(httpBackendHeaderVO)
 
-	// modificamos a resposta vo com o novo backendResponseVO
-	return m.request, m.modifyGlobalResponse(backendResponseVO)
+	// modificamos a resposta vo com o novo httpBackendResponseVO
+	return m.httpRequest, m.modifyHttpResponse(httpBackendResponseVO)
 }
 
-// globalRequestHeader returns the header of the request in the modifyHeaders struct.
-func (m modifyHeaders) globalRequestHeader() Header {
-	return m.request.Header()
+func (m modifyHeaders) httpRequestHeader() Header {
+	return m.httpRequest.Header()
 }
 
-// localRequestHeader returns the header of the current backend request in the modifyHeaders struct.
-func (m modifyHeaders) localRequestHeader() Header {
-	return m.request.CurrentBackendRequest().Header()
+func (m modifyHeaders) httpBackendRequestHeader() Header {
+	return m.httpRequest.LastHttpBackendRequest().Header()
 }
 
-// globalResponseHeader returns the header of the response in the modifyHeaders struct.
-func (m modifyHeaders) globalResponseHeader() Header {
-	return m.response.Header()
+func (m modifyHeaders) httpResponseHeader() Header {
+	return m.httpResponse.Header()
 }
 
-// localResponseHeader returns the header of the last backend response in the modifyHeaders struct.
-func (m modifyHeaders) localResponseHeader() Header {
-	return m.response.LastBackendResponse().Header()
+func (m modifyHeaders) httpBackendResponseHeader() Header {
+	return m.httpResponse.LastHttpBackendResponse().Header()
 }
 
-// modifyLocalRequest modifies the local request header of the backend request by applying the provided local header.
-// It creates a new instance of the backendRequest struct with the modified header and returns it.
-func (m modifyHeaders) modifyLocalRequest(localHeader Header) *backendRequest {
-	return m.request.CurrentBackendRequest().ModifyHeader(localHeader)
+func (m modifyHeaders) modifyHttpRequest(headerVO Header, httpBackendRequestVO *httpBackendRequest) *HttpRequest {
+	return m.httpRequest.ModifyHeader(headerVO, httpBackendRequestVO)
 }
 
-// modifyGlobalRequest modifies the propagate request by modifying the propagate header and the backend request.
-// It returns a new modified Request.
-func (m modifyHeaders) modifyGlobalRequest(globalHeader Header, backendRequestVO *backendRequest) *Request {
-	return m.request.ModifyHeader(globalHeader, backendRequestVO)
+func (m modifyHeaders) modifyHttpBackendRequest(headerVO Header) *httpBackendRequest {
+	return m.httpRequest.LastHttpBackendRequest().ModifyHeader(headerVO)
 }
 
-// modifyLocalResponse modifies the local header of the response by applying changes from the given localHeader.
-// It returns a new backendResponse object with the modified header.
-func (m modifyHeaders) modifyLocalResponse(localHeader Header) *backendResponse {
-	return m.response.LastBackendResponse().ModifyHeader(localHeader)
+func (m modifyHeaders) modifyHttpBackendResponse(headerVO Header) *httpBackendResponse {
+	return m.httpResponse.LastHttpBackendResponse().ModifyHeader(headerVO)
 }
 
-// modifyGlobalResponse modifies the global response by applying the modifications specified in the backendResponseVO.
-// It calls the ModifyLastBackendResponse method of the response with the backendResponseVO as the argument.
-// The modified response is then returned.
-func (m modifyHeaders) modifyGlobalResponse(backendResponseVO *backendResponse) *Response {
-	return m.response.ModifyLastBackendResponse(backendResponseVO)
+func (m modifyHeaders) modifyHttpResponse(httpBackendResponseVO *httpBackendResponse) *HttpResponse {
+	return m.httpResponse.ModifyLastHttpBackendResponse(httpBackendResponseVO)
 }

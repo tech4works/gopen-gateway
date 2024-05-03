@@ -168,19 +168,31 @@ func (h Header) NotExists(key string) bool {
 	return !h.Exists(key)
 }
 
-// FilterByForwarded filters the Header object by removing certain headers based on the provided list of forwarded headers.
-// It returns a new Header object with the filtered headers.
-// The following conditions are applied to determine whether a header should be removed:
-// - The forwardedHeaders list is not empty.
-// - The forwardedHeaders list does not contain the current key.
-// - The current key is not equal to consts.XForwardedFor.
-// - The current key is not equal to consts.XTraceId.
-func (h Header) FilterByForwarded(forwardedHeaders []string) (r Header) {
+func (h Header) FilterByRequest(keys []string) (r Header) {
+	if helper.IsEmpty(keys) {
+		return h
+	}
+
 	r = h.copy()
-	for key := range h.copy() {
-		if helper.IsNotEmpty(forwardedHeaders) && helper.NotContains(forwardedHeaders, key) &&
-			helper.IsNotEqualTo(key, consts.XForwardedFor) && helper.IsNotEqualTo(key, consts.XTraceId) {
-			r = h.Delete(key)
+	for key := range h {
+		if helper.NotContains(keys, key) &&
+			helper.IsNotEqualTo(key, consts.XForwardedFor, consts.XTraceId) {
+			r = r.Delete(key)
+		}
+	}
+	return r
+}
+
+func (h Header) FilterByResponse(keys []string) (r Header) {
+	if helper.IsEmpty(keys) {
+		return h
+	}
+
+	r = h.copy()
+	for key := range h {
+		if helper.NotContains(keys, key) &&
+			helper.IsNotEqualTo(key, consts.XGopenSuccess, consts.XGopenCache, consts.XGopenCacheTTL, consts.XGopenComplete) {
+			r = r.Delete(key)
 		}
 	}
 	return r

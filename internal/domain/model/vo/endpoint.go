@@ -18,11 +18,10 @@ package vo
 
 import (
 	"fmt"
-	"github.com/GabrielHCataldo/go-errors/errors"
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/enum"
-	"github.com/gin-gonic/gin"
 	"net/http"
+	"time"
 )
 
 // Endpoint represent the configuration for an API endpoint in the Gopen application.
@@ -43,20 +42,11 @@ type Endpoint struct {
 	// cache represents the `cache` configuration for an endpoint.
 	// The default value is EndpointCache empty with enabled false.
 	cache *EndpointCache
-	// responseEncode represents the encoding format for the API endpoint response. The ResponseEncode
-	// field is an enum.ResponseEncode value, which can have one of the following values:
-	// - enum.ResponseEncodeText: for encoding the response as plain text.
-	// - enum.ResponseEncodeJson: for encoding the response as JSON.
-	// - enum.ResponseEncodeXml: for encoding the response as XML.
-	// The default value is empty. If not provided, the response will be encoded by type, if the string is json it
-	// returns json, otherwise it responds to plain text
-	responseEncode enum.ResponseEncode
-	// aggregateResponses represents a boolean indicating whether the API endpoint should aggregate responses
-	// from multiple backends.
-	aggregateResponses bool
 	// abortIfStatusCodes represents a slice of integers representing the HTTP status codes
 	// for which the API endpoint should abort. It is a field in the Endpoint struct.
 	abortIfStatusCodes *[]int
+	// todo:
+	response *EndpointResponse
 	// beforewares represents a slice of strings containing the names of the beforewares middlewares that should be
 	// applied before processing the API endpoint.
 	beforewares []string
@@ -73,10 +63,32 @@ type Endpoint struct {
 	backends []Backend
 }
 
-// newEndpoint constructs and returns a new Endpoint struct based on the given Gopen configuration and EndpointJson.
-// It initializes the timeout duration, endpoint limiter, endpoint cache, and backends based on the global configuration
-// and the provided endpoint JSON. It sets various fields of the Endpoint struct based on the corresponding values in the
-// EndpointJson struct.
+type EndpointResponse struct {
+	// aggregate represents a boolean indicating whether the API endpoint should aggregate responses
+	// from multiple backends.
+	aggregate bool
+	// encode represents the encoding format for the API endpoint httpResponse. The ResponseEncode
+	// field is an enum.Encode value, which can have one of the following values:
+	// - enum.EncodeText: for encoding the httpResponse as plain text.
+	// - enum.EncodeJson: for encoding the httpResponse as JSON.
+	// - enum.EncodeXml: for encoding the httpResponse as XML.
+	// The default value is empty. If not provided, the httpResponse will be encoded by type, if the string is json it
+	// returns json, otherwise it responds to plain text
+	encode       enum.Encode
+	nomenclature enum.Nomenclature
+	omitEmpty    bool
+}
+
+func NewEndpointStatic(gopenVO *Gopen, path, method string) Endpoint {
+	return Endpoint{
+		path:    path,
+		method:  method,
+		timeout: Duration(10 * time.Second),
+		limiter: newEndpointLimiterStatic(gopenVO.Limiter()),
+	}
+}
+
+// todo:
 func newEndpoint(gopenVO *Gopen, endpointJsonVO *EndpointJson) Endpoint {
 	// por padrão obtemos o timeout configurado na raiz, caso não informado um valor padrão é retornado
 	timeoutDuration := gopenVO.Timeout()
@@ -96,6 +108,7 @@ func newEndpoint(gopenVO *Gopen, endpointJsonVO *EndpointJson) Endpoint {
 		backends = append(backends, newBackend(&backendJsonVO))
 	}
 
+	// construímos o endpoint VO ja com os valores padrões
 	return Endpoint{
 		comment:            endpointJsonVO.Comment,
 		path:               endpointJsonVO.Path,
@@ -103,12 +116,24 @@ func newEndpoint(gopenVO *Gopen, endpointJsonVO *EndpointJson) Endpoint {
 		timeout:            timeoutDuration,
 		limiter:            endpointLimiterVO,
 		cache:              endpointCacheVO,
-		responseEncode:     endpointJsonVO.ResponseEncode,
-		aggregateResponses: endpointJsonVO.AggregateResponses,
 		abortIfStatusCodes: endpointJsonVO.AbortIfStatusCodes,
+		response:           newEndpointResponse(endpointJsonVO.Response),
 		beforewares:        endpointJsonVO.Beforewares,
 		afterwares:         endpointJsonVO.Afterwares,
 		backends:           backends,
+	}
+}
+
+// todo:
+func newEndpointResponse(endpointResponseJson *EndpointResponseJson) *EndpointResponse {
+	if helper.IsNil(endpointResponseJson) {
+		return nil
+	}
+	return &EndpointResponse{
+		aggregate:    endpointResponseJson.Aggregate,
+		encode:       endpointResponseJson.Encode,
+		nomenclature: endpointResponseJson.Nomenclature,
+		omitEmpty:    endpointResponseJson.OmitEmpty,
 	}
 }
 
@@ -125,15 +150,6 @@ func (e *Endpoint) Path() string {
 // Method returns the value of the method field in the Endpoint struct.
 func (e *Endpoint) Method() string {
 	return e.method
-}
-
-// Equals checks if the given route is equal to the Endpoint's path and method.
-// If the route is equal, it returns an error indicating a repeat route endpoint.
-func (e *Endpoint) Equals(route gin.RouteInfo) (err error) {
-	if helper.Equals(route.Path, e.path) && helper.Equals(route.Method, e.method) {
-		err = errors.New("Error path:", e.path, "method:", e.method, "repeat route endpoint")
-	}
-	return err
 }
 
 // Timeout returns the value of the timeout field in the Endpoint struct.
@@ -192,10 +208,17 @@ func (e *Endpoint) CountAfterwares() int {
 
 // CountBackends returns the number of backends in the Endpoint struct.
 func (e *Endpoint) CountBackends() int {
-	if helper.IsNil(e.Backends()) {
-		return 0
-	}
 	return len(e.Backends())
+}
+
+func (e *Endpoint) CountBackendsNonOmit() int {
+	count := 0
+	for _, backendVO := range e.Backends() {
+		if helper.IsNil(backendVO.Response()) || !backendVO.Response().Omit() {
+			count++
+		}
+	}
+	return count
 }
 
 // CountModifiers counts the total number of modifiers in an Endpoint by summing the count of modifiers in each
@@ -207,31 +230,25 @@ func (e *Endpoint) CountModifiers() (count int) {
 	return count
 }
 
-// Completed checks if the response history size is equal to the count of all backends in the Endpoint struct.
 func (e *Endpoint) Completed(responseHistorySize int) bool {
-	return helper.Equals(responseHistorySize, e.CountAllBackends())
+	return helper.Equals(responseHistorySize, e.CountBackendsNonOmit())
 }
 
-// AbortSequencial checks if the given statusCode is present in the abortIfStatusCodes
+// Abort checks if the given statusCode is present in the abortIfStatusCodes
 // slice of the Endpoint struct. If the abortIfStatusCodes slice is nil, it returns
 // true if the statusCode is greater than or equal to http.StatusBadRequest, otherwise false.
 // Otherwise, it returns true if the given statusCode is present in the abortIfStatusCodes
 // slice, otherwise false.
-func (e *Endpoint) AbortSequencial(statusCode int) bool {
+func (e *Endpoint) Abort(statusCode int) bool {
 	if helper.IsNil(e.abortIfStatusCodes) {
 		return helper.IsGreaterThanOrEqual(statusCode, http.StatusBadRequest)
 	}
 	return helper.Contains(e.abortIfStatusCodes, statusCode)
 }
 
-// ResponseEncode returns the value of the responseEncode field in the Endpoint struct.
-func (e *Endpoint) ResponseEncode() enum.ResponseEncode {
-	return e.responseEncode
-}
-
-// AggregateResponses returns the value of the aggregateResponses field in the Endpoint struct.
-func (e *Endpoint) AggregateResponses() bool {
-	return e.aggregateResponses
+// HttpResponse returns the httpResponse field of the Endpoint struct.
+func (e *Endpoint) Response() *EndpointResponse {
+	return e.response
 }
 
 // AbortIfStatusCodes returns the value of the abortIfStatusCodes field in the Endpoint struct.
@@ -246,4 +263,28 @@ func (e *Endpoint) AbortIfStatusCodes() *[]int {
 func (e *Endpoint) Resume() string {
 	return fmt.Sprintf("%s --> \"%s\" [beforeware: %v afterware: %v backends: %v modifiers: %v]", e.method, e.path,
 		e.CountBeforewares(), e.CountAfterwares(), e.CountBackends(), e.CountModifiers())
+}
+
+func (r EndpointResponse) HasEncode() bool {
+	return r.encode.IsEnumValid()
+}
+
+func (r EndpointResponse) Encode() enum.Encode {
+	return r.encode
+}
+
+func (r EndpointResponse) Aggregate() bool {
+	return r.aggregate
+}
+
+func (r EndpointResponse) OmitEmpty() bool {
+	return r.omitEmpty
+}
+
+func (r EndpointResponse) HasNomenclature() bool {
+	return r.nomenclature.IsEnumValid()
+}
+
+func (r EndpointResponse) Nomenclature() enum.Nomenclature {
+	return r.nomenclature
 }

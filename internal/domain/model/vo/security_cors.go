@@ -91,21 +91,21 @@ func (s SecurityCors) AllowMethods(method string) (err error) {
 
 // AllowHeaders checks if the requested HTTP headers are allowed based on the allowHeaders field in the SecurityCors struct.
 // If the allowHeaders field is empty, it returns nil.
-// Otherwise, it iterates over the headers of the request and adds any headers that are not mapped in the allowHeaders list,
+// Otherwise, it iterates over the headers of the httpRequest and adds any headers that are not mapped in the allowHeaders list,
 // except for the X-Forwarded-For and X-Trace-Id headers.
 // If there are headers that are not allowed, it returns an error "Headers contains not mapped fields on security-cors.allow-headers"
 // along with the list of headers that are not allowed.
 // If all headers are allowed, it returns nil.
-func (s SecurityCors) AllowHeaders(header Header) (err error) {
+func (s SecurityCors) AllowHeaders(headerVO Header) (err error) {
 	// verificamos se na configuração security-cors.allow-headers ta vazia
 	if helper.IsEmpty(s.allowHeaders) {
 		return nil
 	}
 	// inicializamos os headers não permitidos
 	var headersNotAllowed []string
-	// iteramos o header da requisição para verificar os headers que contain
-	for key := range header {
-		// caso o campo do header não esteja mapeado na lista security-cors.allow-headers e nao seja X-Forwarded-For
+	// iteramos o headerVO da requisição para verificar os headers que contain
+	for key := range headerVO {
+		// caso o campo do headerVO não esteja mapeado na lista security-cors.allow-headers e nao seja X-Forwarded-For
 		// e nem X-Trace-Id adicionamos na lista
 		if helper.NotContains(s.allowHeaders, key) && helper.IsNotEqualToIgnoreCase(key, consts.XForwardedFor) &&
 			helper.IsNotEqualToIgnoreCase(key, consts.XTraceId) {

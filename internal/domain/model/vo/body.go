@@ -18,99 +18,127 @@ package vo
 
 import (
 	"bytes"
+	"compress/gzip"
 	"fmt"
-	"github.com/GabrielHCataldo/go-errors/errors"
 	"github.com/GabrielHCataldo/go-helper/helper"
+	"github.com/GabrielHCataldo/go-logger/logger"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/enum"
 	"github.com/clbanning/mxj/v2"
+	"github.com/iancoleman/strcase"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
+	"io"
+	"regexp"
 	"strings"
-	"time"
 )
 
-// Body represents the content and format of an HTTP request or response body.
+// Body represents the content and format of an HTTP httpRequest or httpResponse body.
 type Body struct {
 	// contentType is an enumeration type that represents the format of the content.
 	// It can have the following values: ContentTypeText, ContentTypeJson.
 	contentType enum.ContentType
-	// value represents the content of an HTTP request or response body. It is stored as a bytes.Buffer object.
+	// value represents the content of an HTTP httpRequest or httpResponse body. It is stored as a bytes.Buffer object.
 	value *bytes.Buffer
 }
 
-// CacheBody represents the caching value of an HTTP response body.
-type CacheBody struct {
-	// ContentType represents the format of the content.
-	ContentType enum.ContentType `json:"content-type,omitempty"`
-	// Value represents the caching content of an HTTP response body.
-	// It is a pointer to the CacheBodyValue type, which is an alias for bytes.Buffer.
-	// The value is nullable and is omitted in JSON if it is empty.
-	Value *CacheBodyValue `json:"value,omitempty"`
+func NewBodyByContentType(contentType string, buffer *bytes.Buffer) *Body {
+	return NewBody(contentType, "", buffer)
 }
 
-// CacheBodyValue is an alias for bytes.Buffer type used to represent the caching value
-// of an HTTP response body. It contains methods to convert the value to different
-// representations, such as string and JSON.
-type CacheBodyValue bytes.Buffer
-
-// NewBody creates a new instance of Body based on the provided contentType and buffer.
-// If the buffer is empty, it returns nil.
-// If the contentType contains the string "application/json", it sets the contentTypeEnum to ContentTypeJson.
-// If the contentType contains the string "text/plain", it sets the contentTypeEnum to ContentTypeText.
-// Otherwise, the contentTypeEnum remains uninitialized.
-// It returns a pointer to the constructed Body instance.
-func NewBody(contentType string, buffer *bytes.Buffer) *Body {
+func NewBody(contentType, contentEncoding string, buffer *bytes.Buffer) *Body {
 	// se vazio, retornamos vazio
 	if helper.IsEmpty(buffer.Bytes()) {
 		return nil
 	}
-	// montamos o body
+
+	// instanciamos o content type como enum com base na string
+	contentTypeEnum := enum.ContentTypeFromString(contentType)
+	// instanciamos o content encoding como enum com base na string
+	contentEncodingEnum := enum.ContentEncodingFromString(contentEncoding)
+
+	// verificamos se tem encode valido, se tiver, chamamos a func para trabalhar em cima do encode
+	if contentEncodingEnum.IsEnumValid() {
+		return newBodyByContentEncoding(contentTypeEnum, contentEncodingEnum, buffer)
+	}
+
+	// montamos o body com o valor original
 	return &Body{
-		contentType: enum.ContentTypeFromString(contentType),
+		contentType: contentTypeEnum,
 		value:       buffer,
 	}
 }
 
-// newErrorBody creates a new instance of Body as an error response body.
-// It takes a path string and an error object as arguments.
-// First, it obtains the error details using the errors.Details function from the go-errors library.
-// If the detailsErr is nil, it returns nil.
-// Then, it constructs the errorResponseBody object using the error details and the provided path.
-// After that, it creates the Body instance by setting the contentType to ContentTypeJson and
-// converting the errorResponseBody object to a Buffer using the helper.SimpleConvertToBuffer function.
-// Finally, it returns a pointer to the constructed Body instance.
-func newErrorBody(path string, err error) *Body {
-	// obtemos o detalhe do erro usando a lib go-errors
-	detailsErr := errors.Details(err)
-	if helper.IsNil(detailsErr) {
+func newBodyByContentEncoding(contentType enum.ContentType, contentEncoding enum.ContentEncoding, buffer *bytes.Buffer,
+) *Body {
+	// verificamos se o encoding é valido, caso não seja apenas retornamos sem trabalhar em cima do encode
+	if !contentEncoding.IsEnumValid() {
+		return &Body{
+			contentType: contentType,
+			value:       buffer,
+		}
+	}
+	// criamos o reader gzip a partir do buffer recebido
+	reader, err := gzip.NewReader(buffer)
+	if helper.IsNotNil(err) {
+		logger.Warning("Error creating gzip reader for body:", err)
 		return nil
 	}
-
-	// com os detalhes, construímos o objeto de retorno padrão de erro da API Gateway
-	errResponseBody := errorResponseBody{
-		File:      detailsErr.GetFile(),
-		Line:      detailsErr.GetLine(),
-		Endpoint:  path,
-		Message:   detailsErr.GetMessage(),
-		Timestamp: time.Now(),
+	defer reader.Close()
+	// lemos o reader gerando os bytes
+	unzipBytes, err := io.ReadAll(reader)
+	if helper.IsNotNil(err) {
+		logger.Warning("Error read gzip bytes body:", err)
+		return nil
 	}
-
-	// construímos o body com esse objeto
+	// montamos o body com o valor descompactado
 	return &Body{
-		contentType: enum.ContentTypeJson,
-		value:       helper.SimpleConvertToBuffer(errResponseBody),
+		contentType: contentType,
+		value:       bytes.NewBuffer(unzipBytes),
 	}
 }
 
-// newBodyFromIndexAndBackendResponse creates a new instance of Body based on the provided index and backendResponseVO.
-// It constructs a default response body with initial fields: "ok" and "code" populated from backendResponseVO.
+func newBodyByString(s string) *Body {
+	if helper.IsEmpty(s) {
+		return nil
+	}
+	return &Body{
+		contentType: enum.ContentTypeText,
+		value:       helper.SimpleConvertToBuffer(s),
+	}
+}
+
+func newBodyByJson(a any) *Body {
+	if helper.IsNil(a) || helper.IsEmpty(a) {
+		return nil
+	}
+	return &Body{
+		contentType: enum.ContentTypeJson,
+		value:       helper.SimpleConvertToBuffer(a),
+	}
+}
+
+func newBodyByError(path string, err error) *Body {
+	// construímos o errorBody a partir do erro e path
+	errBody := newErrorBody(path, err)
+	if helper.IsNil(errBody) {
+		return nil
+	}
+	// construímos o body com esse objeto
+	return &Body{
+		contentType: enum.ContentTypeJson,
+		value:       helper.SimpleConvertToBuffer(errBody),
+	}
+}
+
+// newBodyByHttpBackendResponse creates a new instance of Body based on the provided index and backendResponseVO.
+// It constructs a default httpResponse body with initial fields: "ok" and "code" populated from backendResponseVO.
 // The constructed body has a content type of ContentTypeJson and a value of the JSON representation of the initial fields.
 // If backendResponseVO's body is nil, it returns the default body. Otherwise, it aggregates the body with the initial fields.
 // The aggregation behavior depends on the value of groupResponse field in backendResponseVO.
 // If groupResponse is true, it aggregates the body with the key generated from backendResponseVO's key method and body.
 // Otherwise, it aggregates all the JSON fields of the body into the bodyHistory.
 // It returns the constructed body.
-func newBodyFromIndexAndBackendResponse(index int, backendResponseVO *backendResponse) *Body {
+func newBodyByHttpBackendResponse(index int, backendResponseVO *httpBackendResponse) *Body {
 	// construímos o body padrão de resposta, com os campos iniciais
 	bodyJson := "{}"
 	bodyJson, _ = sjson.Set(bodyJson, "ok", backendResponseVO.Ok())
@@ -128,7 +156,7 @@ func newBodyFromIndexAndBackendResponse(index int, backendResponseVO *backendRes
 	}
 
 	// caso seja string ou slice agregamos na chave, caso contrario, iremos agregar todos os campos json no bodyHistory
-	if backendResponseVO.GroupResponse() {
+	if backendResponseVO.GroupByType() {
 		body = body.AggregateByKey(backendResponseVO.Key(index), backendResponseVO.Body())
 	} else {
 		body = body.Aggregate(backendResponseVO.Body())
@@ -137,35 +165,27 @@ func newBodyFromIndexAndBackendResponse(index int, backendResponseVO *backendRes
 	return body
 }
 
-// newBodyFromBackendResponse creates a new instance of Body based on the provided backendResponseVO.
-// If the backendResponseVO's body is nil, it returns nil.
-// If backendResponseVO's group field is false, it returns backendResponseVO's body.
-// It constructs an empty body with contentType set to enum.ContentTypeJson and value "{}".
-// It returns the aggregated body with the specified key from backendResponseVO and the constructed body.
-func newBodyFromBackendResponse(backendResponseVO *backendResponse) *Body {
-	// se for nil ja retornamos
-	if helper.IsNil(backendResponseVO.Body()) {
+func newBodyAggregateByKey(key string, anotherBody *Body) *Body {
+	// se o body for nil retornamos nil
+	if helper.IsNil(anotherBody) {
 		return nil
 	}
-	// verificamos se backendResponse quer ser agrupado com o campo extra-config
-	if !backendResponseVO.Group() {
-		return backendResponseVO.Body()
-	}
-	// construímos o body vazio para poder agregar logo após
+
+	// construímos o body vazio
 	body := &Body{
 		contentType: enum.ContentTypeJson,
 		value:       helper.SimpleConvertToBuffer("{}"),
 	}
-	// retornamos o body agregado com a chave
-	return body.AggregateByKey(backendResponseVO.Key(-1), backendResponseVO.Body())
+	// agregamos na chave indicada o valor do outro body
+	return body.AggregateByKey(key, anotherBody)
 }
 
-// newSliceBody creates a new instance of Body based on the provided slice of *Body.
+// newBodyBySlice creates a new instance of Body based on the provided slice of *Body.
 // If the slice is empty, it returns nil.
 // The contentType of the new Body instance is set to ContentTypeJson.
 // The value of the new Body instance is obtained by converting the slice to a bytes.Buffer object using helper.SimpleConvertToBuffer.
 // It returns a pointer to the constructed Body instance.
-func newSliceBody(sliceOfBodies []*Body) *Body {
+func newBodyBySlice(sliceOfBodies []*Body) *Body {
 	if helper.IsEmpty(sliceOfBodies) {
 		return nil
 	}
@@ -175,56 +195,18 @@ func newSliceBody(sliceOfBodies []*Body) *Body {
 	}
 }
 
-// newBodyFromCacheBody creates a new instance of Body based on the provided CacheBody.
+// newBodyByCache creates a new instance of Body based on the provided CacheBody.
 // If the cacheBody parameter is nil, it returns nil.
 // Otherwise, it sets the contentType field of the new Body instance to the ContentType field of the cacheBody parameter.
 // It converts the Value field of the cacheBody parameter to a bytes.Buffer pointer and assigns it to the value field of the new Body instance.
 // It returns a pointer to the newly created Body instance.
-func newBodyFromCacheBody(cacheBodyVO *CacheBody) *Body {
+func newBodyByCache(cacheBodyVO *CacheBody) *Body {
 	if helper.IsNil(cacheBodyVO) {
 		return nil
 	}
 	return &Body{
 		contentType: cacheBodyVO.ContentType,
 		value:       (*bytes.Buffer)(cacheBodyVO.Value),
-	}
-}
-
-// newCacheBody creates a new instance of CacheBody based on the provided body.
-// If the body is nil, it returns nil.
-// Otherwise, it sets the ContentType field of CacheBody based on the ContentType method of body.
-// It sets the Value field of CacheBody by calling newCacheBodyValue with the Value method of body as an argument.
-// It returns a pointer to the constructed CacheBody instance.
-func newCacheBody(bodyVO *Body) *CacheBody {
-	if helper.IsNil(bodyVO) {
-		return nil
-	}
-	return &CacheBody{
-		ContentType: bodyVO.ContentType(),
-		Value:       newCacheBodyValue(bodyVO.Value()),
-	}
-}
-
-// newCacheBodyValue creates a new instance of CacheBodyValue based on the provided buffer.
-// If the buffer is nil, it returns nil.
-// Otherwise, it converts the buffer to a pointer of type *CacheBodyValue.
-// It returns a pointer to the constructed CacheBodyValue instance.
-func newCacheBodyValue(buffer *bytes.Buffer) *CacheBodyValue {
-	if helper.IsNil(buffer) {
-		return nil
-	}
-	return (*CacheBodyValue)(buffer)
-}
-
-// SetValue returns a new instance of Body with the provided value.
-// The new Body instance will have the same contentType as the original Body instance.
-func (b *Body) SetValue(value *bytes.Buffer) *Body {
-	if helper.IsEmpty(value.Bytes()) {
-		return nil
-	}
-	return &Body{
-		contentType: b.contentType,
-		value:       value,
 	}
 }
 
@@ -264,15 +246,11 @@ func (b *Body) AggregateByKey(key string, anotherBody *Body) *Body {
 		return b
 	}
 
-	var value any = anotherBody
-	if anotherBody.ContentType() == enum.ContentTypeText {
-		value = anotherBody.String()
-	}
-
-	mergedBodyStr := setJsonKeyValue(b.String(), key, value)
+	value := anotherBody.Raw()
+	mergedBodyRaw := setJsonKeyValue(b.Raw(), key, value)
 	return &Body{
 		contentType: b.contentType,
-		value:       helper.SimpleConvertToBuffer(mergedBodyStr),
+		value:       helper.SimpleConvertToBuffer(mergedBodyRaw),
 	}
 }
 
@@ -330,7 +308,7 @@ func (b *Body) Xml() []byte {
 
 // BytesByContentType returns the byte representation of the `Body` instance
 // based on the provided `contentType`.
-// If the `contentType` is `enum.ContentTypeJson`, it returns the result of `b.Json()`.
+// If the `contentType` is `enum.ContentTypeJson`, it returns the result of `b.Map()`.
 // If the `contentType` is `enum.ContentTypeXml`, it returns the result of `b.Xml()`.
 // For any other `contentType`, it returns the result of `b.Bytes()`.
 func (b *Body) BytesByContentType(contentType enum.ContentType) []byte {
@@ -354,6 +332,10 @@ func (b *Body) Bytes() []byte {
 // The resulting string representation of the Body is returned.
 func (b *Body) String() string {
 	return b.value.String()
+}
+
+func (b *Body) Raw() string {
+	return parseStringValueToRaw(b.String())
 }
 
 // MarshalJSON marshals the value of the Body instance into JSON format.
@@ -386,10 +368,10 @@ func (b *Body) IsNotJson() bool {
 // If the contentType is neither ContentTypeText nor ContentTypeJson,
 // the Body instance will not be modified, and it will be returned as is.
 // The method returns the updated Body instance and an error if any.
-func (b *Body) Add(key string, value any) (*Body, error) {
+func (b *Body) Add(key string, value string) (*Body, error) {
 	switch b.contentType {
 	case enum.ContentTypeText:
-		return b.addString(helper.SimpleConvertToString(value)), nil
+		return b.addString(value), nil
 	case enum.ContentTypeJson:
 		return b.addJson(key, value)
 	default:
@@ -406,10 +388,10 @@ func (b *Body) Add(key string, value any) (*Body, error) {
 //   - For other contentTypes, the Body instance is returned unchanged.
 //
 // An error is returned if there is any issue with appending the key-value pair.
-func (b *Body) Append(key string, value any) (*Body, error) {
+func (b *Body) Append(key string, value string) (*Body, error) {
 	switch b.contentType {
 	case enum.ContentTypeText:
-		return b.appendString(helper.SimpleConvertToString(value)), nil
+		return b.appendString(value), nil
 	case enum.ContentTypeJson:
 		return b.appendJson(key, value)
 	default:
@@ -423,10 +405,10 @@ func (b *Body) Append(key string, value any) (*Body, error) {
 // If the contentType is ContentTypeJson, Set calls setJson.
 // If the contentType is neither ContentTypeText nor ContentTypeJson, Set returns the original Body instance.
 // If an error occurs during the set operation, Set returns an error.
-func (b *Body) Set(key string, value any) (*Body, error) {
+func (b *Body) Set(key string, value string) (*Body, error) {
 	switch b.contentType {
 	case enum.ContentTypeText:
-		return b.setString(helper.SimpleConvertToString(value)), nil
+		return b.setString(value), nil
 	case enum.ContentTypeJson:
 		return b.setJson(key, value)
 	default:
@@ -440,10 +422,10 @@ func (b *Body) Set(key string, value any) (*Body, error) {
 // If the content type is ContentTypeJson, the value is replaced in the JSON object.
 // If the content type is not ContentTypeText or ContentTypeJson, the same Body instance is returned.
 // The method returns the modified Body instance and an error if any occurred during the replacement process.
-func (b *Body) Replace(key string, value any) (*Body, error) {
+func (b *Body) Replace(key string, value string) (*Body, error) {
 	switch b.contentType {
 	case enum.ContentTypeText:
-		return b.replaceString(key, helper.SimpleConvertToString(value)), nil
+		return b.replaceString(key, value), nil
 	case enum.ContentTypeJson:
 		return b.replaceJson(key, value)
 	default:
@@ -456,10 +438,10 @@ func (b *Body) Replace(key string, value any) (*Body, error) {
 // If the Body has ContentTypeJson, it renames the key in the JSON data.
 // For any other content type, it returns the original Body.
 // The method returns the modified Body and any error encountered during renaming.
-func (b *Body) Rename(key string, value any) (*Body, error) {
+func (b *Body) Rename(key string, value string) (*Body, error) {
 	switch b.contentType {
 	case enum.ContentTypeText:
-		return b.replaceString(key, helper.SimpleConvertToString(value)), nil
+		return b.replaceString(key, value), nil
 	case enum.ContentTypeJson:
 		return b.renameJson(key, value)
 	default:
@@ -485,35 +467,51 @@ func (b *Body) Delete(key string) (*Body, error) {
 	}
 }
 
-// String returns the string representation of the CacheBodyValue instance.
-// It calls the String method of the underlying bytes.Buffer type to get the string representation.
-func (c *CacheBodyValue) String() string {
-	return (*bytes.Buffer)(c).String()
+// Filter returns a new instance of Body with the filtered content, based on the provided keys.
+// The new Body instance will have the same contentType as the original Body instance.
+// If the contentType is ContentTypeJson, it calls the filterJson method to perform the filtering.
+// If the contentType is ContentTypeText, it calls the filterText method to perform the filtering.
+// If the contentType is neither ContentTypeJson nor ContentTypeText, it returns the original Body instance.
+func (b *Body) Filter(keys []string) *Body {
+	switch b.contentType {
+	case enum.ContentTypeJson:
+		return b.filterJson(keys)
+	case enum.ContentTypeText:
+		return b.filterText(keys)
+	default:
+		return b
+	}
 }
 
-// Bytes returns the byte slice representation of the CacheBodyValue instance.
-// It calls the Bytes method of the underlying bytes.Buffer type to get the byte slice representation.
-func (c *CacheBodyValue) Bytes() []byte {
-	return (*bytes.Buffer)(c).Bytes()
+// OmitEmpty returns a new instance of Body with empty values omitted.
+// The new Body instance will have the same contentType as the original Body instance.
+// If the contentType is ContentTypeJson, omitEmptyJson() will be called.
+// If the contentType is ContentTypeText, omitEmptyText() will be called.
+// If the contentType is neither ContentTypeJson nor ContentTypeText, the original Body instance will be returned.
+func (b *Body) OmitEmpty() *Body {
+	switch b.contentType {
+	case enum.ContentTypeJson:
+		return b.omitEmptyJson()
+	case enum.ContentTypeText:
+		return b.omitEmptyText()
+	default:
+		return b
+	}
 }
 
-// MarshalJSON returns the JSON encoding of the CacheBodyValue instance.
-// The JSON encoding is obtained by calling the String method of the
-// underlying bytes.Buffer type to retrieve the string representation,
-// and then encoding it using json.Marshal.
-// It returns a byte slice representing the JSON encoding and an error,
-// if any occurred during the encoding process.
-func (c *CacheBodyValue) MarshalJSON() ([]byte, error) {
-	return c.Bytes(), nil
-}
-
-// UnmarshalJSON decodes the JSON data into a string and writes
-// the string to the underlying bytes.Buffer type.
-// It returns an error if there is an issue with decoding or writing
-// the string to the buffer.
-func (c *CacheBodyValue) UnmarshalJSON(data []byte) error {
-	_, err := (*bytes.Buffer)(c).Write(data)
-	return err
+// ToCase converts the keys in the Body's value to the specified case format.
+// If the Body's content type is already ContentTypeText, it returns the Body instance itself.
+// Otherwise, it converts the keys in the Body's value to the specified case format and returns a new Body instance.
+// The new Body instance will have the same content type as the original Body instance.
+func (b *Body) ToCase(nomenclature enum.Nomenclature) *Body {
+	if !helper.IsNotEqualTo(b.contentType, enum.ContentTypeText) {
+		return b
+	}
+	jsonStr := convertKeysToCase(b.String(), nomenclature)
+	return &Body{
+		contentType: b.contentType,
+		value:       helper.SimpleConvertToBuffer(jsonStr),
+	}
 }
 
 // addString appends the provided value to the existing value of the Body instance.
@@ -539,26 +537,27 @@ func (b *Body) addString(value string) *Body {
 // If the key does not exist, it adds a new key-value pair to the JSON-encoded Body string.
 // It returns a new Body instance with the modified value and the contentType of the original Body instance.
 // If any error occurs during the modification process, it returns nil and the error.
-func (b *Body) addJson(key string, value any) (*Body, error) {
+func (b *Body) addJson(key string, value string) (*Body, error) {
 	if helper.IsEmpty(key) {
 		return b, nil
 	}
 
-	bodyStr := b.String()
+	bodyRaw := b.Raw()
 
 	var modifiedValue string
 	var err error
 
-	result := gjson.Get(bodyStr, key)
-	if result.Exists() {
-		modifiedValue, err = sjson.Set(bodyStr, key, []any{result.Value(), value})
+	result := gjson.Get(bodyRaw, key)
+	if result.Exists() && result.Type != gjson.Null {
+		modifiedValue, err = sjson.SetRaw(bodyRaw, key, aggregateJsonValue(result, value))
 	} else {
-		modifiedValue, err = sjson.Set(bodyStr, key, value)
+		modifiedValue, err = sjson.SetRaw(bodyRaw, key, parseStringValueToRaw(value))
 	}
 
 	if helper.IsNotNil(err) {
 		return nil, err
 	}
+
 	return &Body{
 		contentType: b.ContentType(),
 		value:       helper.SimpleConvertToBuffer(modifiedValue),
@@ -588,19 +587,19 @@ func (b *Body) appendString(value string) *Body {
 // Returns a new instance of Body.
 // The new Body instance will have the same contentType as the original Body instance.
 // If an error occurs during modification, a nil Body instance and the error are returned.
-func (b *Body) appendJson(key string, value any) (*Body, error) {
+func (b *Body) appendJson(key string, value string) (*Body, error) {
 	if helper.IsEmpty(key) {
 		return b, nil
 	}
 
-	bodyStr := b.String()
+	bodyRaw := b.Raw()
 
-	result := gjson.Get(bodyStr, key)
-	if !result.Exists() {
+	result := gjson.Get(bodyRaw, key)
+	if !result.Exists() || result.Type == gjson.Null {
 		return b, nil
 	}
 
-	modifiedValue, err := sjson.Set(bodyStr, key, []any{result.Value(), value})
+	modifiedValue, err := sjson.SetRaw(bodyRaw, key, aggregateJsonValue(result, value))
 	if helper.IsNotNil(err) {
 		return nil, err
 	}
@@ -630,14 +629,14 @@ func (b *Body) setString(value string) *Body {
 // The value can be set into a JSON body or a text body.
 // For a text body, the entire body will be set to the converted value.
 // If the content type is neither JSON nor text, it returns the original Body instance.
-func (b *Body) setJson(key string, value any) (*Body, error) {
+func (b *Body) setJson(key string, value string) (*Body, error) {
 	if helper.IsEmpty(key) {
 		// todo: futuramente podemos setar o body inteiro de value caso esteja nulo, isso seria
 		//  legal pois, poderia mudar totalmente o body a partir de um valor
 		return b, nil
 	}
 
-	modifiedValue, err := sjson.Set(b.String(), key, value)
+	modifiedValue, err := sjson.SetRaw(b.Raw(), key, parseStringValueToRaw(value))
 	if helper.IsNotNil(err) {
 		return nil, err
 	}
@@ -652,7 +651,7 @@ func (b *Body) setJson(key string, value any) (*Body, error) {
 // The new Body instance will have the same contentType as the original Body instance.
 func (b *Body) replaceString(key, value string) *Body {
 	if helper.IsEmpty(key) {
-		// todo: imprimir log de atenção?
+		logger.Warning("Replace ignored as the modifier key is empty!")
 		return b
 	}
 
@@ -667,17 +666,17 @@ func (b *Body) replaceString(key, value string) *Body {
 // If the key is empty or the key does not exist in the JSON body, it returns the original body instance.
 // If an error occurs while modifying the JSON body, it returns nil and the error.
 // The new Body instance will have the same contentType as the original Body instance.
-func (b *Body) replaceJson(key string, value any) (*Body, error) {
+func (b *Body) replaceJson(key string, value string) (*Body, error) {
 	if helper.IsEmpty(key) {
 		return b, nil
 	}
 
-	result := gjson.Get(b.String(), key)
+	result := gjson.Get(b.Raw(), key)
 	if !result.Exists() {
 		return b, nil
 	}
 
-	modifiedValue, err := sjson.Set(b.String(), key, value)
+	modifiedValue, err := sjson.SetRaw(b.Raw(), key, parseStringValueToRaw(value))
 	if helper.IsNotNil(err) {
 		return nil, err
 	}
@@ -696,28 +695,28 @@ func (b *Body) replaceJson(key string, value any) (*Body, error) {
 // The method modifies the JSON body by deleting the oldKey and setting the newKey with the same value.
 // The method returns a new instance of Body with the modified JSON body and the same contentType as the original Body instance.
 // If there is an error during the modification of the JSON body, the method returns nil and the error.
-func (b *Body) renameJson(oldKey string, newKey any) (*Body, error) {
+func (b *Body) renameJson(oldKey, newKey string) (*Body, error) {
 	if helper.IsEmpty(oldKey) {
 		return b, nil
 	}
 
-	newKeyStr := helper.SimpleConvertToString(newKey)
-	bodyStr := b.String()
+	bodyRaw := b.Raw()
 
-	result := gjson.Get(bodyStr, oldKey)
+	result := gjson.Get(bodyRaw, oldKey)
 	if !result.Exists() {
 		return b, nil
 	}
 
-	modifiedValue, err := sjson.Delete(bodyStr, oldKey)
+	modifiedValue, err := sjson.Delete(bodyRaw, oldKey)
 	if helper.IsNotNil(err) {
 		return nil, err
 	}
 
-	modifiedValue, err = sjson.Set(modifiedValue, newKeyStr, result.Value())
+	modifiedValue, err = sjson.SetRaw(modifiedValue, newKey, parseValueToRaw(result))
 	if helper.IsNotNil(err) {
 		return nil, err
 	}
+
 	return &Body{
 		contentType: b.contentType,
 		value:       helper.SimpleConvertToBuffer(modifiedValue),
@@ -759,7 +758,7 @@ func (b *Body) merge(anotherBody *Body) *Body {
 	}
 	switch b.contentType {
 	case enum.ContentTypeJson:
-		return b.mergeJSON(anotherBody.String())
+		return b.mergeJSON(anotherBody.Raw())
 	case enum.ContentTypeText:
 		return b.mergeString(anotherBody.String())
 	}
@@ -778,17 +777,12 @@ func (b *Body) mergeString(str string) *Body {
 	}
 }
 
-// mergeJSON merges the provided JSON string into the existing JSON string of the Body instance.
-// The value of each key in the provided JSON string is set in the existing JSON string.
-// If the key already exists in the existing JSON string, the value is appended to the existing array of values under that key.
-// If the key does not exist, it is added with the provided value.
-// The updated JSON string is returned in a new Body instance with the same contentType as the original Body instance.
 func (b *Body) mergeJSON(jsonStr string) *Body {
-	merged := b.String()
-	parsedJsonB := gjson.Parse(jsonStr)
-	parsedJsonB.ForEach(func(key, value gjson.Result) bool {
-		merged = setJsonKeyValue(merged, key.String(), value.Value())
-		return true // continue iterando
+	merged := b.Raw()
+	parsedJsonStr := gjson.Parse(jsonStr)
+	parsedJsonStr.ForEach(func(key, value gjson.Result) bool {
+		merged = setJsonKeyValue(merged, key.String(), parseValueToRaw(value))
+		return true
 	})
 	return &Body{
 		contentType: b.ContentType(),
@@ -796,20 +790,230 @@ func (b *Body) mergeJSON(jsonStr string) *Body {
 	}
 }
 
-// setJsonKeyValue sets the value of a key in a JSON string.
-// If the key already exists in the JSON string, the value is appended to the existing array of values under that key.
-// If the key does not exist, it is added with the provided value.
-// The updated JSON string is returned.
-func setJsonKeyValue(jsonStr, key string, value any) string {
-	// Se a key já existe no JSON A
-	if gjson.Get(jsonStr, key).Exists() {
-		jsonStr, _ = sjson.Set(jsonStr, key, []any{
-			gjson.Get(jsonStr, key).Value(),
-			value,
-		})
-	} else {
-		// Caso contrário, apenas adiciona a key
-		jsonStr, _ = sjson.Set(jsonStr, key, value)
+func (b *Body) filterJson(keys []string) *Body {
+	// se for vazio ja retornamos
+	if helper.IsEmpty(keys) {
+		return b
 	}
+
+	// damos o parse do json do body
+	jsonParsed := gjson.Parse(b.String())
+	// se for array chamamos o filterJsonArray
+	if jsonParsed.IsArray() {
+		return b.filterJsonArray(keys, jsonParsed)
+	}
+
+	// se for um objeto chamamos o filterJsonObject
+	return b.filterJsonObject(keys, jsonParsed)
+}
+
+// filterText returns a new instance of Body with the text filtered based on the provided keys.
+// The new Body instance will have the same contentType as the original Body instance.
+// The filtering process involves finding all words and spaces in the text and keeping only those that are in the keys list.
+// The filtered text is then used to construct the body of the new instance.
+// Note that the regular expression used to find words and spaces is `[\w-]+|[\s\p{P}]+`.
+func (b *Body) filterText(keys []string) *Body {
+	// se os keys tiverem vazio desconsideramos
+	if helper.IsEmpty(keys) {
+		return b
+	}
+
+	// encontrar todas as palavras e espaços
+	re := regexp.MustCompile(`[\w-]+|[\s\p{P}]+`)
+	wordsAndSpaces := re.FindAllString(b.String(), -1)
+
+	// iteremos e mantemos o trecho que esteja dentro da lista
+	var filtered []string
+	for _, word := range wordsAndSpaces {
+		if helper.Contains(keys, word) {
+			filtered = append(filtered, word)
+		}
+	}
+
+	// construímos o body com o novo texto filtrado
+	return &Body{
+		contentType: b.contentType,
+		value:       helper.SimpleConvertToBuffer(strings.Join(filtered, "")),
+	}
+}
+
+func (b *Body) filterJsonObject(keys []string, jsonParsed gjson.Result) *Body {
+	filteredJson := "{}"
+
+	for _, key := range keys {
+		value := jsonParsed.Get(key)
+		if !value.Exists() {
+			continue
+		}
+		filteredJson, _ = sjson.SetRaw(filteredJson, key, parseValueToRaw(value))
+	}
+
+	return &Body{
+		contentType: b.contentType,
+		value:       helper.SimpleConvertToBuffer(filteredJson),
+	}
+}
+
+func (b *Body) filterJsonArray(keys []string, jsonArray gjson.Result) *Body {
+	filteredJson := "[]"
+
+	jsonArray.ForEach(func(key, value gjson.Result) bool {
+		if value.IsObject() {
+			filteredObject := b.filterJsonObject(keys, value)
+			filteredJson, _ = sjson.SetRaw(filteredJson, "-1", filteredObject.Raw())
+		} else if value.IsArray() {
+			filteredObject := b.filterJsonArray(keys, value)
+			filteredJson, _ = sjson.SetRaw(filteredJson, "-1", filteredObject.Raw())
+		} else {
+			filteredJson, _ = sjson.SetRaw(filteredJson, "-1", parseValueToRaw(value))
+		}
+		return true
+	})
+
+	return &Body{
+		contentType: b.contentType,
+		value:       helper.SimpleConvertToBuffer(filteredJson),
+	}
+}
+
+// omitEmptyJson returns a new instance of Body with all empty fields removed from the JSON string.
+// It uses the removeAllEmptyFields function to remove empty fields recursively.
+// The new Body instance will have the same contentType as the original Body instance.
+// The original JSON string is modified in-place to remove the empty fields.
+func (b *Body) omitEmptyJson() *Body {
+	jsonStr := removeAllEmptyFields(b.Raw())
+	return &Body{
+		contentType: b.contentType,
+		value:       helper.SimpleConvertToBuffer(jsonStr),
+	}
+}
+
+// omitEmptyText returns a new instance of Body with empty text omitted.
+// The new Body instance will have the same contentType as the original Body instance.
+//
+// If the contentType is ContentTypeJson, omitEmptyJson() will be called.
+// If the contentType is ContentTypeText, omitEmptyText() will be called.
+// If the contentType is neither ContentTypeJson nor ContentTypeText, the original Body instance will be returned.
+func (b *Body) omitEmptyText() *Body {
+	s := helper.CleanAllRepeatSpaces(b.String())
+	return &Body{
+		contentType: b.contentType,
+		value:       helper.SimpleConvertToBuffer(s),
+	}
+}
+
+func setJsonKeyValue(jsonStr, key string, value string) string {
+	result := gjson.Get(jsonStr, key)
+
+	// Se a key já existe no JSON A
+	if result.Exists() && result.Type != gjson.Null {
+		jsonStr, _ = sjson.SetRaw(jsonStr, key, aggregateJsonValue(result, value))
+	} else {
+		jsonStr, _ = sjson.SetRaw(jsonStr, key, parseStringValueToRaw(value))
+	}
+
 	return jsonStr
+}
+
+func parseValueToRaw(value gjson.Result) string {
+	if value.Type == gjson.Null {
+		return "null"
+	}
+	return value.Raw
+}
+
+func parseStringValueToRaw(value string) string {
+	parse := gjson.Parse(value)
+	if parse.Type == gjson.Null {
+		return "null"
+	}
+	return parse.Raw
+}
+
+func aggregateJsonValue(value gjson.Result, newValue string) string {
+	var newArray []gjson.Result
+
+	if value.IsArray() {
+		newArray = value.Array()
+	} else {
+		newArray = []gjson.Result{value}
+	}
+
+	newParsedValue := gjson.Parse(newValue)
+
+	if newParsedValue.IsArray() {
+		newArray = append(newArray, newParsedValue.Array()...)
+	} else {
+		newArray = append(newArray, newParsedValue)
+	}
+
+	newArrayJson := "["
+	for i, v := range newArray {
+		if v.Type == gjson.Null || helper.IsEmpty(v.String()) {
+			continue
+		}
+		if i != 0 {
+			newArrayJson += ","
+		}
+		newArrayJson += parseValueToRaw(v)
+	}
+	newArrayJson += "]"
+	return newArrayJson
+}
+
+// removeAllEmptyFields removes all empty fields from a JSON string recursively.
+// It iterates over each line in the JSON string using gjson.ForEachLine, and for each line,
+// it iterates over each key-value pair using line.ForEach.
+// If the value is empty, it deletes the corresponding key-value pair using sjson.Delete.
+// If the value is an object or an array, it recursively calls removeAllEmptyFields on that value.
+// Note: The input JSON string is modified in-place.
+func removeAllEmptyFields(jsonStr string) string {
+	gjson.ForEachLine(jsonStr, func(line gjson.Result) bool {
+		line.ForEach(func(key, value gjson.Result) bool {
+			if helper.IsEmpty(value.Value()) {
+				jsonStr, _ = sjson.Delete(jsonStr, key.String())
+			}
+			if value.IsObject() || value.IsArray() {
+				subJsonStr := removeAllEmptyFields(parseValueToRaw(value))
+				jsonStr, _ = sjson.SetRaw(jsonStr, key.String(), subJsonStr)
+			}
+			return true
+		})
+		return true
+	})
+	return jsonStr
+}
+
+func convertKeysToCase(jsonStr string, nomenclature enum.Nomenclature) string {
+	jsonParsed := gjson.Parse(jsonStr)
+
+	jsonStrCase := "{}"
+	if jsonParsed.IsArray() {
+		jsonStrCase = "[]"
+	}
+
+	jsonParsed.ForEach(func(key, value gjson.Result) bool {
+		newKey := key.String()
+		switch nomenclature {
+		case enum.NomenclatureCamel:
+			newKey = strcase.ToCamel(newKey)
+		case enum.NomenclatureLowerCamel:
+			newKey = strcase.ToLowerCamel(newKey)
+		case enum.NomenclatureSnake:
+			newKey = strcase.ToSnake(newKey)
+		case enum.NomenclatureKebab:
+			newKey = strcase.ToKebab(newKey)
+		}
+
+		if value.IsObject() || value.IsArray() {
+			subJsonStr := convertKeysToCase(parseValueToRaw(value), nomenclature)
+			jsonStrCase, _ = sjson.SetRaw(jsonStrCase, newKey, subJsonStr)
+		} else {
+			jsonStrCase, _ = sjson.SetRaw(jsonStrCase, newKey, parseValueToRaw(value))
+		}
+
+		return true
+	})
+
+	return jsonStrCase
 }

@@ -94,16 +94,6 @@ func (q Query) Delete(key string) (r Query) {
 	return r
 }
 
-// Get retrieves the last value associated with the given key from the Query map.
-// If the key does not exist or the associated value slice is empty, it returns an empty string.
-func (q Query) Get(key string) string {
-	values := q[key]
-	if helper.IsNotEmpty(values) {
-		return values[len(values)-1]
-	}
-	return ""
-}
-
 // Exists checks if the given key exists in the Query map.
 // It returns true if the key exists, and false otherwise.
 func (q Query) Exists(key string) bool {
@@ -117,24 +107,14 @@ func (q Query) NotExists(key string) bool {
 	return !q.Exists(key)
 }
 
-// FilterByForwarded filters the Query map by the list of forwardedQueries.
-// It removes any keys from the Query map that are not in forwardedQueries,
-// except the wildcard character '*' which represents all keys.
-// If forwardedQueries is empty or contains only the wildcard character '*',
-// the original Query map is returned without any modifications.
-//
-// Returns:
-//
-//	A new copy of the Query map with keys filtered by forwardedQueries.
-//
-// Note:
-//
-//	The original Query map is not modified.
-func (q Query) FilterByForwarded(forwardedQueries []string) (r Query) {
+func (q Query) Filter(keys []string) (r Query) {
+	if helper.IsEmpty(keys) {
+		return q
+	}
 	r = q.copy()
-	for key := range q.copy() {
-		if helper.IsNotEmpty(forwardedQueries) && helper.NotContains(forwardedQueries, key) {
-			r = q.Delete(key)
+	for key := range q {
+		if helper.NotContains(keys, key) {
+			r = r.Delete(key)
 		}
 	}
 	return r

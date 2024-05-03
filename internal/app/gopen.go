@@ -28,6 +28,7 @@ import (
 	"github.com/GabrielHCataldo/gopen-gateway/internal/infra/middleware"
 	"github.com/gin-gonic/gin"
 	"net/http"
+	"time"
 )
 
 // loggerOptions is a variable that holds the options for the logger package.
@@ -124,6 +125,7 @@ func (g gopen) ListerAndServer() {
 	// instanciamos o gin engine
 	gin.SetMode(gin.ReleaseMode)
 	engine := gin.New()
+	engine.Use(gin.Recovery())
 
 	// configuramos rotas estáticas
 	g.buildStaticRoutes(engine)
@@ -131,13 +133,6 @@ func (g gopen) ListerAndServer() {
 	printInfoLog("Starting to read endpoints to register routes...")
 	// iteramos os endpoints para cadastrar as rotas
 	for _, endpointVO := range g.gopenVO.Endpoints() {
-		// verificamos se ja existe esse endpoint cadastrado
-		for _, route := range engine.Routes() {
-			if err := endpointVO.Equals(route); helper.IsNotNil(err) {
-				panic(err)
-			}
-		}
-
 		// configuramos os handles do endpoint
 		handles := g.buildEndpointHandles(endpointVO)
 
@@ -145,7 +140,8 @@ func (g gopen) ListerAndServer() {
 		api.Handle(engine, g.gopenVO, &endpointVO, handles...)
 
 		// imprimimos a informação dos endpoints cadastrado
-		printInfoLogf("registered route %s", endpointVO.Resume())
+		lenString := helper.SimpleConvertToString(len(handles))
+		printInfoLogf("Registered route with %s handles %s", endpointVO.Resume(), lenString)
 	}
 
 	// montamos o endereço com a porta configurada
@@ -187,42 +183,65 @@ func (g gopen) buildStaticRoutes(engine *gin.Engine) {
 	printInfoLog("Configuring static routes...")
 
 	// format
-	formatLog := "registered route %s --> \"%s\""
+	formatLog := "Registered route %s --> \"%s\""
 
 	// ping route
-	pingMethod := http.MethodGet
-	pingPath := "/ping"
-	engine.Handle(pingMethod, pingPath, g.staticController.Ping)
-	printInfoLogf(formatLog, pingMethod, pingPath)
+	pingEndpointVO := g.registerStaticPingRoute(engine)
+	printInfoLogf(formatLog, pingEndpointVO.Method(), pingEndpointVO.Path())
 
 	// version
-	versionMethod := http.MethodGet
-	versionPath := "/version"
-	engine.Handle(versionMethod, versionPath, g.staticController.Version)
-	printInfoLogf(formatLog, versionMethod, versionPath)
+	versionEndpointVO := g.registerStaticVersionRoute(engine)
+	printInfoLogf(formatLog, versionEndpointVO.Method(), versionEndpointVO.Path())
 
 	// gopen config infos
-	settingsMethod := http.MethodGet
-	settingsPath := "/settings"
-	engine.Handle(settingsMethod, settingsPath, g.staticController.Settings)
-	printInfoLogf(formatLog, settingsMethod, settingsPath)
+	settingsEndpointVO := g.registerStaticSettingsRoute(engine)
+	printInfoLogf(formatLog, settingsEndpointVO.Method(), settingsEndpointVO.Path())
+}
+
+func (g gopen) registerStaticPingRoute(engine *gin.Engine) *vo.Endpoint {
+	endpointVO := vo.NewEndpointStatic(g.gopenVO, "/ping", http.MethodGet)
+	g.registerStaticRoute(engine, &endpointVO, g.staticController.Ping)
+	return &endpointVO
+}
+
+func (g gopen) registerStaticVersionRoute(engine *gin.Engine) *vo.Endpoint {
+	endpointVO := vo.NewEndpointStatic(g.gopenVO, "/version", http.MethodGet)
+	g.registerStaticRoute(engine, &endpointVO, g.staticController.Version)
+	return &endpointVO
+}
+
+func (g gopen) registerStaticSettingsRoute(engine *gin.Engine) *vo.Endpoint {
+	endpointVO := vo.NewEndpointStatic(g.gopenVO, "/settings", http.MethodGet)
+	g.registerStaticRoute(engine, &endpointVO, g.staticController.Settings)
+	return &endpointVO
+}
+
+func (g gopen) registerStaticRoute(engine *gin.Engine, endpointStatic *vo.Endpoint, handler api.HandlerFunc) {
+	// configuramos o handler do timeout do endpoint como o middleware
+	timeoutHandler := g.timeoutMiddleware.Do(vo.Duration(10 * time.Second))
+	// configuramos o handler de panic recovery
+	panicHandler := g.panicRecoveryMiddleware.Do
+	// registramos o endpoint estático
+	api.Handle(engine, g.gopenVO, endpointStatic, timeoutHandler, panicHandler, handler)
 }
 
 // buildEndpointHandles is a method of the gopen type that builds a list of middleware handlers for a given endpoint.
 // It takes an endpointVO of type vo.Endpoint as a parameter and returns a slice of api.HandlerFunc.
 // Each middleware handler is configured based on specific middleware instances defined in the gopen type.
 // The handlers are added to the slice in the following order:
-// 1. panicHandler: Used to handle panic errors.
-// 2. traceHandler: Used to handle trace requests.
-// 3. logHandler: Used to handle logging requests.
-// 4. securityCorsHandler: Used to handle security CORS requests.
-// 5. timeoutHandler: Used to handle timeout requests. The timeout duration is determined based on both the endpointVO
+// 1. timeoutHandler: Used to handle timeout requests. The timeout duration is determined based on both the endpointVO
+// 2. panicHandler: Used to handle panic errors.
+// 3. traceHandler: Used to handle trace requests.
+// 4. logHandler: Used to handle logging requests.
+// 5. securityCorsHandler: Used to handle security CORS requests.
 // and the gopenVO configurations.
 // 6. limiterHandler: Used to handle limiter requests. The limiter vo is determined based on both the endpointVO and the
 // gopenVO configurations.
 // 7. cacheHandler: Used to handle cache requests. The cache duration, cache strategy headers, and allow cache control
 // configurations are determined based on both the endpointVO and gopenVO
 func (g gopen) buildEndpointHandles(endpointVO vo.Endpoint) []api.HandlerFunc {
+	// configuramos o handler do timeout do endpoint como o middleware
+	timeoutHandler := g.timeoutMiddleware.Do(endpointVO.Timeout())
 	// configuramos o handler de panic recovery
 	panicHandler := g.panicRecoveryMiddleware.Do
 	// configuramos o handler do log como o middleware
@@ -231,8 +250,6 @@ func (g gopen) buildEndpointHandles(endpointVO vo.Endpoint) []api.HandlerFunc {
 	traceHandler := g.traceMiddleware.Do
 	// configuramos o handler do security cors como o middleware
 	securityCorsHandler := g.securityCorsMiddleware.Do
-	// configuramos o handler do timeout do endpoint como o middleware
-	timeoutHandler := g.timeoutMiddleware.Do(endpointVO.Timeout())
 	// configuramos o handler do limiter do endpoint como o middleware
 	limiterHandler := g.buildLimiterMiddlewareHandler(endpointVO)
 	// configuramos o handler de cache do endpoint como o middleware
@@ -241,11 +258,11 @@ func (g gopen) buildEndpointHandles(endpointVO vo.Endpoint) []api.HandlerFunc {
 	endpointHandler := g.endpointController.Execute
 	// montamos a lista de manipuladores
 	return []api.HandlerFunc{
+		timeoutHandler,
 		panicHandler,
 		traceHandler,
 		logHandler,
 		securityCorsHandler,
-		timeoutHandler,
 		limiterHandler,
 		cacheHandler,
 		endpointHandler,
@@ -262,7 +279,6 @@ func (g gopen) buildLimiterMiddlewareHandler(endpointVO vo.Endpoint) api.Handler
 	rateLimiterProvider := infra.NewRateLimiterProvider(endpointVO.Limiter().Rate())
 	// inicializamos o limitador de tamanho
 	sizeLimiterProvider := infra.NewSizeLimiterProvider(endpointVO.Limiter())
-
 	// construímos a chamada limiter
 	return g.limiterMiddleware.Do(rateLimiterProvider, sizeLimiterProvider)
 }

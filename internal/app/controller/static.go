@@ -20,7 +20,7 @@ import (
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/app/mapper"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
-	"github.com/gin-gonic/gin"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/infra/api"
 	"net/http"
 )
 
@@ -32,49 +32,33 @@ type static struct {
 
 // Static represents an interface for handling requests related to ping, version, and settings.
 type Static interface {
-	// Ping handles the GET request to the "/ping" endpoint. It is a method of the Static interface
-	// that returns a response containing the string "pong". This method is used in the buildStaticRoutes
-	// method of the gopen type to configure the "/ping" route for the Gin engine.
-	Ping(ctx *gin.Context)
-	// Version is a method of the Static interface that handles the GET request to the "/version" endpoint.
-	// It takes a *gin.Context parameter and performs the necessary actions to return a response.
-	Version(ctx *gin.Context)
-	// Settings behaves as a method of the Static interface that handles the GET request to the "/settings" endpoint.
-	// It takes a *gin.Context parameter and performs the necessary actions to return a response.
-	Settings(ctx *gin.Context)
+	Ping(ctx *api.Context)
+	Version(ctx *api.Context)
+	Settings(ctx *api.Context)
 }
 
 // NewStatic is a function that creates a new instance of the Static interface.
 // It takes a vo.Gopen parameter and returns a Static object.
 // The returned Static object has a gopenVO field which is initialized with the provided vo.Gopen object.
-func NewStatic(gopenVO *vo.GopenJson) Static {
+func NewStatic(gopenJsonVO *vo.GopenJson) Static {
 	return static{
-		gopenJsonVO: gopenVO,
+		gopenJsonVO: gopenJsonVO,
 	}
 }
 
-// Ping is a method that handles the "Ping" request.
-// It responds with the string "Pong!" and a status code of 200 (OK).
-func (s static) Ping(ctx *gin.Context) {
-	ctx.String(http.StatusOK, "%s", "Pong!")
+func (s static) Ping(ctx *api.Context) {
+	ctx.WriteString(http.StatusOK, "Pong!")
 }
 
-// Version is a method that handles the "Version" request.
-// It checks if the version is not empty and responds with the version string and a status code of 200 (OK).
-// If the version is empty, it responds with a status code of 404 (Not Found).
-func (s static) Version(ctx *gin.Context) {
+func (s static) Version(ctx *api.Context) {
 	if helper.IsNotEmpty(s.gopenJsonVO.Version) {
-		ctx.String(http.StatusOK, "%s", s.gopenJsonVO.Version)
+		ctx.WriteString(http.StatusOK, s.gopenJsonVO.Version)
 		return
 	}
-	ctx.Status(http.StatusNotFound)
+	ctx.WriteStatusCode(http.StatusNotFound)
 }
 
-// Settings is a method that handles the "Settings" request.
-// It retrieves the necessary data from the gopenJsonVO object and constructs a dto.SettingView object.
-// The SettingView object contains information such as version, version date, founder, code helpers,
-// number of endpoints, number of middlewares, number of backends, number of modifiers, and the gopenVO object itself.
-// The method then responds with the constructed SettingView object in JSON format and a status code of 200 (OK).
-func (s static) Settings(ctx *gin.Context) {
-	ctx.JSON(http.StatusOK, mapper.BuildSettingViewDTO(s.gopenJsonVO))
+func (s static) Settings(ctx *api.Context) {
+	settingViewDTO := mapper.BuildSettingViewDTO(s.gopenJsonVO)
+	ctx.WriteJson(http.StatusOK, settingViewDTO)
 }

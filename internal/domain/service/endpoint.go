@@ -19,6 +19,7 @@ package service
 import (
 	"context"
 	"github.com/GabrielHCataldo/go-logger/logger"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/enum"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
 )
 
@@ -32,11 +33,11 @@ type endpoint struct {
 
 // Endpoint represents an interface for executing a specific endpoint in the Gopen server.
 // It defines the Execute method, which takes a context and an ExecuteEndpoint object as parameters
-// and returns a Response object.
+// and returns a HttpResponse object.
 type Endpoint interface {
 	// Execute executes a specific endpoint in the Gopen server.
-	// It takes a context and a vo.ExecuteEndpoint object as parameters and returns a vo.Response object.
-	Execute(ctx context.Context, executeData *vo.ExecuteEndpoint) *vo.Response
+	// It takes a context and a vo.ExecuteEndpoint object as parameters and returns a vo.HttpResponse object.
+	Execute(ctx context.Context, executeData *vo.ExecuteEndpoint) *vo.HttpResponse
 }
 
 // NewEndpoint returns a new instance of the endpoint struct with the provided backendService.
@@ -68,11 +69,11 @@ func NewEndpoint(backendService Backend) Endpoint {
 // Parameters:
 //   - ctx: The context.Context object for the execution.
 //   - executeData: The vo.ExecuteEndpoint object containing the necessary data for execution, including
-//     the Gopen, Endpoint, and Request value objects.
+//     the Gopen, Endpoint, and HttpRequest value objects.
 //
 // Returns:
-// The vo.Response object representing the response of the executed endpoint.
-func (e endpoint) Execute(ctx context.Context, executeData *vo.ExecuteEndpoint) *vo.Response {
+// The vo.HttpResponse object representing the response of the executed endpoint.
+func (e endpoint) Execute(ctx context.Context, executeData *vo.ExecuteEndpoint) *vo.HttpResponse {
 	// instanciamos o objeto gopenVO
 	gopenVO := executeData.Gopen()
 	// instanciamos o objeto de valor do endpoint
@@ -80,44 +81,30 @@ func (e endpoint) Execute(ctx context.Context, executeData *vo.ExecuteEndpoint) 
 	// instanciamos o objeto de valor da requisição
 	requestVO := executeData.Request()
 	// inicializamos o objeto de valor de resposta do serviço
-	responseVO := vo.NewResponse(endpointVO)
+	responseVO := vo.NewHttpResponse()
 
-	// TODO: pensarmos em futuramente ter backends para chamadas paralelas
+	// TODO: pensarmos em futuramente ter backends para chamadas concorrentes
 
 	// iteramos o beforeware, chaves configuradas para middlewares antes das requisições principais
-	requestVO, responseVO = e.processMiddlewares(
-		ctx,
-		"beforewares",
-		endpointVO.Beforewares(),
-		gopenVO,
-		endpointVO,
-		requestVO,
-		responseVO,
-	)
-	// verificamos a resposta precisa ser abortada
-	if responseVO.Abort() {
+	requestVO, responseVO = e.processMiddlewares(ctx, enum.Beforewares, endpointVO.Beforewares(), gopenVO, endpointVO,
+		requestVO, responseVO)
+	// verificamos a resposta já foi escrita ou abortada
+	if responseVO.Written() || responseVO.Abort() {
 		return responseVO
 	}
 
 	// iteramos os backends principais para executa-las
 	requestVO, responseVO = e.processBackends(ctx, endpointVO, requestVO, responseVO)
-	// verificamos a resposta precisa ser abortada
-	if responseVO.Abort() {
+	// verificamos a resposta já foi escrita ou abortada
+	if responseVO.Written() || responseVO.Abort() {
 		return responseVO
 	}
 
 	// iteramos o afterware, chaves configuradas para middlewares depois das requisições principais
-	requestVO, responseVO = e.processMiddlewares(
-		ctx,
-		"afterwares",
-		endpointVO.Afterwares(),
-		gopenVO,
-		endpointVO,
-		requestVO,
-		responseVO,
-	)
-	// verificamos a resposta precisa ser abortada
-	if responseVO.Abort() {
+	requestVO, responseVO = e.processMiddlewares(ctx, enum.Afterwares, endpointVO.Afterwares(), gopenVO, endpointVO,
+		requestVO, responseVO)
+	// verificamos a resposta já foi escrita ou abortada
+	if responseVO.Written() || responseVO.Abort() {
 		return responseVO
 	}
 
@@ -139,20 +126,20 @@ func (e endpoint) Execute(ctx context.Context, executeData *vo.ExecuteEndpoint) 
 //   - gopenVO: The vo.Gopen object containing the middleware configurations.
 //   - middlewareType: The type of middleware being processed (beforeware or afterware).
 //   - middlewareKeys: The middleware keys to be processed.
-//   - requestVO: The vo.Request object representing the current request.
-//   - responseVO: The vo.Response object representing the current response.
+//   - requestVO: The vo.HttpRequest object representing the current request.
+//   - responseVO: The vo.HttpResponse object representing the current response.
 //
 // Returns:
-// The vo.Request and vo.Response objects after executing the middleware backends.
+// The vo.HttpRequest and vo.HttpResponse objects after executing the middleware backends.
 func (e endpoint) processMiddlewares(
 	ctx context.Context,
-	middlewareType string,
+	middlewareType enum.MiddlewareType,
 	middlewareKeys []string,
 	gopenVO *vo.Gopen,
 	endpointVO *vo.Endpoint,
-	requestVO *vo.Request,
-	responseVO *vo.Response,
-) (*vo.Request, *vo.Response) {
+	requestVO *vo.HttpRequest,
+	responseVO *vo.HttpResponse,
+) (*vo.HttpRequest, *vo.HttpResponse) {
 	// iteramos as chaves de middlewares
 	for _, middlewareKey := range middlewareKeys {
 		// verificamos se essa chave foram configuradas no campo middlewares
@@ -162,11 +149,11 @@ func (e endpoint) processMiddlewares(
 			continue
 		}
 		// instanciamos o objeto de valor de execução do backend
-		executeBackendVO := vo.NewExecuteBackend(endpointVO, &middlewareBackendVO, requestVO, responseVO)
+		executeBackendVO := vo.NewExecuteBackend(endpointVO, middlewareBackendVO, requestVO, responseVO)
 		// processamos o backend do middleware
 		requestVO, responseVO = e.backendService.Execute(ctx, executeBackendVO)
-		// verificamos a resposta precisa ser abortada
-		if responseVO.Abort() {
+		// verificamos a resposta já foi escrita ou abortada
+		if responseVO.Written() || responseVO.Abort() {
 			break
 		}
 	}
@@ -182,25 +169,25 @@ func (e endpoint) processMiddlewares(
 // Parameters:
 //   - ctx: The context.Context object for the execution.
 //   - backends: The slice of vo.Backend objects representing the backends to be processed.
-//   - requestVO: The vo.Request object representing the current request.
-//   - responseVO: The vo.Response object representing the current response.
+//   - requestVO: The vo.HttpRequest object representing the current request.
+//   - responseVO: The vo.HttpResponse object representing the current response.
 //
 // Returns:
-// The updated vo.Request and vo.Response objects after executing the backends.
+// The updated vo.HttpRequest and vo.HttpResponse objects after executing the backends.
 func (e endpoint) processBackends(
 	ctx context.Context,
 	endpointVO *vo.Endpoint,
-	requestVO *vo.Request,
-	responseVO *vo.Response,
-) (*vo.Request, *vo.Response) {
+	requestVO *vo.HttpRequest,
+	responseVO *vo.HttpResponse,
+) (*vo.HttpRequest, *vo.HttpResponse) {
 	// iteramos os backends fornecidos
 	for _, backendVO := range endpointVO.Backends() {
 		// instanciamos
 		executeBackendVO := vo.NewExecuteBackend(endpointVO, &backendVO, requestVO, responseVO)
 		// processamos o backend principal iterado
 		requestVO, responseVO = e.backendService.Execute(ctx, executeBackendVO)
-		// verificamos a resposta precisa ser abortada
-		if responseVO.Abort() {
+		// verificamos a resposta já foi escrita ou abortada
+		if responseVO.Written() || responseVO.Abort() {
 			break
 		}
 	}

@@ -35,7 +35,7 @@ type Gopen struct {
 	// If the value is true, hot-reloading is enabled. If the value is false, hot-reloading is disabled.
 	// By default, hot-reloading is disabled, so if the field is not specified in the JSON file, it will be set to false.
 	hotReload bool
-	// timeout represents the timeout duration for a request or operation.
+	// timeout represents the timeout duration for a httpRequest or operation.
 	// It is specified in string format and can be parsed into a time.Duration value.
 	// The default value is empty. If not provided, the timeout will be 30s.
 	timeout Duration
@@ -130,7 +130,7 @@ func (g Gopen) SecurityCors() *SecurityCors {
 // Middleware retrieves a backend from the middlewares map based on the given key and returns it with a boolean
 // indicating whether it exists or not. The returned backend is wrapped in a new middleware backend with the omitResponse
 // field set to true.
-func (g Gopen) Middleware(key string) (Backend, bool) {
+func (g Gopen) Middleware(key string) (*Backend, bool) {
 	return g.middlewares.Get(key)
 }
 

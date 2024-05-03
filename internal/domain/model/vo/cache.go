@@ -29,7 +29,7 @@ import (
 type Cache struct {
 	// duration represents the duration of the cache in the Cache struct.
 	duration Duration
-	// strategyHeaders is a string slice that represents the list of request modifyHeaders used to generate a cache key.
+	// strategyHeaders is a string slice that represents the list of httpRequest modifyHeaders used to generate a cache key.
 	// The `StrategyKey` method in the `Cache` struct extracts values from these modifyHeaders and includes them in the cache key.
 	// If no strategy values are found in the modifyHeaders, the cache key will be generated without them.
 	strategyHeaders []string
@@ -37,7 +37,7 @@ type Cache struct {
 	// If the onlyIfStatusCodes field is empty or if the given status code is present in the onlyIfStatusCodes field, it returns true,
 	// indicating that the status code is allowed. Otherwise, it returns false.
 	onlyIfStatusCodes []int
-	// onlyIfMethods is a field in the Cache struct that represents the list of request methods that are allowed for caching.
+	// onlyIfMethods is a field in the Cache struct that represents the list of httpRequest methods that are allowed for caching.
 	// If the onlyIfMethods field is empty or if the given method is present in the onlyIfMethods field, the method is allowed for caching.
 	// Otherwise, it is not allowed. This field is used by the AllowMethod method in the Cache struct.
 	onlyIfMethods []string
@@ -52,13 +52,13 @@ type EndpointCache struct {
 	enabled bool
 	// ignoreQuery represents a boolean indicating whether to ignore query parameters when caching.
 	ignoreQuery bool
-	// duration represents the duration configuration for caching an endpoint response.
+	// duration represents the duration configuration for caching an endpoint httpResponse.
 	duration Duration
 	// strategyHeaders represents a slice of strings for strategy modifyHeaders
 	strategyHeaders []string
 	// onlyIfStatusCodes represents the status codes that the cache should be applied to.
 	onlyIfStatusCodes []int
-	// onlyIfMethods is a field in the Cache struct that represents the list of request methods that are allowed for caching.
+	// onlyIfMethods is a field in the Cache struct that represents the list of httpRequest methods that are allowed for caching.
 	// If the onlyIfMethods field is empty or if the given method is present in the onlyIfMethods field, the method is allowed for caching.
 	// Otherwise, it is not allowed. This field is used by the AllowMethod method in the Cache struct.
 	onlyIfMethods []string
@@ -152,7 +152,7 @@ func (c Cache) Duration() Duration {
 	return Duration(1 * time.Minute)
 }
 
-// StrategyHeaders returns the list of request headers used to generate a cache key.
+// StrategyHeaders returns the list of httpRequest headers used to generate a cache key.
 func (c Cache) StrategyHeaders() []string {
 	return c.strategyHeaders
 }
@@ -164,7 +164,7 @@ func (c Cache) OnlyIfStatusCodes() []int {
 	return c.onlyIfStatusCodes
 }
 
-// OnlyIfMethods returns the list of request methods that are allowed for caching.
+// OnlyIfMethods returns the list of httpRequest methods that are allowed for caching.
 // If the onlyIfMethods field is not empty, it returns the list of methods specified in it.
 // Otherwise, it returns an empty list.
 func (c Cache) OnlyIfMethods() []string {
@@ -221,16 +221,16 @@ func (e EndpointCache) OnlyIfStatusCodes() []int {
 	return e.onlyIfStatusCodes
 }
 
-// OnlyIfMethods returns the list of request methods that are allowed for caching.
+// OnlyIfMethods returns the list of httpRequest methods that are allowed for caching.
 // If the onlyIfMethods field is empty or if the given method is present in the onlyIfMethods field, the method is allowed for caching.
 // Otherwise, it is not allowed. This field is used by the AllowMethod method in the Cache struct.
 func (e EndpointCache) OnlyIfMethods() []string {
 	return e.onlyIfMethods
 }
 
-// CanRead checks if the cache is active and if the Cache-Control header in the request allows caching.
+// CanRead checks if the cache is active and if the Cache-Control header in the httpRequest allows caching.
 // It returns true if caching is allowed, false otherwise.
-func (e EndpointCache) CanRead(requestVO *Request) bool {
+func (e EndpointCache) CanRead(requestVO *HttpRequest) bool {
 	// verificamos se ta ativo
 	if e.Disabled() {
 		return false
@@ -244,10 +244,10 @@ func (e EndpointCache) CanRead(requestVO *Request) bool {
 	return helper.IsNotEqualTo(enum.CacheControlNoCache, cacheControl) && e.AllowMethod(requestVO.Method())
 }
 
-// CanWrite checks if the cache is active and if the Cache-Control header in the response allows caching.
-// It also checks if the request method and response status code are allowed for caching.
+// CanWrite checks if the cache is active and if the Cache-Control header in the httpResponse allows caching.
+// It also checks if the httpRequest method and httpResponse status code are allowed for caching.
 // It returns true if caching is allowed, false otherwise.
-func (e EndpointCache) CanWrite(requestVO *Request, responseVO *Response) bool {
+func (e EndpointCache) CanWrite(requestVO *HttpRequest, responseVO *HttpResponse) bool {
 	// verificamos se ta ativo
 	if e.Disabled() {
 		return false
@@ -273,13 +273,13 @@ func (e EndpointCache) CacheControlEnum(header Header) (cacheControl enum.CacheC
 	return cacheControl
 }
 
-// StrategyKey generates a cache key based on the request information and strategy headers.
+// StrategyKey generates a cache key based on the httpRequest information and strategy headers.
 // If IgnoreQuery is enabled in the Cache struct, the query parameters will be ignored in the key generation.
-// The generated key follows the pattern: "{HTTP Method}:{Request URL}:{Strategy Value 1}:{Strategy Value 2}:..."
-// The Strategy Value is obtained from the request headers specified in the strategyHeaders field of the Cache struct.
+// The generated key follows the pattern: "{HTTP Method}:{HttpRequest URL}:{Strategy Value 1}:{Strategy Value 2}:..."
+// The Strategy Value is obtained from the httpRequest headers specified in the strategyHeaders field of the Cache struct.
 // If no Strategy Value is found, the key will be generated without it.
 // The final key is returned as a string.
-func (e EndpointCache) StrategyKey(requestVO *Request) string {
+func (e EndpointCache) StrategyKey(requestVO *HttpRequest) string {
 	// inicializamos a url da requisição completa
 	url := requestVO.Url()
 	// caso o cache queira ignorar as queries, ele ignora

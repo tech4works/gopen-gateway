@@ -32,18 +32,8 @@ import (
 const jsonResultUri = "./runtime/.json"
 
 // jsonSchemaUri is a constant string representing the URI of the JSON schema file.
-const jsonSchemaUri = "https://raw.githubusercontent.com/GabrielHCataldo/gopen-gateway/v1.0.0/json-schema.json"
+const jsonSchemaUri = "file://./json-schema.json"
 
-// LoadGopenJson loads the Gopen configuration JSON file based on the specified environment.
-// The function takes an environment string as input and returns a pointer to a GopenJson object.
-// It first gets the file URI for the JSON file using the getFileJsonUri function.
-// Then, it reads the file contents and fills the environment variable values using the fillEnvValues function.
-// After that, it validates the JSON file against a schema using the validateJsonBySchema function.
-// If the JSON is valid, it creates a new GopenJson object using the NewGopenJson function.
-// If any error occurs during the process, it panics and logs an error message.
-// Finally, it returns the created GopenJson object.
-// Note: This function assumes the existence of the getFileJsonUri, PrintInfoLogCmdf, fillEnvValues,
-// validateJsonBySchema, and NewGopenJson functions.
 func LoadGopenJson(env string) *vo.GopenJson {
 	// carregamos o arquivo de json de configuração do Gopen
 	fileJsonUri := getFileJsonUri(env)
@@ -67,6 +57,19 @@ func LoadGopenJson(env string) *vo.GopenJson {
 		panic(err)
 	}
 
+	// validamos se não existe endpoint repetido
+	for index, endpointVO := range gopenJson.Endpoints {
+		for anotherIndex, anotherEndpointVO := range gopenJson.Endpoints {
+			if helper.IsNotEqualTo(index, anotherIndex) &&
+				helper.Equals(endpointVO.Path, anotherEndpointVO.Path) &&
+				helper.Equals(endpointVO.Method, anotherEndpointVO.Method) {
+				msg := fmt.Sprintf("Error endpoint path: %s method: %s on index: %s already registered on index %s!",
+					endpointVO.Path, endpointVO.Method, anotherIndex, index)
+				panic(errors.New(msg))
+			}
+		}
+	}
+
 	// se tudo ocorreu bem, retornamos
 	return gopenJson
 }
@@ -83,7 +86,7 @@ func fillEnvValues(gopenBytesJson []byte) []byte {
 	//  foi pensado que talvez utilizar campos string e any para isso, convertendo para o tipo desejado apenas
 	//  quando objeto de valor for montado
 
-	PrintInfoLogCmd("Filling environment variables with $word syntax..")
+	PrintInfoLogCmd("Filling environment variables with $word syntax...")
 
 	// convertemos os bytes do gopen json em string
 	gopenStrJson := helper.SimpleConvertToString(gopenBytesJson)
@@ -181,7 +184,7 @@ func validateJsonBySchema(fileJsonUri string, fileJsonBytes []byte) error {
 
 	// checamos se valido, caso nao seja formatamos a mensagem
 	if !result.Valid() {
-		errorMsg := fmt.Sprintf("Json %s poorly formatted!\n", fileJsonUri)
+		errorMsg := fmt.Sprintf("Map %s poorly formatted!\n", fileJsonUri)
 		for _, desc := range result.Errors() {
 			errorMsg += fmt.Sprintf("- %s\n", desc)
 		}

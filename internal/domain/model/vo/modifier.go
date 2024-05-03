@@ -21,15 +21,15 @@ import (
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/enum"
 )
 
-// Modifier represents a modification that can be applied to a request or response in the Gopen application.
+// Modifier represents a modification that can be applied to a httpRequest or httpResponse in the Gopen application.
 type Modifier struct {
 	// context represents the context in which a modification should be applied.
 	// It is an enum.ModifierContext value.
-	// Valid values for Context are "request" and "response".
+	// Valid values for Context are "httpRequest" and "httpResponse".
 	context enum.ModifierContext
 	// scope represents the scope of a modification in the Backend or Endpoint.
 	// It is an enum.ModifierScope value that specifies where the modification should be applied.
-	// Valid values for Scope are "request" and "response".
+	// Valid values for Scope are "httpRequest" and "httpResponse".
 	scope enum.ModifierScope
 	// action represents the action to be performed in the Modifier struct.
 	// It is an enum.ModifierAction value and can be one of the following values:

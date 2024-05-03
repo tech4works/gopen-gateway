@@ -37,13 +37,13 @@ type logProvider struct {
 type LogProvider interface {
 	// InitializeLoggerOptions initializes the logger options using the provided context.
 	InitializeLoggerOptions(ctx *api.Context)
-	// BuildInitialRequestMessage builds the initial request message for logging purposes based on the provided context.
-	BuildInitialRequestMessage(ctx *api.Context) string
+	// BuildStartRequestMessage builds the initial request message for logging purposes based on the provided context.
+	BuildStartRequestMessage(ctx *api.Context) string
 	// BuildFinishRequestMessage constructs a finish request message for logging purposes.
 	// It takes a responseVO object that represents the response of an API call, and a startTime
 	// object that represents the start time of the API call. It returns a string containing the
 	// finish request message.
-	BuildFinishRequestMessage(responseVO *vo.Response, startTime time.Time) string
+	BuildFinishRequestMessage(responseVO *vo.HttpResponse, startTime time.Time) string
 }
 
 // NewLogProvider creates and returns a new instance of LogProvider.
@@ -68,12 +68,12 @@ func (l logProvider) InitializeLoggerOptions(ctx *api.Context) {
 	})
 }
 
-// BuildInitialRequestMessage builds the initial request message for logging purposes.
+// BuildStartRequestMessage builds the initial request message for logging purposes.
 // It initializes the `bodyInfo` variable and obtains the body type and size from the request headers.
 // If the body type is "application/json" or "application/xml" or "plain/text", it converts the body to a string and assigns it to `bodyInfo`.
 // Otherwise, if the body type and size are not empty, it creates a message string with the content type and content length and assigns it to `bodyInfo`.
 // Finally, it converts `bodyInfo` to a string, removes any line breaks, and returns the result.
-func (l logProvider) BuildInitialRequestMessage(ctx *api.Context) string {
+func (l logProvider) BuildStartRequestMessage(ctx *api.Context) string {
 	// inicializamos o body
 	var bodyInfo string
 
@@ -106,7 +106,7 @@ func (l logProvider) BuildInitialRequestMessage(ctx *api.Context) string {
 // The method obtains the status code text, latency text, and response body text.
 // It then constructs the message by appending the status code, latency, and response body (if not empty) to the string builder.
 // Finally, it returns the build log message as a string.
-func (l logProvider) BuildFinishRequestMessage(responseVO *vo.Response, startTime time.Time) string {
+func (l logProvider) BuildFinishRequestMessage(responseVO *vo.HttpResponse, startTime time.Time) string {
 	// obtemos quanto tempo demorou a requisição
 	latency := time.Now().Sub(startTime)
 

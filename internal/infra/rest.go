@@ -19,10 +19,12 @@ package infra
 import (
 	berrors "errors"
 	"github.com/GabrielHCataldo/go-helper/helper"
+	"github.com/GabrielHCataldo/go-logger/logger"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/interfaces"
 	domainmapper "github.com/GabrielHCataldo/gopen-gateway/internal/domain/mapper"
 	"net/http"
 	"net/url"
+	"time"
 )
 
 type restTemplate struct {
@@ -42,11 +44,35 @@ func NewRestTemplate() interfaces.RestTemplate {
 // then a domainmapper.ErrGatewayTimeout error is created and returned. For any other type of error,
 // the error is returned as it is.
 func (r restTemplate) MakeRequest(httpRequest *http.Request) (*http.Response, error) {
+	// instanciamos a url e o method
+	httpUrl := httpRequest.URL.String()
+	httpMethod := httpRequest.Method
+
+	// marcamos o tempo inicial
+	startTime := time.Now()
+	// imprimimos o log debug
+	logger.Debugf("HTTP request: %s -> %s", httpMethod, httpUrl)
+
 	// fazemos a requisição http
 	httpClient := http.Client{}
 	httpResponse, err := httpClient.Do(httpRequest)
+
+	// marcamos a latencia
+	latency := time.Since(startTime).String()
+
+	// tratamos o erro
+	err = r.treatHttpClientErr(err)
+
+	// caso o erro não esteja nil
+	if helper.IsNotNil(err) {
+		logger.Errorf("HTTP request: %s -> %s latency: %s err: %s", httpMethod, httpUrl, latency, err)
+		return nil, err
+	}
+
+	logger.Debugf("HTTP response: %s -> %s latency: %s", httpMethod, httpUrl, latency)
+
 	// caso ocorra um erro, tratamos, caso contrario retornamos a resposta
-	return httpResponse, r.treatHttpClientErr(err)
+	return httpResponse, nil
 }
 
 // treatHttpClientErr handles the error returned by httpClient.Do method.

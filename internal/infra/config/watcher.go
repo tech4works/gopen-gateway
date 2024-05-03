@@ -18,30 +18,10 @@ package config
 
 import (
 	"github.com/GabrielHCataldo/go-helper/helper"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
 	"github.com/fsnotify/fsnotify"
 )
 
-// NewWatcher initializes and returns a new fsnotify.Watcher configured to listen for file events,
-// based on the environment and gopenJson configuration.
-// If hot reload is disabled in the gopenJson configuration, it returns nil.
-// Logs a warning message if there is an error configuring the watcher.
-//
-// It starts a goroutine to listen for events and invokes the eventCallback function for each event.
-// It adds the .env and .json files to the watcher.
-//
-// Parameters:
-// - env: the environment to configure the watcher for.
-// - gopenJsonVO: the GopenJson configuration object.
-// - eventCallback: the function to be invoked for each event.
-//
-// Returns:
-// - *fsnotify.Watcher: The configured watcher or nil if hot reload is disabled.
-func NewWatcher(env string, gopenJsonVO *vo.GopenJson, eventCallback func(env string)) *fsnotify.Watcher {
-	if !gopenJsonVO.HotReload {
-		return nil
-	}
-
+func NewWatcher(env string, eventCallback func(env string)) *fsnotify.Watcher {
 	PrintInfoLogCmd("Configuring watcher...")
 
 	// instânciamos o novo watcher
@@ -71,14 +51,10 @@ func NewWatcher(env string, gopenJsonVO *vo.GopenJson, eventCallback func(env st
 	return watcher
 }
 
-// CloseWatcher closes the fsnotify.Watcher if it is not nil.
-// If there is an error while closing the watcher, it logs a warning message.
 func CloseWatcher(watcher *fsnotify.Watcher) {
-	if helper.IsNotNil(watcher) {
-		err := watcher.Close()
-		if helper.IsNotNil(err) {
-			PrintWarningLogCmdf("Error close watcher: %s", err)
-		}
+	err := watcher.Close()
+	if helper.IsNotNil(err) {
+		PrintWarningLogCmdf("Error close watcher: %s", err)
 	}
 }
 
@@ -94,11 +70,9 @@ func watchEvents(env string, watcher *fsnotify.Watcher, callback func(env string
 		case event, ok := <-watcher.Events:
 			// chamamos a função que executa o evento
 			executeEvent(env, event, ok, callback)
-			break
 		case err, ok := <-watcher.Errors:
 			// chamamos a função que executa o evento de erro
 			executeErrorEvent(err, ok)
-			break
 		}
 	}
 }

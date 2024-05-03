@@ -41,17 +41,10 @@ func newMiddlewares(middlewaresJsonVO MiddlewaresJson) (m Middlewares) {
 	return m
 }
 
-// Get retrieves the Backend associated with the specified key from the Middlewares map.
-// It returns the Backend if it exists, otherwise it returns an empty Backend and false.
-// If the Backend exists, it creates a new modified Backend using the newMiddlewareBackend function,
-// passing the existing Backend and a backendExtraConfig with the omitResponse set to true.
-// It then returns the modified Backend and true.
-func (m Middlewares) Get(key string) (Backend, bool) {
+func (m Middlewares) Get(key string) (*Backend, bool) {
 	backend, ok := m[key]
 	if !ok {
-		return Backend{}, false
+		return nil, false
 	}
-	return newMiddlewareBackend(&backend, &BackendExtraConfig{
-		omitResponse: true,
-	}), true
+	return newMiddlewareBackend(&backend), true
 }

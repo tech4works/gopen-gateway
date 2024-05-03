@@ -18,14 +18,15 @@ package vo
 
 import (
 	"github.com/GabrielHCataldo/go-helper/helper"
+	"github.com/GabrielHCataldo/go-logger/logger"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/enum"
 	"github.com/tidwall/gjson"
 	"regexp"
 	"strings"
 )
 
-// modify represents a modification operation to be performed on a request or response.
-// It contains fields such as action, scope, propagate, key, value, request, and response,
+// modify represents a modification operation to be performed on a httpRequest or httpResponse.
+// It contains fields such as action, scope, propagate, key, value, httpRequest, and httpResponse,
 // which define the details of the modification operation.
 type modify struct {
 	// action represents the action to be performed.
@@ -38,26 +39,26 @@ type modify struct {
 	key string
 	// value represents the value to be inserted to modify the object
 	value string
-	// request represents an HTTP `request` object.
-	request *Request
-	// response represents an HTTP `response` object.
-	response *Response
+	// httpRequest represents an HTTP `httpRequest` object.
+	httpRequest *HttpRequest
+	// httpResponse represents an HTTP `httpResponse` object.
+	httpResponse *HttpResponse
 }
 
-// ModifierStrategy represents a strategy for executing a modification operation on a Request and Response.
-// It defines a single method Execute() which takes no arguments and returns a Request and Response.
+// ModifierStrategy represents a strategy for executing a modification operation on a HttpRequest and HttpResponse.
+// It defines a single method Execute() which takes no arguments and returns a HttpRequest and HttpResponse.
 // Implementations of this interface should provide their own Execute() method implementation.
 type ModifierStrategy interface {
 	// Execute is a method of the ModifierStrategy interface which represents a strategy for executing a modification
-	// operation on a Request and Response.
-	// It takes no arguments and returns a Request and Response.
+	// operation on a HttpRequest and HttpResponse.
+	// It takes no arguments and returns a HttpRequest and HttpResponse.
 	// The implementation of this method should define the logic for executing the modification operation.
-	Execute() (*Request, *Response)
+	Execute() (*HttpRequest, *HttpResponse)
 }
 
-// NewModifyVOFunc represents a function type that takes a Modifier, Request, and Response as input parameters,
+// NewModifyVOFunc represents a function type that takes a Modifier, HttpRequest, and HttpResponse as input parameters,
 // and returns a ModifierStrategy.
-type NewModifyVOFunc func(modifierVO *Modifier, requestVO *Request, responseVO *Response) ModifierStrategy
+type NewModifyVOFunc func(modifierVO *Modifier, httpRequestVO *HttpRequest, httpResponseVO *HttpResponse) ModifierStrategy
 
 // newModify initializes a new modify object based on the given inputs.
 // It first retrieves the scope from modifierVO.
@@ -68,10 +69,10 @@ type NewModifyVOFunc func(modifierVO *Modifier, requestVO *Request, responseVO *
 // - propagate: the propagate flag from modifierVO
 // - key: the key from modifierVO
 // - value: the value from modifierVO
-// - request: the requestVO
-// - response: the responseVO
+// - httpRequest: the requestVO
+// - httpResponse: the responseVO
 // The modify object is then returned.
-func newModify(modifierVO *Modifier, requestVO *Request, responseVO *Response) modify {
+func newModify(modifierVO *Modifier, httpRequestVO *HttpRequest, httpResponseVO *HttpResponse) modify {
 	// inicializamos o escopo padrão
 	scope := modifierVO.Scope()
 
@@ -87,23 +88,23 @@ func newModify(modifierVO *Modifier, requestVO *Request, responseVO *Response) m
 
 	// construímos o objeto de valor para modificar
 	return modify{
-		action:    modifierVO.Action(),
-		scope:     scope,
-		propagate: modifierVO.Propagate(),
-		key:       modifierVO.Key(),
-		value:     modifierVO.Value(),
-		request:   requestVO,
-		response:  responseVO,
+		action:       modifierVO.Action(),
+		scope:        scope,
+		propagate:    modifierVO.Propagate(),
+		key:          modifierVO.Key(),
+		value:        modifierVO.Value(),
+		httpRequest:  httpRequestVO,
+		httpResponse: httpResponseVO,
 	}
 }
 
 // statusCode modifies the statusCode based on the receiver 'm' of the type modify.
 // It obtains the value to be used for modification using the m.valueInt() method.
-// If the modifierValue is empty, it returns the original statusCode without any modifications.
-// Otherwise, it sets the modifierValue as the new statusCode and returns it.
+// If the modifierValueAsInt is empty, it returns the original statusCode without any modifications.
+// Otherwise, it sets the modifierValueAsInt as the new statusCode and returns it.
 func (m modify) statusCode(statusCode int) int {
 	// obtemos o valor a ser usado para modificar
-	modifierValue := m.intEvalValue()
+	modifierValue := m.modifierValueAsInt()
 
 	// se nao tiver valor nao fazemos nada
 	if helper.IsEmpty(modifierValue) {
@@ -114,21 +115,17 @@ func (m modify) statusCode(statusCode int) int {
 	return modifierValue
 }
 
-// headers modifies the globalHeader and localHeader based on the receiver 'm' of the type modify.
-// It obtains the slice of string values to be used for modification using the m.sliceOfStrEvalValue() method.
-// If m.propagate is true, it modifies the globalHeader by calling the m.header method with globalHeader and modifierValue.
-// Finally, it returns the modified globalHeader and the result of calling the m.header method with localHeader and modifierValue.
-func (m modify) headers(globalHeader, localHeader Header) (Header, Header) {
+func (m modify) headers(httpHeaderVO, httpBackendHeader Header) (Header, Header) {
 	// obtemos o valor a ser usado para modificar
-	modifierValue := m.sliceOfStrEvalValue()
+	modifierValue := m.modifierValueAsSliceOfStr()
 
 	// caso seja em um escopo propagate, modificamos o header global
 	if m.propagate {
-		globalHeader = m.header(globalHeader, modifierValue)
+		httpHeaderVO = m.header(httpHeaderVO, modifierValue)
 	}
 
 	// retornamos os objetos de valores modificados, ou não
-	return globalHeader, m.header(localHeader, modifierValue)
+	return httpHeaderVO, m.header(httpBackendHeader, modifierValue)
 }
 
 // header modifies the provided header based on the action specified in the receiver 'm' of the type modify.
@@ -164,17 +161,17 @@ func (m modify) header(header Header, modifierValue []string) Header {
 
 // params modifies the localPath, globalParams, and localParams based on the receiver 'm' of the type modify.
 // It obtains the value to be used for modification using the m.strEvalValue() method.
-// If m.propagate is true, it modifies the globalParams by calling the m.param() method with the modifierValue.
+// If m.propagate is true, it modifies the globalParams by calling the m.param() method with the modifierValueAsInt.
 // It then returns the modified localPath, globalParams, and localParams
-// by calling the m.urlPath(), m.param(), and m.param() methods respectively with the modifierValue.
+// by calling the m.urlPath(), m.param(), and m.param() methods respectively with the modifierValueAsInt.
 //
 // Returns:
-//   - UrlPath: The modified local request path.
-//   - Params: The modified global request parameters.
-//   - Params: The modified local request parameters.
+//   - UrlPath: The modified local httpRequest path.
+//   - Params: The modified global httpRequest parameters.
+//   - Params: The modified local httpRequest parameters.
 func (m modify) params(localPath UrlPath, globalParams, localParams Params) (UrlPath, Params, Params) {
 	// obtemos o valor a ser usado para modificar
-	modifierValue := m.strEvalValue()
+	modifierValue := m.modifierValue()
 
 	// caso seja em um escopo propagate, modificamos o params global
 	if m.propagate {
@@ -188,7 +185,7 @@ func (m modify) params(localPath UrlPath, globalParams, localParams Params) (Url
 // urlPath modifies the given `urlPath` based on the receiver `m` of the type `modify`.
 // It performs different actions based on the value of `m.action`:
 // - enum.ModifierActionSet or enum.ModifierActionRpl: It sets the parameter key `m.key` in the `urlPath`.
-// - enum.ModifierActionRen: It renames the parameter key `m.key` to `modifierValue` in the `urlPath`.
+// - enum.ModifierActionRen: It renames the parameter key `m.key` to `modifierValueAsInt` in the `urlPath`.
 // - enum.ModifierActionDel: It deletes the parameter key `m.key` from the `urlPath`.
 // If `m.action` is not any of the above, it returns the unchanged `urlPath`.
 // It returns the modified `urlPath`.
@@ -206,14 +203,14 @@ func (m modify) urlPath(urlPath UrlPath, modifierValue string) UrlPath {
 	}
 }
 
-// param modifies the `params` based on the `action`, `key`, and `modifierValue` provided.
+// param modifies the `params` based on the `action`, `key`, and `modifierValueAsInt` provided.
 // It performs the following operations based on the `action`:
-//   - If the `action` is `enum.ModifierActionSet`, it sets the `modifierValue` for the
+//   - If the `action` is `enum.ModifierActionSet`, it sets the `modifierValueAsInt` for the
 //     specified `key` in the `params` and returns the updated `params`.
 //   - If the `action` is `enum.ModifierActionRpl`, it replaces the value of the specified `key`
-//     in the `params` with the `modifierValue` and returns the updated `params`.
+//     in the `params` with the `modifierValueAsInt` and returns the updated `params`.
 //   - If the `action` is `enum.ModifierActionRen`, it renames the specified `key` to the
-//     `modifierValue` in the `params` and returns the updated `params`.
+//     `modifierValueAsInt` in the `params` and returns the updated `params`.
 //   - If the `action` is `enum.ModifierActionDel`, it deletes the specified `key` from the `params`
 //     and returns the updated `params`.
 //   - If the `action` does not match any of the above cases, it returns the original `params` as is.
@@ -239,25 +236,25 @@ func (m modify) param(params Params, modifierValue string) Params {
 // It then returns the modified globalQuery and localQuery by calling the m.query() method.
 func (m modify) queries(globalQuery, localQuery Query) (Query, Query) {
 	// obtemos o valor a ser usado para modificar
-	modifierValue := m.sliceOfStrEvalValue()
+	modifierValue := m.modifierValueAsSliceOfStr()
 
 	// caso seja em um escopo propagate, modificamos o query global
 	if m.propagate {
 		globalQuery = m.query(globalQuery, modifierValue)
 	}
 
-	// retornamos a query global e local possivelmente alteradas
+	// retornamos a query global local possivelmente alteradas
 	return globalQuery, m.query(localQuery, modifierValue)
 }
 
 // query modifies the given query based on the action specified in the receiver 'm' of the type modify.
-// It takes a Query and modifierValue as parameters and returns a modified Query.
+// It takes a Query and modifierValueAsInt as parameters and returns a modified Query.
 //
-// If the action is ModifierActionAdd, it calls the Add method of the Query with the specified key and modifierValue.
-// If the action is ModifierActionApd, it calls the Append method of the Query with the specified key and modifierValue.
-// If the action is ModifierActionSet, it calls the Set method of the Query with the specified key and modifierValue.
-// If the action is ModifierActionRpl, it calls the Replace method of the Query with the specified key and modifierValue.
-// If the action is ModifierActionRen, it calls the Rename method of the Query with the specified key and the last element of modifierValue.
+// If the action is ModifierActionAdd, it calls the Add method of the Query with the specified key and modifierValueAsInt.
+// If the action is ModifierActionApd, it calls the Append method of the Query with the specified key and modifierValueAsInt.
+// If the action is ModifierActionSet, it calls the Set method of the Query with the specified key and modifierValueAsInt.
+// If the action is ModifierActionRpl, it calls the Replace method of the Query with the specified key and modifierValueAsInt.
+// If the action is ModifierActionRen, it calls the Rename method of the Query with the specified key and the last element of modifierValueAsInt.
 // If the action is ModifierActionDel, it calls the Delete method of the Query with the specified key.
 //
 // If the action is not one of the predefined actions above, it returns the original Query without any modifications.
@@ -289,26 +286,21 @@ func (m modify) query(query Query, modifierValue []string) Query {
 	}
 }
 
-// bodies modifies the globalBody and localBody based on the receiver 'm' of the type modifyBodies.
-// It obtains the value to be used for modification using the m.evalValue() method.
-// If m.propagate is true, it calls the m.body method on globalBody and assigns the modified result back to globalBody.
-// The method then calls m.body method on localBody and assigns the modified result back to localBody.
-// The modified globalBody and localBody are then returned.
-func (m modify) bodies(globalBody, localBody *Body) (*Body, *Body) {
+func (m modify) bodies(httpBodyVO, httpBackendBodyVO *Body) (*Body, *Body) {
 	// obtemos o valor a ser usado para modificar
-	modifierValue := m.evalValue()
+	modifierValue := m.modifierValue()
 
 	// caso seja em um escopo propagate, modificamos pelo tipo de dado também
 	if m.propagate {
-		globalBody = m.body(globalBody, modifierValue)
+		httpBodyVO = m.body(httpBodyVO, modifierValue)
 	}
 
 	// retornamos o body global e local possivelmente alterados
-	return globalBody, m.body(localBody, modifierValue)
+	return httpBodyVO, m.body(httpBackendBodyVO, modifierValue)
 }
 
 // body modifies the body based on the receiver 'm' of the type modify.
-// It takes a pointer to a Body object and a modifierValue of any type.
+// It takes a pointer to a Body object and a modifierValueAsInt of any type.
 // If the body pointer is nil, it returns nil.
 // If the action is enum.ModifierActionAdd, it calls the Add method of the body object and assigns the modifiedBody and
 // error to modifiedBody and err, respectively.
@@ -324,7 +316,7 @@ func (m modify) bodies(globalBody, localBody *Body) (*Body, *Body) {
 // and error to modifiedBody and err, respectively.
 // If an error occurs during the modification, it is handled but not logged.
 // It returns the modifiedBody, which is the body object after the modification.
-func (m modify) body(body *Body, modifierValue any) *Body {
+func (m modify) body(body *Body, modifierValue string) *Body {
 	// se for nil ja retornamo
 	if helper.IsNil(body) {
 		return nil
@@ -354,43 +346,32 @@ func (m modify) body(body *Body, modifierValue any) *Body {
 
 	// tratamos o erro e retornamos o próprio body
 	if helper.IsNotNil(err) {
-		// todo: imprimir log?
+		logger.Warning("Error modify body:", err)
 	}
 
 	// caso tenha dado tudo certo retornamos o body modificado
 	return modifiedBody
 }
 
-// intEvalValue method in the modify struct initializes the modifier value by calling
-// the evalValue method, and then returns either the modified value or the original value.
+// modifierValueAsInt method in the modify struct initializes the modifier value by calling
+// the modifierValue method, and then returns either the modified value or the original value.
 // The return value is converted to an integer using the SimpleConvertToInt helper function.
-func (m modify) intEvalValue() int {
+func (m modify) modifierValueAsInt() int {
 	// inicializamos o valor a ser usado para modificar
-	modifierValue := m.evalValue()
+	modifierValue := m.modifierValue()
 	// retornamos o valor modificado ou não
 	return helper.SimpleConvertToInt(modifierValue)
 }
 
-// strEvalValue returns the modified value as a string.
-// The value is obtained by evaluating the `valueEval()` method, which initializes the value to be used for modification.
-// The modified value is then converted to a string using the `helper.SimpleConvertToString()` function.
-// The function returns the modified value as a string.
-func (m modify) strEvalValue() string {
-	// inicializamos o valor a ser usado para modificar
-	modifierValue := m.evalValue()
-	// retornamos o valor modificado ou não
-	return helper.SimpleConvertToString(modifierValue)
-}
-
-// sliceOfStrEvalValue returns a slice of string values to be used for modification.
-// It initializes the modifierValue by calling the evalValue method of the receiver 'm'.
-// If the modifierValue is a slice, it converts it to a []string using the SimpleConvertToDest method.
+// modifierValueAsSliceOfStr returns a slice of string values to be used for modification.
+// It initializes the modifierValueAsInt by calling the modifierValue method of the receiver 'm'.
+// If the modifierValueAsInt is a slice, it converts it to a []string using the SimpleConvertToDest method.
 // If the converted slice is not empty, it returns the slice.
-// Otherwise, it converts the modifierValue to a string using the SimpleConvertToString method,
+// Otherwise, it converts the modifierValueAsInt to a string using the SimpleConvertToString method,
 // and returns it as a single-element []string.
-func (m modify) sliceOfStrEvalValue() []string {
+func (m modify) modifierValueAsSliceOfStr() []string {
 	// inicializamos o valor a ser usado para modificar
-	modifierValue := m.evalValue()
+	modifierValue := m.modifierValue()
 	// verificamos se o mesmo é um slice
 	if helper.IsSliceType(modifierValue) {
 		var ss []string
@@ -402,127 +383,79 @@ func (m modify) sliceOfStrEvalValue() []string {
 	return []string{helper.SimpleConvertToString(modifierValue)}
 }
 
-// evalValue evaluates the modifierValue based on the receiver 'm' of the type modify.
-// If the action is "DEL", it returns nil.
-// Otherwise, it iterates through the values and processes them based on eval syntax.
-// Finally, it parses the modifierValue to the appropriate data type and returns it.
-func (m modify) evalValue() any {
+func (m modify) modifierValue() string {
 	// caso a action seja DEL retornamos nil
 	if helper.Equals(m.action, enum.ModifierActionDel) {
-		return nil
+		return ""
 	}
 	// inicializamos o valor a ser modificado ou não
 	modifierValue := m.value
 	// iteramos os valores com base na sintaxe eval
-	for _, word := range m.findAllByEvalSintaxe(modifierValue) {
-		// processamos o palavra para converter em um valor eval
-		modifierValue = m.processEvalWord(modifierValue, word)
+	for _, dynamicValueWord := range m.findAllByDynamicValueSyntax(modifierValue) {
+		// processamos o palavra para converter em um valor dinâmico
+		modifierValue = m.processDynamicValueWord(modifierValue, dynamicValueWord)
 	}
 	// damos o parse do valor em string caso tenha um valor do tipo não string
-	return m.parseModifierValueToRealType(modifierValue)
+	return modifierValue
 }
 
-// findAllByEvalSintaxe searches for all values in 'value' that match the expected evaluation regex.
-// It creates the regex pattern for the expected evaluation syntax to obtain the value.
-// It returns an array with all values found in 'value' that match the evaluation syntax.
-func (m modify) findAllByEvalSintaxe(value string) []string {
+func (m modify) findAllByDynamicValueSyntax(value string) []string {
 	// criamos o regex de evaluation esperado para obter o valor
-	regex := regexp.MustCompile(`\B#[a-zA-Z0-9_.\[\]]+`)
-	// buscamos todos os valores no modifierValue com esse valor eval
+	regex := regexp.MustCompile(`\B#[a-zA-Z0-9_.\-\[\]]+`)
+	// buscamos todos os valores no modifierValueAsInt com esse valor eval
 	return regex.FindAllString(value, -1)
 }
 
-// processEvalWord takes a modifierValue and a word as input.
-// It searches for the evalValue based on the word using the evalValueByWord method of the receiver 'm' of type modify.
-// If the evalValue is not found, it returns the modifierValue as it is.
-// Otherwise, it converts the evalValue to a string using the SimpleConvertToString helper function and returns it.
-func (m modify) processEvalWord(modifierValue, word string) string {
+func (m modify) processDynamicValueWord(modifierValue, dynamicValueWord string) string {
 	// obtemos o valor pela palavra
-	evalValue := m.evalValueByWord(word)
+	dynamicValue := m.getDynamicValuePerWord(dynamicValueWord)
 
 	// caso o valor não encontrado, vamos para próximo
-	if helper.IsNil(evalValue) {
+	if helper.IsEmpty(dynamicValue) {
 		return modifierValue
 	}
 
-	// retornamos o valor substituído pelo valor do eval encontrado
-	evalValueString := helper.SimpleConvertToString(evalValue)
-	return strings.Replace(modifierValue, word, evalValueString, 1)
+	// substituímos a palavra pelo eval
+	return strings.Replace(modifierValue, dynamicValueWord, dynamicValue, 1)
 }
 
-// evalValueByWord evaluates the value associated with the given word.
-// It removes all instances of "#" from the word.
-// It then splits the modified word by "." to obtain individual components.
-// If the split result is empty, it returns nil.
-// It extracts the value from either the request or response based on the first component of split.
-// If the first component contains "request", it calls m.requestValueByEval() with m.request and eval as arguments.
-// If the first component contains "response", it calls m.responseValueByEval() with m.response and eval as arguments.
-// Otherwise, it sets evalValue to nil.
-// It returns the obtained evalValue.
-func (m modify) evalValueByWord(word string) any {
+func (m modify) getDynamicValuePerWord(dynamicValueWord string) string {
 	// limpamos a #
-	eval := strings.ReplaceAll(word, "#", "")
+	cleanSintaxe := strings.ReplaceAll(dynamicValueWord, "#", "")
 	// damos o split pela pontuação
-	split := strings.Split(eval, ".")
+	dotSplit := strings.Split(cleanSintaxe, ".")
 	// caso esteja vazio vamos para o próximo
-	if helper.IsEmpty(split) {
-		return nil
+	if helper.IsEmpty(dotSplit) {
+		return ""
 	}
 
 	// obtemos o valor da eval vindo pela requests or responses
-	var evalValue any
-	if helper.Contains(split[0], "request") {
-		evalValue = m.requestValueByEval(m.request, eval)
-	} else if helper.Contains(split[0], "response") {
-		evalValue = m.responseValueByEval(m.response, eval)
+	var dynamicValue string
+	if helper.Contains(dotSplit[0], "request") {
+		dynamicValue = m.getHttpRequestValueByJsonPath(m.httpRequest, cleanSintaxe)
+	} else if helper.Contains(dotSplit[0], "response") {
+		dynamicValue = m.getHttpResponseValueByEval(m.httpResponse, cleanSintaxe)
 	} else {
-		evalValue = nil
+		dynamicValue = ""
 	}
 	// retornamos o valor obtido
-	return evalValue
+	return dynamicValue
 }
 
-// requestValueByEval obtains the value from the Request object based on the evaluation string 'eval'.
-// It replaces the "request." substring with an empty string in the evaluation string to form the expression.
-// Using the gjson.Get method, it retrieves the value from the evaluation string in the Request object.
-// If the value exists, it returns the result. Otherwise, it returns nil.
-func (m modify) requestValueByEval(requestVO *Request, eval string) any {
+func (m modify) getHttpRequestValueByJsonPath(requestVO *HttpRequest, eval string) string {
 	expr := strings.Replace(eval, "request.", "", 1)
-	result := gjson.Get(requestVO.Eval(), expr)
+	result := gjson.Get(requestVO.Json(), expr)
 	if result.Exists() {
-		return result.Value()
+		return result.String()
 	}
-	return nil
+	return ""
 }
 
-// responseValueByEval obtains the value from the responseVO object by evaluating the expression given by the eval string.
-// The expression is modified by replacing "response." with an empty string using strings.Replace() method.
-// The modified expression is then used to extract the value from the response using gjson.Get() method.
-// If the value exists, it is returned as result.Value(). Otherwise, it returns nil.
-func (m modify) responseValueByEval(responseVO *Response, eval string) any {
+func (m modify) getHttpResponseValueByEval(responseVO *HttpResponse, eval string) string {
 	expr := strings.Replace(eval, "response.", "", 1)
-	result := gjson.Get(responseVO.Eval(), expr)
+	result := gjson.Get(responseVO.Map(), expr)
 	if result.Exists() {
-		return result.Value()
+		return result.String()
 	}
-	return nil
-}
-
-// parseModifierValueToRealType converts the modifierValue to its corresponding real type.
-// If the modifierValue is of type json, int, float, bool, or time, it converts it to that type.
-// It uses the ConvertToDest method from the helper package to perform the conversion.
-// If the conversion is successful, it returns the converted value.
-// Otherwise, it returns the original modifierValue.
-func (m modify) parseModifierValueToRealType(modifierValue string) any {
-	// caso seja do tipo json, int, float, bool, time convertemos a esses tipos
-	if helper.IsJson(modifierValue) || helper.IsInt(modifierValue) || helper.IsFloat(modifierValue) ||
-		helper.IsBool(modifierValue) || helper.IsTime(modifierValue) {
-		var obj any
-		err := helper.ConvertToDest(modifierValue, &obj)
-		if helper.IsNil(err) {
-			return obj
-		}
-	}
-	// retornamos o valor modificado
-	return modifierValue
+	return ""
 }

@@ -56,11 +56,11 @@ func (l log) Do(ctx *api.Context) {
 	l.logProvider.InitializeLoggerOptions(ctx)
 
 	// imprimimos o log de start
-	logger.Info("Start!", l.logProvider.BuildInitialRequestMessage(ctx))
+	logger.Info("Start!", l.logProvider.BuildStartRequestMessage(ctx))
 
 	// chamamos o próximo handler da requisição
 	ctx.Next()
 
 	// imprimimos o log de finish
-	logger.Info("Finish!", l.logProvider.BuildFinishRequestMessage(ctx.Response(), startTime))
+	logger.Info("Finish!", l.logProvider.BuildFinishRequestMessage(ctx.HttpResponse(), startTime))
 }

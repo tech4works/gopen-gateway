@@ -40,6 +40,6 @@ type SettingView struct {
 	Backends int `json:"backends"`
 	// Modifiers represents the count of modifiers in the SettingView struct.
 	Modifiers int `json:"modifiers"`
-	// Setting represents the detailed configuration view for the Gopen Json application.
+	// Setting represents the detailed configuration view for the Gopen Map application.
 	Setting *vo.GopenJson `json:"setting"`
 }

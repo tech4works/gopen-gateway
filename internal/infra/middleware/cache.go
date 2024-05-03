@@ -66,10 +66,10 @@ func (c cache) Do(endpointCacheVO *vo.EndpointCache) api.HandlerFunc {
 		}
 
 		// inicializamos a chave que vai ser utilizada
-		key := endpointCacheVO.StrategyKey(ctx.Request())
+		key := endpointCacheVO.StrategyKey(ctx.HttpRequest())
 
 		// verificamos se ele permite ler o cache
-		if endpointCacheVO.CanRead(ctx.Request()) {
+		if endpointCacheVO.CanRead(ctx.HttpRequest()) {
 			// inicializamos o valor a ser obtido
 			var cacheResponse vo.CacheResponse
 
@@ -87,12 +87,12 @@ func (c cache) Do(endpointCacheVO *vo.EndpointCache) api.HandlerFunc {
 		ctx.Next()
 
 		// verificamos se podemos gravar a resposta
-		if endpointCacheVO.CanWrite(ctx.Request(), ctx.Response()) {
+		if endpointCacheVO.CanWrite(ctx.HttpRequest(), ctx.HttpResponse()) {
 			// instanciamos a duração
 			duration := endpointCacheVO.Duration()
 
 			// construímos o valor a ser setado no cache
-			cacheResponse := vo.NewCacheResponse(ctx.Response(), duration)
+			cacheResponse := vo.NewCacheResponse(ctx.HttpResponse(), duration)
 
 			// transformamos em cacheResponse e setamos
 			err := c.cacheStore.Set(ctx.Context(), key, cacheResponse, duration.Time())

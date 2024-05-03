@@ -70,11 +70,9 @@ func (t timeout) Do(timeoutDuration vo.Duration) api.HandlerFunc {
 		// seguramos o goroutine principal aguardando os canais ou o context serem notificados
 		select {
 		case <-finishChan:
-			break
 		case <-ctx.Context().Done():
 			err := errors.New("gateway timeout:", timeoutDuration.String())
 			ctx.WriteError(http.StatusGatewayTimeout, err)
-			break
 		}
 	}
 }

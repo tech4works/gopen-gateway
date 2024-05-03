@@ -20,45 +20,45 @@ import (
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/enum"
 )
 
-// ExecuteBackend is a type that represents the execution of a backend server request and response.
+// ExecuteBackend is a type that represents the execution of a backend server httpRequest and httpResponse.
 type ExecuteBackend struct {
 	endpoint *Endpoint
 	// Backend represents a backend server configuration.
 	backend *Backend
-	// Request represents an HTTP `request` object.
-	request *Request
-	// Response represents an HTTP `response` object.
-	response *Response
+	// Request represents an HTTP `httpRequest` object.
+	request *HttpRequest
+	// Response represents an HTTP `httpResponse` object.
+	response *HttpResponse
 }
 
-// ExecuteModifier is a type that represents the execution of a modifier on a backend request and response.
-// It contains fields for the modifier context, backend modifiers, request, and response.
+// ExecuteModifier is a type that represents the execution of a modifier on a backend httpRequest and httpResponse.
+// It contains fields for the modifier context, backend modifiers, httpRequest, and httpResponse.
 type ExecuteModifier struct {
 	// context represents the context in which a modification should be applied.
 	context enum.ModifierContext
 	// backendModifiers represents the set of modifiers for a backend configuration. It contains fields for the
 	// status code, header, params, query, and body modifiers.
 	backendModifiers *BackendModifiers
-	// Request represents an HTTP `request` object.
-	request *Request
-	// Response represents an HTTP `response` object.
-	response *Response
+	// Request represents an HTTP `httpRequest` object.
+	request *HttpRequest
+	// Response represents an HTTP `httpResponse` object.
+	response *HttpResponse
 }
 
 // ExecuteEndpoint represents the execution of a specific endpoint in the Gopen server.
-// It contains the configuration for the Gopen server, the targeted endpoint, and the HTTP request for execution.
+// It contains the configuration for the Gopen server, the targeted endpoint, and the HTTP httpRequest for execution.
 type ExecuteEndpoint struct {
 	// Gopen represents the configuration for the Gopen server, including environment, version, hot reload status, port,
 	// timeout duration, limiter, cache, security CORS, middlewares, and endpoints.
 	gopen *Gopen
 	// endpoint represents a specific endpoint in the Gopen server.
 	endpoint *Endpoint
-	// Request represents an HTTP `request` object.
-	request *Request
+	// Request represents an HTTP `httpRequest` object.
+	request *HttpRequest
 }
 
-// NewExecuteEndpoint creates a new ExecuteEndpoint using the provided Gopen, Endpoint, and Request objects.
-func NewExecuteEndpoint(gopenVO *Gopen, endpointVO *Endpoint, requestVO *Request) *ExecuteEndpoint {
+// NewExecuteEndpoint creates a new ExecuteEndpoint using the provided Gopen, Endpoint, and HttpRequest objects.
+func NewExecuteEndpoint(gopenVO *Gopen, endpointVO *Endpoint, requestVO *HttpRequest) *ExecuteEndpoint {
 	return &ExecuteEndpoint{
 		gopen:    gopenVO,
 		endpoint: endpointVO,
@@ -66,8 +66,8 @@ func NewExecuteEndpoint(gopenVO *Gopen, endpointVO *Endpoint, requestVO *Request
 	}
 }
 
-// NewExecuteBackend creates a new ExecuteBackend using the provided Endpoint, Backend, Request, and Response objects.
-func NewExecuteBackend(endpointVO *Endpoint, backendVO *Backend, requestVO *Request, responseVO *Response) *ExecuteBackend {
+// NewExecuteBackend creates a new ExecuteBackend using the provided Endpoint, Backend, HttpRequest, and HttpResponse objects.
+func NewExecuteBackend(endpointVO *Endpoint, backendVO *Backend, requestVO *HttpRequest, responseVO *HttpResponse) *ExecuteBackend {
 	return &ExecuteBackend{
 		endpoint: endpointVO,
 		backend:  backendVO,
@@ -76,8 +76,8 @@ func NewExecuteBackend(endpointVO *Endpoint, backendVO *Backend, requestVO *Requ
 	}
 }
 
-// NewExecuteRequestModifier creates a new ExecuteModifier using the provided Backend, Request, and Response objects.
-func NewExecuteRequestModifier(backendVO *Backend, requestVO *Request, responseVO *Response,
+// NewExecuteRequestModifier creates a new ExecuteModifier using the provided Backend, HttpRequest, and HttpResponse objects.
+func NewExecuteRequestModifier(backendVO *Backend, requestVO *HttpRequest, responseVO *HttpResponse,
 ) *ExecuteModifier {
 	return &ExecuteModifier{
 		context:          enum.ModifierContextRequest,
@@ -87,10 +87,10 @@ func NewExecuteRequestModifier(backendVO *Backend, requestVO *Request, responseV
 	}
 }
 
-// NewExecuteResponseModifier creates a new ExecuteModifier using the provided Backend, Request, and Response objects.
-// The ExecuteModifier modifies the response in the context of enum.ModifierContextResponse, using the backend modifier
+// NewExecuteResponseModifier creates a new ExecuteModifier using the provided Backend, HttpRequest, and HttpResponse objects.
+// The ExecuteModifier modifies the httpResponse in the context of enum.ModifierContextResponse, using the backend modifier
 // functions. It returns the newly created ExecuteModifier.
-func NewExecuteResponseModifier(backendVO *Backend, requestVO *Request, responseVO *Response,
+func NewExecuteResponseModifier(backendVO *Backend, requestVO *HttpRequest, responseVO *HttpResponse,
 ) *ExecuteModifier {
 	return &ExecuteModifier{
 		context:          enum.ModifierContextResponse,
@@ -110,8 +110,8 @@ func (e ExecuteEndpoint) Endpoint() *Endpoint {
 	return e.endpoint
 }
 
-// Request returns the Request object associated with the ExecuteEndpoint object.
-func (e ExecuteEndpoint) Request() *Request {
+// HttpRequest returns the HttpRequest object associated with the ExecuteEndpoint object.
+func (e ExecuteEndpoint) Request() *HttpRequest {
 	return e.request
 }
 
@@ -125,18 +125,18 @@ func (e ExecuteBackend) Backend() *Backend {
 	return e.backend
 }
 
-// Request returns the Request object associated with the ExecuteBackend object.
-func (e ExecuteBackend) Request() *Request {
+// HttpRequest returns the HttpRequest object associated with the ExecuteBackend object.
+func (e ExecuteBackend) Request() *HttpRequest {
 	return e.request
 }
 
-// Response returns the Response object associated with the ExecuteBackend object.
-func (e ExecuteBackend) Response() *Response {
+// HttpResponse returns the HttpResponse object associated with the ExecuteBackend object.
+func (e ExecuteBackend) Response() *HttpResponse {
 	return e.response
 }
 
-// Request returns the Request object associated with the ExecuteModifier object.
-func (e ExecuteModifier) Request() *Request {
+// HttpRequest returns the HttpRequest object associated with the ExecuteModifier object.
+func (e ExecuteModifier) Request() *HttpRequest {
 	return e.request
 }
 
@@ -175,7 +175,7 @@ func (e ExecuteModifier) ModifierStatusCode() int {
 	return e.backendModifiers.statusCode
 }
 
-// Response returns the Response modifier associated with the ExecuteModifier object.
-func (e ExecuteModifier) Response() *Response {
+// HttpResponse returns the HttpResponse modifier associated with the ExecuteModifier object.
+func (e ExecuteModifier) Response() *HttpResponse {
 	return e.response
 }

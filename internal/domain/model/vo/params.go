@@ -17,7 +17,6 @@
 package vo
 
 import (
-	"fmt"
 	"github.com/gin-gonic/gin"
 )
 
@@ -25,26 +24,18 @@ import (
 // where the keys are strings and the values are strings.
 type Params map[string]string
 
-// NewParams creates a new Params map from the given gin.Params slice.
-// Each element in the slice is assigned as a key-value pair in the Params map.
-// The resulting Params map is returned.
-func NewParams(params gin.Params) Params {
-	result := Params{}
-	for _, param := range params {
-		result[param.Key] = param.Value
+func NewParams(httpParams gin.Params) Params {
+	paramsVO := Params{}
+	for _, param := range httpParams {
+		paramsVO[param.Key] = param.Value
 	}
-	return result
+	return paramsVO
 }
 
-// NewParamsByPath filters the params from the parentParams map that contain the keys present in the path string.
-// The filtered params are returned as a new Params map.
-func NewParamsByPath(path UrlPath, parentParams Params) Params {
+func NewParamsByUrlPath(urlPathVO UrlPath, parentParamsVO Params) Params {
 	r := Params{}
-
-	// filtramos os params que contem no path passado
-	for key, value := range parentParams {
-		paramKey := fmt.Sprint(":", key)
-		if path.ContainsParam(paramKey) {
+	for key, value := range parentParamsVO {
+		if urlPathVO.ContainsParam(key) {
 			r[key] = value
 		}
 	}
@@ -98,13 +89,6 @@ func (p Params) Delete(key string) (r Params) {
 	r = p.copy()
 	delete(r, key)
 	return r
-}
-
-// Get retrieves the value associated with the specified key from the Params map.
-// It returns the value if found, otherwise it returns an empty string.
-func (p Params) Get(key string) string {
-	value, _ := p[key]
-	return value
 }
 
 // Exists checks if a key exists in the Params map.

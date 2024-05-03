@@ -23,17 +23,17 @@ import (
 )
 
 // HandlerFunc is a type for defining functions that can be used as HTTP route handlers.
-// It takes a *Context parameter which contains information about the current request
-// and allows the handler to read and manipulate the request and response.
+// It takes a *Context parameter which contains information about the current httpRequest
+// and allows the handler to read and manipulate the httpRequest and httpResponse.
 // The handler function must not return any values.
 type HandlerFunc func(ctx *Context)
 
-// Handle handles a request by registering it with the specified engine and endpoint information,
+// Handle handles a httpRequest by registering it with the specified engine and endpoint information,
 // and then passing it to the provided handler functions.
-// The engine parameter is the gin Engine to register the request with.
+// The engine parameter is the gin Engine to register the httpRequest with.
 // The gopenVO parameter is the Gopen configuration object.
 // The endpointVO parameter is the Endpoint configuration object.
-// The handles parameter is a variadic slice of HandlerFunc functions that will be sequentially called to handle the request.
+// The handles parameter is a variadic slice of HandlerFunc functions that will be sequentially called to handle the httpRequest.
 func Handle(engine *gin.Engine, gopenVO *vo.Gopen, endpointVO *vo.Endpoint, handles ...HandlerFunc) {
 	engine.Handle(endpointVO.Method(), endpointVO.Path(), parseHandles(gopenVO, endpointVO, handles)...)
 }
@@ -51,17 +51,17 @@ func parseHandles(gopenVO *vo.Gopen, endpointVO *vo.Endpoint, handles []HandlerF
 	return ginHandler
 }
 
-// handle handles a request by registering it with the specified Gopen and Endpoint objects,
+// handle handles a httpRequest by registering it with the specified Gopen and Endpoint objects,
 // and then passing it to the provided HandlerFunc.
 // The gopenVO parameter is the Gopen configuration object.
 // The endpointVO parameter is the Endpoint configuration object.
-// The handle parameter is a HandlerFunc function that will be called to handle the request.
+// The handle parameter is a HandlerFunc function that will be called to handle the httpRequest.
 func handle(gopenVO *vo.Gopen, endpointVO *vo.Endpoint, handle HandlerFunc) gin.HandlerFunc {
 	return func(gin *gin.Context) {
 		// verificamos se esse contexto ja foi construído
 		ctx, ok := gin.Get("context")
 		if !ok {
-			// construímos o contexto da requisição através dos objetos de valores e o gin todo: ve se isso tem impacto
+			// construímos o contexto da requisição através dos objetos de valores e o gin
 			ctx = buildContext(gin, gopenVO, endpointVO)
 			// setamos o contexto criado da requisição
 			gin.Set("context", ctx)
@@ -77,11 +77,10 @@ func handle(gopenVO *vo.Gopen, endpointVO *vo.Endpoint, handle HandlerFunc) gin.
 func buildContext(gin *gin.Context, gopenVO *vo.Gopen, endpointVO *vo.Endpoint) *Context {
 	// o contexto da requisição é criado
 	return &Context{
-		mutex:     &sync.RWMutex{},
-		framework: gin,
-		gopen:     gopenVO,
-		endpoint:  endpointVO,
-		request:   vo.NewRequest(gin),
-		response:  vo.NewResponse(endpointVO),
+		mutex:       &sync.RWMutex{},
+		framework:   gin,
+		gopen:       gopenVO,
+		endpoint:    endpointVO,
+		httpRequest: vo.NewHttpRequest(gin),
 	}
 }

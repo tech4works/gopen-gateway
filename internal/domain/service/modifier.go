@@ -29,9 +29,9 @@ type modifier struct {
 type Modifier interface {
 	// Execute is a method that executes a modifier on a backend request and response.
 	// It takes a vo.ExecuteModifier as a parameter, which contains the modifier context,
-	// backend modifiers, request, and response. It returns a vo.Request object and a vo.Response object.
+	// backend modifiers, request, and response. It returns a vo.HttpRequest object and a vo.HttpResponse object.
 	// This method allows modification of the request and response based on the provided modifier.
-	Execute(executeData *vo.ExecuteModifier) (*vo.Request, *vo.Response)
+	Execute(executeData *vo.ExecuteModifier) (*vo.HttpRequest, *vo.HttpResponse)
 }
 
 // NewModifier creates and returns a new Modifier instance.
@@ -49,9 +49,9 @@ func NewModifier() Modifier {
 //     request, and response to be modified.
 //
 // Returns:
-// - *vo.Request: The potentially altered request object.
-// - *vo.Response: The potentially altered response object.
-func (m modifier) Execute(executeData *vo.ExecuteModifier) (*vo.Request, *vo.Response) {
+// - *vo.HttpRequest: The potentially altered request object.
+// - *vo.HttpResponse: The potentially altered response object.
+func (m modifier) Execute(executeData *vo.ExecuteModifier) (*vo.HttpRequest, *vo.HttpResponse) {
 	// todo: podemos ter uma configuração que executa o modificador caso o status code seja tal, parecido com o cache
 	//  usando o campo "only-if-status-codes" para o contexto de resposta.
 	//  podemos também ter um campo "ignore-if-aborted" para ignorar a modificação se o backend for abortado.
@@ -101,15 +101,15 @@ func (m modifier) Execute(executeData *vo.ExecuteModifier) (*vo.Request, *vo.Res
 // Parameters:
 // - modifiers: A slice of Modifier value objects to iterate over and potentially apply
 // - context: The current context that incoming modifiers must match to be applied
-// - requestVO: Request value object that may be modified by the execution of a modifier strategy
-// - responseVO: Response value object that may be modified by the execution of a modifier strategy
-// - newModifyVO: function to create a new ModifyLastBackendResponse value object (a modification strategy)
+// - requestVO: HttpRequest value object that may be modified by the execution of a modifier strategy
+// - responseVO: HttpResponse value object that may be modified by the execution of a modifier strategy
+// - newModifyVO: function to create a new ModifyLastHttpBackendResponse value object (a modification strategy)
 //
 // Returns:
-// - vo.Request: The potentially altered request value object
-// - vo.Response: The potentially altered response value object
-func (m modifier) modify(modifiers []vo.Modifier, context enum.ModifierContext, requestVO *vo.Request,
-	responseVO *vo.Response, newModifyVO vo.NewModifyVOFunc) (*vo.Request, *vo.Response) {
+// - vo.HttpRequest: The potentially altered request value object
+// - vo.HttpResponse: The potentially altered response value object
+func (m modifier) modify(modifiers []vo.Modifier, context enum.ModifierContext, requestVO *vo.HttpRequest,
+	responseVO *vo.HttpResponse, newModifyVO vo.NewModifyVOFunc) (*vo.HttpRequest, *vo.HttpResponse) {
 	// iteramos os modificadores
 	for _, modifierVO := range modifiers {
 		// caso ele seja invalido ou não tiver no context vamos para o próximo

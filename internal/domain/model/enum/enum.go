@@ -31,17 +31,43 @@ type ModifierAction string
 // CacheControl represents the header value of cache control.
 type CacheControl string
 
-// ResponseEncode represents the encoding format for the API endpoint response.
-type ResponseEncode string
+// Encode represents the encoding format for the API endpoint response.
+type Encode string
+
+// Nomenclature represents the case format for text values.
+type Nomenclature string
 
 // ContentType represents the format of the content.
 type ContentType string
 
+type ContentEncoding string
+
+type MiddlewareType string
+
+type BackendResponseApply string
+
 const (
-	ResponseEncodeText ResponseEncode = "TEXT"
-	ResponseEncodeJson ResponseEncode = "JSON"
-	ResponseEncodeXml  ResponseEncode = "XML"
-	ResponseEncodeYaml ResponseEncode = "YAML"
+	ContentEncodingUnzip ContentEncoding = "unzip"
+)
+const (
+	BackendResponseApplyEarly BackendResponseApply = "EARLY"
+	BackendResponseApplyLate  BackendResponseApply = "LATE"
+)
+const (
+	Beforewares MiddlewareType = "beforewares"
+	Afterwares  MiddlewareType = "afterwares"
+)
+const (
+	NomenclatureCamel      Nomenclature = "CAMEL"
+	NomenclatureLowerCamel Nomenclature = "LOWER_CAMEL"
+	NomenclatureSnake      Nomenclature = "SNAKE"
+	NomenclatureKebab      Nomenclature = "KEBAB"
+)
+const (
+	EncodeText Encode = "TEXT"
+	EncodeJson Encode = "JSON"
+	EncodeXml  Encode = "XML"
+	EncodeYaml Encode = "YAML"
 )
 const (
 	CacheControlNoCache CacheControl = "no-cache"
@@ -83,6 +109,13 @@ func ContentTypeFromString(s string) ContentType {
 		return ContentTypeJson
 	} else if helper.ContainsIgnoreCase(s, ContentTypeText.String()) {
 		return ContentTypeText
+	}
+	return ""
+}
+
+func ContentEncodingFromString(s string) ContentEncoding {
+	if helper.ContainsIgnoreCase(s, ContentEncodingUnzip) {
+		return ContentEncodingUnzip
 	}
 	return ""
 }
@@ -132,12 +165,23 @@ func (c CacheControl) IsEnumValid() bool {
 	return false
 }
 
-// IsEnumValid checks if the ResponseEncode is a valid enumeration value.
-// It returns true if the ResponseEncode is either ResponseEncodeText,
-// ResponseEncodeJson or ResponseEncodeXml, otherwise it returns false.
-func (r ResponseEncode) IsEnumValid() bool {
+// IsEnumValid checks if the Encode is a valid enumeration value.
+// It returns true if the Encode is either EncodeText,
+// EncodeJson or EncodeXml, otherwise it returns false.
+func (r Encode) IsEnumValid() bool {
 	switch r {
-	case ResponseEncodeText, ResponseEncodeJson, ResponseEncodeXml:
+	case EncodeText, EncodeJson, EncodeXml:
+		return true
+	}
+	return false
+}
+
+// IsEnumValid checks if the Nomenclature is a valid enumeration value. Returns true if
+// Nomenclature is either NomenclatureCamel, NomenclatureLowerCamel, NomenclatureSnake, or NomenclatureKebab,
+// otherwise it returns false.
+func (c Nomenclature) IsEnumValid() bool {
+	switch c {
+	case NomenclatureCamel, NomenclatureLowerCamel, NomenclatureSnake, NomenclatureKebab:
 		return true
 	}
 	return false
@@ -154,14 +198,31 @@ func (c ContentType) IsEnumValid() bool {
 	return false
 }
 
-// ContentType returns the format of the content based on the ResponseEncode value.
-func (r ResponseEncode) ContentType() ContentType {
+func (c ContentEncoding) IsEnumValid() bool {
+	switch c {
+	case ContentEncodingUnzip:
+		return true
+	}
+	return false
+}
+
+// todo
+func (b BackendResponseApply) IsEnumValid() bool {
+	switch b {
+	case BackendResponseApplyEarly, BackendResponseApplyLate:
+		return true
+	}
+	return false
+}
+
+// ContentType returns the format of the content based on the Encode value.
+func (r Encode) ContentType() ContentType {
 	switch r {
-	case ResponseEncodeJson:
+	case EncodeJson:
 		return ContentTypeJson
-	case ResponseEncodeXml:
+	case EncodeXml:
 		return ContentTypeXml
-	case ResponseEncodeYaml:
+	case EncodeYaml:
 		return ContentTypeYml
 	default:
 		return ContentTypeText

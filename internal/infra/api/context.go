@@ -25,26 +25,26 @@ import (
 	"sync"
 )
 
-// Context is a struct that represents the context of the current request.
+// Context is a struct that represents the context of the current httpRequest.
 // It contains various fields including mutex to synchronize access to the context,
-// framework to handle the request, gopen configuration, endpoint information, and request and response data.
+// framework to handle the httpRequest, gopen configuration, endpoint information, and httpRequest and httpResponse data.
 type Context struct {
 	// mutex is a pointer to a sync.RWMutex structure which provides mutual
 	// exclusion locking using read-write locks.
 	mutex *sync.RWMutex
 	// framework represents a context object for the Gin framework. It contains information about
-	// the current HTTP request and response.
+	// the current HTTP httpRequest and httpResponse.
 	framework *gin.Context
 	// gopen represents a variable of type vo.Gopen. It is used to access and manipulate data using the desired
 	// application settings
 	gopen *vo.Gopen
-	// endpoint represents the configuration of the endpoint that is receiving the current request, widely used to take
-	// execution guidelines and response customization
+	// endpoint represents the configuration of the endpoint that is receiving the current httpRequest, widely used to take
+	// execution guidelines and httpResponse customization
 	endpoint *vo.Endpoint
-	// request represents a data structure for current `request`.
-	request *vo.Request
-	// response is a structure that represents the HTTP response, written by the context.
-	response *vo.Response
+	// httpRequest represents a data structure for current `httpRequest`.
+	httpRequest *vo.HttpRequest
+	// httpResponse is a structure that represents the HTTP httpResponse, written by the context.
+	httpResponse *vo.HttpResponse
 }
 
 // Context returns the context of the Context. It delegates the call to the underlying framework's Context.Context() method.
@@ -57,26 +57,26 @@ func (c *Context) Gopen() *vo.Gopen {
 	return c.gopen
 }
 
-// Endpoint returns the endpoint associated with the request.
+// Endpoint returns the endpoint associated with the httpRequest.
 // It retrieves the endpoint value from the `endpoint` field of the Context struct.
 func (c *Context) Endpoint() *vo.Endpoint {
 	return c.endpoint
 }
 
-// Request returns the request object of the Context.
-// It returns the `request` field of the Context struct.
-func (c *Context) Request() *vo.Request {
-	return c.request
+// HttpRequest returns the httpRequest object of the Context.
+// It returns the `httpRequest` field of the Context struct.
+func (c *Context) HttpRequest() *vo.HttpRequest {
+	return c.httpRequest
 }
 
-// Response returns the response of the Context. It returns the response object stored
+// HttpResponse returns the httpResponse of the Context. It returns the httpResponse object stored
 // in the Context struct.
-func (c *Context) Response() *vo.Response {
-	return c.response
+func (c *Context) HttpResponse() *vo.HttpResponse {
+	return c.httpResponse
 }
 
-// Http returns the underlying HTTP request object of the Context.
-// It delegates the call to the underlying framework's Request property.
+// Http returns the underlying HTTP httpRequest object of the Context.
+// It delegates the call to the underlying framework's HttpRequest property.
 func (c *Context) Http() *http.Request {
 	return c.framework.Request
 }
@@ -87,10 +87,10 @@ func (c *Context) RequestWithContext(ctx context.Context) {
 	c.framework.Request = c.framework.Request.WithContext(ctx)
 }
 
-// Header returns the `vo.Header` of the `Request`. It creates a new `vo.Header` using the underlying `http.Header`
-// from the `Request`.
+// Header returns the `vo.Header` of the `HttpRequest`. It creates a new `vo.Header` using the underlying `http.Header`
+// from the `HttpRequest`.
 func (c *Context) Header() vo.Header {
-	return c.request.Header()
+	return c.httpRequest.Header()
 }
 
 // HeaderValue returns the value of the specified header key. It delegates the call to the underlying Context's
@@ -99,36 +99,36 @@ func (c *Context) HeaderValue(key string) string {
 	return c.Header().Get(key)
 }
 
-// AddHeader adds a new header to the HTTP request.
-// It takes a key and value as parameters and adds them to the request's headers.
+// AddHeader adds a new header to the HTTP httpRequest.
+// It takes a key and value as parameters and adds them to the httpRequest's headers.
 // Example usage:
 //
 //	req.AddHeader("Content-Type", "application/json")
 //	req.AddHeader("Authorization", "Bearer token123")
 //
 // The method first creates a new header using the provided key and value.
-// It then adds the header to the request using the Header() method of the context.
-// Finally, it sets the updated request header using the SetHeader() method of the request.
+// It then adds the header to the httpRequest using the Header() method of the context.
+// Finally, it sets the updated httpRequest header using the SetHeader() method of the httpRequest.
 func (c *Context) AddHeader(key, value string) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
 	header := c.Header().Add(key, value)
-	c.request = c.Request().SetHeader(header)
+	c.httpRequest = c.HttpRequest().SetHeader(header)
 }
 
 // SetHeader sets the value of the specified header key for the Context object.
-// It delegates the call to the underlying framework's Request.Header.Set() method.
+// It delegates the call to the underlying framework's HttpRequest.Header.Set() method.
 // Example usage: req.SetHeader("X-Forwarded-For", req.RemoteAddr()) and req.SetHeader("X-TraceId", t.traceProvider.GenerateTraceId())
 // The SetHeader method takes a key and value as parameters, set the key value pair in the Context object's header.
-// It uses the underlying framework's Request.Header.Set() method to update the header value.
+// It uses the underlying framework's HttpRequest.Header.Set() method to update the header value.
 // It returns nothing.
 func (c *Context) SetHeader(key, value string) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
 	header := c.Header().Set(key, value)
-	c.request = c.Request().SetHeader(header)
+	c.httpRequest = c.HttpRequest().SetHeader(header)
 }
 
 // RemoteAddr returns the client's remote network address in the format "IP:port". It delegates the call to the
@@ -138,27 +138,27 @@ func (c *Context) RemoteAddr() string {
 }
 
 // Method returns the HTTP method of the Context.
-// It delegates the call to the underlying framework's Request.Method() method.
+// It delegates the call to the underlying framework's HttpRequest.Method() method.
 func (c *Context) Method() string {
-	return c.Request().Method()
+	return c.HttpRequest().Method()
 }
 
-// Url returns the URL of the request.
-// It delegates the call to the underlying framework's Request.Url() method.
+// Url returns the URL of the httpRequest.
+// It delegates the call to the underlying framework's HttpRequest.Url() method.
 func (c *Context) Url() string {
-	return c.Request().Url()
+	return c.HttpRequest().Url()
 }
 
 // Uri returns the URI of the Context. It delegates the call to the
-// underlying Request's Uri() method.
+// underlying HttpRequest's Uri() method.
 func (c *Context) Uri() string {
-	return c.Request().Path()
+	return c.HttpRequest().Path()
 }
 
 // Body returns the body of the Context. It delegates the call to the
-// underlying framework's Request.Body() method.
+// underlying framework's HttpRequest.Body() method.
 func (c *Context) Body() *vo.Body {
-	return c.Request().Body()
+	return c.HttpRequest().Body()
 }
 
 // BodyString returns the string representation of the body of the Context.
@@ -173,29 +173,23 @@ func (c *Context) BodyString() string {
 }
 
 // Params returns the params of the Context.
-// It delegates the call to the underlying Request's Params() method.
+// It delegates the call to the underlying HttpRequest's Params() method.
 func (c *Context) Params() vo.Params {
-	return c.Request().Params()
+	return c.HttpRequest().Params()
 }
 
 // Query returns the query object associated with the current context. It retrieves the query object
-// by delegating the call to the underlying framework's Request().Query() method.
+// by delegating the call to the underlying framework's HttpRequest().Query() method.
 func (c *Context) Query() vo.Query {
-	return c.Request().Query()
+	return c.HttpRequest().Query()
 }
 
-// Next calls the underlying framework's Next method to proceed to the next handler in the request chain.
+// Next calls the underlying framework's Next method to proceed to the next handler in the httpRequest chain.
 func (c *Context) Next() {
 	c.framework.Next()
 }
 
-// Write writes the response to the client.
-// It first checks if the request has already been aborted, in which case it does nothing.
-// Then, it writes the response headers.
-// It retrieves the status code and body from the responseVO.
-// If the body is not empty, it writes the body along with the status code.
-// Otherwise, it only writes the status code.
-func (c *Context) Write(responseVO *vo.Response) {
+func (c *Context) Write(httpResponseVO *vo.HttpResponse) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
@@ -204,13 +198,16 @@ func (c *Context) Write(responseVO *vo.Response) {
 		return
 	}
 
+	// escrevemos a resposta a partir da resposta
+	httpResponseWrittenVO := httpResponseVO.Write(c.Endpoint())
+
 	// escrevemos os headers de resposta
-	c.writeHeader(responseVO.Header())
+	c.writeHeader(httpResponseWrittenVO.Header())
 
 	// instanciamos os valores a serem utilizados
-	statusCode := responseVO.StatusCode()
-	contentType := responseVO.ContentType()
-	bodyBytes := responseVO.BytesBody()
+	statusCode := httpResponseWrittenVO.StatusCode()
+	contentType := httpResponseWrittenVO.ContentType()
+	bodyBytes := httpResponseWrittenVO.BytesBody()
 
 	// verificamos se tem valor o body
 	if helper.IsNotEmpty(bodyBytes) {
@@ -223,35 +220,64 @@ func (c *Context) Write(responseVO *vo.Response) {
 	c.framework.Abort()
 
 	// setamos a resposta VO escrita
-	c.response = responseVO
+	c.httpResponse = httpResponseWrittenVO
 }
 
-// WriteCacheResponse writes the cache response to the client's response.
-// It creates a new response using the cache response and writes it.
+func (c *Context) WriteStatusCode(code int) {
+	// preparamos a resposta com o status code recebido
+	httpResponseVO := vo.NewHttpResponseByStatusCode(code)
+	// escrevemos a resposta
+	c.Write(httpResponseVO)
+}
+
+func (c *Context) WriteString(code int, body string) {
+	// preparamos a resposta com a string
+	httpResponseVO := vo.NewHttpResponseByString(code, body)
+	// escrevemos a resposta
+	c.Write(httpResponseVO)
+}
+
+func (c *Context) WriteJson(code int, body any) {
+	// preparamos a resposta com o body any
+	httpResponseVO := vo.NewHttpResponseByJson(code, body)
+	// escrevemos a resposta
+	c.Write(httpResponseVO)
+}
+
 func (c *Context) WriteCacheResponse(cacheResponse *vo.CacheResponse) {
-	// preparamos a resposta
-	responseVO := vo.NewResponseByCache(c.endpoint, cacheResponse)
+	// preparamos a resposta a partir da resposta obtida do cache
+	httpResponseVO := vo.NewHttpResponseByCache(cacheResponse)
 	// escrevemos a resposta
-	c.Write(responseVO)
+	c.Write(httpResponseVO)
 }
 
-// WriteError writes an error response to the client.
-// It creates a new Response object with the provided code and error, and delegates the writing of the response to the
-// Write method.
 func (c *Context) WriteError(code int, err error) {
-	// preparamos a resposta
-	responseVO := vo.NewResponseByErr(c.Endpoint(), code, err)
+	// preparamos a resposta a partir do status code e error
+	httpResponseVO := vo.NewHttpResponseByErr(c.Endpoint().Path(), code, err)
 	// escrevemos a resposta
-	c.Write(responseVO)
+	c.Write(httpResponseVO)
 }
 
-// writeHeader sets the headers in the HTTP response as received in the `header` argument, excluding certain headers.
-// Headers to be ignored: "Content-Length", "Content-Type", "Date".
-// The method delegates the actual header setting to the underlying framework's `Header()` method.
-// Example usage can be found in the `Write()` method.
+// writeStatusCode writes the HTTP status code to the httpResponse.
+// If the httpRequest is already aborted, it does nothing.
+// It sets the status code in the underlying framework using the given code.
+// Parameter:
+//   - code: the HTTP status code to be set in the httpResponse.
+func (c *Context) writeStatusCode(code int) {
+	if c.framework.IsAborted() {
+		return
+	}
+	c.framework.Status(code)
+}
+
+// writeHeader writes the given header to the underlying framework's httpResponse. It skips certain headers including
+// "Content-Length", "Content-Type", "Content-Encoding" (if it contains "gzip"), and "Date". The method delegates the
+// call to the underlying framework's Header method for each non-skipped header.
 func (c *Context) writeHeader(header vo.Header) {
 	for key := range header {
+		headerValue := header.Get(key)
 		if helper.EqualsIgnoreCase(key, "Content-Length") || helper.EqualsIgnoreCase(key, "Content-Type") ||
+			(helper.EqualsIgnoreCase(key, "Content-Encoding") && helper.ContainsIgnoreCase(headerValue, "gzip")) ||
 			helper.EqualsIgnoreCase(key, "Date") {
 			continue
 		}
@@ -259,12 +285,12 @@ func (c *Context) writeHeader(header vo.Header) {
 	}
 }
 
-// writeBody writes the response body based on the configured response encoding of the endpoint.
+// writeBody writes the httpResponse body based on the configured httpResponse encoding of the endpoint.
 // If the framework is aborted, the method returns early without writing the body.
-// If the response encoding is set to ResponseEncodeText, the body is written as a string using the given code.
-// If the response encoding is set to ResponseEncodeJson, the body is written as JSON using the given code.
-// If the response encoding is set to ResponseEncodeXml, the body is written as XML using the given code.
-// If the response encoding is set to ResponseEncodeYaml, the body is written as YAML using the given code.
+// If the httpResponse encoding is set to ResponseEncodeText, the body is written as a string using the given code.
+// If the httpResponse encoding is set to ResponseEncodeJson, the body is written as JSON using the given code.
+// If the httpResponse encoding is set to ResponseEncodeXml, the body is written as XML using the given code.
+// If the httpResponse encoding is set to ResponseEncodeYaml, the body is written as YAML using the given code.
 // If none of the above cases match and the body is of JSON type, it is written as JSON using the given code.
 // If none of the above cases match and the body is not of JSON type, it is written as a string using the given code.
 func (c *Context) writeBody(code int, contentType string, body []byte) {
@@ -272,16 +298,4 @@ func (c *Context) writeBody(code int, contentType string, body []byte) {
 		return
 	}
 	c.framework.Data(code, contentType, body)
-}
-
-// writeStatusCode writes the HTTP status code to the response.
-// If the request is already aborted, it does nothing.
-// It sets the status code in the underlying framework using the given code.
-// Parameter:
-//   - code: the HTTP status code to be set in the response.
-func (c *Context) writeStatusCode(code int) {
-	if c.framework.IsAborted() {
-		return
-	}
-	c.framework.Status(code)
 }

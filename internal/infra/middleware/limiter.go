@@ -51,7 +51,7 @@ func NewLimiter() Limiter {
 // The rateLimiterProvider is used to check whether the request is allowed based on the rate limit.
 // The sizeLimiterProvider is used to check whether the request size is within the allowed limit.
 // If the request is not allowed, it returns an error and writes an error response to the request.
-// If the request is allowed, it calls the Next() method of the Request object to execute the next handler in the chain.
+// If the request is allowed, it calls the Next() method of the HttpRequest object to execute the next handler in the chain.
 func (l limiter) Do(rateLimiterProvider infra.RateLimiterProvider, sizeLimiterProvider infra.SizeLimiterProvider,
 ) api.HandlerFunc {
 	return func(ctx *api.Context) {

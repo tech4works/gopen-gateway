@@ -17,188 +17,62 @@
 package vo
 
 import (
-	"bytes"
-	"context"
-	"fmt"
 	"github.com/GabrielHCataldo/go-helper/helper"
-	"io"
-	"net/http"
-	"net/url"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/enum"
 )
 
 // Backend is a type that represents a backend server configuration.
 type Backend struct {
-	// name represents the name of the Backend instance.
-	name string
 	// hosts is an array of host addresses.
 	hosts []string
 	// path is a string that represents the path of the backend server configuration.
 	path UrlPath
 	// method is the HTTP method to be used for requests to the backend.
-	method string
-	// forwardHeaders is a slice of strings representing the modifyHeaders to be forwarded.
-	forwardHeaders []string
-	// forwardQueries is a slice of strings representing the query parameters to be forwarded.
-	forwardQueries []string
+	method   string
+	request  *BackendRequest
+	response *BackendResponse
 	// modifiers is an instance of BackendModifiers containing modifiers for the backend request and response.
 	modifiers *BackendModifiers
-	// extraConfig is an instance of BackendExtraConfig containing extra configuration options for the backend.
-	extraConfig *BackendExtraConfig
+}
+
+type BackendRequest struct {
+	omitHeader   bool
+	omitQuery    bool
+	omitBody     bool
+	headerFilter []string
+	queryFilter  []string
+	bodyFilter   []string
+}
+
+type BackendResponse struct {
+	apply        enum.BackendResponseApply
+	omit         bool
+	omitHeader   bool
+	omitBody     bool
+	group        string
+	headerFilter []string
+	bodyFilter   []string
 }
 
 // BackendModifiers is a type that represents the set of modifiers for a backend configuration.
 // It contains fields for the status code, header, params, query, and body modifiers.
 type BackendModifiers struct {
 	// statusCode represents the status code modifier for a BackendModifiers instance.
-	// It is an integer value that specifies the desired status code for a response.
+	// It is an integer value that specifies the desired status code for a httpResponse.
 	statusCode int
-	// header represents an array of Modifier instances that modify the modifyHeaders of a request or response
+	// header represents an array of Modifier instances that modify the modifyHeaders of a httpRequest or httpResponse
 	// from Endpoint or only current backend.
 	header []Modifier
 	// param is a field in the BackendModifiers struct.
-	// It represents an array of Modifier instances that modify the parameters of a request from Endpoint or only current
+	// It represents an array of Modifier instances that modify the parameters of a httpRequest from Endpoint or only current
 	// backend.
 	param []Modifier
 	// `query` is a field in the `BackendModifiers` struct. It represents an array of `Modifier` instances that
-	// modify the query parameters of a request from `Endpoint` or only the current backend.
+	// modify the query parameters of a httpRequest from `Endpoint` or only the current backend.
 	query []Modifier
-	// body represents an array of Modifier instances that modify the body of a request or response
+	// body represents an array of Modifier instances that modify the body of a httpRequest or httpResponse
 	// from Endpoint or only current backend.
 	body []Modifier
-}
-
-// BackendExtraConfig is a type that represents additional configuration options for a backend in the Gopen application.
-type BackendExtraConfig struct {
-	// groupResponse is a boolean flag indicating whether the backend should group response.
-	// The default value is false.
-	groupResponse bool
-	// omitRequestBody represents a boolean flag indicating whether the backend should omit the request body in request.
-	// If set to true, the backend will not include the request body in the request.
-	// If set to false, the request body will be included in the request. The default value is false.
-	omitRequestBody bool
-	// omitResponse represents a boolean flag indicating whether the backend should omit the response in the incoming request.
-	// If set to true, the backend will not include the response in the incoming request.
-	// If set to false, the response will be included in the incoming request.
-	// The default value is false.
-	omitResponse bool
-}
-
-// backendRequest represents a request to be made to a backend server.
-// It includes the host information, method, path, modifyHeaders, params, query fields, and the request body.
-type backendRequest struct {
-	// omitBody is a boolean field that determines whether the request body should be omitted.
-	// If set to true, the request body will not be included in the backend request.
-	// If set to false, the request body will be included in the backend request.
-	// The default value is false.
-	omitBody bool
-	// host represents the host of the backend request.
-	// It is a string field that contains the host information used for constructing the URL.
-	host string
-	// path is a string field that represents the path of the backend request.
-	// It contains the path information used for constructing the URL.
-	// The value of path can be modified using the ModifyParams() `method`.
-	path UrlPath
-	// method is a string field that represents the HTTP method to be used for the backend request.
-	// It contains information about the desired HTTP method, such as GET, POST, PUT, DELETE, etc.
-	// The value of the method field can be accessed using the Method() `method`.
-	method string
-	// header represents the header fields of a backend request.
-	// The value of header can be modified using the ModifyHeaders() `method`.
-	header Header
-	// params represents the params fields of a backend request.
-	// The value of params can be modified using the ModifyParams() `method`.
-	params Params
-	// query represents the query fields of a backend request.
-	// The value of params can be modified using the ModifyQuery() `method`.
-	query Query
-	// body represents the body of a backend request.
-	// The value of body can be modified using the ModifyBody() `method`.
-	body *Body
-}
-
-// backendResponse represents a response from a backend service.
-type backendResponse struct {
-	// name represents the name of the Backend instance.
-	name string
-	// omit represents a boolean flag that indicates whether to omit the response in the incoming request.
-	omit bool
-	// group is a boolean flag indicating whether they should group response body.
-	group bool
-	// statusCode represents HTTP statusCode of a backend response.
-	// The value of statusCode can be modified using the ModifyStatusCode() `method`.
-	statusCode int
-	// header represents the body fields of a backend response.
-	// The value of header can be modified using the ModifyHeader() `method`.
-	header Header
-	// body represents the body of a backend response.
-	// The value of body can be modified using the ModifyBody() `method`.
-	body *Body
-}
-
-// NewBackendRequest creates a new instance of backendRequest based on the provided parameters.
-// It initializes the header to be used in the construction of the filtered VO by forward-headers.
-// It initializes the query to be used in the construction of the filtered VO by forward-queries.
-// It initializes the params using the NewParamsByPath function, passing the path and requestVO.params parameters.
-// It constructs the backendRequest object and returns it.
-func NewBackendRequest(backendVO *Backend, balancedHost string, requestVO *Request) *backendRequest {
-	// inicializamos o header a ser utilizado na construção do VO filtrado pelo forward-headers
-	header := requestVO.Header().FilterByForwarded(backendVO.ForwardHeaders())
-
-	// inicializamos a query a ser utilizado na construção do VO filtrada pelo forward-queries
-	query := requestVO.Query().FilterByForwarded(backendVO.ForwardQueries())
-
-	// inicializamos os params
-	params := NewParamsByPath(backendVO.Path(), requestVO.Params())
-
-	// inicializamos o omitRequestBody como false
-	var omitBody bool
-	if helper.IsNotNil(backendVO.ExtraConfig()) {
-		omitBody = backendVO.ExtraConfig().OmitRequestBody()
-	}
-
-	// montamos o objeto de valor
-	return &backendRequest{
-		omitBody: omitBody,
-		host:     balancedHost,
-		path:     backendVO.Path(),
-		method:   backendVO.Method(),
-		header:   header,
-		params:   params,
-		query:    query,
-		body:     requestVO.Body(),
-	}
-}
-
-// NewBackendResponse creates a new instance of backendResponse based on the provided parameters.
-// It parses the bytes of the response body into an interface.
-// It converts the bytes and content-type into a body VO.
-// It constructs the backendResponse object and returns it.
-func NewBackendResponse(backendVO *Backend, httpResponse *http.Response) *backendResponse {
-	// fazemos o parse dos bytes da resposta em para uma interface
-	bodyBytes, _ := io.ReadAll(httpResponse.Body)
-
-	// convertemos em body VO a partir dos bytes e do content-type
-	body := NewBody(httpResponse.Header.Get("Content-Type"), bytes.NewBuffer(bodyBytes))
-
-	// instanciamos o omit e group
-	var omit bool
-	var group bool
-
-	// se tiver extraConfig preenchemos os valores
-	if helper.IsNotNil(backendVO.ExtraConfig()) {
-		omit = backendVO.ExtraConfig().OmitResponse()
-		group = backendVO.ExtraConfig().GroupResponse()
-	}
-
-	// construímos o objeto de valor do backend response
-	return &backendResponse{
-		name:       backendVO.Name(),
-		omit:       omit,
-		group:      group,
-		statusCode: httpResponse.StatusCode,
-		header:     NewHeader(httpResponse.Header),
-		body:       body,
-	}
 }
 
 // newBackend creates a new instance of Backend based on the provided BackendJson.
@@ -206,14 +80,12 @@ func NewBackendResponse(backendVO *Backend, httpResponse *http.Response) *backen
 // Returns the newly created Backend instance.
 func newBackend(backendJsonVO *BackendJson) Backend {
 	return Backend{
-		name:           backendJsonVO.Name,
-		hosts:          backendJsonVO.Hosts,
-		path:           backendJsonVO.Path,
-		method:         backendJsonVO.Method,
-		forwardHeaders: backendJsonVO.ForwardHeaders,
-		forwardQueries: backendJsonVO.ForwardQueries,
-		modifiers:      newBackendModifier(backendJsonVO.Modifiers),
-		extraConfig:    newBackendExtraConfig(backendJsonVO.ExtraConfig),
+		hosts:     backendJsonVO.Hosts,
+		path:      backendJsonVO.Path,
+		method:    backendJsonVO.Method,
+		request:   newBackendRequest(backendJsonVO.Request),
+		response:  newBackendResponse(backendJsonVO.Response),
+		modifiers: newBackendModifier(backendJsonVO.Modifiers),
 	}
 }
 
@@ -221,16 +93,49 @@ func newBackend(backendJsonVO *BackendJson) Backend {
 // It takes the fields from backendVO and assigns them to the corresponding fields in the Backend struct.
 // It assigns the backendExtraConfigVO parameter to the extraConfig field of the Backend struct.
 // The function returns the created Backend instance.
-func newMiddlewareBackend(backendVO *Backend, backendExtraConfigVO *BackendExtraConfig) Backend {
-	return Backend{
-		name:           backendVO.name,
-		hosts:          backendVO.hosts,
-		path:           backendVO.path,
-		method:         backendVO.method,
-		forwardHeaders: backendVO.forwardHeaders,
-		forwardQueries: backendVO.forwardQueries,
-		modifiers:      backendVO.modifiers,
-		extraConfig:    backendExtraConfigVO,
+func newMiddlewareBackend(backendVO *Backend) *Backend {
+	return &Backend{
+		hosts:     backendVO.hosts,
+		path:      backendVO.path,
+		method:    backendVO.method,
+		request:   backendVO.request,
+		response:  newBackendResponseForMiddleware(),
+		modifiers: backendVO.modifiers,
+	}
+}
+
+func newBackendResponseForMiddleware() *BackendResponse {
+	return &BackendResponse{
+		omit: true,
+	}
+}
+
+func newBackendRequest(backendRequestJsonVO *BackendRequestJson) *BackendRequest {
+	if helper.IsNil(backendRequestJsonVO) {
+		return nil
+	}
+	return &BackendRequest{
+		omitHeader:   backendRequestJsonVO.OmitHeader,
+		omitQuery:    backendRequestJsonVO.OmitQuery,
+		omitBody:     backendRequestJsonVO.OmitBody,
+		headerFilter: backendRequestJsonVO.HeaderFilter,
+		queryFilter:  backendRequestJsonVO.QueryFilter,
+		bodyFilter:   backendRequestJsonVO.BodyFilter,
+	}
+}
+
+func newBackendResponse(backendResponseJsonVO *BackendResponseJson) *BackendResponse {
+	if helper.IsNil(backendResponseJsonVO) {
+		return nil
+	}
+	return &BackendResponse{
+		apply:        backendResponseJsonVO.Apply,
+		omit:         backendResponseJsonVO.Omit,
+		omitHeader:   backendResponseJsonVO.OmitHeader,
+		omitBody:     backendResponseJsonVO.OmitBody,
+		group:        backendResponseJsonVO.Group,
+		headerFilter: backendResponseJsonVO.HeaderFilter,
+		bodyFilter:   backendResponseJsonVO.BodyFilter,
 	}
 }
 
@@ -270,26 +175,6 @@ func newBackendModifier(backendModifierJsonVO *BackendModifiersJson) *BackendMod
 	}
 }
 
-// newBackendExtraConfig creates a new instance of BackendExtraConfig based on the provided BackendExtraConfigJson.
-// If the BackendExtraConfigJson parameter is nil, it returns nil.
-// Otherwise, it assigns the values from the BackendExtraConfigJson fields to the corresponding fields in BackendExtraConfig.
-// Returns the newly created BackendExtraConfig instance.
-func newBackendExtraConfig(extraConfigJsonVO *BackendExtraConfigJson) *BackendExtraConfig {
-	if helper.IsNil(extraConfigJsonVO) {
-		return nil
-	}
-	return &BackendExtraConfig{
-		groupResponse:   extraConfigJsonVO.GroupResponse,
-		omitRequestBody: extraConfigJsonVO.OmitRequestBody,
-		omitResponse:    extraConfigJsonVO.OmitResponse,
-	}
-}
-
-// Name returns the name of the Backend instance.
-func (b *Backend) Name() string {
-	return b.name
-}
-
 // BalancedHost returns a balanced host from the Backend instance. If there is only one host, it is returned directly.
 // Otherwise, a random host is selected from the available ones.
 func (b *Backend) BalancedHost() string {
@@ -311,25 +196,6 @@ func (b *Backend) Method() string {
 	return b.method
 }
 
-// ForwardHeaders returns the slice of strings representing the forward headers of the Backend instance.
-func (b *Backend) ForwardHeaders() []string {
-	return b.forwardHeaders
-}
-
-// ForwardQueries returns the slice of forward queries of the Backend instance.
-func (b *Backend) ForwardQueries() []string {
-	return b.forwardQueries
-}
-
-// ExtraConfig returns the extra configuration options for the Backend instance.
-// It returns an instance of BackendExtraConfig that contains additional configuration options
-// such as grouping response, omitting request body, and omitting response.
-// This method returns a copy of the BackendExtraConfig instance, any modifications made to it will not affect the
-// original Backend instance.
-func (b *Backend) ExtraConfig() *BackendExtraConfig {
-	return b.extraConfig
-}
-
 // CountModifiers returns the number of modifiers present in the Backend instance.
 // If the modifiers field is not nil, it counts all the modifiers using the CountAll() method of BackendModifiers.
 // Otherwise, it returns 0.
@@ -338,6 +204,73 @@ func (b *Backend) CountModifiers() int {
 		return b.modifiers.CountAll()
 	}
 	return 0
+}
+
+func (b *Backend) Request() *BackendRequest {
+	return b.request
+}
+
+func (b *Backend) Response() *BackendResponse {
+	return b.response
+}
+
+func (r BackendRequest) OmitHeader() bool {
+	return r.omitHeader
+}
+
+func (r BackendRequest) HeaderFilter() []string {
+	return r.headerFilter
+}
+
+func (r BackendRequest) OmitQuery() bool {
+	return r.omitQuery
+}
+
+func (r BackendRequest) QueryFilter() []string {
+	return r.queryFilter
+}
+
+func (r BackendRequest) OmitBody() bool {
+	return r.omitBody
+}
+
+func (r BackendRequest) BodyFilter() []string {
+	return r.bodyFilter
+}
+
+func (r BackendResponse) Apply() enum.BackendResponseApply {
+	if r.apply.IsEnumValid() {
+		return r.apply
+	}
+	return enum.BackendResponseApplyEarly
+}
+
+func (r BackendResponse) Omit() bool {
+	return r.omit
+}
+
+func (r BackendResponse) OmitHeader() bool {
+	return r.omitHeader
+}
+
+func (r BackendResponse) HeaderFilter() []string {
+	return r.headerFilter
+}
+
+func (r BackendResponse) OmitBody() bool {
+	return r.omitBody
+}
+
+func (r BackendResponse) BodyFilter() []string {
+	return r.bodyFilter
+}
+
+func (r BackendResponse) HasGroup() bool {
+	return helper.IsNotEmpty(r.group)
+}
+
+func (r BackendResponse) Group() string {
+	return r.group
 }
 
 // CountAll returns the total count of modifiers for a BackendModifiers instance.
@@ -349,309 +282,4 @@ func (b *BackendModifiers) CountAll() (count int) {
 	}
 	count += len(b.header) + len(b.param) + len(b.query) + len(b.body)
 	return count
-}
-
-// GroupResponse returns a boolean flag indicating whether the backend should group response.
-// The default value is false.
-func (b *BackendExtraConfig) GroupResponse() bool {
-	return b.groupResponse
-}
-
-// OmitRequestBody returns a boolean flag indicating whether the backend should omit the request body in request.
-// If set to true, the backend will not include the request body in the request.
-// If set to false, the request body will be included in the request. The default value is false.
-func (b *BackendExtraConfig) OmitRequestBody() bool {
-	return b.omitRequestBody
-}
-
-// OmitResponse returns a boolean flag indicating whether the backend should omit the response body in the incoming request.
-// If set to true, the backend will not include the response body in the incoming request.
-// If set to false, the response body will be included in the incoming request.
-// The default value is false.
-func (b *BackendExtraConfig) OmitResponse() bool {
-	return b.omitResponse
-}
-
-// ModifyHeader returns a new backendRequest with the specified header modified.
-// The input header is used to replace the existing header of the backendRequest.
-// The other fields of the backendRequest remain unchanged.
-func (b *backendRequest) ModifyHeader(header Header) *backendRequest {
-	return &backendRequest{
-		host:   b.host,
-		path:   b.path,
-		method: b.method,
-		header: header,
-		params: b.params,
-		query:  b.query,
-		body:   b.body,
-	}
-}
-
-// ModifyParams creates a new backendRequest with modified path and params.
-// It takes in the path string and params Params as arguments and returns a new backendRequest
-// with the original values for host, method, header, query, and body, but with the modified path and params.
-func (b *backendRequest) ModifyParams(path UrlPath, params Params) *backendRequest {
-	return &backendRequest{
-		host:   b.host,
-		path:   path,
-		method: b.method,
-		header: b.header,
-		params: params,
-		query:  b.query,
-		body:   b.body,
-	}
-}
-
-// ModifyQuery returns a new backendRequest instance with the provided query modified.
-// The original backendRequest instance remains unchanged.
-func (b *backendRequest) ModifyQuery(query Query) *backendRequest {
-	return &backendRequest{
-		host:   b.host,
-		path:   b.path,
-		method: b.method,
-		header: b.header,
-		params: b.params,
-		query:  query,
-		body:   b.body,
-	}
-}
-
-// ModifyBody returns a new instance of backendRequest with the provided body.
-// The new instance has the same values for host, path, method, header, params, and query as the original backendRequest,
-// but with the updated body.
-func (b *backendRequest) ModifyBody(body *Body) *backendRequest {
-	return &backendRequest{
-		host:   b.host,
-		path:   b.path,
-		method: b.method,
-		header: b.header,
-		params: b.params,
-		query:  b.query,
-		body:   body,
-	}
-}
-
-// Path returns the path string of the backendRequest instance.
-func (b *backendRequest) Path() UrlPath {
-	return b.path
-}
-
-// Url returns the fully constructed URL for the backendRequest instance.
-// It replaces any path parameters in the path with the corresponding values from the params map.
-// It then concatenates the host and modified path to construct the URL.
-// The returned URL is a string representation of the complete URL for the request.
-func (b *backendRequest) Url() string {
-	// aqui vamos dar o replace nos keys /users/:key para /users/2
-	path := b.path
-	for key, value := range b.params {
-		if path.ContainsParam(key) {
-			path = path.FillParamValue(key, value)
-		}
-	}
-	// retornamos a url para req
-	return fmt.Sprint(b.host, path.String())
-}
-
-// Method returns the method of the backendRequest instance.
-func (b *backendRequest) Method() string {
-	return b.method
-}
-
-// Header returns the Header of the backendRequest instance.
-func (b *backendRequest) Header() Header {
-	return b.header
-}
-
-// Params returns the Params field of the backendRequest instance.
-func (b *backendRequest) Params() Params {
-	return b.params
-}
-
-// Query returns the query of the backendRequest.
-func (b *backendRequest) Query() Query {
-	return b.query
-}
-
-// RawQuery encodes the query parameters into a string representation.
-// It returns the encoded query string that can be appended to the URL.
-func (b *backendRequest) RawQuery() string {
-	return url.Values(b.query).Encode()
-}
-
-// Body returns the `Body` field of the `backendRequest` instance.
-// The `Body` field represents the request body.
-// The `Body` method allows you to access the request body for further manipulation or inspection.
-func (b *backendRequest) Body() *Body {
-	return b.body
-}
-
-// BodyToRead returns the body to send as an `io.ReadCloser` interface.
-// If `omitRequestBody` is set to `true` or `body` is `nil`, it returns `nil`.
-//
-// It converts the body to bytes using the desired encoding (XML, JSON, TEXT/PLAIN) based on `Content-Type` config.
-//
-// If there is an error during the conversion, it returns `nil`.
-//
-// Finally, it returns the `io.ReadCloser` interface with the bytes of the body.
-func (b *backendRequest) BodyToRead() io.ReadCloser {
-	// se ele quer omitir o body da solicitação ou o mesmo tiver vazio retornamos
-	if b.omitBody || helper.IsNil(b.body) {
-		return nil
-	}
-	// retornamos o valor da interface com os bytes do body
-	// todo: aqui podemos futuramente colocar encode de request customizado
-	return io.NopCloser(b.body.Value())
-}
-
-// Http returns an HTTP request based on the backendRequest instance.
-// It constructs the request, sets the headers, fills in the queries,
-// and returns the created HTTP request.
-// If an error occurs during the construction of the request, nil and the error are returned.
-func (b *backendRequest) Http(ctx context.Context) (*http.Request, error) {
-	// construímos o http request para fazer a requisição
-	httpRequest, err := http.NewRequestWithContext(ctx, b.Method(), b.Url(), b.BodyToRead())
-	if helper.IsNotNil(err) {
-		return nil, err
-	}
-
-	// preenchemos o header com o backendRequest montado
-	httpRequest.Header = b.Header().Http()
-	// preenchemos as queries com o backendRequest montado
-	httpRequest.URL.RawQuery = b.RawQuery()
-
-	// retornamos o http request criado
-	return httpRequest, nil
-}
-
-// Eval returns a map[string]any with the evaluated values of the backendRequest instance:
-//   - "header": The header field of the backendRequest.
-//   - "params": The params field of the backendRequest.
-//   - "query": The query field of the backendRequest.
-//   - "body": The Interface method of the body field of the backendRequest.
-//
-// The map is then returned.
-func (b *backendRequest) Eval() any {
-	var evalBody any
-	if helper.IsNotNil(evalBody) {
-		evalBody = b.body.Interface()
-	}
-	return map[string]any{
-		"header": b.header,
-		"params": b.params,
-		"query":  b.query,
-		"body":   evalBody,
-	}
-}
-
-// ModifyStatusCode returns a new instance of backendResponse with the given statusCode modified.
-// The method creates a copy of the original backendResponse and sets the statusCode to the provided value.
-// The other fields are copied from the original backendResponse.
-func (b *backendResponse) ModifyStatusCode(statusCode int) *backendResponse {
-	return &backendResponse{
-		name:       b.name,
-		omit:       b.omit,
-		group:      b.group,
-		statusCode: statusCode,
-		header:     b.header,
-		body:       b.body,
-	}
-}
-
-// ModifyHeader returns a new instance of backendResponse with the given header modified.
-// The method creates a copy of the original backendResponse and sets the header to the provided value.
-// The other fields are copied from the original backendResponse.
-func (b *backendResponse) ModifyHeader(header Header) *backendResponse {
-	return &backendResponse{
-		name:       b.name,
-		omit:       b.omit,
-		group:      b.group,
-		statusCode: b.statusCode,
-		header:     header,
-		body:       b.body,
-	}
-}
-
-// ModifyBody returns a new instance of backendResponse with the given body modified.
-// The method creates a copy of the original backendResponse and sets the body to the provided value.
-// The other fields are copied from the original backendResponse.
-func (b *backendResponse) ModifyBody(body *Body) *backendResponse {
-	return &backendResponse{
-		name:       b.name,
-		omit:       b.omit,
-		group:      b.group,
-		statusCode: b.statusCode,
-		header:     b.header,
-		body:       body,
-	}
-}
-
-// Ok returns a boolean indicating if the statusCode of the backendResponse instance is within the range 200-299.
-func (b *backendResponse) Ok() bool {
-	return helper.IsGreaterThanOrEqual(b.statusCode, 200) && helper.IsLessThanOrEqual(b.statusCode, 299)
-}
-
-// Key returns the key of the backendResponse for aggregation.
-// The key is composed of the string "backend" and the index, if it is greater than or equal to zero.
-// If the backendResponse has a name, the key is set to the name.
-func (b *backendResponse) Key(index int) (key string) {
-	// montamos o key do backend para agregar
-	key = "backend"
-	if helper.IsGreaterThanOrEqual(index, 0) {
-		key = fmt.Sprintf("%s-%v", key, index)
-	}
-	// se o backend tiver nome, damos prioridade
-	if helper.IsNotEmpty(b.name) {
-		key = b.name
-	}
-	return key
-}
-
-// StatusCode returns the `statusCode` of the `backendResponse` instance.
-func (b *backendResponse) StatusCode() int {
-	return b.statusCode
-}
-
-// Header returns the `header` of the `backendResponse` instance.
-func (b *backendResponse) Header() Header {
-	return b.header
-}
-
-// Body returns the `body` of the `backendResponse` instance.
-func (b *backendResponse) Body() *Body {
-	return b.body
-}
-
-// Group returns the value of the group field of the backendResponse instance.
-func (b *backendResponse) Group() bool {
-	return b.group
-}
-
-// GroupResponseByType returns true if the backendResponse instance should be grouped,
-// either by setting the groupResponse field to true or by the value of the body being a text or a slice.
-// Otherwise, it returns false.
-func (b *backendResponse) GroupResponseByType() bool {
-	body := b.Body()
-	return helper.IsNotNil(body) && body.IsText() || helper.IsSlice(body.Bytes())
-}
-
-// GroupResponse returns true if the backendResponse instance should be grouped, either by setting the groupResponse
-// field to true or by the value of the body being a text or a slice. Otherwise, it returns false.
-func (b *backendResponse) GroupResponse() bool {
-	return b.Group() || b.GroupResponseByType()
-}
-
-// Eval returns a map containing the evaluated fields of the backendResponse instance.
-// The returned map includes the "statusCode" field, which represents the HTTP statusCode of the response,
-// the "header" field, which represents the body fields of the response, and the "body" field, which represents
-// the body of the response as an interface{} type.
-func (b *backendResponse) Eval() any {
-	var evalBody any
-	if helper.IsNotNil(evalBody) {
-		evalBody = b.body.Interface()
-	}
-	return map[string]any{
-		"statusCode": b.statusCode,
-		"header":     b.header,
-		"body":       evalBody,
-	}
 }

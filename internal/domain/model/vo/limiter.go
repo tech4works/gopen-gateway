@@ -26,7 +26,7 @@ type Limiter struct {
 	maxHeaderSize Bytes
 	// maxBodySize represents the maximum size of the body in bytes for rate limiting.
 	maxBodySize Bytes
-	// maxMultipartMemorySize represents the maximum memory size for multipart request bodies.
+	// maxMultipartMemorySize represents the maximum memory size for multipart httpRequest bodies.
 	maxMultipartMemorySize Bytes
 	// rate represents the configuration for `rate` limiting in the Limiter struct. It specifies the capacity and
 	// frequency of allowed requests.
@@ -40,7 +40,7 @@ type EndpointLimiter struct {
 	maxHeaderSize Bytes
 	// maxBodySize represents the maximum size of the body in bytes for rate limiting.
 	maxBodySize Bytes
-	// maxMultipartMemorySize represents the maximum memory size for multipart request bodies.
+	// maxMultipartMemorySize represents the maximum memory size for multipart httpRequest bodies.
 	maxMultipartMemorySize Bytes
 	// rate represents the configuration for `rate` limiting in the Limiter struct. It specifies the capacity and
 	// frequency of allowed requests.
@@ -109,6 +109,19 @@ func newEndpointLimiter(limiterVO Limiter, endpointLimiterVO *EndpointLimiterJso
 	}
 }
 
+func newEndpointLimiterStatic(limiterVO Limiter) *EndpointLimiter {
+	maxHeaderSize := limiterVO.MaxHeaderSize()
+	maxBodySize := limiterVO.MaxBodySize()
+	maxMultipartForm := limiterVO.MaxMultipartMemorySize()
+	//construímos o limiter vo para os endpoints estáticos
+	return &EndpointLimiter{
+		maxHeaderSize:          maxHeaderSize,
+		maxBodySize:            maxBodySize,
+		maxMultipartMemorySize: maxMultipartForm,
+		rate:                   newEndpointRateStatic(limiterVO.Rate()),
+	}
+}
+
 func newEndpointRate(rateVO Rate, endpointRateVO *RateJson) *EndpointRate {
 	// por padrão obtemos o limiter.rate.every configurado na raiz, caso não informado um valor padrão é retornado
 	every := rateVO.Every()
@@ -128,6 +141,14 @@ func newEndpointRate(rateVO Rate, endpointRateVO *RateJson) *EndpointRate {
 	return &EndpointRate{
 		capacity: capacity,
 		every:    every,
+	}
+}
+
+func newEndpointRateStatic(rateVO Rate) *EndpointRate {
+	// montamos o objeto de valor
+	return &EndpointRate{
+		capacity: rateVO.Capacity(),
+		every:    rateVO.Every(),
 	}
 }
 
