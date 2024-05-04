@@ -17,11 +17,14 @@
 package infra
 
 import (
+	"bytes"
 	berrors "errors"
+	"fmt"
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/go-logger/logger"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/interfaces"
 	domainmapper "github.com/GabrielHCataldo/gopen-gateway/internal/domain/mapper"
+	"io"
 	"net/http"
 	"net/url"
 	"time"
@@ -44,14 +47,11 @@ func NewRestTemplate() interfaces.RestTemplate {
 // then a domainmapper.ErrGatewayTimeout error is created and returned. For any other type of error,
 // the error is returned as it is.
 func (r restTemplate) MakeRequest(httpRequest *http.Request) (*http.Response, error) {
-	// instanciamos a url e o method
-	httpUrl := httpRequest.URL.String()
-	httpMethod := httpRequest.Method
+	// imprimimos o log debug
+	r.printHttpRequest(httpRequest)
 
 	// marcamos o tempo inicial
 	startTime := time.Now()
-	// imprimimos o log debug
-	logger.Debugf("HTTP request: %s -> %s", httpMethod, httpUrl)
 
 	// fazemos a requisição http
 	httpClient := http.Client{}
@@ -65,14 +65,66 @@ func (r restTemplate) MakeRequest(httpRequest *http.Request) (*http.Response, er
 
 	// caso o erro não esteja nil
 	if helper.IsNotNil(err) {
-		logger.Errorf("HTTP request: %s -> %s latency: %s err: %s", httpMethod, httpUrl, latency, err)
+		r.printHttpResponseError(httpRequest, latency, err)
 		return nil, err
 	}
 
-	logger.Debugf("HTTP response: %s -> %s latency: %s", httpMethod, httpUrl, latency)
+	// imprimimos o log de resposta
+	r.printHttpResponse(httpRequest, latency, httpResponse)
 
 	// caso ocorra um erro, tratamos, caso contrario retornamos a resposta
 	return httpResponse, nil
+}
+
+func (r restTemplate) printHttpRequest(httpRequest *http.Request) {
+	// instanciamos a url e o method
+	httpUrl := httpRequest.URL.String()
+	httpMethod := httpRequest.Method
+
+	msg := fmt.Sprintf("Backend HTTP request: %s -> %s", httpMethod, httpUrl)
+
+	// obtemos o body
+	bodyBytes, _ := io.ReadAll(httpRequest.Body)
+	httpRequest.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+
+	// se tiver body imprimimos
+	if helper.IsNotEmpty(bodyBytes) {
+		msg = fmt.Sprintf("%s body: %s", msg, string(bodyBytes))
+	}
+
+	// imprimir em forma de debug
+	logger.Debug(msg)
+}
+
+func (r restTemplate) printHttpResponseError(httpRequest *http.Request, latency string, err error) {
+	// instanciamos a url e o method
+	httpUrl := httpRequest.URL.String()
+	httpMethod := httpRequest.Method
+
+	// imprimimos o log de erro
+	logger.Errorf("Backend HTTP response: %s -> %s latency: %s err: %s", httpMethod, httpUrl, latency, err)
+}
+
+func (r restTemplate) printHttpResponse(httpRequest *http.Request, latency string, httpResponse *http.Response) {
+	// instanciamos a url e o method
+	httpUrl := httpRequest.URL.String()
+	httpMethod := httpRequest.Method
+
+	// construímos a mensagem padrão
+	msg := fmt.Sprintf("Backend HTTP response: %s -> %s latency: %s statusCode: %o", httpMethod, httpUrl, latency,
+		httpResponse.StatusCode)
+
+	// lemos o body
+	bodyBytes, _ := io.ReadAll(httpResponse.Body)
+	httpResponse.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+
+	// se tiver body imprimimos
+	if helper.IsNotEmpty(bodyBytes) {
+		msg = fmt.Sprintf("%s body: %s", msg, string(bodyBytes))
+	}
+
+	// imprimimos o log de debug da resposta
+	logger.Debug(msg)
 }
 
 // treatHttpClientErr handles the error returned by httpClient.Do method.

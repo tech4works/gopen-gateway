@@ -48,16 +48,19 @@ func NewHttpBackendRequest(backendVO *Backend, balancedHost string, requestVO *H
 	// inicializamos o body
 	var body *Body
 
-	// verificamos se o mesmo não quer ser omitido
+	// verificamos se há customização de requisição na configuração do
 	if helper.IsNotNil(backendRequestVO) {
+		// se ele não quer omitir o header, preenchemos segundo a projeção caso informada
 		if !backendRequestVO.OmitHeader() {
-			header = requestVO.Header().FilterByRequest(backendRequestVO.HeaderFilter())
+			header = requestVO.Header().ProjectionToRequest(backendRequestVO.HeaderProjection())
 		}
+		// se ele não quer omitir o query, preenchemos segundo a projeção caso informada
 		if !backendRequestVO.OmitQuery() {
-			query = requestVO.Query().Filter(backendRequestVO.QueryFilter())
+			query = requestVO.Query().Projection(backendRequestVO.QueryProjection())
 		}
+		// se ele não quer omitir o body, preenchemos segundo a projeção caso informada
 		if !backendRequestVO.OmitBody() {
-			body = requestVO.Body().Filter(backendRequestVO.BodyFilter())
+			body = requestVO.Body().Projection(backendRequestVO.BodyProjection())
 		}
 	}
 

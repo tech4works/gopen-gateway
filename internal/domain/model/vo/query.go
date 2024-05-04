@@ -107,7 +107,7 @@ func (q Query) NotExists(key string) bool {
 	return !q.Exists(key)
 }
 
-func (q Query) Filter(keys []string) (r Query) {
+func (q Query) Projection(keys []string) (r Query) {
 	if helper.IsEmpty(keys) {
 		return q
 	}

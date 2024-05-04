@@ -251,22 +251,22 @@ type BackendJson struct {
 }
 
 type BackendRequestJson struct {
-	OmitHeader   bool     `json:"omit-header,omitempty"`
-	OmitQuery    bool     `json:"omit-query,omitempty"`
-	OmitBody     bool     `json:"omit-body,omitempty"`
-	HeaderFilter []string `json:"header-filter,omitempty" validate:"omitempty,min=1"`
-	QueryFilter  []string `json:"query-filter,omitempty" validate:"omitempty,min=1"`
-	BodyFilter   []string `json:"body-filter,omitempty" validate:"omitempty,min=1"`
+	OmitHeader       bool     `json:"omit-header,omitempty"`
+	OmitQuery        bool     `json:"omit-query,omitempty"`
+	OmitBody         bool     `json:"omit-body,omitempty"`
+	HeaderProjection []string `json:"header-projection,omitempty" validate:"omitempty,min=1"`
+	QueryProjection  []string `json:"query-projection,omitempty" validate:"omitempty,min=1"`
+	BodyProjection   []string `json:"body-projection,omitempty" validate:"omitempty,min=1"`
 }
 
 type BackendResponseJson struct {
-	Apply        enum.BackendResponseApply `json:"apply,omitempty" validate:"omitempty,enum"`
-	Omit         bool                      `json:"omit,omitempty"`
-	OmitHeader   bool                      `json:"omit-header,omitempty"`
-	OmitBody     bool                      `json:"omit-body,omitempty"`
-	Group        string                    `json:"group,omitempty" validate:"omitempty,minimum=1"`
-	HeaderFilter []string                  `json:"header-filter,omitempty" validate:"omitempty,min=1"`
-	BodyFilter   []string                  `json:"body-filter,omitempty" validate:"omitempty,min=1"`
+	Apply            enum.BackendResponseApply `json:"apply,omitempty" validate:"omitempty,enum"`
+	Omit             bool                      `json:"omit,omitempty"`
+	OmitHeader       bool                      `json:"omit-header,omitempty"`
+	OmitBody         bool                      `json:"omit-body,omitempty"`
+	Group            string                    `json:"group,omitempty" validate:"omitempty,minimum=1"`
+	HeaderProjection []string                  `json:"header-projection,omitempty" validate:"omitempty,min=1"`
+	BodyProjection   []string                  `json:"body-projection,omitempty" validate:"omitempty,min=1"`
 }
 
 // BackendModifiersJson represents a set of modifiers that can be applied to different parts of the httpRequest and httpResponse

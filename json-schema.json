@@ -48,21 +48,21 @@
         "TEXT"
       ]
     },
-    "header-filter": {
+    "header-projection": {
       "type": "array",
       "minItems": 1,
       "items": {
         "$ref": "#/definitions/http-header-key"
       }
     },
-    "body-filter": {
+    "body-projection": {
       "type": "array",
       "minItems": 1,
       "items": {
         "$ref": "#/definitions/json-path"
       }
     },
-    "query-filter": {
+    "query-projection": {
       "type": "array",
       "minItems": 1,
       "items": {
@@ -313,14 +313,14 @@
         "omit-body": {
           "type": "boolean"
         },
-        "header-filter": {
-          "$ref": "#/definitions/header-filter"
+        "header-projection": {
+          "$ref": "#/definitions/header-projection"
         },
-        "query-filter": {
-          "$ref": "#/definitions/query-filter"
+        "query-projection": {
+          "$ref": "#/definitions/query-projection"
         },
-        "body-filter": {
-          "$ref": "#/definitions/body-filter"
+        "body-projection": {
+          "$ref": "#/definitions/body-projection"
         }
       },
       "additionalProperties": false
@@ -348,11 +348,25 @@
           "type": "string",
           "minLength": 1
         },
-        "header-filter": {
-          "$ref": "#/definitions/header-filter"
+        "header-projection": {
+          "$ref": "#/definitions/header-projection"
         },
-        "body-filter": {
-          "$ref": "#/definitions/body-filter"
+        "body-projection": {
+          "$ref": "#/definitions/body-projection"
+        },
+        "header-mapper": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/http-header-key"
+          }
+        },
+        "body-mapper": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/json-path"
+          }
         }
       },
       "additionalProperties": false

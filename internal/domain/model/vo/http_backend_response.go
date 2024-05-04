@@ -156,14 +156,14 @@ func (b *httpBackendResponse) ApplyConfig(moment enum.BackendResponseApply) *htt
 	var header Header
 	// verificamos se o header não quer ser omitido
 	if !backendResponseVO.OmitHeader() {
-		header = b.Header().FilterByResponse(backendResponseVO.HeaderFilter())
+		header = b.Header().ProjectionToResponse(backendResponseVO.HeaderProjection())
 	}
 
 	// instanciamos o novo body
 	var body *Body
 	if !backendResponseVO.OmitBody() && helper.IsNotNil(b.Body()) {
 		// filtramos a partir das chaves da config
-		body = b.Body().Filter(backendResponseVO.BodyFilter())
+		body = b.Body().Projection(backendResponseVO.BodyProjection())
 		// se ele informou que quer agrupar com o nome que quer, agrupamos
 		if backendResponseVO.HasGroup() {
 			body = newBodyAggregateByKey(backendResponseVO.Group(), body)

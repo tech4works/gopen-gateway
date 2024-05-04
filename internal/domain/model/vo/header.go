@@ -168,7 +168,7 @@ func (h Header) NotExists(key string) bool {
 	return !h.Exists(key)
 }
 
-func (h Header) FilterByRequest(keys []string) (r Header) {
+func (h Header) ProjectionToRequest(keys []string) (r Header) {
 	if helper.IsEmpty(keys) {
 		return h
 	}
@@ -183,7 +183,7 @@ func (h Header) FilterByRequest(keys []string) (r Header) {
 	return r
 }
 
-func (h Header) FilterByResponse(keys []string) (r Header) {
+func (h Header) ProjectionToResponse(keys []string) (r Header) {
 	if helper.IsEmpty(keys) {
 		return h
 	}

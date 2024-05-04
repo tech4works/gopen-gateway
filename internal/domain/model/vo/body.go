@@ -467,17 +467,12 @@ func (b *Body) Delete(key string) (*Body, error) {
 	}
 }
 
-// Filter returns a new instance of Body with the filtered content, based on the provided keys.
-// The new Body instance will have the same contentType as the original Body instance.
-// If the contentType is ContentTypeJson, it calls the filterJson method to perform the filtering.
-// If the contentType is ContentTypeText, it calls the filterText method to perform the filtering.
-// If the contentType is neither ContentTypeJson nor ContentTypeText, it returns the original Body instance.
-func (b *Body) Filter(keys []string) *Body {
+func (b *Body) Projection(keys []string) *Body {
 	switch b.contentType {
 	case enum.ContentTypeJson:
-		return b.filterJson(keys)
+		return b.projectionJson(keys)
 	case enum.ContentTypeText:
-		return b.filterText(keys)
+		return b.projectionText(keys)
 	default:
 		return b
 	}
@@ -790,7 +785,7 @@ func (b *Body) mergeJSON(jsonStr string) *Body {
 	}
 }
 
-func (b *Body) filterJson(keys []string) *Body {
+func (b *Body) projectionJson(keys []string) *Body {
 	// se for vazio ja retornamos
 	if helper.IsEmpty(keys) {
 		return b
@@ -798,21 +793,16 @@ func (b *Body) filterJson(keys []string) *Body {
 
 	// damos o parse do json do body
 	jsonParsed := gjson.Parse(b.String())
-	// se for array chamamos o filterJsonArray
+	// se for array chamamos o projectionJsonArray
 	if jsonParsed.IsArray() {
-		return b.filterJsonArray(keys, jsonParsed)
+		return b.projectionJsonArray(keys, jsonParsed)
 	}
 
-	// se for um objeto chamamos o filterJsonObject
-	return b.filterJsonObject(keys, jsonParsed)
+	// se for um objeto chamamos o projectionJsonObject
+	return b.projectionJsonObject(keys, jsonParsed)
 }
 
-// filterText returns a new instance of Body with the text filtered based on the provided keys.
-// The new Body instance will have the same contentType as the original Body instance.
-// The filtering process involves finding all words and spaces in the text and keeping only those that are in the keys list.
-// The filtered text is then used to construct the body of the new instance.
-// Note that the regular expression used to find words and spaces is `[\w-]+|[\s\p{P}]+`.
-func (b *Body) filterText(keys []string) *Body {
+func (b *Body) projectionText(keys []string) *Body {
 	// se os keys tiverem vazio desconsideramos
 	if helper.IsEmpty(keys) {
 		return b
@@ -823,56 +813,56 @@ func (b *Body) filterText(keys []string) *Body {
 	wordsAndSpaces := re.FindAllString(b.String(), -1)
 
 	// iteremos e mantemos o trecho que esteja dentro da lista
-	var filtered []string
+	var projectionResult []string
 	for _, word := range wordsAndSpaces {
 		if helper.Contains(keys, word) {
-			filtered = append(filtered, word)
+			projectionResult = append(projectionResult, word)
 		}
 	}
 
 	// construímos o body com o novo texto filtrado
 	return &Body{
 		contentType: b.contentType,
-		value:       helper.SimpleConvertToBuffer(strings.Join(filtered, "")),
+		value:       helper.SimpleConvertToBuffer(strings.Join(projectionResult, "")),
 	}
 }
 
-func (b *Body) filterJsonObject(keys []string, jsonParsed gjson.Result) *Body {
-	filteredJson := "{}"
+func (b *Body) projectionJsonObject(keys []string, jsonParsed gjson.Result) *Body {
+	projectionResult := "{}"
 
 	for _, key := range keys {
 		value := jsonParsed.Get(key)
 		if !value.Exists() {
 			continue
 		}
-		filteredJson, _ = sjson.SetRaw(filteredJson, key, parseValueToRaw(value))
+		projectionResult, _ = sjson.SetRaw(projectionResult, key, parseValueToRaw(value))
 	}
 
 	return &Body{
 		contentType: b.contentType,
-		value:       helper.SimpleConvertToBuffer(filteredJson),
+		value:       helper.SimpleConvertToBuffer(projectionResult),
 	}
 }
 
-func (b *Body) filterJsonArray(keys []string, jsonArray gjson.Result) *Body {
-	filteredJson := "[]"
+func (b *Body) projectionJsonArray(keys []string, jsonArray gjson.Result) *Body {
+	projectionResult := "[]"
 
 	jsonArray.ForEach(func(key, value gjson.Result) bool {
 		if value.IsObject() {
-			filteredObject := b.filterJsonObject(keys, value)
-			filteredJson, _ = sjson.SetRaw(filteredJson, "-1", filteredObject.Raw())
+			projectionObject := b.projectionJsonObject(keys, value)
+			projectionResult, _ = sjson.SetRaw(projectionResult, "-1", projectionObject.Raw())
 		} else if value.IsArray() {
-			filteredObject := b.filterJsonArray(keys, value)
-			filteredJson, _ = sjson.SetRaw(filteredJson, "-1", filteredObject.Raw())
+			projectionArray := b.projectionJsonArray(keys, value)
+			projectionResult, _ = sjson.SetRaw(projectionResult, "-1", projectionArray.Raw())
 		} else {
-			filteredJson, _ = sjson.SetRaw(filteredJson, "-1", parseValueToRaw(value))
+			projectionResult, _ = sjson.SetRaw(projectionResult, "-1", parseValueToRaw(value))
 		}
 		return true
 	})
 
 	return &Body{
 		contentType: b.contentType,
-		value:       helper.SimpleConvertToBuffer(filteredJson),
+		value:       helper.SimpleConvertToBuffer(projectionResult),
 	}
 }
 
