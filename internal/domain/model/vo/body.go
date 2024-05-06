@@ -28,7 +28,6 @@ import (
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 	"io"
-	"regexp"
 	"strings"
 )
 
@@ -467,15 +466,29 @@ func (b *Body) Delete(key string) (*Body, error) {
 	}
 }
 
-func (b *Body) Projection(keys []string) *Body {
+func (b *Body) Map(mapper *Mapper) *Body {
+	// se o mapper for vazio, retornamos o body atual
+	if mapper.IsEmpty() {
+		return b
+	}
+	// mapeamos o valor do body com base no tipo de conteúdo
 	switch b.contentType {
 	case enum.ContentTypeJson:
-		return b.projectionJson(keys)
+		return b.mapJson(mapper)
 	case enum.ContentTypeText:
-		return b.projectionText(keys)
+		return b.mapText(mapper)
 	default:
 		return b
 	}
+}
+
+func (b *Body) Projection(projectionVO *Projection) *Body {
+	// se não for do tipo json, ou a projeção for nil, ou vazia, retornamos o body atual, sem modificações
+	if helper.IsNotEqualTo(b.contentType, enum.ContentTypeJson) || helper.IsNil(projectionVO) || projectionVO.IsEmpty() {
+		return b
+	}
+	// criamos um novo body com o json projetado a partir do objeto de valor
+	return b.projectionJson(projectionVO)
 }
 
 // OmitEmpty returns a new instance of Body with empty values omitted.
@@ -494,12 +507,8 @@ func (b *Body) OmitEmpty() *Body {
 	}
 }
 
-// ToCase converts the keys in the Body's value to the specified case format.
-// If the Body's content type is already ContentTypeText, it returns the Body instance itself.
-// Otherwise, it converts the keys in the Body's value to the specified case format and returns a new Body instance.
-// The new Body instance will have the same content type as the original Body instance.
 func (b *Body) ToCase(nomenclature enum.Nomenclature) *Body {
-	if !helper.IsNotEqualTo(b.contentType, enum.ContentTypeText) {
+	if helper.IsNotEqualTo(b.contentType, enum.ContentTypeJson) {
 		return b
 	}
 	jsonStr := convertKeysToCase(b.String(), nomenclature)
@@ -518,7 +527,6 @@ func (b *Body) addString(value string) *Body {
 	if helper.IsEmpty(value) {
 		return b
 	}
-
 	modifiedValue := b.String() + value
 	return &Body{
 		contentType: b.ContentType(),
@@ -543,7 +551,7 @@ func (b *Body) addJson(key string, value string) (*Body, error) {
 	var err error
 
 	result := gjson.Get(bodyRaw, key)
-	if result.Exists() && result.Type != gjson.Null {
+	if result.Exists() && helper.IsNotEqualTo(result.Type, gjson.Null) {
 		modifiedValue, err = sjson.SetRaw(bodyRaw, key, aggregateJsonValue(result, value))
 	} else {
 		modifiedValue, err = sjson.SetRaw(bodyRaw, key, parseStringValueToRaw(value))
@@ -590,7 +598,7 @@ func (b *Body) appendJson(key string, value string) (*Body, error) {
 	bodyRaw := b.Raw()
 
 	result := gjson.Get(bodyRaw, key)
-	if !result.Exists() || result.Type == gjson.Null {
+	if !result.Exists() || helper.Equals(result.Type, gjson.Null) {
 		return b, nil
 	}
 
@@ -667,7 +675,7 @@ func (b *Body) replaceJson(key string, value string) (*Body, error) {
 	}
 
 	result := gjson.Get(b.Raw(), key)
-	if !result.Exists() {
+	if !result.Exists() || helper.Equals(result.Type, gjson.Null) {
 		return b, nil
 	}
 
@@ -785,85 +793,237 @@ func (b *Body) mergeJSON(jsonStr string) *Body {
 	}
 }
 
-func (b *Body) projectionJson(keys []string) *Body {
-	// se for vazio ja retornamos
-	if helper.IsEmpty(keys) {
-		return b
-	}
-
+func (b *Body) mapJson(mapper *Mapper) *Body {
 	// damos o parse do json do body
-	jsonParsed := gjson.Parse(b.String())
-	// se for array chamamos o projectionJsonArray
-	if jsonParsed.IsArray() {
-		return b.projectionJsonArray(keys, jsonParsed)
+	parsedJson := gjson.Parse(b.String())
+	// se for array chamamos o mapJsonArray
+	if parsedJson.IsArray() {
+		return b.mapJsonArray(mapper, parsedJson)
 	}
-
-	// se for um objeto chamamos o projectionJsonObject
-	return b.projectionJsonObject(keys, jsonParsed)
+	// se for um objeto chamamos o mapJsonObject
+	return b.mapJsonObject(mapper, parsedJson)
 }
 
-func (b *Body) projectionText(keys []string) *Body {
-	// se os keys tiverem vazio desconsideramos
-	if helper.IsEmpty(keys) {
-		return b
-	}
-
-	// encontrar todas as palavras e espaços
-	re := regexp.MustCompile(`[\w-]+|[\s\p{P}]+`)
-	wordsAndSpaces := re.FindAllString(b.String(), -1)
-
-	// iteremos e mantemos o trecho que esteja dentro da lista
-	var projectionResult []string
-	for _, word := range wordsAndSpaces {
-		if helper.Contains(keys, word) {
-			projectionResult = append(projectionResult, word)
-		}
-	}
-
-	// construímos o body com o novo texto filtrado
-	return &Body{
-		contentType: b.contentType,
-		value:       helper.SimpleConvertToBuffer(strings.Join(projectionResult, "")),
-	}
-}
-
-func (b *Body) projectionJsonObject(keys []string, jsonParsed gjson.Result) *Body {
-	projectionResult := "{}"
-
-	for _, key := range keys {
-		value := jsonParsed.Get(key)
-		if !value.Exists() {
-			continue
-		}
-		projectionResult, _ = sjson.SetRaw(projectionResult, key, parseValueToRaw(value))
-	}
-
-	return &Body{
-		contentType: b.contentType,
-		value:       helper.SimpleConvertToBuffer(projectionResult),
-	}
-}
-
-func (b *Body) projectionJsonArray(keys []string, jsonArray gjson.Result) *Body {
-	projectionResult := "[]"
-
+func (b *Body) mapJsonArray(mapper *Mapper, jsonArray gjson.Result) *Body {
+	// iniciamos o json array vazio
+	mappedArray := "[]"
+	// iteramos o json array atual para mapear json caso seja um array de objeto
 	jsonArray.ForEach(func(key, value gjson.Result) bool {
 		if value.IsObject() {
-			projectionObject := b.projectionJsonObject(keys, value)
-			projectionResult, _ = sjson.SetRaw(projectionResult, "-1", projectionObject.Raw())
+			// caso ele seja objeto, chamamos o mapJsonObject para mapear o json objeto do index atual
+			projectedObject := b.mapJsonObject(mapper, value)
+			mappedArray, _ = sjson.SetRaw(mappedArray, "-1", projectedObject.Raw())
 		} else if value.IsArray() {
-			projectionArray := b.projectionJsonArray(keys, value)
-			projectionResult, _ = sjson.SetRaw(projectionResult, "-1", projectionArray.Raw())
+			// caso ele seja array, chamamos o mesmo novamente para iterar o sub array
+			projectedSubArray := b.mapJsonArray(mapper, value)
+			mappedArray, _ = sjson.SetRaw(mappedArray, "-1", projectedSubArray.Raw())
 		} else {
-			projectionResult, _ = sjson.SetRaw(projectionResult, "-1", parseValueToRaw(value))
+			// caso ele não seja json, não tem nada para mapear, apenas adicionamos o valor
+			mappedArray, _ = sjson.SetRaw(mappedArray, "-1", parseValueToRaw(value))
 		}
 		return true
 	})
-
+	// retornamos o mappedArray como valor de um novo Body
 	return &Body{
 		contentType: b.contentType,
-		value:       helper.SimpleConvertToBuffer(projectionResult),
+		value:       helper.SimpleConvertToBuffer(mappedArray),
 	}
+}
+
+func (b *Body) mapJsonObject(mapper *Mapper, jsonObject gjson.Result) *Body {
+	// instanciamos o json mapeado com os valores atuais
+	mappedJson := jsonObject.String()
+	// iteramos o mapper para renomear os campos
+	for _, key := range mapper.Keys() {
+		// instanciamos a nova chave a partir da antiga
+		newKey := mapper.Get(key)
+		// se a chave for igual a chave atual, ignoramos
+		if helper.Equals(key, newKey) {
+			continue
+		}
+		// obtemos o valor do json pela chave antiga
+		jsonValue := jsonObject.Get(key)
+		// caso ele exista, inserimos ele na nova chave
+		if jsonValue.Exists() {
+			// inserimos o valor na nova chave
+			newMappedJson, err := sjson.SetRaw(mappedJson, newKey, parseValueToRaw(jsonValue))
+			if helper.IsNil(err) {
+				// caso tenha dado certo, removemos a chave antiga
+				mappedJson, _ = sjson.Delete(newMappedJson, key)
+			} else {
+				// caso tenha dado errado, adicionamos a chave antiga no novo mapped json
+				mappedJson, _ = sjson.SetRaw(mappedJson, key, parseValueToRaw(jsonValue))
+			}
+		}
+	}
+	// retornamos o body com o json mapeado
+	return &Body{
+		contentType: b.contentType,
+		value:       helper.SimpleConvertToBuffer(mappedJson),
+	}
+}
+
+func (b *Body) mapText(mapper *Mapper) *Body {
+	// instanciamos o texto mapeado com o valor atual
+	mappedText := b.String()
+	// iteramos o mapper para renomear os campos
+	for _, key := range mapper.Keys() {
+		// instanciamos a nova chave a partir da antiga
+		newKey := mapper.Get(key)
+		// se a chave for igual a chave atual, ignoramos
+		if helper.Equals(key, newKey) {
+			continue
+		}
+		// damos o replace da chave antiga para chave atual
+		mappedText = strings.ReplaceAll(mappedText, key, newKey)
+	}
+	// retornamos o texto mapeado
+	return &Body{
+		contentType: b.contentType,
+		value:       helper.SimpleConvertToBuffer(mappedText),
+	}
+}
+
+func (b *Body) projectionJson(projectionVO *Projection) *Body {
+	// damos o parse do json do body
+	parsedJson := gjson.Parse(b.String())
+	// se for array chamamos o projectionJsonArray
+	if parsedJson.IsArray() {
+		return b.projectionJsonArray(projectionVO, parsedJson)
+	}
+	// se for um objeto chamamos o projectionJsonObject
+	return b.projectionJsonObject(projectionVO, parsedJson)
+}
+
+func (b *Body) projectionJsonObject(projectionVO *Projection, jsonObject gjson.Result) *Body {
+	// verificamos se o tipo de projeção é Rejection, se for executamos as regras
+	if helper.Equals(projectionVO.Type(), enum.ProjectionTypeRejection) {
+		return b.projectionRejectionJsonObject(projectionVO, jsonObject)
+	}
+	// se não for do tipo rejeição, então é adição ou todos, os dois aplicam as mesmas regras
+	return b.projectionAdditionJsonObject(projectionVO, jsonObject)
+}
+
+func (b *Body) projectionAdditionJsonObject(projectionVO *Projection, jsonObject gjson.Result) *Body {
+	// iniciamos o json vazio
+	projectedJson := "{}"
+	// iteramos o projection vo
+	for _, key := range projectionVO.Keys() {
+		// se for rejection pulamos e não adicionamos no novo json
+		if projectionVO.IsRejection(key) {
+			continue
+		}
+		// obtemos o valor da chave no json
+		jsonValue := jsonObject.Get(key)
+		// caso ele exista, adicionamos
+		if jsonValue.Exists() {
+			projectedJson, _ = sjson.SetRaw(projectedJson, key, parseValueToRaw(jsonValue))
+		}
+	}
+	// retornamos o body com o novo json
+	return &Body{
+		contentType: b.contentType,
+		value:       helper.SimpleConvertToBuffer(projectedJson),
+	}
+}
+
+func (b *Body) projectionRejectionJsonObject(projectionVO *Projection, jsonObject gjson.Result) *Body {
+	// iniciamos o json com o valor atual
+	projectionJson := jsonObject.String()
+	// iteramos o projection vo
+	for _, key := range projectionVO.Keys() {
+		// removemos o campo com base na chave de projeção
+		projectionJson, _ = sjson.Delete(projectionJson, key)
+	}
+	// retornamos o body com o novo json
+	return &Body{
+		contentType: b.contentType,
+		value:       helper.SimpleConvertToBuffer(projectionJson),
+	}
+}
+
+func (b *Body) projectionJsonArray(projectionVO *Projection, jsonArray gjson.Result) *Body {
+	// iniciamos o json array vazio
+	projectedArray := "[]"
+	// iteramos o json array atual para projetar json caso seja um array de objeto
+	jsonArray.ForEach(func(key, value gjson.Result) bool {
+		// processamos o index do array
+		projectedArray = b.projectionJsonArrayCurrentIndex(projectionVO, projectedArray, value)
+		// retorna true para continuar iterando
+		return true
+	})
+	// se ele quer filtrar por index
+	projectedArray = b.projectionJsonArrayNumericKeys(projectionVO, projectedArray)
+	// retornamos o body com o resultado da projeção
+	return &Body{
+		contentType: b.contentType,
+		value:       helper.SimpleConvertToBuffer(projectedArray),
+	}
+}
+
+func (b *Body) projectionJsonArrayCurrentIndex(projectionVO *Projection, projectedArray string, value gjson.Result,
+) string {
+	if value.IsObject() {
+		// caso ele seja objeto, chamamos o projectionJsonObject para projetar o json objeto do index atual
+		projectedObject := b.projectionJsonObject(projectionVO, value)
+		projectedArray, _ = sjson.SetRaw(projectedArray, "-1", projectedObject.Raw())
+	} else if value.IsArray() {
+		// caso ele seja array, chamamos o mesmo novamente para iterar o array filho
+		projectedSubArray := b.projectionJsonArray(projectionVO, value)
+		projectedArray, _ = sjson.SetRaw(projectedArray, "-1", projectedSubArray.Raw())
+	} else {
+		// caso ele não seja json, não tem nada para projetar, apenas adicionamos o valor
+		projectedArray, _ = sjson.SetRaw(projectedArray, "-1", parseValueToRaw(value))
+	}
+	// retornamos o array com o index inserido
+	return projectedArray
+}
+
+func (b *Body) projectionJsonArrayNumericKeys(projectionVO *Projection, projectedJson string) string {
+	// se ele não contém ao menos uma chave de projeção numérica retornamos o json já projetado
+	if projectionVO.NotContainsNumericKey() {
+		return projectedJson
+	}
+	// verificamos se o tipo da projeção numérica é rejeição, para seguir com as regras
+	if helper.Equals(projectionVO.TypeNumeric(), enum.ProjectionTypeRejection) {
+		return b.projectionRejectionJsonArray(projectionVO, projectedJson)
+	}
+	// caso não seja rejection, ou ele é all, ou addition, usamos as mesmas regras
+	return b.projectionAdditionJsonArray(projectionVO, projectedJson)
+}
+
+func (b *Body) projectionAdditionJsonArray(projectionVO *Projection, projectedJson string) string {
+	// transformamos o projectedJson em um gjson.Result
+	parsedProjectedJson := gjson.Parse(projectedJson)
+	// instanciamos a projeção de array zerada
+	projectedArray := "[]"
+	// iteramos a projeção para projetar os index mencionados
+	for _, key := range projectionVO.Keys() {
+		if helper.IsNumeric(key) && projectionVO.IsAddition(key) {
+			jsonValue := parsedProjectedJson.Get(key)
+			if jsonValue.Exists() {
+				projectedArray, _ = sjson.SetRaw(projectedArray, "-1", parseValueToRaw(jsonValue))
+			}
+		}
+	}
+	// retornamos o array projetado
+	return projectedArray
+}
+
+func (b *Body) projectionRejectionJsonArray(projectionVO *Projection, projectedJson string) string {
+	// transformamos o projectedJson em um gjson.Result
+	parsedProjectedJson := gjson.Parse(projectedJson)
+	// instanciamos a projeção de array vazia
+	projectedArray := "[]"
+	// iteramos a lista
+	parsedProjectedJson.ForEach(func(key, value gjson.Result) bool {
+		if helper.NotContains(projectionVO.Keys(), key.String()) {
+			projectedArray, _ = sjson.SetRaw(projectedArray, "-1", parseValueToRaw(value))
+		}
+		return true
+	})
+	// retornamos o array projetado
+	return projectedArray
 }
 
 // omitEmptyJson returns a new instance of Body with all empty fields removed from the JSON string.
@@ -896,7 +1056,7 @@ func setJsonKeyValue(jsonStr, key string, value string) string {
 	result := gjson.Get(jsonStr, key)
 
 	// Se a key já existe no JSON A
-	if result.Exists() && result.Type != gjson.Null {
+	if result.Exists() && helper.IsNotEqualTo(result.Type, gjson.Null) {
 		jsonStr, _ = sjson.SetRaw(jsonStr, key, aggregateJsonValue(result, value))
 	} else {
 		jsonStr, _ = sjson.SetRaw(jsonStr, key, parseStringValueToRaw(value))
@@ -906,7 +1066,7 @@ func setJsonKeyValue(jsonStr, key string, value string) string {
 }
 
 func parseValueToRaw(value gjson.Result) string {
-	if value.Type == gjson.Null {
+	if helper.Equals(value.Type, gjson.Null) {
 		return "null"
 	}
 	return value.Raw
@@ -914,7 +1074,7 @@ func parseValueToRaw(value gjson.Result) string {
 
 func parseStringValueToRaw(value string) string {
 	parse := gjson.Parse(value)
-	if parse.Type == gjson.Null {
+	if helper.Equals(parse.Type, gjson.Null) {
 		return "null"
 	}
 	return parse.Raw
@@ -939,7 +1099,7 @@ func aggregateJsonValue(value gjson.Result, newValue string) string {
 
 	newArrayJson := "["
 	for i, v := range newArray {
-		if v.Type == gjson.Null || helper.IsEmpty(v.String()) {
+		if helper.Equals(v.Type, gjson.Null) || helper.IsEmpty(v.String()) {
 			continue
 		}
 		if i != 0 {
@@ -958,31 +1118,34 @@ func aggregateJsonValue(value gjson.Result, newValue string) string {
 // If the value is an object or an array, it recursively calls removeAllEmptyFields on that value.
 // Note: The input JSON string is modified in-place.
 func removeAllEmptyFields(jsonStr string) string {
-	gjson.ForEachLine(jsonStr, func(line gjson.Result) bool {
-		line.ForEach(func(key, value gjson.Result) bool {
-			if helper.IsEmpty(value.Value()) {
-				jsonStr, _ = sjson.Delete(jsonStr, key.String())
-			}
-			if value.IsObject() || value.IsArray() {
-				subJsonStr := removeAllEmptyFields(parseValueToRaw(value))
-				jsonStr, _ = sjson.SetRaw(jsonStr, key.String(), subJsonStr)
-			}
-			return true
-		})
+	gjson.Parse(jsonStr).ForEach(func(key, value gjson.Result) bool {
+		// se for objeto, chamamos novamente este método passando o value
+		if value.IsObject() || value.IsArray() {
+			subJsonStr := removeAllEmptyFields(parseValueToRaw(value))
+			value = gjson.Parse(subJsonStr)
+		}
+		// verificamos se o valor esta vazio
+		if helper.IsEmpty(value.Value()) {
+			// caso esteja vazio, removemos a chave
+			jsonStr, _ = sjson.Delete(jsonStr, key.String())
+		} else {
+			// caso não esteja vazio, inserimos o valor possivelmente modificado
+			jsonStr, _ = sjson.SetRaw(jsonStr, key.String(), parseValueToRaw(value))
+		}
 		return true
 	})
 	return jsonStr
 }
 
 func convertKeysToCase(jsonStr string, nomenclature enum.Nomenclature) string {
-	jsonParsed := gjson.Parse(jsonStr)
+	parsedJson := gjson.Parse(jsonStr)
 
 	jsonStrCase := "{}"
-	if jsonParsed.IsArray() {
+	if parsedJson.IsArray() {
 		jsonStrCase = "[]"
 	}
 
-	jsonParsed.ForEach(func(key, value gjson.Result) bool {
+	parsedJson.ForEach(func(key, value gjson.Result) bool {
 		newKey := key.String()
 		switch nomenclature {
 		case enum.NomenclatureCamel:
@@ -991,8 +1154,12 @@ func convertKeysToCase(jsonStr string, nomenclature enum.Nomenclature) string {
 			newKey = strcase.ToLowerCamel(newKey)
 		case enum.NomenclatureSnake:
 			newKey = strcase.ToSnake(newKey)
+		case enum.NomenclatureScreamingSnake:
+			newKey = strcase.ToScreamingSnake(newKey)
 		case enum.NomenclatureKebab:
 			newKey = strcase.ToKebab(newKey)
+		case enum.NomenclatureScreamingKebab:
+			newKey = strcase.ToScreamingKebab(newKey)
 		}
 
 		if value.IsObject() || value.IsArray() {

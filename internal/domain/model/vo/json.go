@@ -118,7 +118,7 @@ type EndpointCacheJson struct {
 	Enabled bool `json:"enabled"`
 	// IgnoreQuery represents a boolean indicating whether to ignore query parameters when caching.
 	IgnoreQuery bool `json:"ignore-query,omitempty"`
-	// Duration represents the duration configuration for caching an endpoint httpResponse.
+	// Duration represents the duration configuration for caching an endpoint response.
 	Duration Duration `json:"duration,omitempty" validate:"omitempty,gt=0"`
 	// StrategyHeaders represents a slice of strings for strategy headers
 	StrategyHeaders []string `json:"strategy-headers,omitempty" validate:"dive,required"`
@@ -195,7 +195,7 @@ type EndpointJson struct {
 	// for which the API endpoint should abort. It is a field in the Endpoint struct.
 	AbortIfStatusCodes *[]int `json:"abort-if-status-codes,omitempty" validate:"dive,gte=100,lte=599"`
 	// todo:
-	Response *EndpointResponseJson `json:"httpResponse,omitempty"`
+	Response *EndpointResponseJson `json:"response,omitempty"`
 	// Beforewares represents a slice of strings containing the names of the beforeware middlewares that should be
 	// applied before processing the API endpoint.
 	Beforewares []string `json:"beforewares,omitempty"`
@@ -204,8 +204,8 @@ type EndpointJson struct {
 	// The names specify the behavior and settings of each afterware middleware.
 	// If not provided, the default value is an empty slice.
 	// The afterware middleware is executed after processing the API endpoint, allowing for modification or
-	// transformation of the httpResponse or performing any additional actions.
-	// Afterwares can be used for logging, error handling, httpResponse modification, etc.
+	// transformation of the response or performing any additional actions.
+	// Afterwares can be used for logging, error handling, response modification, etc.
 	Afterwares []string `json:"afterwares,omitempty"`
 	// Backends represents the backend configurations for an API endpoint in the Gopen application.
 	// It is a slice of Backend structs.
@@ -216,12 +216,12 @@ type EndpointResponseJson struct {
 	// AggregateResponses represents a boolean indicating whether the API endpoint should aggregate responses
 	// from multiple backends.
 	Aggregate bool `json:"aggregate,omitempty"`
-	// ResponseEncode represents the encoding format for the API endpoint httpResponse. The ResponseEncode
+	// ResponseEncode represents the encoding format for the API endpoint response. The ResponseEncode
 	// field is an enum.Encode value, which can have one of the following values:
-	// - enum.EncodeText: for encoding the httpResponse as plain text.
-	// - enum.EncodeJson: for encoding the httpResponse as JSON.
-	// - enum.EncodeXml: for encoding the httpResponse as XML.
-	// The default value is empty. If not provided, the httpResponse will be encoded by type, if the string is json it
+	// - enum.EncodeText: for encoding the response as plain text.
+	// - enum.EncodeJson: for encoding the response as JSON.
+	// - enum.EncodeXml: for encoding the response as XML.
+	// The default value is empty. If not provided, the response will be encoded by type, if the string is json it
 	// returns json, otherwise it responds to plain text
 	Encode enum.Encode `json:"encode,omitempty" validate:"omitempty,enum"`
 	// todo:
@@ -244,19 +244,26 @@ type BackendJson struct {
 	// The value should be a string and can be one of the following: "GET", "POST", "PUT", "PATCH", "DELETE".
 	// It is used to specify the HTTP method for the backend httpRequest.
 	Method   string               `json:"method,omitempty" validate:"required,http_method"`
-	Request  *BackendRequestJson  `json:"httpRequest,omitempty"`
-	Response *BackendResponseJson `json:"httpResponse,omitempty"`
-	// Modifiers represent the configuration to modify the httpRequest and httpResponse of a backend and endpoint in the Gopen application.
+	Request  *BackendRequestJson  `json:"request,omitempty"`
+	Response *BackendResponseJson `json:"response,omitempty"`
+	// Modifiers represent the configuration to modify the httpRequest and response of a backend and endpoint in the Gopen application.
 	Modifiers *BackendModifiersJson `json:"modifiers,omitempty"`
 }
 
 type BackendRequestJson struct {
-	OmitHeader       bool     `json:"omit-header,omitempty"`
-	OmitQuery        bool     `json:"omit-query,omitempty"`
-	OmitBody         bool     `json:"omit-body,omitempty"`
-	HeaderProjection []string `json:"header-projection,omitempty" validate:"omitempty,min=1"`
-	QueryProjection  []string `json:"query-projection,omitempty" validate:"omitempty,min=1"`
-	BodyProjection   []string `json:"body-projection,omitempty" validate:"omitempty,min=1"`
+	OmitHeader       bool           `json:"omit-header,omitempty"`
+	OmitQuery        bool           `json:"omit-query,omitempty"`
+	OmitBody         bool           `json:"omit-body,omitempty"`
+	HeaderMapper     *Mapper        `json:"header-mapper,omitempty"`
+	QueryMapper      *Mapper        `json:"query-mapper,omitempty"`
+	BodyMapper       *Mapper        `json:"body-mapper,omitempty"`
+	HeaderProjection *Projection    `json:"header-projection,omitempty"`
+	QueryProjection  *Projection    `json:"query-projection,omitempty"`
+	BodyProjection   *Projection    `json:"body-projection,omitempty"`
+	HeaderModifiers  []ModifierJson `json:"header-modifiers,omitempty" validate:"dive,required"`
+	ParamModifiers   []ModifierJson `json:"param-modifiers,omitempty" validate:"dive,required"`
+	QueryModifiers   []ModifierJson `json:"query-modifiers,omitempty" validate:"dive,required"`
+	BodyModifiers    []ModifierJson `json:"body-modifiers,omitempty" validate:"dive,required"`
 }
 
 type BackendResponseJson struct {
@@ -264,21 +271,26 @@ type BackendResponseJson struct {
 	Omit             bool                      `json:"omit,omitempty"`
 	OmitHeader       bool                      `json:"omit-header,omitempty"`
 	OmitBody         bool                      `json:"omit-body,omitempty"`
-	Group            string                    `json:"group,omitempty" validate:"omitempty,minimum=1"`
-	HeaderProjection []string                  `json:"header-projection,omitempty" validate:"omitempty,min=1"`
-	BodyProjection   []string                  `json:"body-projection,omitempty" validate:"omitempty,min=1"`
+	Group            string                    `json:"group,omitempty" validate:"omitempty,min=1"`
+	StatusCode       int                       `json:"status-code,omitempty" validate:"omitempty,gte=100,lte=599"`
+	HeaderMapper     *Mapper                   `json:"header-mapper,omitempty"`
+	BodyMapper       *Mapper                   `json:"body-mapper,omitempty"`
+	HeaderProjection *Projection               `json:"header-projection,omitempty"`
+	BodyProjection   *Projection               `json:"body-projection,omitempty"`
+	HeaderModifiers  []ModifierJson            `json:"header-modifiers,omitempty" validate:"dive,required"`
+	BodyModifiers    []ModifierJson            `json:"body-modifiers,omitempty" validate:"dive,required"`
 }
 
-// BackendModifiersJson represents a set of modifiers that can be applied to different parts of the httpRequest and httpResponse
+// BackendModifiersJson represents a set of modifiers that can be applied to different parts of the httpRequest and response
 // in the Gopen application.
 type BackendModifiersJson struct {
 	// Comment represents a string comment field in the Gopen application configuration.
 	Comment string `json:"@comment,omitempty"`
-	// StatusCode represents the status code that can be applied to a httpRequest or httpResponse. It is an integer value and is
-	// specified in the Gopen configuration JSON file. The status code is used to indicate the status of the httpResponse,
+	// StatusCode represents the status code that can be applied to a httpRequest or response. It is an integer value and is
+	// specified in the Gopen configuration JSON file. The status code is used to indicate the status of the response,
 	// such as success, failure, or error. The status code is optional and can be omitted from the configuration.
 	StatusCode int `json:"status-code,omitempty" validate:"omitempty,gte=100,lte=599"`
-	// Header represents a slice of modifying structures that can be applied to the header of a httpRequest or httpResponse from
+	// Header represents a slice of modifying structures that can be applied to the header of a httpRequest or response from
 	// the Endpoint or just the current Backend.
 	Header []ModifierJson `json:"header,omitempty" validate:"dive,required"`
 	// Param is a slice of modifiers that can be applied to the parameters of a httpRequest from the Endpoint
@@ -287,22 +299,22 @@ type BackendModifiersJson struct {
 	// Query represents a slice of Modifier structs that can be applied to the query parameters of a httpRequest
 	// from the Endpoint or just the current Backend.
 	Query []ModifierJson `json:"query,omitempty" validate:"dive,required"`
-	// Body represents a slice of Modifier structs that can be applied to the body of a httpRequest or httpResponse
+	// Body represents a slice of Modifier structs that can be applied to the body of a httpRequest or response
 	// from the Endpoint or just the current Backend.
 	Body []ModifierJson `json:"body,omitempty" validate:"dive,required"`
 }
 
-// ModifierJson represents a modification that can be applied to a httpRequest or httpResponse in the Gopen application.
+// ModifierJson represents a modification that can be applied to a httpRequest or response in the Gopen application.
 type ModifierJson struct {
 	// Comment represents a string comment field in the Gopen application configuration.
 	Comment string `json:"@comment,omitempty"`
 	// Context represents the context in which a modification should be applied.
 	// It is an enum.ModifierContext value.
-	// Valid values for Context are "httpRequest" and "httpResponse".
+	// Valid values for Context are "request" and "response".
 	Context enum.ModifierContext `json:"context,omitempty" validate:"required,enum"`
 	// Scope represents the scope of a modification in the Backend or Endpoint.
 	// It is an enum.ModifierScope value that specifies where the modification should be applied.
-	// Valid values for Scope are "httpRequest" and "httpResponse".
+	// Valid values for Scope are "request" and "response".
 	Scope enum.ModifierScope `json:"scope,omitempty" validate:"omitempty,enum"`
 	// Action represents the action to be performed in the Modifier struct.
 	// It is an enum.ModifierAction value and can be one of the following values:

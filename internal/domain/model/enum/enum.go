@@ -46,6 +46,19 @@ type MiddlewareType string
 
 type BackendResponseApply string
 
+type ProjectionType int
+
+type ProjectionValue int
+
+const (
+	ProjectionTypeAll       ProjectionType = iota
+	ProjectionTypeAddition  ProjectionType = iota
+	ProjectionTypeRejection ProjectionType = iota
+)
+const (
+	ProjectionValueAddition  ProjectionValue = 1
+	ProjectionValueRejection ProjectionValue = 0
+)
 const (
 	ContentEncodingUnzip ContentEncoding = "unzip"
 )
@@ -58,10 +71,12 @@ const (
 	Afterwares  MiddlewareType = "afterwares"
 )
 const (
-	NomenclatureCamel      Nomenclature = "CAMEL"
-	NomenclatureLowerCamel Nomenclature = "LOWER_CAMEL"
-	NomenclatureSnake      Nomenclature = "SNAKE"
-	NomenclatureKebab      Nomenclature = "KEBAB"
+	NomenclatureCamel          Nomenclature = "CAMEL"
+	NomenclatureLowerCamel     Nomenclature = "LOWER_CAMEL"
+	NomenclatureSnake          Nomenclature = "SNAKE"
+	NomenclatureScreamingSnake Nomenclature = "SCREAMING_SNAKE"
+	NomenclatureKebab          Nomenclature = "KEBAB"
+	NomenclatureScreamingKebab Nomenclature = "SCREAMING_KEBAB"
 )
 const (
 	EncodeText Encode = "TEXT"

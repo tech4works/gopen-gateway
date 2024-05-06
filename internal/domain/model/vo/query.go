@@ -18,6 +18,7 @@ package vo
 
 import (
 	"github.com/GabrielHCataldo/go-helper/helper"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/enum"
 	"net/url"
 	"sort"
 	"strings"
@@ -37,10 +38,10 @@ func NewQuery(httpQuery url.Values) Query {
 // Add appends the values to the slice associated with the given key in a new copy of the Query map.
 // If the key does not exist in the original Query map, it creates a new key-value pair with the provided values.
 // The new copy of the Query map is then returned.
-func (q Query) Add(key string, values []string) (r Query) {
-	r = q.copy()
-	r[key] = append(r[key], values...)
-	return r
+func (q Query) Add(key string, values []string) Query {
+	newQuery := q.copy()
+	newQuery[key] = append(newQuery[key], values...)
+	return newQuery
 }
 
 // Append appends the values to the slice associated with the given key in a new copy of the Query map.
@@ -56,10 +57,10 @@ func (q Query) Append(key string, values []string) Query {
 // Set sets the slice of values for the given key in a new copy of the Query map.
 // If the key does not exist in the original Query map, it creates a new key-value pair with the provided values.
 // The new copy of the Query map is then returned.
-func (q Query) Set(key string, values []string) (r Query) {
-	r = q.copy()
-	r[key] = values
-	return r
+func (q Query) Set(key string, values []string) Query {
+	newQuery := q.copy()
+	newQuery[key] = values
+	return newQuery
 }
 
 // Replace replaces the slice of values associated with the given key in a new copy of the Query map.
@@ -75,23 +76,23 @@ func (q Query) Replace(key string, values []string) Query {
 // Rename renames a key in a new copy of the Query map by replacing the old key with the new key.
 // If the old key does not exist in the original Query map, the original Query map is returned unchanged.
 // The new copy of the Query map is then returned.
-func (q Query) Rename(oldKey, newKey string) (r Query) {
+func (q Query) Rename(oldKey, newKey string) Query {
 	if q.NotExists(oldKey) {
 		return q
 	}
-	r = q.copy()
-	r[newKey] = r[oldKey]
-	delete(r, oldKey)
-	return r
+	newQuery := q.copy()
+	newQuery[newKey] = newQuery[oldKey]
+	delete(newQuery, oldKey)
+	return newQuery
 }
 
 // Delete deletes the slice associated with the given key in a new copy of the Query map.
 // If the key does not exist in the original Query map, the new copy remains unchanged.
 // The new copy of the Query map is then returned.
-func (q Query) Delete(key string) (r Query) {
-	r = q.copy()
-	delete(r, key)
-	return r
+func (q Query) Delete(key string) Query {
+	newQuery := q.copy()
+	delete(newQuery, key)
+	return newQuery
 }
 
 // Exists checks if the given key exists in the Query map.
@@ -107,17 +108,35 @@ func (q Query) NotExists(key string) bool {
 	return !q.Exists(key)
 }
 
-func (q Query) Projection(keys []string) (r Query) {
-	if helper.IsEmpty(keys) {
+func (q Query) Projection(projectionVO *Projection) Query {
+	// se o objeto de valor estiver nil ou vazio, retornamos
+	if helper.IsNil(projectionVO) || projectionVO.IsEmpty() {
 		return q
 	}
-	r = q.copy()
-	for key := range q {
-		if helper.NotContains(keys, key) {
-			r = r.Delete(key)
+	// projetamos com base no tipo de projeção, All, Addition, Rejection
+	if helper.Equals(projectionVO.Type(), enum.ProjectionValueRejection) {
+		return q.projectionRejection(projectionVO)
+	}
+	// se não for rejection, ele é Addition ou All, que é a mesma regra
+	return q.projectionAddition(projectionVO)
+}
+
+func (q Query) Map(mapper *Mapper) Query {
+	// se tiver nil ou vazio, retornamos o query atual
+	if helper.IsNil(mapper) || mapper.IsEmpty() {
+		return q
+	}
+	// instanciamos o novo query a ser mapeado
+	mappedQuery := Query{}
+	for key, value := range q {
+		if mapper.Exists(key) {
+			mappedQuery[mapper.Get(key)] = value
+		} else {
+			mappedQuery[key] = value
 		}
 	}
-	return r
+	// retornamos o query mapeado
+	return mappedQuery
 }
 
 // Encode encodes the values into “URL encoded” form
@@ -166,10 +185,38 @@ func (q Query) Encode() string {
 // copy creates a shallow copy of the Query map.
 // It iterates over each key-value pair in the original Query map and assigns them to the new copy.
 // The copied Query map is then returned.
-func (q Query) copy() (r Query) {
-	r = Query{}
+func (q Query) copy() Query {
+	copiedQuery := Query{}
 	for key, value := range q {
-		r[key] = value
+		copiedQuery[key] = value
 	}
-	return r
+	return copiedQuery
+}
+
+func (q Query) projectionAddition(projectionVO *Projection) Query {
+	// inicializamos o query vazio
+	projectedQuery := Query{}
+	// iteramos o query atual
+	for key, value := range q {
+		// se a key atual conter na projeção com o valor 1, adicionamos
+		if projectionVO.IsAddition(key) {
+			projectedQuery[key] = value
+		}
+	}
+	// retornamos o novo query
+	return projectedQuery
+}
+
+func (q Query) projectionRejection(projectionVO *Projection) Query {
+	// iniciamos o valor do query copiando os valores originais
+	projectedQuery := q.copy()
+	// iteramos o query atual
+	for key := range q {
+		// se ele estiver na projeção, removemos
+		if projectionVO.Exists(key) {
+			delete(projectedQuery, key)
+		}
+	}
+	// retornamos o novo query
+	return projectedQuery
 }

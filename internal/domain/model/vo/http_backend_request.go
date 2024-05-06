@@ -37,7 +37,7 @@ type httpBackendRequest struct {
 	body *Body
 }
 
-func NewHttpBackendRequest(backendVO *Backend, balancedHost string, requestVO *HttpRequest) *httpBackendRequest {
+func NewHttpBackendRequest(backendVO *Backend, balancedHost string, httpRequestVO *HttpRequest) *httpBackendRequest {
 	// inicializamos o backendRequest para ser utilizado para configurar o http httpRequest
 	backendRequestVO := backendVO.Request()
 
@@ -50,22 +50,28 @@ func NewHttpBackendRequest(backendVO *Backend, balancedHost string, requestVO *H
 
 	// verificamos se há customização de requisição na configuração do
 	if helper.IsNotNil(backendRequestVO) {
-		// se ele não quer omitir o header, preenchemos segundo a projeção caso informada
+		// se ele não quer omitir o header, preenchemos segundo o mapeamento e projeção caso informada
 		if !backendRequestVO.OmitHeader() {
-			header = requestVO.Header().ProjectionToRequest(backendRequestVO.HeaderProjection())
+			header = httpRequestVO.Header()
+			header = header.MapToRequest(backendRequestVO.HeaderMapper())
+			header = header.ProjectionToRequest(backendRequestVO.HeaderProjection())
 		}
-		// se ele não quer omitir o query, preenchemos segundo a projeção caso informada
+		// se ele não quer omitir o query, preenchemos segundo o mapeamento e projeção caso informada
 		if !backendRequestVO.OmitQuery() {
-			query = requestVO.Query().Projection(backendRequestVO.QueryProjection())
+			query = httpRequestVO.Query()
+			query = query.Map(backendRequestVO.QueryMapper())
+			query = query.Projection(backendRequestVO.QueryProjection())
 		}
 		// se ele não quer omitir o body, preenchemos segundo a projeção caso informada
 		if !backendRequestVO.OmitBody() {
-			body = requestVO.Body().Projection(backendRequestVO.BodyProjection())
+			body = httpRequestVO.Body()
+			body = body.Map(backendRequestVO.BodyMapper())
+			body = body.Projection(backendRequestVO.BodyProjection())
 		}
 	}
 
-	// inicializamos os params
-	params := NewParamsByUrlPath(backendVO.Path(), requestVO.Params())
+	// inicializamos os params com base no path do backend e os params da requisição http
+	params := NewParamsByUrlPath(backendVO.Path(), httpRequestVO.Params())
 
 	// montamos o objeto de valor
 	return &httpBackendRequest{

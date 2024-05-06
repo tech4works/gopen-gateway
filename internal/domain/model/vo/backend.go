@@ -39,9 +39,12 @@ type BackendRequest struct {
 	omitHeader       bool
 	omitQuery        bool
 	omitBody         bool
-	headerProjection []string
-	queryProjection  []string
-	bodyProjection   []string
+	headerMapper     *Mapper
+	queryMapper      *Mapper
+	bodyMapper       *Mapper
+	headerProjection *Projection
+	queryProjection  *Projection
+	bodyProjection   *Projection
 }
 
 type BackendResponse struct {
@@ -50,8 +53,10 @@ type BackendResponse struct {
 	omitHeader       bool
 	omitBody         bool
 	group            string
-	headerProjection []string
-	bodyProjection   []string
+	headerMapper     *Mapper
+	bodyMapper       *Mapper
+	headerProjection *Projection
+	bodyProjection   *Projection
 }
 
 // BackendModifiers is a type that represents the set of modifiers for a backend configuration.
@@ -118,6 +123,9 @@ func newBackendRequest(backendRequestJsonVO *BackendRequestJson) *BackendRequest
 		omitHeader:       backendRequestJsonVO.OmitHeader,
 		omitQuery:        backendRequestJsonVO.OmitQuery,
 		omitBody:         backendRequestJsonVO.OmitBody,
+		headerMapper:     backendRequestJsonVO.HeaderMapper,
+		queryMapper:      backendRequestJsonVO.QueryMapper,
+		bodyMapper:       backendRequestJsonVO.BodyMapper,
 		headerProjection: backendRequestJsonVO.HeaderProjection,
 		queryProjection:  backendRequestJsonVO.QueryProjection,
 		bodyProjection:   backendRequestJsonVO.BodyProjection,
@@ -134,6 +142,8 @@ func newBackendResponse(backendResponseJsonVO *BackendResponseJson) *BackendResp
 		omitHeader:       backendResponseJsonVO.OmitHeader,
 		omitBody:         backendResponseJsonVO.OmitBody,
 		group:            backendResponseJsonVO.Group,
+		headerMapper:     backendResponseJsonVO.HeaderMapper,
+		bodyMapper:       backendResponseJsonVO.BodyMapper,
 		headerProjection: backendResponseJsonVO.HeaderProjection,
 		bodyProjection:   backendResponseJsonVO.BodyProjection,
 	}
@@ -214,28 +224,41 @@ func (b *Backend) Response() *BackendResponse {
 	return b.response
 }
 
-func (r BackendRequest) OmitHeader() bool {
-	return r.omitHeader
+func (b BackendRequest) OmitHeader() bool {
+	return b.omitHeader
 }
 
-func (r BackendRequest) HeaderProjection() []string {
-	return r.headerProjection
+func (b BackendRequest) OmitQuery() bool {
+	return b.omitQuery
 }
 
-func (r BackendRequest) OmitQuery() bool {
-	return r.omitQuery
+func (b BackendRequest) OmitBody() bool {
+	return b.omitBody
 }
 
-func (r BackendRequest) QueryProjection() []string {
-	return r.queryProjection
+func (b BackendRequest) HeaderProjection() *Projection {
+	return b.headerProjection
 }
 
-func (r BackendRequest) OmitBody() bool {
-	return r.omitBody
+func (b BackendRequest) HeaderMapper() *Mapper {
+	return b.headerMapper
 }
 
-func (r BackendRequest) BodyProjection() []string {
-	return r.bodyProjection
+func (b BackendRequest) QueryProjection() *Projection {
+	return b.queryProjection
+}
+
+func (b BackendRequest) QueryMapper() *Mapper {
+	return b.queryMapper
+
+}
+
+func (b BackendRequest) BodyProjection() *Projection {
+	return b.bodyProjection
+}
+
+func (b BackendRequest) BodyMapper() *Mapper {
+	return b.bodyMapper
 }
 
 func (r BackendResponse) Apply() enum.BackendResponseApply {
@@ -253,16 +276,24 @@ func (r BackendResponse) OmitHeader() bool {
 	return r.omitHeader
 }
 
-func (r BackendResponse) HeaderProjection() []string {
-	return r.headerProjection
-}
-
 func (r BackendResponse) OmitBody() bool {
 	return r.omitBody
 }
 
-func (r BackendResponse) BodyProjection() []string {
+func (r BackendResponse) HeaderProjection() *Projection {
+	return r.headerProjection
+}
+
+func (r BackendResponse) HeaderMapper() *Mapper {
+	return r.headerMapper
+}
+
+func (r BackendResponse) BodyProjection() *Projection {
 	return r.bodyProjection
+}
+
+func (r BackendResponse) BodyMapper() *Mapper {
+	return r.bodyMapper
 }
 
 func (r BackendResponse) HasGroup() bool {

@@ -45,22 +45,18 @@ func NewHttpBackendResponse(backendVO *Backend, httpResponse *http.Response) *ht
 	return httpBackendResponseVO.ApplyConfig(enum.BackendResponseApplyEarly)
 }
 
-// ModifyStatusCode returns a new instance of httpBackendResponse with the given statusCode modified.
-// The method creates a copy of the original httpBackendResponse and sets the statusCode to the provided value.
-// The other fields are copied from the original httpBackendResponse.
 func (b *httpBackendResponse) ModifyStatusCode(statusCode int) *httpBackendResponse {
 	return &httpBackendResponse{
+		config:     b.config,
 		statusCode: statusCode,
 		header:     b.header,
 		body:       b.body,
 	}
 }
 
-// ModifyHeader returns a new instance of httpBackendResponse with the given header modified.
-// The method creates a copy of the original httpBackendResponse and sets the header to the provided value.
-// The other fields are copied from the original httpBackendResponse.
 func (b *httpBackendResponse) ModifyHeader(header Header) *httpBackendResponse {
 	return &httpBackendResponse{
+		config:     b.config,
 		statusCode: b.statusCode,
 		header:     header,
 		body:       b.body,
@@ -72,6 +68,7 @@ func (b *httpBackendResponse) ModifyHeader(header Header) *httpBackendResponse {
 // The other fields are copied from the original httpBackendResponse.
 func (b *httpBackendResponse) ModifyBody(body *Body) *httpBackendResponse {
 	return &httpBackendResponse{
+		config:     b.config,
 		statusCode: b.statusCode,
 		header:     b.header,
 		body:       body,
@@ -138,12 +135,12 @@ func (b *httpBackendResponse) Map() any {
 	}
 }
 
-func (b *httpBackendResponse) ApplyConfig(moment enum.BackendResponseApply) *httpBackendResponse {
+func (b *httpBackendResponse) ApplyConfig(momentToApply enum.BackendResponseApply) *httpBackendResponse {
 	// instanciamos o httpResponse config do backend
 	backendResponseVO := b.Config()
 
 	// se o backend ja foi aplicado, ou a config for nil, ou o momento não é o ideal
-	if b.Applied() || helper.IsNil(backendResponseVO) || helper.IsNotEqualTo(moment, backendResponseVO.Apply()) {
+	if b.Applied() || helper.IsNil(backendResponseVO) || helper.IsNotEqualTo(momentToApply, backendResponseVO.Apply()) {
 		return b
 	}
 
@@ -154,17 +151,20 @@ func (b *httpBackendResponse) ApplyConfig(moment enum.BackendResponseApply) *htt
 
 	// instanciamos o novo header
 	var header Header
-	// verificamos se o header não quer ser omitido
+	// verificamos se o header não quer ser omitido, caso não, preenchemos o mesmo mapeado e projetado segundo o json config
 	if !backendResponseVO.OmitHeader() {
-		header = b.Header().ProjectionToResponse(backendResponseVO.HeaderProjection())
+		header = b.Header()
+		header = header.MapToResponse(backendResponseVO.HeaderMapper())
+		header = header.ProjectionToResponse(backendResponseVO.HeaderProjection())
 	}
 
 	// instanciamos o novo body
 	var body *Body
+	// verificamos se o body não quer ser omitido e não for nil, caso isso aconteça, preenchemos o mesmo mapeado e projetado
 	if !backendResponseVO.OmitBody() && helper.IsNotNil(b.Body()) {
-		// filtramos a partir das chaves da config
-		body = b.Body().Projection(backendResponseVO.BodyProjection())
-		// se ele informou que quer agrupar com o nome que quer, agrupamos
+		body = b.Body()
+		body = body.Map(backendResponseVO.BodyMapper())
+		body = body.Projection(backendResponseVO.BodyProjection())
 		if backendResponseVO.HasGroup() {
 			body = newBodyAggregateByKey(backendResponseVO.Group(), body)
 		}
@@ -172,6 +172,7 @@ func (b *httpBackendResponse) ApplyConfig(moment enum.BackendResponseApply) *htt
 
 	// construímos o novo httpBackendResponse aplicado
 	return &httpBackendResponse{
+		config:     b.config,
 		applied:    true,
 		statusCode: b.statusCode,
 		header:     header,

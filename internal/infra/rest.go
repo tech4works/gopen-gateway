@@ -83,12 +83,11 @@ func (r restTemplate) printHttpRequest(httpRequest *http.Request) {
 
 	msg := fmt.Sprintf("Backend HTTP request: %s -> %s", httpMethod, httpUrl)
 
-	// obtemos o body
-	bodyBytes, _ := io.ReadAll(httpRequest.Body)
-	httpRequest.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+	// obtemos o body caso tenha
+	if helper.IsNotNil(httpRequest.Body) {
+		bodyBytes, _ := io.ReadAll(httpRequest.Body)
+		httpRequest.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 
-	// se tiver body imprimimos
-	if helper.IsNotEmpty(bodyBytes) {
 		msg = fmt.Sprintf("%s body: %s", msg, string(bodyBytes))
 	}
 

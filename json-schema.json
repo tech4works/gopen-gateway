@@ -38,6 +38,7 @@
     },
     "json-path": {
       "type": "string",
+      "minimum": 1,
       "pattern": "^[\\w-]+(\\.[\\w-]+)*$"
     },
     "response-encode": {
@@ -48,26 +49,39 @@
         "TEXT"
       ]
     },
-    "header-projection": {
-      "type": "array",
-      "minItems": 1,
-      "items": {
-        "$ref": "#/definitions/http-header-key"
+    "projection": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 1
       }
     },
-    "body-projection": {
-      "type": "array",
-      "minItems": 1,
-      "items": {
+    "mapper": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
         "$ref": "#/definitions/json-path"
       }
     },
+    "header-mapper": {
+      "$ref": "#/definitions/mapper"
+    },
+    "query-mapper": {
+      "$ref": "#/definitions/mapper"
+    },
+    "body-mapper": {
+      "$ref": "#/definitions/mapper"
+    },
+    "header-projection": {
+      "$ref": "#/definitions/projection"
+    },
     "query-projection": {
-      "type": "array",
-      "minItems": 1,
-      "items": {
-        "$ref": "#/definitions/http-query-key"
-      }
+      "$ref": "#/definitions/projection"
+    },
+    "body-projection": {
+      "$ref": "#/definitions/projection"
     },
     "store": {
       "type": "object",
@@ -233,7 +247,9 @@
             "LOWER_CAMEL",
             "CAMEL",
             "SNAKE",
-            "KEBAB"
+            "SCREAMING_SNAKE",
+            "KEBAB",
+            "SCREAMING_KEBAB"
           ]
         },
         "omit-empty": {
@@ -313,6 +329,15 @@
         "omit-body": {
           "type": "boolean"
         },
+        "header-mapper": {
+          "$ref": "#/definitions/header-mapper"
+        },
+        "query-mapper": {
+          "$ref": "#/definitions/query-mapper"
+        },
+        "body-mapper": {
+          "$ref": "#/definitions/body-mapper"
+        },
         "header-projection": {
           "$ref": "#/definitions/header-projection"
         },
@@ -348,25 +373,17 @@
           "type": "string",
           "minLength": 1
         },
+        "header-mapper": {
+          "$ref": "#/definitions/header-mapper"
+        },
+        "body-mapper": {
+          "$ref": "#/definitions/body-mapper"
+        },
         "header-projection": {
           "$ref": "#/definitions/header-projection"
         },
         "body-projection": {
           "$ref": "#/definitions/body-projection"
-        },
-        "header-mapper": {
-          "type": "array",
-          "minItems": 1,
-          "items": {
-            "$ref": "#/definitions/http-header-key"
-          }
-        },
-        "body-mapper": {
-          "type": "array",
-          "minItems": 1,
-          "items": {
-            "$ref": "#/definitions/json-path"
-          }
         }
       },
       "additionalProperties": false

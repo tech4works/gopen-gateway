@@ -19,6 +19,7 @@ package vo
 import (
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/consts"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/enum"
 	"net/http"
 	"strings"
 )
@@ -63,10 +64,10 @@ func (h Header) Http() http.Header {
 // It adds these values to the existing header under the provided key.
 // The function makes a copy of the existing header before performing the operation
 // to avoid mutating the original header.
-func (h Header) AddAll(key string, values []string) (r Header) {
-	r = h.copy()
-	r[key] = append(r[key], values...)
-	return r
+func (h Header) AddAll(key string, values []string) Header {
+	newHeader := h.copy()
+	newHeader[key] = append(newHeader[key], values...)
+	return newHeader
 }
 
 // Add is a method on the Header struct.
@@ -74,10 +75,10 @@ func (h Header) AddAll(key string, values []string) (r Header) {
 // It copies the existing Header, appends the provided value to the slice
 // of values associated with the provided key in the copied header,
 // and then returns the updated header.
-func (h Header) Add(key, value string) (r Header) {
-	r = h.copy()
-	r[key] = append(r[key], value)
-	return r
+func (h Header) Add(key, value string) Header {
+	newHeader := h.copy()
+	newHeader[key] = append(newHeader[key], value)
+	return newHeader
 }
 
 // Append appends the provided values to the existing values associated with the provided key in the header.
@@ -94,10 +95,10 @@ func (h Header) Append(key string, values []string) Header {
 // Set is a method on the Header type. It takes a key and a value, both of type string, and returns a Header.
 // The method makes a copy of the original Header, sets the value of the given key in the copied Header to a new
 // string slice containing the provided value, and then returns the modified Header copy.
-func (h Header) Set(key, value string) (r Header) {
-	r = h.copy()
-	r[key] = []string{value}
-	return r
+func (h Header) Set(key, value string) Header {
+	newHeader := h.copy()
+	newHeader[key] = []string{value}
+	return newHeader
 }
 
 // SetAll is a method on the Header struct.
@@ -105,10 +106,10 @@ func (h Header) Set(key, value string) (r Header) {
 // parameters. It creates a copy of the existing Header, sets the value of the given key
 // in the copied Header to the provided array of values, and then returns the modified
 // Header copy.
-func (h Header) SetAll(key string, values []string) (r Header) {
-	r = h.copy()
-	r[key] = values
-	return r
+func (h Header) SetAll(key string, values []string) Header {
+	newHeader := h.copy()
+	newHeader[key] = values
+	return newHeader
 }
 
 // Replace replaces the values associated with the provided key in the Header object with the given values.
@@ -124,23 +125,23 @@ func (h Header) Replace(key string, values []string) Header {
 // If the oldKey does not exist in the Header, the method returns the original Header object.
 // Otherwise, it creates a copy of the Header object, assigns the value of oldKey to newKey,
 // deletes the oldKey, and returns the modified Header object.
-func (h Header) Rename(oldKey, newKey string) (r Header) {
+func (h Header) Rename(oldKey, newKey string) Header {
 	if h.NotExists(oldKey) {
 		return h
 	}
-	r = h.copy()
-	r[newKey] = r[oldKey]
-	delete(r, oldKey)
-	return r
+	newHeader := h.copy()
+	newHeader[newKey] = newHeader[oldKey]
+	delete(newHeader, oldKey)
+	return newHeader
 }
 
 // Delete removes the value associated with the given key from the Header h.
 // It returns a new Header object with the key removed.
 // If the key does not exist in the Header, the returned Header is identical to the original.
-func (h Header) Delete(key string) (r Header) {
-	r = h.copy()
-	delete(r, key)
-	return r
+func (h Header) Delete(key string) Header {
+	newHeader := h.copy()
+	delete(newHeader, key)
+	return newHeader
 }
 
 // Get retrieves the value for a specific key from a Header. If a value exists,
@@ -168,34 +169,42 @@ func (h Header) NotExists(key string) bool {
 	return !h.Exists(key)
 }
 
-func (h Header) ProjectionToRequest(keys []string) (r Header) {
-	if helper.IsEmpty(keys) {
+func (h Header) ProjectionToRequest(projectionVO *Projection) Header {
+	// se tiver nil ou vazio retornamos ele mesmo
+	if helper.IsNil(projectionVO) || projectionVO.IsEmpty() {
 		return h
 	}
-
-	r = h.copy()
-	for key := range h {
-		if helper.NotContains(keys, key) &&
-			helper.IsNotEqualTo(key, consts.XForwardedFor, consts.XTraceId) {
-			r = r.Delete(key)
-		}
-	}
-	return r
+	// retornamos o novo header projetado segundo a config, ignorando os campos de requisição obrigatórios
+	return h.projection(projectionVO, []string{consts.XForwardedFor, consts.XTraceId})
 }
 
-func (h Header) ProjectionToResponse(keys []string) (r Header) {
-	if helper.IsEmpty(keys) {
+func (h Header) ProjectionToResponse(projectionVO *Projection) Header {
+	// se tiver nil ou vazio retornamos ele mesmo
+	if helper.IsNil(projectionVO) || projectionVO.IsEmpty() {
 		return h
 	}
+	// retornamos o novo header projetado segundo a config, ignorando os campos de resposta obrigatórios
+	return h.projection(projectionVO, []string{consts.XGopenSuccess, consts.XGopenCache, consts.XGopenCacheTTL,
+		consts.XGopenComplete})
+}
 
-	r = h.copy()
-	for key := range h {
-		if helper.NotContains(keys, key) &&
-			helper.IsNotEqualTo(key, consts.XGopenSuccess, consts.XGopenCache, consts.XGopenCacheTTL, consts.XGopenComplete) {
-			r = r.Delete(key)
-		}
+func (h Header) MapToRequest(mapperVO *Mapper) Header {
+	// se o mapper estiver vazio, retornamos o header atual
+	if helper.IsNil(mapperVO) || mapperVO.IsEmpty() {
+		return h
 	}
-	return r
+	// retornamos o novo header mapeado segundo a config, ignorando os campos de resposta obrigatórios
+	return h.mapp(mapperVO, []string{consts.XForwardedFor, consts.XTraceId})
+}
+
+func (h Header) MapToResponse(mapperVO *Mapper) Header {
+	// se o mapper estiver vazio, retornamos o header atual
+	if helper.IsNil(mapperVO) || mapperVO.IsEmpty() {
+		return h
+	}
+	// retornamos o novo header mapeado segundo a config, ignorando os campos de resposta obrigatórios
+	return h.mapp(mapperVO, []string{consts.XGopenSuccess, consts.XGopenCache, consts.XGopenCacheTTL,
+		consts.XGopenComplete})
 }
 
 // Aggregate combines the headers of two Header objects.
@@ -203,20 +212,73 @@ func (h Header) ProjectionToResponse(keys []string) (r Header) {
 // The method iterates through each key-value pair in anotherHeader and adds the values to the corresponding key in the new Header object.
 // It uses the AddAll method to append the values to the existing ones, creating a new slice.
 // The resulting Header object is returned at the end of the method.
-func (h Header) Aggregate(anotherHeader Header) (r Header) {
-	r = h.copy()
+func (h Header) Aggregate(anotherHeader Header) Header {
+	aggregatedHeader := h.copy()
 	for key, values := range anotherHeader {
-		r = r.AddAll(key, values)
+		aggregatedHeader = aggregatedHeader.AddAll(key, values)
 	}
-	return r
+	return aggregatedHeader
 }
 
 // copy creates a deep copy of the Header object.
 // It returns a new Header object that is a copy of the original Header object.
-func (h Header) copy() (r Header) {
-	r = Header{}
+func (h Header) copy() Header {
+	copiedHeader := Header{}
 	for key, value := range h {
-		r[key] = value
+		copiedHeader[key] = value
 	}
-	return r
+	return copiedHeader
+}
+
+func (h Header) mapp(mapperVO *Mapper, ignoreKeys []string) Header {
+	// inicializamos o novo header a ser retornado
+	headerMapped := Header{}
+	// iteramos o header atual para preencher o novo header com as chaves mapeadas
+	for key, value := range h {
+		// caso ele exista obtemos no mapper e não está na lista de chaves a serem ignoradas, adicionamos o novo nome
+		if helper.NotContains(ignoreKeys, key) && mapperVO.Exists(key) {
+			headerMapped[mapperVO.Get(key)] = value
+		} else {
+			headerMapped[key] = value
+		}
+	}
+	// retornamos o header mapeado
+	return headerMapped
+}
+
+func (h Header) projection(projectionVO *Projection, ignoreKeys []string) Header {
+	// projetamos com base no tipo de projeção, All, Addition, Rejection
+	if helper.Equals(projectionVO.Type(), enum.ProjectionTypeRejection) {
+		return h.projectionRejection(projectionVO, ignoreKeys)
+	}
+	// se não for rejection, ele é Addition ou All, que é a mesma regra
+	return h.projectionAddition(projectionVO, ignoreKeys)
+}
+
+func (h Header) projectionAddition(projectionVO *Projection, ignoreKeys []string) Header {
+	// inicializamos o header
+	projectedHeader := Header{}
+	// iteramos o header atual
+	for key, value := range h {
+		// se ele contiver na lista ou na projeção como 1, adicionamos
+		if helper.Contains(ignoreKeys, key) || projectionVO.IsAddition(key) {
+			projectedHeader[key] = value
+		}
+	}
+	// retornamos o novo header
+	return projectedHeader
+}
+
+func (h Header) projectionRejection(projectionVO *Projection, ignoreKeys []string) Header {
+	// iniciamos o valor do header copiando os valores originais
+	projectedHeader := h.copy()
+	// iteramos o header atual
+	for key := range h {
+		// se ele não contiver na lista a ser ignorada e estiver na projeção, removemos
+		if helper.NotContains(ignoreKeys, key) && projectionVO.Exists(key) {
+			delete(projectedHeader, key)
+		}
+	}
+	// retornamos o novo header
+	return projectedHeader
 }
