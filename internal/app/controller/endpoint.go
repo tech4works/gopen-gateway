@@ -18,7 +18,7 @@ package controller
 
 import (
 	"github.com/GabrielHCataldo/gopen-gateway/internal/app/mapper"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/service"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/main/service"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/infra/api"
 )
 
@@ -52,7 +52,7 @@ func NewEndpoint(endpointService service.Endpoint) Endpoint {
 // It writes the response to the request using ctx.Write method.
 func (e endpoint) Execute(ctx *api.Context) {
 	// executamos o serviço de dominío para processar o endpoint
-	responseVO := e.endpointService.Execute(mapper.BuildExecuteServiceParams(ctx))
-	// respondemos a requisição a partir do objeto de valor recebido
-	ctx.Write(responseVO)
+	httpRequest, httpResponse := e.endpointService.Execute(mapper.BuildExecuteServiceParams(ctx))
+	// respondemos a requisição a partir do objeto de valor recebido,
+	ctx.Write(httpRequest, httpResponse)
 }

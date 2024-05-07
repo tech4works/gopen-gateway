@@ -18,7 +18,7 @@ package config
 
 import (
 	"github.com/GabrielHCataldo/go-helper/helper"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
+	configVO "github.com/GabrielHCataldo/gopen-gateway/internal/domain/config/model/vo"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/infra"
 )
 
@@ -26,10 +26,10 @@ import (
 // If storeJsonVO is not nil, it creates a Redis cache store with the specified Redis address and password.
 // Otherwise, it creates a Memory cache store.
 // It returns a CacheStore interface that can be used to interact with the cache store.
-func NewCacheStore(storeJsonVO *vo.StoreJson) infra.CacheStore {
+func NewCacheStore(storeJson *configVO.StoreJson) infra.CacheStore {
 	PrintInfoLogCmd("Configuring cache store...")
-	if helper.IsNotNil(storeJsonVO) {
-		return infra.NewRedisStore(storeJsonVO.Redis.Address, storeJsonVO.Redis.Password)
+	if helper.IsNotNil(storeJson) {
+		return infra.NewRedisStore(storeJson.Redis.Address, storeJson.Redis.Password)
 	}
 	return infra.NewMemoryStore()
 }

@@ -23,9 +23,9 @@ import (
 	"time"
 )
 
-// log is a struct that represents a logging component. It uses an implementation of the LogProvider interface
+// logMiddleware is a struct that represents a logging component. It uses an implementation of the LogProvider interface
 // to perform logging operations.
-type log struct {
+type logMiddleware struct {
 	logProvider infra.LogProvider
 }
 
@@ -39,28 +39,28 @@ type Log interface {
 
 // NewLog creates a new instance of the Log interface using the provided LogProvider.
 func NewLog(logProvider infra.LogProvider) Log {
-	return log{
+	return logMiddleware{
 		logProvider: logProvider,
 	}
 }
 
 // Do is a method that performs logging for a request.
-// It keeps track of the request start time, initializes the logger options with trace ID and XForwardedFor,
-// prints the start log, calls the next request handler, and prints the finish log.
+// It keeps track of the request start time, initializes the logger options with traceMiddleware ID and XForwardedFor,
+// prints the start logMiddleware, calls the next request handler, and prints the finish logMiddleware.
 // It takes a *api.Context as a parameter.
-func (l log) Do(ctx *api.Context) {
+func (l logMiddleware) Do(ctx *api.Context) {
 	// mantemos o tempo que a requisição começou
 	startTime := time.Now()
 
 	// inicializamos a logger options global, com o traceId e XForwardedFor
 	l.logProvider.InitializeLoggerOptions(ctx)
 
-	// imprimimos o log de start
+	// imprimimos o logMiddleware de start
 	logger.Info("Start!", l.logProvider.BuildStartRequestMessage(ctx))
 
 	// chamamos o próximo handler da requisição
 	ctx.Next()
 
-	// imprimimos o log de finish
+	// imprimimos o logMiddleware de finish
 	logger.Info("Finish!", l.logProvider.BuildFinishRequestMessage(ctx.HttpResponse(), startTime))
 }

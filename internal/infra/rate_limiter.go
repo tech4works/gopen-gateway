@@ -17,8 +17,8 @@
 package infra
 
 import (
-	domainmapper "github.com/GabrielHCataldo/gopen-gateway/internal/domain/mapper"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
+	configVO "github.com/GabrielHCataldo/gopen-gateway/internal/domain/config/model/vo"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/main/mapper"
 	"golang.org/x/time/rate"
 	"sync"
 	"time"
@@ -61,15 +61,15 @@ type RateLimiterProvider interface {
 // NewRateLimiterProvider creates a new instance of the RateLimiterProvider interface.
 // It takes a time duration 'every' and an integer 'limit' as parameters.
 // It returns a RateLimiterProvider object.
-func NewRateLimiterProvider(endpointRateVO *vo.EndpointRate) RateLimiterProvider {
-	every := endpointRateVO.Every()
+func NewRateLimiterProvider(endpointRate *configVO.EndpointRate) RateLimiterProvider {
+	every := endpointRate.Every()
 	everyTime := every.Time()
 	return &rateLimiterProvider{
 		keys:  map[string]*rate.Limiter{},
 		mutex: &sync.RWMutex{},
 		every: everyTime,
 		limit: rate.Every(everyTime),
-		burst: endpointRateVO.Capacity(),
+		burst: endpointRate.Capacity(),
 	}
 }
 
@@ -99,7 +99,7 @@ func (r *rateLimiterProvider) Allow(key string) error {
 	}
 
 	if !limiter.Allow() {
-		return domainmapper.NewErrTooManyRequests(r.burst, r.every)
+		return mapper.NewErrTooManyRequests(r.burst, r.every)
 	}
 
 	return nil

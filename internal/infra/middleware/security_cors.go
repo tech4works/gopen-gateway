@@ -18,16 +18,16 @@ package middleware
 
 import (
 	"github.com/GabrielHCataldo/go-helper/helper"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/consts"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
+	configVO "github.com/GabrielHCataldo/gopen-gateway/internal/domain/config/model/vo"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/main/model/consts"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/infra/api"
 	"net/http"
 )
 
-// securityCors implements the SecurityCors interface.
+// securityCorsMiddleware implements the SecurityCors interface.
 // It represents the configuration options for Cross-Origin Resource Sharing (CORS) settings in Gopen.
-type securityCors struct {
-	securityCorsVO *vo.SecurityCors
+type securityCorsMiddleware struct {
+	securityCors *configVO.SecurityCors
 }
 
 // SecurityCors is an interface that defines the behavior of handling Cross-Origin Resource Sharing (CORS) settings in Gopen.
@@ -41,9 +41,9 @@ type SecurityCors interface {
 
 // NewSecurityCors is a function that creates a new instance of SecurityCors with the given securityCorsVO configuration.
 // It returns the new SecurityCors object.
-func NewSecurityCors(securityCorsVO *vo.SecurityCors) SecurityCors {
-	return securityCors{
-		securityCorsVO: securityCorsVO,
+func NewSecurityCors(securityCors *configVO.SecurityCors) SecurityCors {
+	return securityCorsMiddleware{
+		securityCors: securityCors,
 	}
 }
 
@@ -57,25 +57,25 @@ func NewSecurityCors(securityCorsVO *vo.SecurityCors) SecurityCors {
 // If all validations pass, it proceeds to the next middleware.
 // The method takes a Context as the input parameter.
 // The method does not return anything.
-func (c securityCors) Do(ctx *api.Context) {
+func (s securityCorsMiddleware) Do(ctx *api.Context) {
 	// se a configuração não foi feita ja damos próximo
-	if helper.IsNil(c.securityCorsVO) {
+	if helper.IsNil(s.securityCors) {
 		ctx.Next()
 		return
 	}
 
 	// chamamos o objeto de valor para validar se o ip de origem é permitida a partir do objeto de valor fornecido
-	if err := c.securityCorsVO.AllowOrigins(ctx.HeaderValue(consts.XForwardedFor)); helper.IsNotNil(err) {
+	if err := s.securityCors.AllowOrigins(ctx.HeaderValue(consts.XForwardedFor)); helper.IsNotNil(err) {
 		ctx.WriteError(http.StatusForbidden, err)
 		return
 	}
 	// chamamos o objeto de valor para validar se o method é permitida a partir do objeto de valor fornecido
-	if err := c.securityCorsVO.AllowMethods(ctx.Method()); helper.IsNotNil(err) {
+	if err := s.securityCors.AllowMethods(ctx.Method()); helper.IsNotNil(err) {
 		ctx.WriteError(http.StatusForbidden, err)
 		return
 	}
 	// chamamos o domínio para validar se o headers fornecido estão permitidas a partir do objeto de valor fornecido
-	if err := c.securityCorsVO.AllowHeaders(ctx.Header()); helper.IsNotNil(err) {
+	if err := s.securityCors.AllowHeaders(ctx.Header().Http()); helper.IsNotNil(err) {
 		ctx.WriteError(http.StatusForbidden, err)
 		return
 	}

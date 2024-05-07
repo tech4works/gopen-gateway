@@ -19,14 +19,14 @@ package middleware
 import (
 	"github.com/GabrielHCataldo/go-errors/errors"
 	"github.com/GabrielHCataldo/go-helper/helper"
-	domainmapper "github.com/GabrielHCataldo/gopen-gateway/internal/domain/mapper"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/consts"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/main/mapper"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/main/model/consts"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/infra"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/infra/api"
 	"net/http"
 )
 
-type limiter struct {
+type limiterMiddleware struct {
 }
 
 // Limiter is an interface that defines a method for handling rate limiting and size limiting
@@ -43,7 +43,7 @@ type Limiter interface {
 // NewLimiter creates a new instance of Limiter.
 // It returns a Limiter value which implements the Limiter interface.
 func NewLimiter() Limiter {
-	return limiter{}
+	return limiterMiddleware{}
 }
 
 // Do execute a handler that implements the api.HandlerFunc interface, providing rate limiting and size limiting functionality.
@@ -52,7 +52,7 @@ func NewLimiter() Limiter {
 // The sizeLimiterProvider is used to check whether the request size is within the allowed limit.
 // If the request is not allowed, it returns an error and writes an error response to the request.
 // If the request is allowed, it calls the Next() method of the HttpRequest object to execute the next handler in the chain.
-func (l limiter) Do(rateLimiterProvider infra.RateLimiterProvider, sizeLimiterProvider infra.SizeLimiterProvider,
+func (l limiterMiddleware) Do(rateLimiterProvider infra.RateLimiterProvider, sizeLimiterProvider infra.SizeLimiterProvider,
 ) api.HandlerFunc {
 	return func(ctx *api.Context) {
 		// aqui ja verificamos se a chave hoje sendo ela o IP está permitida
@@ -64,7 +64,7 @@ func (l limiter) Do(rateLimiterProvider infra.RateLimiterProvider, sizeLimiterPr
 
 		// verificamos o tamanho da requisição, e tratamos o erro logo em seguida
 		err = sizeLimiterProvider.Allow(ctx.Http())
-		if errors.Contains(err, domainmapper.ErrHeaderTooLarge) {
+		if errors.Contains(err, mapper.ErrHeaderTooLarge) {
 			ctx.WriteError(http.StatusRequestHeaderFieldsTooLarge, err)
 			return
 		} else if helper.IsNotNil(err) {

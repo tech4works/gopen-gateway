@@ -19,33 +19,16 @@ package mapper
 import (
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/app/model/dto"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
+	configVO "github.com/GabrielHCataldo/gopen-gateway/internal/domain/config/model/vo"
 	"os"
 )
 
-// BuildSettingViewDTO takes a GopenJson object and constructs a SettingView object with
-// the required properties. It retrieves the version, version date, founder, and code helpers
-// from environment variables, and counts the number of endpoints, middlewares, backends, and modifiers
-// using methods from the GopenJson struct. It also sets the Setting property of the SettingView object
-// to a copy of the GopenJson object.
-//
-// Parameters:
-// - gopenJsonVO: A pointer to a GopenJson object that contains the configuration details for the Gopen application.
-//
-// Returns:
-//   - A SettingView object that represents the configuration view for the application, including the version,
-//     version date, founder, contributors, counts of endpoints, middlewares, backends, modifiers,
-//     and a copy of the GopenJson object.
-func BuildSettingViewDTO(gopenJsonVO *vo.GopenJson) dto.SettingView {
+func BuildSettingViewDTO(gopenJson *configVO.GopenJson) dto.SettingView {
 	return dto.SettingView{
 		Version:      os.Getenv("VERSION"),
 		VersionDate:  os.Getenv("VERSION_DATE"),
 		Founder:      os.Getenv("FOUNDER"),
 		Contributors: helper.SimpleConvertToInt(os.Getenv("CONTRIBUTORS")),
-		Endpoints:    gopenJsonVO.CountEndpoints(),
-		Middlewares:  gopenJsonVO.CountMiddlewares(),
-		Backends:     gopenJsonVO.CountBackends(),
-		Modifiers:    gopenJsonVO.CountModifiers(),
-		Setting:      gopenJsonVO.Json(),
+		Setting:      gopenJson.Filter(),
 	}
 }

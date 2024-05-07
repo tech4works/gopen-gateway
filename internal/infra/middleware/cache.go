@@ -21,13 +21,14 @@ import (
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/go-logger/logger"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/app/mapper"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
+	configVO "github.com/GabrielHCataldo/gopen-gateway/internal/domain/config/model/vo"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/main/model/vo"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/infra"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/infra/api"
 )
 
-// cache represents a Cache implementation that uses the provided infra.CacheStore for caching operations.
-type cache struct {
+// cacheMiddleware represents a Cache implementation that uses the provided infra.CacheStore for caching operations.
+type cacheMiddleware struct {
 	cacheStore infra.CacheStore
 }
 
@@ -43,12 +44,12 @@ type Cache interface {
 	//
 	// The returned HandlerFunc is responsible for handling the HTTP request,
 	// implementing cache-related logic based on the provided cache configuration.
-	Do(endpointCacheVO *vo.EndpointCache) api.HandlerFunc
+	Do(endpointCache *configVO.EndpointCache) api.HandlerFunc
 }
 
 // NewCache returns a Cache implementation that uses the provided CacheStore for caching operations.
 func NewCache(cacheStore infra.CacheStore) Cache {
-	return cache{
+	return cacheMiddleware{
 		cacheStore: cacheStore,
 	}
 }
@@ -57,19 +58,20 @@ func NewCache(cacheStore infra.CacheStore) Cache {
 // It initializes the cache key based on the strategy, checks if the cache can be read, and responds with the cached value if available.
 // If the cache cannot be read or is not found, it proceeds to the next handler.
 // After the next handler is executed, it checks if the response can be cached, sets the cache value, and logs any errors.
-func (c cache) Do(endpointCacheVO *vo.EndpointCache) api.HandlerFunc {
+func (c cacheMiddleware) Do(endpointCache *configVO.EndpointCache) api.HandlerFunc {
 	return func(ctx *api.Context) {
 		// se for nil vamos para o próximo
-		if helper.IsNil(endpointCacheVO) {
+		if helper.IsNil(endpointCache) {
 			ctx.Next()
 			return
 		}
 
 		// inicializamos a chave que vai ser utilizada
-		key := endpointCacheVO.StrategyKey(ctx.HttpRequest())
+		key := endpointCache.StrategyKey(ctx.HttpRequest().Url(), ctx.HttpRequest().Path().String(),
+			ctx.HttpRequest().Method(), ctx.HttpRequest().Header().Http())
 
 		// verificamos se ele permite ler o cache
-		if endpointCacheVO.CanRead(ctx.HttpRequest()) {
+		if endpointCache.CanRead(ctx.HttpRequest().Method(), ctx.HttpRequest().CacheControl()) {
 			// inicializamos o valor a ser obtido
 			var cacheResponse vo.CacheResponse
 
@@ -87,9 +89,10 @@ func (c cache) Do(endpointCacheVO *vo.EndpointCache) api.HandlerFunc {
 		ctx.Next()
 
 		// verificamos se podemos gravar a resposta
-		if endpointCacheVO.CanWrite(ctx.HttpRequest(), ctx.HttpResponse()) {
+		if endpointCache.CanWrite(ctx.HttpRequest().Method(), ctx.HttpResponse().StatusCode(),
+			ctx.HttpRequest().CacheControl()) {
 			// instanciamos a duração
-			duration := endpointCacheVO.Duration()
+			duration := endpointCache.Duration()
 
 			// construímos o valor a ser setado no cache
 			cacheResponse := vo.NewCacheResponse(ctx.HttpResponse(), duration)

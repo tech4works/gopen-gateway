@@ -9,7 +9,7 @@ import (
 	"runtime/debug"
 )
 
-type panicRecovery struct {
+type panicRecoveryMiddleware struct {
 }
 
 // PanicRecovery represents a type that can recover from panics.
@@ -22,18 +22,18 @@ type PanicRecovery interface {
 // NewPanicRecovery returns a PanicRecovery implementation.
 // The returned PanicRecovery contains a Do method that recovers from panics and handles the recovery process.
 // The Do method takes a *api.Context as a parameter and performs the necessary recovery actions.
-// The recovery actions include logging the recovered panic and stack trace, and writing an error response to the context.
+// The recovery actions include logging the recovered panic and stack traceMiddleware, and writing an error response to the context.
 // The Do method also calls ctx.Next() to proceed to the next request handling.
 func NewPanicRecovery() PanicRecovery {
-	return panicRecovery{}
+	return panicRecoveryMiddleware{}
 }
 
 // Do recovers from panics and handles the recovery process.
 // It takes a *api.Context as a parameter and performs the necessary recovery actions.
-// The recovery actions include logging the recovered panic and stack trace,
+// The recovery actions include logging the recovered panic and stack traceMiddleware,
 // and writing an error response to the context.
 // It also calls ctx.Next() to proceed to the next request handling.
-func (p panicRecovery) Do(ctx *api.Context) {
+func (p panicRecoveryMiddleware) Do(ctx *api.Context) {
 	defer func() {
 		if r := recover(); helper.IsNotNil(r) {
 			logger.Errorf("%s:%s", r, string(debug.Stack()))

@@ -22,7 +22,7 @@ import (
 	"time"
 )
 
-type trace struct {
+type traceProvider struct {
 }
 
 // TraceProvider is an interface that defines the behavior for generating a trace ID.
@@ -35,7 +35,7 @@ type TraceProvider interface {
 
 // NewTraceProvider creates a new instance of trace that implements the TraceProvider interface.
 func NewTraceProvider() TraceProvider {
-	return trace{}
+	return traceProvider{}
 }
 
 // GenerateTraceId generates a unique trace ID by combining a UUID and the current UnixNano timestamp.
@@ -52,7 +52,7 @@ func NewTraceProvider() TraceProvider {
 // Output:
 //
 //	4ae6c92d16089e521626
-func (t trace) GenerateTraceId() string {
+func (t traceProvider) GenerateTraceId() string {
 	u := uuid.New().String()
 	unixNano := time.Now().UnixNano()
 	return fmt.Sprintf("%s%d", u[:8], unixNano)[:16]

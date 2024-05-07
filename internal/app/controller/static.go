@@ -19,15 +19,15 @@ package controller
 import (
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/app/mapper"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
+	configVO "github.com/GabrielHCataldo/gopen-gateway/internal/domain/config/model/vo"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/infra/api"
 	"net/http"
 )
 
 // static represents a static handler that handles requests for ping and version.
-// It contains a gopenJsonVO field of type vo.Gopen, which holds configuration information.
+// It contains a gopenJson field of type vo.Gopen, which holds configuration information.
 type static struct {
-	gopenJsonVO *vo.GopenJson
+	gopenJson *configVO.GopenJson
 }
 
 // Static represents an interface for handling requests related to ping, version, and settings.
@@ -39,10 +39,10 @@ type Static interface {
 
 // NewStatic is a function that creates a new instance of the Static interface.
 // It takes a vo.Gopen parameter and returns a Static object.
-// The returned Static object has a gopenVO field which is initialized with the provided vo.Gopen object.
-func NewStatic(gopenJsonVO *vo.GopenJson) Static {
+// The returned Static object has a gopenVO field which is initialized with the provided vo.GopenJson object.
+func NewStatic(gopenJson *configVO.GopenJson) Static {
 	return static{
-		gopenJsonVO: gopenJsonVO,
+		gopenJson: gopenJson,
 	}
 }
 
@@ -51,14 +51,14 @@ func (s static) Ping(ctx *api.Context) {
 }
 
 func (s static) Version(ctx *api.Context) {
-	if helper.IsNotEmpty(s.gopenJsonVO.Version) {
-		ctx.WriteString(http.StatusOK, s.gopenJsonVO.Version)
+	if helper.IsNotEmpty(s.gopenJson.Version) {
+		ctx.WriteString(http.StatusOK, s.gopenJson.Version)
 		return
 	}
 	ctx.WriteStatusCode(http.StatusNotFound)
 }
 
 func (s static) Settings(ctx *api.Context) {
-	settingViewDTO := mapper.BuildSettingViewDTO(s.gopenJsonVO)
+	settingViewDTO := mapper.BuildSettingViewDTO(s.gopenJson)
 	ctx.WriteJson(http.StatusOK, settingViewDTO)
 }

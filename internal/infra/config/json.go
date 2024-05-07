@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"github.com/GabrielHCataldo/go-errors/errors"
 	"github.com/GabrielHCataldo/go-helper/helper"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
+	configVO "github.com/GabrielHCataldo/gopen-gateway/internal/domain/config/model/vo"
 	"github.com/xeipuuv/gojsonschema"
 	"os"
 	"regexp"
@@ -34,7 +34,7 @@ const jsonResultUri = "./runtime/.json"
 // jsonSchemaUri is a constant string representing the URI of the JSON schema file.
 const jsonSchemaUri = "file://./json-schema.json"
 
-func LoadGopenJson(env string) *vo.GopenJson {
+func LoadGopenJson(env string) *configVO.GopenJson {
 	// carregamos o arquivo de json de configuração do Gopen
 	fileJsonUri := getFileJsonUri(env)
 	PrintInfoLogCmdf("Loading Gopen json from file: %s...", fileJsonUri)
@@ -52,7 +52,7 @@ func LoadGopenJson(env string) *vo.GopenJson {
 	}
 
 	// construímos o objeto de valor relacionado ao json de configuração
-	gopenJson, err := vo.NewGopenJson(fileJsonBytes)
+	gopenJson, err := configVO.NewGopenJson(fileJsonBytes)
 	if helper.IsNotNil(err) {
 		panic(err)
 	}
@@ -125,7 +125,7 @@ func fillEnvValues(gopenBytesJson []byte) []byte {
 // If no error occurs during the marshaling process, it writes the byte array to the gopenJsonResult file using os.WriteFile.
 // If an error occurs during the writing process, it logs a warning message using PrintWarningLogCmdf.
 // Note: The global constant gopenJsonResult represents the filepath of the Gopen JSON result file.
-func WriteGopenJsonResult(gopenJson *vo.GopenJson) {
+func WriteGopenJsonResult(gopenJson *configVO.GopenJson) {
 	gopenBytes, err := json.MarshalIndent(gopenJson, "", "\t")
 	if helper.IsNil(err) {
 		err = os.WriteFile(jsonResultUri, gopenBytes, 0644)

@@ -18,7 +18,8 @@ package api
 
 import (
 	"github.com/GabrielHCataldo/go-helper/helper"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
+	configVO "github.com/GabrielHCataldo/gopen-gateway/internal/domain/config/model/vo"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/main/model/vo"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/net/context"
 	"net/http"
@@ -37,10 +38,10 @@ type Context struct {
 	framework *gin.Context
 	// gopen represents a variable of type vo.Gopen. It is used to access and manipulate data using the desired
 	// application settings
-	gopen *vo.Gopen
+	gopen *configVO.Gopen
 	// endpoint represents the configuration of the endpoint that is receiving the current httpRequest, widely used to take
 	// execution guidelines and httpResponse customization
-	endpoint *vo.Endpoint
+	endpoint *configVO.Endpoint
 	// httpRequest represents a data structure for current `httpRequest`.
 	httpRequest *vo.HttpRequest
 	// httpResponse is a structure that represents the HTTP httpResponse, written by the context.
@@ -53,13 +54,13 @@ func (c *Context) Context() context.Context {
 }
 
 // Gopen returns the Gopen object associated with the Context. It retrieves the Gopen value from the Context object.
-func (c *Context) Gopen() *vo.Gopen {
+func (c *Context) Gopen() *configVO.Gopen {
 	return c.gopen
 }
 
 // Endpoint returns the endpoint associated with the httpRequest.
 // It retrieves the endpoint value from the `endpoint` field of the Context struct.
-func (c *Context) Endpoint() *vo.Endpoint {
+func (c *Context) Endpoint() *configVO.Endpoint {
 	return c.endpoint
 }
 
@@ -112,9 +113,7 @@ func (c *Context) HeaderValue(key string) string {
 func (c *Context) AddHeader(key, value string) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
-
-	header := c.Header().Add(key, value)
-	c.httpRequest = c.HttpRequest().SetHeader(header)
+	c.httpRequest = c.HttpRequest().SetHeader(key, value)
 }
 
 // SetHeader sets the value of the specified header key for the Context object.
@@ -126,9 +125,7 @@ func (c *Context) AddHeader(key, value string) {
 func (c *Context) SetHeader(key, value string) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
-
-	header := c.Header().Set(key, value)
-	c.httpRequest = c.HttpRequest().SetHeader(header)
+	c.httpRequest = c.HttpRequest().SetHeader(key, value)
 }
 
 // RemoteAddr returns the client's remote network address in the format "IP:port". It delegates the call to the
@@ -147,12 +144,6 @@ func (c *Context) Method() string {
 // It delegates the call to the underlying framework's HttpRequest.Url() method.
 func (c *Context) Url() string {
 	return c.HttpRequest().Url()
-}
-
-// Uri returns the URI of the Context. It delegates the call to the
-// underlying HttpRequest's Uri() method.
-func (c *Context) Uri() string {
-	return c.HttpRequest().Path()
 }
 
 // Body returns the body of the Context. It delegates the call to the
@@ -189,7 +180,14 @@ func (c *Context) Next() {
 	c.framework.Next()
 }
 
-func (c *Context) Write(httpResponseVO *vo.HttpResponse) {
+func (c *Context) Write(httpRequest *vo.HttpRequest, httpResponse *vo.HttpResponse) {
+	// inserimos o http request atualizado no contexto
+	c.httpRequest = httpRequest
+	// escrevemos o http response para o cliente final
+	c.WriteHttpResponse(httpResponse)
+}
+
+func (c *Context) WriteHttpResponse(httpResponse *vo.HttpResponse) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
@@ -199,15 +197,15 @@ func (c *Context) Write(httpResponseVO *vo.HttpResponse) {
 	}
 
 	// escrevemos a resposta a partir da resposta
-	httpResponseWrittenVO := httpResponseVO.Write(c.Endpoint())
+	httpResponseWritten := httpResponse.Write(c.Endpoint(), c.HttpRequest(), httpResponse)
 
 	// escrevemos os headers de resposta
-	c.writeHeader(httpResponseWrittenVO.Header())
+	c.writeHeader(httpResponseWritten.Header())
 
 	// instanciamos os valores a serem utilizados
-	statusCode := httpResponseWrittenVO.StatusCode()
-	contentType := httpResponseWrittenVO.ContentType()
-	bodyBytes := httpResponseWrittenVO.BytesBody()
+	statusCode := httpResponseWritten.StatusCode()
+	contentType := httpResponseWritten.ContentType()
+	bodyBytes := httpResponseWritten.BytesBody()
 
 	// verificamos se tem valor o body
 	if helper.IsNotEmpty(bodyBytes) {
@@ -220,42 +218,42 @@ func (c *Context) Write(httpResponseVO *vo.HttpResponse) {
 	c.framework.Abort()
 
 	// setamos a resposta VO escrita
-	c.httpResponse = httpResponseWrittenVO
+	c.httpResponse = httpResponseWritten
 }
 
 func (c *Context) WriteStatusCode(code int) {
 	// preparamos a resposta com o status code recebido
 	httpResponseVO := vo.NewHttpResponseByStatusCode(code)
 	// escrevemos a resposta
-	c.Write(httpResponseVO)
+	c.WriteHttpResponse(httpResponseVO)
 }
 
 func (c *Context) WriteString(code int, body string) {
 	// preparamos a resposta com a string
 	httpResponseVO := vo.NewHttpResponseByString(code, body)
 	// escrevemos a resposta
-	c.Write(httpResponseVO)
+	c.WriteHttpResponse(httpResponseVO)
 }
 
 func (c *Context) WriteJson(code int, body any) {
 	// preparamos a resposta com o body any
 	httpResponseVO := vo.NewHttpResponseByJson(code, body)
 	// escrevemos a resposta
-	c.Write(httpResponseVO)
+	c.WriteHttpResponse(httpResponseVO)
 }
 
 func (c *Context) WriteCacheResponse(cacheResponse *vo.CacheResponse) {
 	// preparamos a resposta a partir da resposta obtida do cache
 	httpResponseVO := vo.NewHttpResponseByCache(cacheResponse)
 	// escrevemos a resposta
-	c.Write(httpResponseVO)
+	c.WriteHttpResponse(httpResponseVO)
 }
 
 func (c *Context) WriteError(code int, err error) {
 	// preparamos a resposta a partir do status code e error
 	httpResponseVO := vo.NewHttpResponseByErr(c.Endpoint().Path(), code, err)
 	// escrevemos a resposta
-	c.Write(httpResponseVO)
+	c.WriteHttpResponse(httpResponseVO)
 }
 
 // writeStatusCode writes the HTTP status code to the httpResponse.

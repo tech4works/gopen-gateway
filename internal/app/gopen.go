@@ -22,7 +22,7 @@ import (
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/go-logger/logger"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/app/controller"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
+	configVO "github.com/GabrielHCataldo/gopen-gateway/internal/domain/config/model/vo"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/infra"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/infra/api"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/infra/middleware"
@@ -44,20 +44,20 @@ var loggerOptions = logger.Options{
 // The http.Server struct represents an HTTP server that listens for incoming connections and handles them
 // using the specified Handler. It is used to configure and start an HTTP server.
 // The httpServer variable is used to register the Gin engine as the handler for the HTTP server in the
-// ListerAndServer method of the gopen type.
+// ListerAndServer method of the gopenApp type.
 // It can be used to access properties and methods of the HTTP server, such as Shutdown, which gracefully shuts down
 // the server without interrupting active connections.
 // If the HTTP server is nil, the Shutdown method will return nil.
 // Otherwise, it will return an error resulting from the http.Server's Shutdown method.
 var httpServer *http.Server
 
-// gopen is a struct that holds various components and controllers required for running a Gopen server.
-// It contains a gopenVO field that represents the configuration and settings for the Gopen server.
+// gopenApp is a struct that holds various components and controllers required for running a Gopen server.
+// It contains a gopenApp field that represents the configuration and settings for the Gopen server.
 // It also includes middleware implementations such as panicRecoveryMiddleware, traceMiddleware, logMiddleware,
 // securityCorsMiddleware, timeoutMiddleware, limiterMiddleware, cacheMiddleware, as well as static and endpoint
 // controllers to handle requests.
-type gopen struct {
-	gopenVO                 *vo.Gopen
+type gopenApp struct {
+	gopen                   *configVO.Gopen
 	panicRecoveryMiddleware middleware.PanicRecovery
 	traceMiddleware         middleware.Trace
 	logMiddleware           middleware.Log
@@ -86,7 +86,7 @@ type Gopen interface {
 // NewGopen creates and returns a new `Gopen` object.
 // It returns a `Gopen` interface, which represents the Gopen object that stores the provided configuration and middleware.
 func NewGopen(
-	gopenVO *vo.Gopen,
+	gopen *configVO.Gopen,
 	panicRecoveryMiddleware middleware.PanicRecovery,
 	traceMiddleware middleware.Trace,
 	logMiddleware middleware.Log,
@@ -97,8 +97,8 @@ func NewGopen(
 	staticController controller.Static,
 	endpointController controller.Endpoint,
 ) Gopen {
-	return gopen{
-		gopenVO:                 gopenVO,
+	return gopenApp{
+		gopen:                   gopen,
 		panicRecoveryMiddleware: panicRecoveryMiddleware,
 		traceMiddleware:         traceMiddleware,
 		logMiddleware:           logMiddleware,
@@ -119,7 +119,7 @@ func NewGopen(
 // and starts an HTTP server listening on the constructed address.
 // The server uses the Gin engine as its handler.
 // This method doesn't accept parameters or return values.
-func (g gopen) ListerAndServer() {
+func (g gopenApp) ListerAndServer() {
 	printInfoLog("Starting lister and server...")
 
 	// instanciamos o gin engine
@@ -132,20 +132,20 @@ func (g gopen) ListerAndServer() {
 
 	printInfoLog("Starting to read endpoints to register routes...")
 	// iteramos os endpoints para cadastrar as rotas
-	for _, endpointVO := range g.gopenVO.Endpoints() {
+	for _, endpoint := range g.gopen.Endpoints() {
 		// configuramos os handles do endpoint
-		handles := g.buildEndpointHandles(endpointVO)
+		handles := g.buildEndpointHandles(endpoint)
 
 		// cadastramos as rotas no nosso wrapper
-		api.Handle(engine, g.gopenVO, &endpointVO, handles...)
+		api.Handle(engine, g.gopen, &endpoint, handles...)
 
 		// imprimimos a informação dos endpoints cadastrado
 		lenString := helper.SimpleConvertToString(len(handles))
-		printInfoLogf("Registered route with %s handles: %s", lenString, endpointVO.Resume())
+		printInfoLogf("Registered route with %s handles: %s", lenString, endpoint.Resume())
 	}
 
 	// montamos o endereço com a porta configurada
-	address := fmt.Sprint(":", g.gopenVO.Port())
+	address := fmt.Sprint(":", g.gopen.Port())
 
 	// rodamos o gin engine
 	printInfoLogf("Listening and serving HTTP on %s!", address)
@@ -166,19 +166,19 @@ func (g gopen) ListerAndServer() {
 // However, if the server is active, it returns an error resulted from http.Server's Shutdown method.
 //
 // Returns an error if any occurred during the server shutdown. Returns nil if the server was already nil or shutdown executed without errors.
-func (g gopen) Shutdown(ctx context.Context) error {
+func (g gopenApp) Shutdown(ctx context.Context) error {
 	if helper.IsNil(httpServer) {
 		return nil
 	}
 	return httpServer.Shutdown(ctx)
 }
 
-// buildStaticRoutes is a method of the gopen type that configures static routes for the Gin engine.
+// buildStaticRoutes is a method of the gopenApp type that configures static routes for the Gin engine.
 // It takes an engine parameter of type *gin.Engine and configures the following routes:
 // - "/ping" with the HTTP method "GET" that maps to gopen.staticController.Ping
 // - "/version" with the HTTP method "GET" that maps to gopen.staticController.Version
 // - "/settings" with the HTTP method "GET" that maps to gopen.staticController.Settings
-func (g gopen) buildStaticRoutes(engine *gin.Engine) {
+func (g gopenApp) buildStaticRoutes(engine *gin.Engine) {
 	// imprimimos o log cmd
 	printInfoLog("Configuring static routes...")
 
@@ -186,39 +186,39 @@ func (g gopen) buildStaticRoutes(engine *gin.Engine) {
 	formatLog := "Registered route with 5 handles: %s --> \"%s\""
 
 	// ping route
-	pingEndpointVO := g.registerStaticPingRoute(engine)
-	printInfoLogf(formatLog, pingEndpointVO.Method(), pingEndpointVO.Path())
+	pingEndpoint := g.registerStaticPingRoute(engine)
+	printInfoLogf(formatLog, pingEndpoint.Method(), pingEndpoint.Path())
 
 	// version
-	versionEndpointVO := g.registerStaticVersionRoute(engine)
-	printInfoLogf(formatLog, versionEndpointVO.Method(), versionEndpointVO.Path())
+	versionEndpoint := g.registerStaticVersionRoute(engine)
+	printInfoLogf(formatLog, versionEndpoint.Method(), versionEndpoint.Path())
 
 	// gopen config infos
-	settingsEndpointVO := g.registerStaticSettingsRoute(engine)
-	printInfoLogf(formatLog, settingsEndpointVO.Method(), settingsEndpointVO.Path())
+	settingsEndpoint := g.registerStaticSettingsRoute(engine)
+	printInfoLogf(formatLog, settingsEndpoint.Method(), settingsEndpoint.Path())
 }
 
-func (g gopen) registerStaticPingRoute(engine *gin.Engine) *vo.Endpoint {
-	endpointVO := vo.NewEndpointStatic(g.gopenVO, "/ping", http.MethodGet)
-	g.registerStaticRoute(engine, &endpointVO, g.staticController.Ping)
-	return &endpointVO
+func (g gopenApp) registerStaticPingRoute(engine *gin.Engine) *configVO.Endpoint {
+	endpoint := configVO.NewEndpointStatic(g.gopen, "/ping", http.MethodGet)
+	g.registerStaticRoute(engine, &endpoint, g.staticController.Ping)
+	return &endpoint
 }
 
-func (g gopen) registerStaticVersionRoute(engine *gin.Engine) *vo.Endpoint {
-	endpointVO := vo.NewEndpointStatic(g.gopenVO, "/version", http.MethodGet)
-	g.registerStaticRoute(engine, &endpointVO, g.staticController.Version)
-	return &endpointVO
+func (g gopenApp) registerStaticVersionRoute(engine *gin.Engine) *configVO.Endpoint {
+	endpoint := configVO.NewEndpointStatic(g.gopen, "/version", http.MethodGet)
+	g.registerStaticRoute(engine, &endpoint, g.staticController.Version)
+	return &endpoint
 }
 
-func (g gopen) registerStaticSettingsRoute(engine *gin.Engine) *vo.Endpoint {
-	endpointVO := vo.NewEndpointStatic(g.gopenVO, "/settings", http.MethodGet)
-	g.registerStaticRoute(engine, &endpointVO, g.staticController.Settings)
-	return &endpointVO
+func (g gopenApp) registerStaticSettingsRoute(engine *gin.Engine) *configVO.Endpoint {
+	endpoint := configVO.NewEndpointStatic(g.gopen, "/settings", http.MethodGet)
+	g.registerStaticRoute(engine, &endpoint, g.staticController.Settings)
+	return &endpoint
 }
 
-func (g gopen) registerStaticRoute(engine *gin.Engine, endpointStaticVO *vo.Endpoint, handler api.HandlerFunc) {
+func (g gopenApp) registerStaticRoute(engine *gin.Engine, endpointStatic *configVO.Endpoint, handler api.HandlerFunc) {
 	// configuramos o handler do timeout do endpoint como o middleware
-	timeoutHandler := g.timeoutMiddleware.Do(vo.Duration(10 * time.Second))
+	timeoutHandler := g.timeoutMiddleware.Do(configVO.Duration(10 * time.Second))
 	// configuramos o handler de panic recovery
 	panicHandler := g.panicRecoveryMiddleware.Do
 	// configuramos o handler do trace como o middleware
@@ -226,29 +226,29 @@ func (g gopen) registerStaticRoute(engine *gin.Engine, endpointStaticVO *vo.Endp
 	// configuramos o handler do log como o middleware
 	logHandler := g.logMiddleware.Do
 	// configuramos o handler do limiter do endpoint como o middleware
-	limiterHandler := g.buildLimiterMiddlewareHandler(*endpointStaticVO)
+	limiterHandler := g.buildLimiterMiddlewareHandler(*endpointStatic)
 	// registramos o endpoint estático
-	api.Handle(engine, g.gopenVO, endpointStaticVO, timeoutHandler, panicHandler, traceHandler, logHandler,
+	api.Handle(engine, g.gopen, endpointStatic, timeoutHandler, panicHandler, traceHandler, logHandler,
 		limiterHandler, handler)
 }
 
-// buildEndpointHandles is a method of the gopen type that builds a list of middleware handlers for a given endpoint.
+// buildEndpointHandles is a method of the gopenApp type that builds a list of middleware handlers for a given endpoint.
 // It takes an endpointVO of type vo.Endpoint as a parameter and returns a slice of api.HandlerFunc.
-// Each middleware handler is configured based on specific middleware instances defined in the gopen type.
+// Each middleware handler is configured based on specific middleware instances defined in the gopenApp type.
 // The handlers are added to the slice in the following order:
 // 1. timeoutHandler: Used to handle timeout requests. The timeout duration is determined based on both the endpointVO
 // 2. panicHandler: Used to handle panic errors.
 // 3. traceHandler: Used to handle trace requests.
 // 4. logHandler: Used to handle logging requests.
 // 5. securityCorsHandler: Used to handle security CORS requests.
-// and the gopenVO configurations.
+// and the gopenApp configurations.
 // 6. limiterHandler: Used to handle limiter requests. The limiter vo is determined based on both the endpointVO and the
-// gopenVO configurations.
+// gopenApp configurations.
 // 7. cacheHandler: Used to handle cache requests. The cache duration, cache strategy headers, and allow cache control
-// configurations are determined based on both the endpointVO and gopenVO
-func (g gopen) buildEndpointHandles(endpointVO vo.Endpoint) []api.HandlerFunc {
+// configurations are determined based on both the endpointVO and gopenApp
+func (g gopenApp) buildEndpointHandles(endpoint configVO.Endpoint) []api.HandlerFunc {
 	// configuramos o handler do timeout do endpoint como o middleware
-	timeoutHandler := g.timeoutMiddleware.Do(endpointVO.Timeout())
+	timeoutHandler := g.timeoutMiddleware.Do(endpoint.Timeout())
 	// configuramos o handler de panic recovery
 	panicHandler := g.panicRecoveryMiddleware.Do
 	// configuramos o handler do trace como o middleware
@@ -258,9 +258,9 @@ func (g gopen) buildEndpointHandles(endpointVO vo.Endpoint) []api.HandlerFunc {
 	// configuramos o handler do security cors como o middleware
 	securityCorsHandler := g.securityCorsMiddleware.Do
 	// configuramos o handler do limiter do endpoint como o middleware
-	limiterHandler := g.buildLimiterMiddlewareHandler(endpointVO)
+	limiterHandler := g.buildLimiterMiddlewareHandler(endpoint)
 	// configuramos o handler de cache do endpoint como o middleware
-	cacheHandler := g.cacheMiddleware.Do(endpointVO.Cache())
+	cacheHandler := g.cacheMiddleware.Do(endpoint.Cache())
 	// configuramos o handler do endpoint como controlador
 	endpointHandler := g.endpointController.Execute
 	// montamos a lista de manipuladores
@@ -276,16 +276,16 @@ func (g gopen) buildEndpointHandles(endpointVO vo.Endpoint) []api.HandlerFunc {
 	}
 }
 
-// buildLimiterMiddlewareHandler is a method of the gopen type that constructs and returns a limiter middleware handler
-// for the given endpoint. It first retrieves the limiter rate and capacity values from the gopenVO configuration. If
+// buildLimiterMiddlewareHandler is a method of the gopenApp type that constructs and returns a limiter middleware handler
+// for the given endpoint. It first retrieves the limiter rate and capacity values from the gopenApp configuration. If
 // these values are specified in the endpoint, they take priority. Next, it retrieves the max header size, max body size,
-// and max multipart form size values from the gopenVO configuration. If these values are specified in the endpoint,
+// and max multipart form size values from the gopenApp configuration. If these values are specified in the endpoint,
 // they take.
-func (g gopen) buildLimiterMiddlewareHandler(endpointVO vo.Endpoint) api.HandlerFunc {
+func (g gopenApp) buildLimiterMiddlewareHandler(endpoint configVO.Endpoint) api.HandlerFunc {
 	// inicializamos o limitador de taxa
-	rateLimiterProvider := infra.NewRateLimiterProvider(endpointVO.Limiter().Rate())
+	rateLimiterProvider := infra.NewRateLimiterProvider(endpoint.Limiter().Rate())
 	// inicializamos o limitador de tamanho
-	sizeLimiterProvider := infra.NewSizeLimiterProvider(endpointVO.Limiter())
+	sizeLimiterProvider := infra.NewSizeLimiterProvider(endpoint.Limiter())
 	// construímos a chamada limiter
 	return g.limiterMiddleware.Do(rateLimiterProvider, sizeLimiterProvider)
 }

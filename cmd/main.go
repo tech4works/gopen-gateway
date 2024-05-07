@@ -19,12 +19,11 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/GabrielHCataldo/go-errors/errors"
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/app"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/app/controller"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/service"
+	configVO "github.com/GabrielHCataldo/gopen-gateway/internal/domain/config/model/vo"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/main/service"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/infra"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/infra/config"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/infra/middleware"
@@ -33,28 +32,17 @@ import (
 	"time"
 )
 
-// gopenApp is an instance of the app.Gopen interface that represents the functionality of a Gopen server.
-// It is used to start and shutdown the Gopen application by invoking its ListerAndServer() and
-// Shutdown(ctx context.Context) error methods.
 var gopenApp app.Gopen
 
-var gopenJsonVO *vo.GopenJson
+var gopenJson *configVO.GopenJson
 
-// main is the entry point of the application.
-// It prints an informational log message to indicate that the application is starting.
-// It initializes the 'env' variable by retrieving it from the command-line arguments.
-// If there is no 'env' argument provided, it panics with an error message.
-// It loads the default environment variables for Gopen.
-// It loads the environment variables indicated by the 'env' argument.
-// It starts the 'startApp' function as a goroutine.
-// It waits for an interrupt signal and removes the JSON result file when the signal is received.
 func main() {
 	config.PrintInfoLogCmd("Starting...")
 
 	// inicializamos o valor env para obter como argumento de aplicação
 	var env string
 	if helper.IsLessThanOrEqual(os.Args, 1) {
-		panic(errors.New("Please enter ENV as second argument! ex: dev, prd"))
+		panic("Please enter ENV as second argument! ex: dev, prd")
 	}
 	env = os.Args[1]
 
@@ -65,7 +53,7 @@ func main() {
 	config.LoadGopenEnvs(env)
 
 	// carregamos o json de configuração pelo ambiente indicado
-	gopenJsonVO = config.LoadGopenJson(env)
+	gopenJson = config.LoadGopenJson(env)
 
 	// inicializamos a aplicação
 	go startApp(env)
@@ -78,37 +66,31 @@ func main() {
 		// removemos o arquivo json que foi usado
 		config.RemoveGopenJsonResult()
 		// imprimimos que a aplicação foi interrompida
-		config.PrintInfoLogCmd("Gopen stopped!")
+		config.PrintInfoLogCmd("----------------------- <STOPPED> -----------------------")
 	}
 }
 
 func startApp(env string) {
 	// configuramos o store interface
-	cacheStore := config.NewCacheStore(gopenJsonVO.Store)
+	cacheStore := config.NewCacheStore(gopenJson.Store)
 	defer config.CloseCacheStore(cacheStore)
 
 	// configuramos o watch para ouvir mudanças do json de configuração caso hot-reload for true
-	if gopenJsonVO.HotReload {
+	if gopenJson.HotReload {
 		watcher := config.NewWatcher(env, restartApp)
 		defer config.CloseWatcher(watcher)
 	}
 
 	// deu tudo certo escrevemos o json de resposta salvamos o gopenDTO resultante
-	config.WriteGopenJsonResult(gopenJsonVO)
+	config.WriteGopenJsonResult(gopenJson)
 
 	// chamamos o lister and server, ele ira segurar a goroutine do app
-	listerAndServer(cacheStore, gopenJsonVO)
+	listerAndServer(cacheStore, gopenJson)
 }
 
-// listerAndServer builds the value objects, infra, domain, middlewares, controllers, and application
-// necessary for running the Gopen application. It then calls the ListerAndServer method of the gopenApp instance.
-//
-// Parameters:
-// cacheStore: An implementation of the CacheStore interface for interacting with a cache store.
-// gopenJsonVO: A pointer to a GopenJson struct that represents the configuration json for the Gopen application.
-func listerAndServer(cacheStore infra.CacheStore, gopenJsonVO *vo.GopenJson) {
+func listerAndServer(cacheStore infra.CacheStore, gopenJson *configVO.GopenJson) {
 	config.PrintInfoLogCmd("Building value objects...")
-	gopenVO := vo.NewGopen(gopenJsonVO)
+	gopen := configVO.NewGopen(gopenJson)
 
 	config.PrintInfoLogCmd("Building infra...")
 	restTemplate := infra.NewRestTemplate()
@@ -116,26 +98,25 @@ func listerAndServer(cacheStore infra.CacheStore, gopenJsonVO *vo.GopenJson) {
 	logProvider := infra.NewLogProvider()
 
 	config.PrintInfoLogCmd("Building domain...")
-	modifierService := service.NewModifier()
-	backendService := service.NewBackend(modifierService, restTemplate)
+	backendService := service.NewBackend(restTemplate)
 	endpointService := service.NewEndpoint(backendService)
 
 	config.PrintInfoLogCmd("Building middlewares...")
 	panicRecoveryMiddleware := middleware.NewPanicRecovery()
 	traceMiddleware := middleware.NewTrace(traceProvider)
 	logMiddleware := middleware.NewLog(logProvider)
-	securityCorsMiddleware := middleware.NewSecurityCors(gopenVO.SecurityCors())
+	securityCorsMiddleware := middleware.NewSecurityCors(gopen.SecurityCors())
 	limiterMiddleware := middleware.NewLimiter()
 	timeoutMiddleware := middleware.NewTimeout()
 	cacheMiddleware := middleware.NewCache(cacheStore)
 
 	config.PrintInfoLogCmd("Building controllers...")
-	staticController := controller.NewStatic(gopenJsonVO)
+	staticController := controller.NewStatic(gopenJson)
 	endpointController := controller.NewEndpoint(endpointService)
 
 	config.PrintInfoLogCmd("Building application...")
 	gopenApp = app.NewGopen(
-		gopenVO,
+		gopen,
 		panicRecoveryMiddleware,
 		traceMiddleware,
 		logMiddleware,
@@ -158,7 +139,7 @@ func restartApp(env string) {
 	// print log
 	fmt.Println()
 	fmt.Println()
-	config.PrintInfoLogCmd("----------------------- RESTART -----------------------")
+	config.PrintInfoLogCmd("----------------------- <RESTART> -----------------------")
 
 	// inicializamos um contexto de timeout para ter um tempo de limite de tentativa
 	ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
@@ -176,7 +157,7 @@ func restartApp(env string) {
 	config.ReloadGopenEnvs(env)
 
 	// carregamos o json de configuração pelo ambiente indicado
-	gopenJsonVO = config.LoadGopenJson(env)
+	gopenJson = config.LoadGopenJson(env)
 
 	// iniciamos a aplicação com as informações alteradas
 	go startApp(env)
@@ -194,7 +175,7 @@ func restartPanicRecovery(env string) {
 
 func recoveryApp(env string) {
 	fmt.Println()
-	config.PrintInfoLogCmd("----------------------- RECOVERY -----------------------")
+	config.PrintInfoLogCmd("----------------------- <RECOVERY> -----------------------")
 
 	// iniciamos a aplicação com o config antiga
 	go startApp(env)

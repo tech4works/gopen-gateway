@@ -49,6 +49,97 @@
         "TEXT"
       ]
     },
+    "request-modifier": {
+      "type": "object",
+      "properties": {
+        "@comment": {
+          "type": "string"
+        },
+        "action": {
+          "type": "string",
+          "enum": [
+            "ADD",
+            "APD",
+            "SET",
+            "RPL",
+            "DEL"
+          ]
+        },
+        "propagate": {
+          "type": "boolean"
+        },
+        "key": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        }
+      },
+      "if": {
+        "properties": {
+          "action": {
+            "const": "DEL"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "action",
+          "key"
+        ]
+      },
+      "else": {
+        "required": [
+          "action",
+          "key",
+          "value"
+        ]
+      }
+    },
+    "response-modifier": {
+      "type": "object",
+      "properties": {
+        "@comment": {
+          "type": "string"
+        },
+        "action": {
+          "type": "string",
+          "enum": [
+            "ADD",
+            "APD",
+            "SET",
+            "RPL",
+            "DEL"
+          ]
+        },
+        "key": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        }
+      },
+      "if": {
+        "properties": {
+          "action": {
+            "const": "DEL"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "action",
+          "key"
+        ]
+      },
+      "else": {
+        "required": [
+          "action",
+          "key",
+          "value"
+        ]
+      }
+    },
     "projection": {
       "type": "object",
       "minProperties": 1,
@@ -346,6 +437,63 @@
         },
         "body-projection": {
           "$ref": "#/definitions/body-projection"
+        },
+        "header-modifiers": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/request-modifier"
+          }
+        },
+        "param-modifiers": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/request-modifier"
+          }
+        },
+        "query-modifiers": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/request-modifier"
+          }
+        },
+        "body-modifiers": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/request-modifier"
+          }
+        }
+      },
+      "dependencies": {
+        "omit-header": {
+          "not": {
+            "anyOf": [
+              {"required": ["header-mapper"]},
+              {"required": ["header-projection"]},
+              {"required": ["header-modifiers"]}
+            ]
+          }
+        },
+        "omit-query": {
+          "not": {
+            "anyOf": [
+              {"required": ["query-mapper"]},
+              {"required": ["query-projection"]},
+              {"required": ["query-modifiers"]}
+            ]
+          }
+        },
+        "omit-body": {
+          "not": {
+            "anyOf": [
+              {"required": ["body-mapper"]},
+              {"required": ["body-projection"]},
+              {"required": ["body-modifiers"]}
+            ]
+          }
         }
       },
       "additionalProperties": false
@@ -384,6 +532,79 @@
         },
         "body-projection": {
           "$ref": "#/definitions/body-projection"
+        },
+        "header-modifiers": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/response-modifier"
+          }
+        },
+        "body-modifiers": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/response-modifier"
+          }
+        }
+      },
+      "dependencies": {
+        "omit": {
+          "oneOf": [
+            {
+              "properties": {"omit": {"enum": [false]}},
+              "required": ["omit"]
+            },
+            {
+              "not": {
+                "anyOf": [
+                  {"required": ["omit-header"]},
+                  {"required": ["omit-body"]},
+                  {"required": ["group"]},
+                  {"required": ["header-mapper"]},
+                  {"required": ["body-mapper"]},
+                  {"required": ["header-projection"]},
+                  {"required": ["body-projection"]},
+                  {"required": ["header-modifiers"]},
+                  {"required": ["body-modifiers"]}
+                ]
+              }
+            }
+          ]
+        },
+        "omit-body": {
+          "oneOf": [
+            {
+              "properties": {"omit-body": {"enum": [false]}},
+              "required": ["omit-body"]
+            },
+            {
+              "not": {
+                "anyOf": [
+                  {"required": ["body-mapper"]},
+                  {"required": ["body-projection"]},
+                  {"required": ["body-modifiers"]}
+                ]
+              }
+            }
+          ]
+        },
+        "omit-header": {
+          "oneOf": [
+            {
+              "properties": {"omit-header": {"enum": [false]}},
+              "required": ["omit-header"]
+            },
+            {
+              "not": {
+                "anyOf": [
+                  {"required": ["header-mapper"]},
+                  {"required": ["header-projection"]},
+                  {"required": ["header-modifiers"]}
+                ]
+              }
+            }
+          ]
         }
       },
       "additionalProperties": false
@@ -412,9 +633,6 @@
         },
         "response": {
           "$ref": "#/definitions/backend-response"
-        },
-        "modifiers": {
-          "$ref": "#/definitions/backend-modifiers"
         }
       },
       "required": [
@@ -423,392 +641,6 @@
         "method"
       ],
       "additionalProperties": false
-    },
-    "backend-modifiers": {
-      "type": "object",
-      "properties": {
-        "@comment": {
-          "type": "string"
-        },
-        "status-code": {
-          "type": "integer",
-          "minimum": 100,
-          "maximum": 599
-        },
-        "header": {
-          "$ref": "#/definitions/header-modifier-array"
-        },
-        "param": {
-          "$ref": "#/definitions/param-modifier-array"
-        },
-        "query": {
-          "$ref": "#/definitions/query-modifier-array"
-        },
-        "body": {
-          "$ref": "#/definitions/body-modifier-array"
-        }
-      },
-      "additionalProperties": false
-    },
-    "header-modifier": {
-      "type": "object",
-      "properties": {
-        "@comment": {
-          "type": "string"
-        },
-        "context": {
-          "type": "string",
-          "enum": [
-            "REQUEST",
-            "RESPONSE"
-          ]
-        },
-        "scope": {
-          "type": "string",
-          "enum": [
-            "REQUEST",
-            "RESPONSE"
-          ]
-        },
-        "action": {
-          "type": "string",
-          "enum": [
-            "ADD",
-            "APD",
-            "SET",
-            "RPL",
-            "REN",
-            "DEL"
-          ]
-        },
-        "key": {
-          "type": "string"
-        },
-        "value": {
-          "type": "string"
-        },
-        "propagate": {
-          "type": "boolean"
-        }
-      },
-      "allOf": [
-        {
-          "if": {
-            "properties": {
-              "action": {
-                "const": "DEL"
-              }
-            }
-          },
-          "then": {
-            "required": [
-              "context",
-              "action",
-              "key"
-            ]
-          },
-          "else": {
-            "required": [
-              "context",
-              "action",
-              "key",
-              "value"
-            ]
-          }
-        },
-        {
-          "if": {
-            "properties": {
-              "scope": {
-                "const": "REQUEST"
-              }
-            }
-          },
-          "else": {
-            "not": {
-              "required": [
-                "propagate"
-              ]
-            }
-          }
-        }
-      ]
-    },
-    "header-modifier-array": {
-      "type": "array",
-      "items": {
-        "$ref": "#/definitions/header-modifier"
-      }
-    },
-    "param-modifier": {
-      "type": "object",
-      "properties": {
-        "@comment": {
-          "type": "string"
-        },
-        "context": {
-          "type": "string",
-          "enum": [
-            "REQUEST",
-            "RESPONSE"
-          ]
-        },
-        "action": {
-          "type": "string",
-          "enum": [
-            "SET",
-            "RPL",
-            "REN",
-            "DEL"
-          ]
-        },
-        "propagate": {
-          "type": "boolean"
-        },
-        "key": {
-          "type": "string"
-        },
-        "value": {
-          "type": "string"
-        }
-      },
-      "if": {
-        "properties": {
-          "action": {
-            "const": "DEL"
-          }
-        }
-      },
-      "then": {
-        "required": [
-          "context",
-          "action",
-          "key"
-        ]
-      },
-      "else": {
-        "required": [
-          "context",
-          "action",
-          "key",
-          "value"
-        ]
-      },
-      "additionalProperties": false
-    },
-    "param-modifier-array": {
-      "type": "array",
-      "items": {
-        "$ref": "#/definitions/param-modifier"
-      }
-    },
-    "query-modifier": {
-      "type": "object",
-      "properties": {
-        "@comment": {
-          "type": "string"
-        },
-        "context": {
-          "type": "string",
-          "enum": [
-            "REQUEST",
-            "RESPONSE"
-          ]
-        },
-        "action": {
-          "type": "string",
-          "enum": [
-            "ADD",
-            "APD",
-            "SET",
-            "RPL",
-            "REN",
-            "DEL"
-          ]
-        },
-        "propagate": {
-          "type": "boolean"
-        },
-        "key": {
-          "type": "string"
-        },
-        "value": {
-          "type": "string"
-        }
-      },
-      "if": {
-        "properties": {
-          "action": {
-            "const": "DEL"
-          }
-        }
-      },
-      "then": {
-        "required": [
-          "context",
-          "action",
-          "key"
-        ]
-      },
-      "else": {
-        "required": [
-          "context",
-          "action",
-          "key",
-          "value"
-        ]
-      },
-      "additionalProperties": false
-    },
-    "query-modifier-array": {
-      "type": "array",
-      "items": {
-        "$ref": "#/definitions/query-modifier"
-      }
-    },
-    "body-modifier": {
-      "type": "object",
-      "properties": {
-        "@comment": {
-          "type": "string"
-        },
-        "context": {
-          "type": "string",
-          "enum": [
-            "REQUEST",
-            "RESPONSE"
-          ]
-        },
-        "scope": {
-          "type": "string",
-          "enum": [
-            "REQUEST",
-            "RESPONSE"
-          ]
-        },
-        "action": {
-          "type": "string",
-          "enum": [
-            "ADD",
-            "APD",
-            "SET",
-            "RPL",
-            "REN",
-            "DEL"
-          ]
-        },
-        "propagate": {
-          "type": "boolean"
-        },
-        "key": {
-          "type": "string"
-        },
-        "value": {
-          "type": "string"
-        }
-      },
-      "allOf": [
-        {
-          "if": {
-            "properties": {
-              "action": {
-                "const": "DEL"
-              }
-            }
-          },
-          "then": {
-            "required": [
-              "context",
-              "action",
-              "key"
-            ]
-          }
-        },
-        {
-          "if": {
-            "properties": {
-              "action": {
-                "enum": [
-                  "ADD",
-                  "APD",
-                  "RPL",
-                  "REN"
-                ]
-              }
-            }
-          },
-          "then": {
-            "required": [
-              "context",
-              "action",
-              "key",
-              "value"
-            ]
-          }
-        },
-        {
-          "if": {
-            "properties": {
-              "action": {
-                "const": "SET"
-              }
-            }
-          },
-          "then": {
-            "required": [
-              "context",
-              "action",
-              "value"
-            ]
-          }
-        },
-        {
-          "if": {
-            "properties": {
-              "context": {
-                "const": "REQUEST"
-              }
-            }
-          },
-          "then": {
-            "properties": {
-              "scope": {
-                "type": "string",
-                "enum": [
-                  "REQUEST"
-                ]
-              }
-            }
-          }
-        },
-        {
-          "if": {
-            "properties": {
-              "context": {
-                "const": "RESPONSE"
-              }
-            }
-          },
-          "then": {
-            "properties": {
-              "scope": {
-                "type": "string",
-                "enum": [
-                  "REQUEST",
-                  "RESPONSE"
-                ]
-              }
-            }
-          }
-        }
-      ],
-      "additionalProperties": false
-    },
-    "body-modifier-array": {
-      "type": "array",
-      "items": {
-        "$ref": "#/definitions/body-modifier"
-      }
     }
   },
   "type": "object",

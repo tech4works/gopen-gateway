@@ -20,8 +20,8 @@ import (
 	"fmt"
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/go-logger/logger"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/consts"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/main/model/consts"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/main/model/vo"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/infra/api"
 	"net/http"
 	"strings"
@@ -138,7 +138,7 @@ func (l logProvider) BuildFinishRequestMessage(responseVO *vo.HttpResponse, star
 // that comes after the log prefix. It includes the `trace` ID, IP address, HTTP method, and URI.
 //
 // Parameters:
-// - traceId: the trace ID value
+// - traceId: the traceProvider ID value
 // - ip: the IP address value
 // - uri: the URI value
 // - method: the HTTP method value

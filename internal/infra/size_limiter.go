@@ -19,8 +19,8 @@ package infra
 import (
 	"bytes"
 	"github.com/GabrielHCataldo/go-helper/helper"
-	domainmapper "github.com/GabrielHCataldo/gopen-gateway/internal/domain/mapper"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/config/model/vo"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/main/mapper"
 	"io"
 	"net/http"
 )
@@ -77,7 +77,7 @@ func (s sizeLimiterProvider) Allow(request *http.Request) error {
 	// checamos primeiramente o tamanho do header
 	headerSize := s.HeadersSize(request)
 	if helper.IsGreaterThan(headerSize, s.maxHeaderSize) {
-		return domainmapper.NewErrHeaderTooLarge(s.maxHeaderSize.String())
+		return mapper.NewErrHeaderTooLarge(s.maxHeaderSize.String())
 	}
 
 	// verificamos qual Content-Type fornecido, para obter a config real
@@ -89,7 +89,7 @@ func (s sizeLimiterProvider) Allow(request *http.Request) error {
 	read := http.MaxBytesReader(nil, request.Body, int64(maxBytesReader))
 	bodyBytes, err := io.ReadAll(read)
 	if helper.IsNotNil(err) {
-		return domainmapper.NewErrPayloadTooLarge(maxBytesReader.String())
+		return mapper.NewErrPayloadTooLarge(maxBytesReader.String())
 	}
 	request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 

@@ -16,7 +16,9 @@
 
 package dto
 
-import "github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
+import (
+	configVO "github.com/GabrielHCataldo/gopen-gateway/internal/domain/config/model/vo"
+)
 
 // SettingView represents the configuration view for the application.
 // It includes properties such as version, founder, code helpers, and various counts.
@@ -31,15 +33,6 @@ type SettingView struct {
 	// CodeHelpers represents the code helpers configuration in the SettingView struct.
 	// It is a string field that represents the code helpers for the application.
 	Contributors int `json:"contributors,omitempty"`
-	// Endpoints represents the number of APIs in the Gopen application.
-	Endpoints int `json:"endpoints"`
-	// Middlewares represents the number of middlewares in the SettingView struct.
-	// It is an integer field that specifies the count of middlewares used in the Gopen application.
-	Middlewares int `json:"middlewares"`
-	// Backends represents the number of backends configured in the SettingView struct.
-	Backends int `json:"backends"`
-	// Modifiers represents the count of modifiers in the SettingView struct.
-	Modifiers int `json:"modifiers"`
 	// Setting represents the detailed configuration view for the Gopen Map application.
-	Setting *vo.GopenJson `json:"setting"`
+	Setting *configVO.GopenJson `json:"setting"`
 }

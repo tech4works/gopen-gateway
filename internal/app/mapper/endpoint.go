@@ -18,7 +18,7 @@ package mapper
 
 import (
 	"context"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/main/model/vo"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/infra/api"
 )
 
