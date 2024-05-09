@@ -1,3 +1,19 @@
+/*
+ * Copyright 2024 Gabriel Cataldo
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package vo
 
 import (
@@ -36,6 +52,22 @@ func newCacheBody(body *Body) *CacheBody {
 	}
 }
 
+// newCacheBodyValue creates a new instance of CacheBodyValue based on the provided buffer.
+// If the buffer is nil or empty, it returns nil.
+// Otherwise, it returns a pointer to the CacheBodyValue instance, casting the buffer to the CacheBodyValue type.
+// CacheBodyValue is an alias for bytes.Buffer type used to represent the caching value of an HTTP httpResponse body.
+// It contains methods to convert the value to different representations, such as string and JSON.
+//
+// The CacheBodyValue type has the following methods:
+// - String(): returns the string representation of the CacheBodyValue instance.
+// - Bytes(): returns the byte slice representation of the CacheBodyValue instance.
+// - MarshalJSON(): returns the JSON encoding of the CacheBodyValue instance.
+// - UnmarshalJSON(data []byte): decodes the JSON data into a string and writes it to the CacheBodyValue instance.
+//
+// Example usage:
+//
+//	cacheBody := newCacheBody(body)
+//	value := newCacheBodyValue(body.Buffer())
 func newCacheBodyValue(buffer *bytes.Buffer) *CacheBodyValue {
 	if helper.IsNil(buffer) || helper.IsEmpty(buffer.Bytes()) {
 		return nil

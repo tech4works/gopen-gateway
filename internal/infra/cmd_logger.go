@@ -29,28 +29,35 @@ var loggerOptions = logger.Options{
 	HideArgCaller:         true,
 }
 
+// cmdLoggerProvider is a type that implements the CmdLoggerProvider interface.
+// It provides methods for printing different types of log messages such as logo, titles, info, and warnings.
 type cmdLoggerProvider struct {
 }
 
+// NewCmdLoggerProvider creates a new instance of the CmdLoggerProvider interface.
 func NewCmdLoggerProvider() interfaces.CmdLoggerProvider {
 	return cmdLoggerProvider{}
 }
 
+// PrintLogo prints the API Gateway logo along with the provided version string.
 func (c cmdLoggerProvider) PrintLogo(version string) {
 	fmt.Printf(`
- ######    #######   #######  ########  ######## ##    ##
-##    ##  ##     ## ##     ## ##     ## ##       ###   ##
-##        ##     ## ##     ## ##     ## ##       ####  ##
-##   #### ##     ## ##     ## ########  ######   ## ## ##
-##    ##  ##     ## ##     ## ##        ##       ##  ####
-##    ##  ##     ## ##     ## ##        ##       ##   ###
- ######    #######   #######  ##        ######## ##    ##
-
-Best open source API Gateway by Gabriel Cataldo (%s)
+ ######    #######  ########  ######## ##    ##
+##    ##  ##     ## ##     ## ##       ###   ##
+##        ##     ## ##     ## ##       ####  ##
+##   #### ##     ## ########  ######   ## ## ##
+##    ##  ##     ## ##        ##       ##  ####
+##    ##  ##     ## ##        ##       ##   ###
+ ######    #######  ##        ######## ##    ##
+-----------------------------------------------
+Best open source API Gateway!            %s
+-----------------------------------------------
+2024 • Gabriel Cataldo.
 
 `, version)
 }
 
+// PrintTitle prints the provided title with a decorated format using the cmdLoggerProvider's PrintInfof method.
 func (c cmdLoggerProvider) PrintTitle(title string) {
 	c.PrintInfof("-----------------------> %s%s%s <-----------------------", logger.StyleBold, title,
 		logger.StyleReset)

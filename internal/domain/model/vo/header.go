@@ -27,6 +27,7 @@ import (
 // Header represents a map of string keys to slices of string values.
 type Header map[string][]string
 
+// NewEmptyHeader creates a new empty Header object.
 func NewEmptyHeader() Header {
 	return Header{}
 }
@@ -56,6 +57,32 @@ func NewResponseHeader(complete, success bool) Header {
 		consts.XGopenComplete: {helper.SimpleConvertToString(complete)},
 		consts.XGopenSuccess:  {helper.SimpleConvertToString(success)},
 	}
+}
+
+// HeaderMandatoryKeys returns a slice of strings representing the mandatory keys in an HTTP header.
+// This function includes the following keys: "X-Forwarded-For", "X-Trace-Id", "X-Gopen-Cache",
+// "X-Gopen-Cache-Ttl", "X-Gopen-Complete", and "X-Gopen-Success".
+// The returned slice can be used to check if a given key is a mandatory key in an HTTP header.
+func HeaderMandatoryKeys() []string {
+	return []string{consts.XForwardedFor, consts.XTraceId, consts.XGopenCache, consts.XGopenCacheTTL,
+		consts.XGopenComplete, consts.XGopenSuccess}
+}
+
+// IsHeaderMandatoryKey checks if a given key is a mandatory key in an HTTP header.
+// It takes a string key as an argument and returns true if the key is a mandatory key,
+// and false otherwise. This function calls the HeaderMandatoryKeys function to retrieve
+// the list of mandatory keys in the HTTP header and then checks if the given key is present
+// in the list.
+func IsHeaderMandatoryKey(key string) bool {
+	return helper.Contains(HeaderMandatoryKeys(), key)
+}
+
+// IsNotHeaderMandatoryKey checks if a given key is not a mandatory key in an HTTP header.
+// It takes a string key as an argument and returns true if the key is not a mandatory key,
+// and false otherwise. This function calls the IsHeaderMandatoryKey function to check if the key
+// is present in the list of mandatory keys in the HTTP header and negates the result.
+func IsNotHeaderMandatoryKey(key string) bool {
+	return !IsHeaderMandatoryKey(key)
 }
 
 // Http converts the Header object to an http.Header object.
@@ -159,55 +186,72 @@ func (h Header) NotExists(key string) bool {
 	return !h.Exists(key)
 }
 
+// Projection performs a projection operation on the Header object based on the provided Projection object.
+// If the projection is nil or empty, the original Header is returned.
+// If the projection type is `ProjectionTypeRejection`, the header is projected by rejecting the specified keys.
+// If the projection type is not `ProjectionTypeRejection`, the header is projected by adding only the specified keys.
+// The projected Header object is returned at the end of the method.
 func (h Header) Projection(projection *Projection) Header {
-	// se tiver nil ou vazio retornamos ele mesmo
 	if helper.IsNil(projection) || projection.IsEmpty() {
 		return h
-	}
-	// projetamos com base no tipo de projeção, All, Addition, Rejection
-	if helper.Equals(projection.Type(), enum.ProjectionTypeRejection) {
+	} else if helper.Equals(projection.Type(), enum.ProjectionTypeRejection) {
 		return h.projectionRejection(projection)
 	}
-	// se não for rejection, ele é Addition ou All, que é a mesma regra
 	return h.projectionAddition(projection)
 }
 
+// Map applies a Mapper object to each key in the Header object to produce a new Header object.
+// It returns a new Header object where each key is transformed according to the rules defined
+// in the Mapper object. If the Mapper object is nil or empty, the original Header object is returned unchanged.
+//
+// The Map method iterates over each key-value pair in the Header object. For each key, it checks if
+// it is not a mandatory key and if it exists in the Mapper object. If both conditions are true, it uses
+// the mapping defined in the Mapper object to transform the key. Otherwise, it keeps the original key.
+//
+// The transformed key with its corresponding value is added to the new Header object, and at
+// the end of the iteration, the new Header object is returned.
+//
+// If a key is not present in the Mapper object, it remains unchanged in the new Header object.
 func (h Header) Map(mapper *Mapper) Header {
-	// se o mapper estiver vazio, retornamos o header atual
 	if helper.IsNil(mapper) || mapper.IsEmpty() {
 		return h
 	}
-	// inicializamos o novo header a ser retornado
+
 	headerMapped := Header{}
-	// iteramos o header atual para preencher o novo header com as chaves mapeadas
 	for key, value := range h {
-		// caso ele exista obtemos no mapper e não está na lista de chaves a serem ignoradas, adicionamos o novo nome
 		if IsNotHeaderMandatoryKey(key) && mapper.Exists(key) {
 			headerMapped[mapper.Get(key)] = value
 		} else {
 			headerMapped[key] = value
 		}
 	}
-	// retornamos o header mapeado
 	return headerMapped
 }
 
+// Modify modifies the Header object based on the provided Modifier.
+// It takes a Modifier, an HttpRequest, and an HttpResponse as arguments.
+// If the key in the Modifier is a mandatory header key, it returns the original Header object.
+// If the Modifier action is not ModifierActionDel, it retrieves the value from the Modifier and assigns it to the
+// newValue variable.
+// It then performs different actions based on the Modifier action:
+//   - ModifierActionAdd: Adds all the values in newValue to the Header object with the key of the Modifier.
+//   - ModifierActionApd: Appends all the values in newValue to the existing values in the Header object with the key of the Modifier.
+//   - ModifierActionSet: Sets all the values in newValue as the values of the Header object with the key of the Modifier.
+//   - ModifierActionRpl: Replaces all the values in the Header object with the key of the Modifier with the values in newValue.
+//   - ModifierActionDel: Deletes the Header object with the key of the Modifier.
+//
+// It returns the modified Header object.
 func (h Header) Modify(modifier *Modifier, httpRequest *HttpRequest, httpResponse *HttpResponse) Header {
-	// instanciamos a chave
 	key := modifier.Key()
-
-	// verificamos se a chave é uma não permitida, ignoramos
 	if IsHeaderMandatoryKey(key) {
 		return h
 	}
 
-	// instanciamos o valor do a ser usado para modificar
 	var newValue []string
 	if helper.IsNotEqualTo(modifier.Action(), enum.ModifierActionDel) {
 		newValue = modifier.ValueAsSliceOfString(httpRequest, httpResponse)
 	}
 
-	// modificamos a partir de uma ação
 	switch modifier.Action() {
 	case enum.ModifierActionAdd:
 		return h.AddAll(modifier.Key(), newValue)
@@ -247,43 +291,37 @@ func (h Header) copy() Header {
 	return copiedHeader
 }
 
+// projectionAddition applies a projection to the Header object and returns a new Header object
+// with only the keys that are either mandatory or specified in the projection.
+// It takes a *Projection object as input and returns the projected Header object.
+// The projectedHeader is a new instance of the Header type.
+// The method iterates over each key-value pair in the original Header object.
+// If the key is a mandatory key or a key specified in the projection, it is added to the projectedHeader.
+// Finally, the projectedHeader is returned as the result.
+// Notes: The original Header object is not modified.
+// The projection.IsAddition method is used to determine if a key is specified in the projection.
+// This method does not handle duplicate keys. If a key appears multiple times in the original Header object,
+// it will only appear once in the projectedHeader.
 func (h Header) projectionAddition(projection *Projection) Header {
-	// inicializamos o header
 	projectedHeader := Header{}
-	// iteramos o header atual
 	for key, value := range h {
-		// se a chave for obrigatória ou existir na projeção como 1, adicionamos
 		if IsHeaderMandatoryKey(key) || projection.IsAddition(key) {
 			projectedHeader[key] = value
 		}
 	}
-	// retornamos o novo header
 	return projectedHeader
 }
 
+// projectionRejection removes non-mandatory keys from the header based on the given projection.
+// It creates a copy of the original header and iterates through the current header.
+// If a key is not mandatory and exists in the projection, it is removed from the copy.
+// The modified header is then returned.
 func (h Header) projectionRejection(projection *Projection) Header {
-	// iniciamos o valor do header copiando os valores originais
 	projectedHeader := h.copy()
-	// iteramos o header atual
 	for key := range h {
-		// se a chave não for obrigatória e existir na projeção, removemos
 		if IsNotHeaderMandatoryKey(key) && projection.Exists(key) {
 			delete(projectedHeader, key)
 		}
 	}
-	// retornamos o novo header
 	return projectedHeader
-}
-
-func HeaderMandatoryKeys() []string {
-	return []string{consts.XForwardedFor, consts.XTraceId, consts.XGopenCache, consts.XGopenCacheTTL,
-		consts.XGopenComplete, consts.XGopenSuccess}
-}
-
-func IsHeaderMandatoryKey(key string) bool {
-	return helper.Contains(HeaderMandatoryKeys(), key)
-}
-
-func IsNotHeaderMandatoryKey(key string) bool {
-	return !IsHeaderMandatoryKey(key)
 }

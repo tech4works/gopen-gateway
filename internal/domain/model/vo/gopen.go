@@ -40,19 +40,16 @@ type Gopen struct {
 	endpoints []Endpoint
 }
 
-// NewGopen initializes a new Gopen struct based on the provided GopenJson object.
-// It populates the fields of the Gopen struct with the corresponding values from the GopenJson object.
-// It also populates the endpoints field by iterating over the EndpointJson objects in the Endpoints slice of the GopenJson object,
-// and converting each EndpointJson object to an Endpoint object using the newEndpoint function.
-// The newly created Gopen struct is returned as a pointer.
+// NewGopen returns a new Gopen object based on the provided GopenJson configuration.
+// It initializes the fields of the Gopen object using the values from the GopenJson object.
+// The endpoints are created by iterating over the EndpointJson objects in the GopenJson endpoints slice,
+// and calling the newEndpoint function to create an Endpoint object for each EndpointJson object.
+// The Gopen object is then returned as a pointer.
 func NewGopen(gopenJson *GopenJson) *Gopen {
-	// damos o parse dos endpoints de json para o VO
 	var endpoints []Endpoint
 	for _, endpointJson := range gopenJson.Endpoints {
 		endpoints = append(endpoints, newEndpoint(gopenJson, &endpointJson))
 	}
-
-	// montamos o gopen VO
 	return &Gopen{
 		port:         gopenJson.Port,
 		securityCors: newSecurityCors(gopenJson.SecurityCors),
@@ -78,15 +75,18 @@ func (g Gopen) Middleware(key string) (*Backend, bool) {
 	return g.middlewares.Get(key)
 }
 
-// Endpoints returns a slice containing all the endpoints configured in the Gopen struct.
+// Endpoints returns the slice of Endpoint objects in the Gopen struct.
 func (g Gopen) Endpoints() []Endpoint {
 	return g.endpoints
 }
 
+// CountEndpoints returns the number of endpoints in the Gopen struct.
 func (g Gopen) CountEndpoints() int {
 	return len(g.endpoints)
 }
 
+// CountMiddlewares returns the number of middlewares in the Gopen struct. If the middlewares field is not nil,
+// it returns the length of the middlewares map. Otherwise, it returns 0.
 func (g Gopen) CountMiddlewares() int {
 	if helper.IsNotNil(g.middlewares) {
 		return len(g.middlewares)
@@ -94,6 +94,12 @@ func (g Gopen) CountMiddlewares() int {
 	return 0
 }
 
+// CountBackends returns the total number of backends across all endpoints in the Gopen struct.
+// It iterates over each endpoint and gets the count of beforewares, backends, and afterwares.
+// The sum of these counts is returned as the total count.
+// This method is used to determine the total number of backends configured in the Gopen server.
+// The count includes all backends across all endpoints, regardless of their status or visibility.
+// It does not take into account any filtering or other conditions.
 func (g Gopen) CountBackends() (count int) {
 	for _, endpoint := range g.Endpoints() {
 		count += endpoint.CountBeforewares()
@@ -103,6 +109,9 @@ func (g Gopen) CountBackends() (count int) {
 	return count
 }
 
+// CountAllDataTransforms recursively counts the number of data transforms in the Endpoint struct
+// by adding the count of transforms in the Endpoint's response and the count of transforms in each backend.
+// It returns the total count of transforms.
 func (g Gopen) CountAllDataTransforms() (count int) {
 	for _, endpoint := range g.Endpoints() {
 		count += endpoint.CountAllDataTransforms()

@@ -26,9 +26,12 @@ import (
 	"strings"
 )
 
+// httpLoggerProvider is a struct that implements the HttpLoggerProvider interface.
+// It provides methods to print HTTP request and response information.
 type httpLoggerProvider struct {
 }
 
+// HttpLoggerProvider is an interface for logging HTTP request and response information.
 type HttpLoggerProvider interface {
 	PrintHttpRequestInfo(ctx *api.Context)
 	PrintHttpResponseInfo(ctx *api.Context)
@@ -39,14 +42,15 @@ func NewHttpLoggerProvider() HttpLoggerProvider {
 	return httpLoggerProvider{}
 }
 
+// PrintHttpRequestInfo prints the information of the HTTP request.
+// It initializes the logger options with the request data and then prints the log message.
+//
+// Parameters:
+// - ctx: The API context containing the request data.
 func (h httpLoggerProvider) PrintHttpRequestInfo(ctx *api.Context) {
-	// inicializamos as opções de logger com os dados de requisição
 	h.initializeLoggerOptions(ctx)
 
-	// inicializamos o body
 	var bodyInfo string
-
-	// obtemos o tipo do body e size do mesmo
 	bodyType := ctx.Header().Get("Content-Type")
 	bodySize := ctx.Header().Get("Content-Length")
 	if helper.ContainsIgnoreCase(bodyType, "application/json") ||
@@ -59,14 +63,16 @@ func (h httpLoggerProvider) PrintHttpRequestInfo(ctx *api.Context) {
 		bodyInfo = msg
 	}
 
-	// imprimimos que o log de start da requisição http
 	logger.Info("Start!", bodyInfo)
 }
 
+// PrintHttpResponseInfo prints the information of the HTTP response.
+// It obtains the status code text, latency, and response body data to be logged.
+// Then, it prints the log message using the logger.Info function.
+// Parameters:
+// - ctx: The API context containing the response data.
 func (h httpLoggerProvider) PrintHttpResponseInfo(ctx *api.Context) {
-	// inicializamos o text de mensagem de retorno
 	var text strings.Builder
-	// montamos o texto
 	text.WriteString(h.statusCodeText(ctx.HttpResponse().StatusCode()))
 	text.WriteString(" • ")
 	text.WriteString(ctx.Latency().String())
@@ -76,7 +82,7 @@ func (h httpLoggerProvider) PrintHttpResponseInfo(ctx *api.Context) {
 		text.WriteString(" ")
 		text.WriteString(ctx.HttpResponse().Body().CompactString())
 	}
-	// imprimimos que o log de finish da requisição http
+
 	logger.Info("Finish!", text.String())
 }
 
@@ -84,13 +90,10 @@ func (h httpLoggerProvider) PrintHttpResponseInfo(ctx *api.Context) {
 // It obtains the values to be printed in the request logs such as traceId, IP address, URL, and method.
 // Then, it sets the global log options with the values obtained.
 func (h httpLoggerProvider) initializeLoggerOptions(ctx *api.Context) {
-	// obtemos os valores para imprimir nos logs da requisição atual
 	traceId := ctx.Header().Get(consts.XTraceId)
 	ip := ctx.Header().Get(consts.XForwardedFor)
 	url := ctx.Url()
 	method := ctx.Method()
-
-	// setamos as opções globais de log
 	logger.SetOptions(&logger.Options{
 		HideArgCaller:         true,
 		CustomAfterPrefixText: h.afterPrefixText(traceId, ip, url, method),

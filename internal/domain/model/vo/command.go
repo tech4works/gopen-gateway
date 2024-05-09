@@ -16,12 +16,25 @@
 
 package vo
 
+// ExecuteEndpoint represents the execution context for an API endpoint in the Gopen application.
+//
+// Fields:
+// - gopen: a pointer to the Gopen struct, representing the Gopen server configuration.
+// - endpoint: a pointer to the Endpoint struct, representing the specific API endpoint configuration.
+// - httpRequest: a pointer to the HttpRequest struct, representing the incoming HTTP request.
 type ExecuteEndpoint struct {
 	gopen       *Gopen
 	endpoint    *Endpoint
 	httpRequest *HttpRequest
 }
 
+// ExecuteBackend represents the execution context for a backend in the Gopen application.
+//
+// Fields:
+// - endpoint: a pointer to the Endpoint struct, representing the specific API endpoint configuration.
+// - backend: a pointer to the Backend struct, representing the backend configuration for an application or service.
+// - httpRequest: a pointer to the HttpRequest struct, representing the incoming HTTP request.
+// - httpResponse: a pointer to the HttpResponse struct, representing the outgoing HTTP response.
 type ExecuteBackend struct {
 	endpoint     *Endpoint
 	backend      *Backend
@@ -59,6 +72,7 @@ func (e ExecuteEndpoint) HttpRequest() *HttpRequest {
 	return e.httpRequest
 }
 
+// Gopen returns the Gopen object associated with the ExecuteEndpoint object.
 func (e ExecuteEndpoint) Gopen() *Gopen {
 	return e.gopen
 }

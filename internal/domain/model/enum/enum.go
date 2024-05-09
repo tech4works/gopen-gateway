@@ -33,12 +33,18 @@ type Encode string
 // Nomenclature represents the case format for text values.
 type Nomenclature string
 
+// MiddlewareType represents the type of middleware in the Gopen application.
 type MiddlewareType string
 
+// BackendResponseApply represents the scope of applying a BackendResponse.
+// It is used to indicate whether the response should be applied early or late.
+// The possible values are "EARLY" and "LATE".
 type BackendResponseApply string
 
+// ProjectionType represents the type of projection in the Backend or Endpoint.
 type ProjectionType int
 
+// ProjectionValue represents the value of a projection in the Backend or Endpoint.
 type ProjectionValue int
 
 // CacheControl represents the header value of cache control.
@@ -47,6 +53,7 @@ type CacheControl string
 // ContentType represents the format of the content.
 type ContentType string
 
+// ContentEncoding represents the encoding used for content.
 type ContentEncoding string
 
 const (
@@ -98,7 +105,6 @@ const (
 	CacheControlNoCache CacheControl = "no-cache"
 	CacheControlNoStore CacheControl = "no-store"
 )
-
 const (
 	ContentTypeJson ContentType = "JSON"
 	ContentTypeXml  ContentType = "XML"
@@ -123,6 +129,11 @@ func ContentTypeFromString(s string) ContentType {
 	return ""
 }
 
+// ContentEncodingFromString converts a string representation of a content encoding
+// to its corresponding ContentEncoding value. It checks if the given string
+// contains ContentEncodingGzip case-insensitively. If the string contains
+// ContentEncodingGzip, it returns ContentEncodingGzip. Otherwise, it returns an empty string.
+// This function is used to convert a string content encoding to the ContentEncoding enumeration value.
 func ContentEncodingFromString(s string) ContentEncoding {
 	if helper.ContainsIgnoreCase(s, ContentEncodingGzip) {
 		return ContentEncodingGzip
@@ -152,6 +163,9 @@ func (n Nomenclature) IsEnumValid() bool {
 	return false
 }
 
+// IsEnumValid checks if the BackendResponseApply is a valid enumeration value.
+// It returns true if the BackendResponseApply is either BackendResponseApplyEarly
+// or BackendResponseApplyLate, otherwise it returns false.
 func (b BackendResponseApply) IsEnumValid() bool {
 	switch b {
 	case BackendResponseApplyEarly, BackendResponseApplyLate:
@@ -198,6 +212,9 @@ func (r Encode) ContentType() ContentType {
 	return ""
 }
 
+// Parse takes a key string and converts it to the specified case format based on the value of Nomenclature.
+// It returns the key string converted to the specified case format as per the Nomenclature value.
+// If the Nomenclature value is not one of the predefined cases, it returns the key as is.
 func (n Nomenclature) Parse(key string) string {
 	switch n {
 	case NomenclatureCamel:
@@ -239,6 +256,9 @@ func (c ContentType) IsEnumValid() bool {
 	return false
 }
 
+// IsEnumValid checks if the ContentEncoding is a valid enumeration value.
+// It returns true if the ContentEncoding is ContentEncodingGzip,
+// otherwise it returns false.
 func (c ContentEncoding) IsEnumValid() bool {
 	switch c {
 	case ContentEncodingGzip:

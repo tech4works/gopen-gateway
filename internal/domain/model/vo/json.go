@@ -1,5 +1,3 @@
-package vo
-
 /*
  * Copyright 2024 Gabriel Cataldo
  *
@@ -15,6 +13,8 @@ package vo
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+package vo
 
 import (
 	"fmt"
@@ -89,7 +89,9 @@ type StoreJson struct {
 // - Address: a string representing the address of the Redis server. It defaults to an empty string.
 // - Password: a string representing the password to authenticate with the Redis server. It defaults to an empty string.
 type Redis struct {
-	Address  string `json:"address,omitempty" validate:"required,url"`
+	// Address is a string field representing the address of the Redis server.
+	Address string `json:"address,omitempty" validate:"required,url"`
+	// Password represents the password to authenticate with a Redis server.
 	Password string `json:"password,omitempty"`
 }
 
@@ -202,7 +204,9 @@ type EndpointJson struct {
 	// AbortIfStatusCodes represents a slice of integers representing the HTTP status codes
 	// for which the API endpoint should abort. It is a field in the Endpoint struct.
 	AbortIfStatusCodes *[]int `json:"abort-if-status-codes,omitempty" validate:"dive,gte=100,lte=599"`
-	// todo:
+	// Response is the field in the `EndpointJson` struct that represents the configuration for an API endpoint response.
+	// It is of type `EndpointResponseJson` and is used to define how the response should be encoded and if the responses
+	// should be aggregated from multiple backends.
 	Response *EndpointResponseJson `json:"response,omitempty"`
 	// Beforewares represents a slice of strings containing the names of the beforeware middlewares that should be
 	// applied before processing the API endpoint.
@@ -232,9 +236,9 @@ type EndpointResponseJson struct {
 	// The default value is empty. If not provided, the response will be encoded by type, if the string is json it
 	// returns json, otherwise it responds to plain text
 	Encode enum.Encode `json:"encode,omitempty" validate:"omitempty,enum"`
-	// todo:
+	// Nomenclature field represents the case format for json text fields.
 	Nomenclature enum.Nomenclature `json:"nomenclature,omitempty" validate:"omitempty,enum"`
-	// todo:
+	// OmitEmpty represents a boolean value indicating whether the field should be omitted
 	OmitEmpty bool `json:"omit-empty,omitempty"`
 }
 
@@ -251,16 +255,32 @@ type BackendJson struct {
 	// It is a field in the Backend struct and is specified in the Gopen configuration JSON file.
 	// The value should be a string and can be one of the following: "GET", "POST", "PUT", "PATCH", "DELETE".
 	// It is used to specify the HTTP method for the backend httpRequest.
-	Method   string               `json:"method,omitempty" validate:"required,http_method"`
-	Request  *BackendRequestJson  `json:"request,omitempty"`
+	Method string `json:"method,omitempty" validate:"required,http_method"`
+	// Request is a field in the BackendJson struct that represents the configuration for a backend's request.
+	// It contains various properties and settings related to the request, such as omitting headers, queries, or body,
+	// mapper and projection configurations for headers, queries, and body, and modifier configurations for headers,
+	// params, queries, and body.
+	Request *BackendRequestJson `json:"request,omitempty"`
+	// Response is a field in the BackendJson struct that represents the response configuration for a backend in
+	// the Gopen application.
 	Response *BackendResponseJson `json:"response,omitempty"`
 }
 
+// BackendRequestJson represents the JSON structure for a backend request in the Gopen application configuration.
 type BackendRequestJson struct {
-	OmitHeader       bool           `json:"omit-header,omitempty"`
-	OmitQuery        bool           `json:"omit-query,omitempty"`
-	OmitBody         bool           `json:"omit-body,omitempty"`
-	HeaderMapper     *Mapper        `json:"header-mapper,omitempty"`
+	// OmitHeader is a boolean flag that indicates whether the header should be omitted in the backend
+	// request JSON structure.
+	OmitHeader bool `json:"omit-header,omitempty"`
+	// OmitQuery is a boolean flag that indicates whether the query should be omitted in the backend
+	// request JSON structure.
+	OmitQuery bool `json:"omit-query,omitempty"`
+	// OmitBody is a boolean flag that indicates whether the body should be omitted in the backend request JSON structure.
+	OmitBody bool `json:"omit-body,omitempty"`
+	// HeaderMapper represents the mapping of header fields in a backend request.
+	// It is used to define the mapping of header keys to corresponding values.
+	HeaderMapper *Mapper `json:"header-mapper,omitempty"`
+
+	// todo
 	QueryMapper      *Mapper        `json:"query-mapper,omitempty"`
 	BodyMapper       *Mapper        `json:"body-mapper,omitempty"`
 	HeaderProjection *Projection    `json:"header-projection,omitempty"`
@@ -273,18 +293,17 @@ type BackendRequestJson struct {
 }
 
 type BackendResponseJson struct {
-	Apply              enum.BackendResponseApply `json:"apply,omitempty" validate:"omitempty,enum"`
-	Omit               bool                      `json:"omit,omitempty"`
-	OmitHeader         bool                      `json:"omit-header,omitempty"`
-	OmitBody           bool                      `json:"omit-body,omitempty"`
-	Group              string                    `json:"group,omitempty" validate:"omitempty,min=1"`
-	HeaderMapper       *Mapper                   `json:"header-mapper,omitempty"`
-	BodyMapper         *Mapper                   `json:"body-mapper,omitempty"`
-	HeaderProjection   *Projection               `json:"header-projection,omitempty"`
-	BodyProjection     *Projection               `json:"body-projection,omitempty"`
-	StatusCodeModifier int                       `json:"status-code-modifier,omitempty" validate:"omitempty,gte=100,lte=599"`
-	HeaderModifiers    []ModifierJson            `json:"header-modifiers,omitempty" validate:"dive,required"`
-	BodyModifiers      []ModifierJson            `json:"body-modifiers,omitempty" validate:"dive,required"`
+	Apply            enum.BackendResponseApply `json:"apply,omitempty" validate:"omitempty,enum"`
+	Omit             bool                      `json:"omit,omitempty"`
+	OmitHeader       bool                      `json:"omit-header,omitempty"`
+	OmitBody         bool                      `json:"omit-body,omitempty"`
+	Group            string                    `json:"group,omitempty" validate:"omitempty,min=1"`
+	HeaderMapper     *Mapper                   `json:"header-mapper,omitempty"`
+	BodyMapper       *Mapper                   `json:"body-mapper,omitempty"`
+	HeaderProjection *Projection               `json:"header-projection,omitempty"`
+	BodyProjection   *Projection               `json:"body-projection,omitempty"`
+	HeaderModifiers  []ModifierJson            `json:"header-modifiers,omitempty" validate:"dive,required"`
+	BodyModifiers    []ModifierJson            `json:"body-modifiers,omitempty" validate:"dive,required"`
 }
 
 // ModifierJson represents a modification that can be applied to a httpRequest or response in the Gopen application.

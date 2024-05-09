@@ -37,17 +37,28 @@ type Static interface {
 	Settings(ctx *api.Context)
 }
 
-func NewStatic(version string, settingViewDTO dto.SettingView) Static {
+// NewStatic is a function that creates a new instance of the Static interface.
+// It takes a version string and a settingView DTO as input parameters and returns a static struct
+// which implements the Static interface. The version string represents the version of the application,
+// and the settingView DTO contains the configuration view for the application.
+func NewStatic(version string, settingView dto.SettingView) Static {
 	return static{
 		version:        version,
-		settingViewDTO: settingViewDTO,
+		settingViewDTO: settingView,
 	}
 }
 
+// Ping is a method of the static struct that handles a ping request.
+// It takes a Context parameter and writes "Pong!" as the response body.
+// The Context parameter represents the context of the request.
 func (s static) Ping(ctx *api.Context) {
 	ctx.WriteString(http.StatusOK, "Pong!")
 }
 
+// Version is a method of the static struct that handles a version request.
+// It takes a Context parameter and writes the version string as the response body.
+// If the version is empty, it writes a status code of http.StatusNotFound.
+// The Context parameter represents the context of the request.
 func (s static) Version(ctx *api.Context) {
 	if helper.IsNotEmpty(s.version) {
 		ctx.WriteString(http.StatusOK, s.version)
@@ -56,6 +67,9 @@ func (s static) Version(ctx *api.Context) {
 	ctx.WriteStatusCode(http.StatusNotFound)
 }
 
+// Settings is a method of the static struct that handles a settings request.
+// It takes a Context parameter and writes the settingViewDTO as a JSON response body.
+// The Context parameter represents the context of the request.
 func (s static) Settings(ctx *api.Context) {
 	ctx.WriteJson(http.StatusOK, s.settingViewDTO)
 }

@@ -24,43 +24,56 @@ import (
 	"net/http"
 )
 
+// securityCorsMiddleware represents a middleware for handling Cross-Origin Resource Sharing (CORS) settings in Gopen.
+// It checks if the request IP, HTTP method, and request headers are allowed based on the configuration provided in the
+// SecurityCors struct.
+// If any of these checks fail, it returns a Forbidden error response. Otherwise, it passes the request to the next
+// middleware.
 type securityCorsMiddleware struct {
 	securityCors *vo.SecurityCors
 }
 
+// SecurityCors represents an interface for handling Cross-Origin Resource Sharing (CORS) settings in a system.
+// Its methods Do take in a context object and should be implemented to perform the necessary CORS checks for a request.
+// If the request fails any of the checks, it should handle the response accordingly, e.g., by returning a Forbidden error.
+// Otherwise, it should pass the request to the next middleware.
 type SecurityCors interface {
+	// Do perform the necessary CORS checks for a request.
+	// If the request fails any of the checks, it should handle the response accordingly.
+	// Otherwise, it should pass the request to the next middleware.
 	Do(ctx *api.Context)
 }
 
+// NewSecurityCors creates a new instance of the SecurityCors interface with the provided SecurityCors configuration.
+// The returned instance is of type securityCorsMiddleware, which is a middleware for handling Cross-Origin Resource
+// Sharing (CORS) settings.
 func NewSecurityCors(securityCors *vo.SecurityCors) SecurityCors {
 	return securityCorsMiddleware{
 		securityCors: securityCors,
 	}
 }
 
+// Do is a method of the securityCorsMiddleware type used for handling Cross-Origin Resource Sharing (CORS) settings.
+// It checks if the request IP, HTTP method, and request headers are allowed based on the configuration provided in the
+// SecurityCors struct.
+// If any of these checks fail, it returns a Forbidden error response. Otherwise, it passes the request to the
+// next middleware.
 func (s securityCorsMiddleware) Do(ctx *api.Context) {
-	// se a configuração não foi feita ja damos próximo
 	if helper.IsNil(s.securityCors) {
 		ctx.Next()
 		return
 	}
 
-	// chamamos o objeto de valor para validar se o ip de origem é permitida a partir do objeto de valor fornecido
 	if err := s.securityCors.AllowOrigins(ctx.Header().Get(consts.XForwardedFor)); helper.IsNotNil(err) {
 		ctx.WriteError(http.StatusForbidden, err)
 		return
-	}
-	// chamamos o objeto de valor para validar se o method é permitida a partir do objeto de valor fornecido
-	if err := s.securityCors.AllowMethods(ctx.Method()); helper.IsNotNil(err) {
+	} else if err = s.securityCors.AllowMethods(ctx.Method()); helper.IsNotNil(err) {
 		ctx.WriteError(http.StatusForbidden, err)
 		return
-	}
-	// chamamos o domínio para validar se o headers fornecido estão permitidas a partir do objeto de valor fornecido
-	if err := s.securityCors.AllowHeaders(ctx.Header()); helper.IsNotNil(err) {
+	} else if err = s.securityCors.AllowHeaders(ctx.Header()); helper.IsNotNil(err) {
 		ctx.WriteError(http.StatusForbidden, err)
 		return
 	}
 
-	// se tudo ocorreu bem seguimos para o próximo
 	ctx.Next()
 }

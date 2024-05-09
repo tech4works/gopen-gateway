@@ -22,6 +22,9 @@ import (
 	"github.com/GabrielHCataldo/gopen-gateway/internal/infra/api"
 )
 
+// BuildExecuteServiceParams is a function that takes an `api.Context` and returns a `context.Context` and a
+// `vo.ExecuteEndpoint`. It extracts the necessary information from the `api.Context` and creates a new
+// `vo.ExecuteEndpoint` using the extracted information.
 func BuildExecuteServiceParams(ctx *api.Context) (context.Context, *vo.ExecuteEndpoint) {
 	return ctx.Context(), vo.NewExecuteEndpoint(ctx.Gopen(), ctx.Endpoint(), ctx.HttpRequest())
 }

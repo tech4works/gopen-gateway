@@ -27,43 +27,58 @@ import (
 	"os"
 )
 
+// runtimeFolder is a constant string representing the filepath of the runtime folder for the Gopen application.
 const runtimeFolder = "./runtime"
 
 // jsonRuntimeUri is a constant string representing the filepath of the Gopen JSON result file.
 const jsonRuntimeUri = runtimeFolder + "/.json"
 
+// jsonProvider represents a JSON provider that implements the JsonProvider interface.
+// It provides functionalities to read, validate, write, and remove JSON files.
 type jsonProvider struct {
 }
 
+// NewJsonProvider creates a new instance of the JsonProvider interface.
 func NewJsonProvider() interfaces.JsonProvider {
 	return jsonProvider{}
 }
 
+// Read reads the contents of a file specified by the URI and returns them as a byte slice.
+// It returns an error if the file cannot be read.
 func (j jsonProvider) Read(uri string) ([]byte, error) {
 	return os.ReadFile(uri)
 }
 
+// ValidateJsonBySchema validates a JSON document against a JSON schema specified by the URI.
+// It takes the URI of the JSON schema and the JSON document as parameters.
+// It returns an error if the validation fails, indicating that the JSON document does not conform to the schema.
+// The error message includes a description of each validation error encountered.
+// If the validation is successful, the error returned will be nil.
+// The function uses the gojsonschema library to load the schema and document, perform the validation,
+// and collect the validation errors, if any.
 func (j jsonProvider) ValidateJsonBySchema(jsonSchemaUri string, jsonBytes []byte) error {
-	// carregamos o schema e o documento
 	schemaLoader := gojsonschema.NewReferenceLoader(jsonSchemaUri)
 	documentLoader := gojsonschema.NewBytesLoader(jsonBytes)
-	// chamamos o validate
+
 	result, err := gojsonschema.Validate(schemaLoader, documentLoader)
 	if helper.IsNotNil(err) {
 		return errors.New("Error validate schema:", err)
-	}
-	// checamos se valido, caso nao seja formatamos a mensagem
-	if !result.Valid() {
+	} else if !result.Valid() {
 		errorMsg := fmt.Sprintf("Map poorly formatted!\n")
 		for _, desc := range result.Errors() {
 			errorMsg += fmt.Sprintf("- %s\n", desc)
 		}
 		err = errors.New(errorMsg)
 	}
-	// retornamos o erro, se nao tiver, sera nil
 	return err
 }
 
+// WriteGopenJson writes the content of the GopenJson object to a JSON file.
+// It first checks if the runtime folder exists, and if not, it creates the folder using os.MkdirAll.
+// Then it marshals the GopenJson object into a byte slice using json.MarshalIndent.
+// The encoding uses an empty prefix and a tab as an indentation suffix.
+// Finally, it writes the byte slice to the JSON file using os.WriteFile.
+// It returns an error if any of the above operations fail.
 func (j jsonProvider) WriteGopenJson(gopenJson *vo.GopenJson) error {
 	if _, err := os.Stat(runtimeFolder); os.IsNotExist(err) {
 		err = os.MkdirAll(runtimeFolder, 0755)
@@ -80,6 +95,12 @@ func (j jsonProvider) WriteGopenJson(gopenJson *vo.GopenJson) error {
 	return err
 }
 
+// RemoveGopenJson removes the GopenJson file from the runtime folder.
+// It first tries to remove the runtime folder using os.Remove.
+// If the folder does not exist, it returns immediately without any error.
+// If the folder exists, it removes it and any file or folder inside it.
+// It returns an error if any error occurs during the removal process, except when the folder does not exist.
+// The error returned will be nil if the removal process is successful or if the folder does not exist.
 func (j jsonProvider) RemoveGopenJson() error {
 	err := os.Remove(runtimeFolder)
 	if errors.IsNot(err, os.ErrNotExist) {

@@ -1,5 +1,3 @@
-package vo
-
 /*
  * Copyright 2024 Gabriel Cataldo
  *
@@ -16,13 +14,21 @@ package vo
  * limitations under the License.
  */
 
+package vo
+
 import (
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"strconv"
 	"time"
 )
 
+// Duration represents a duration of time. It is a type wrapper around the time.Duration type,
+// providing additional methods and functionality specific to durations.
 type Duration time.Duration
+
+func NewDuration(timeDuration time.Duration) Duration {
+	return Duration(timeDuration)
+}
 
 // Time converts the Duration object to a time.Duration object.
 func (d *Duration) Time() time.Duration {
@@ -41,7 +47,6 @@ func (d *Duration) String() string {
 // If the input value is empty, it returns nil.
 // If there is an error during the conversion, it returns the error.
 func (d *Duration) UnmarshalJSON(b []byte) error {
-	// Remova as aspas em torno do valor com a função Unquote.
 	str, err := strconv.Unquote(string(b))
 	if helper.IsNotNil(err) {
 		return err
@@ -49,15 +54,12 @@ func (d *Duration) UnmarshalJSON(b []byte) error {
 		return nil
 	}
 
-	// Use ParseDuration para converter a string em um time.Duration.
 	duration, err := time.ParseDuration(str)
 	if helper.IsNotNil(err) {
 		return err
 	}
 
-	// Atribua o valor de duração ao seu receptor.
 	*d = Duration(duration)
-
 	return nil
 }
 

@@ -39,62 +39,87 @@ type Body struct {
 	value *bytes.Buffer
 }
 
+// NewBodyByContentType returns a new Body object based on the provided content type and buffer.
+// It calls the underlying NewBody function with the provided content type, an empty content encoding,
+// and the given buffer.
 func NewBodyByContentType(contentType string, buffer *bytes.Buffer) *Body {
 	return NewBody(contentType, "", buffer)
 }
 
+// NewBody returns a new Body object based on the provided content type, content encoding, and buffer.
+// It checks if the buffer is empty, and if it is, it returns nil.
+// It converts the content type and content encoding strings to their respective enumeration values using
+// the ContentTypeFromString and ContentEncodingFromString functions.
+// If the content encoding is a valid enumeration value, it calls the NewBodyByContentEncoding function,
+// passing the content type, content encoding, and buffer as arguments.
+// If the content encoding is not valid, it creates a new Body object with the provided content type and buffer.
+//
+// Parameters:
+// - contentType: A string representing the content type.
+// - contentEncoding: A string representing the content encoding.
+// - buffer: A pointer to a bytes.Buffer object.
+//
+// Returns:
+// - A pointer to a Body object.
 func NewBody(contentType, contentEncoding string, buffer *bytes.Buffer) *Body {
-	// se vazio, retornamos vazio
 	if helper.IsEmpty(buffer.Bytes()) {
 		return nil
 	}
 
-	// instanciamos o content type como enum com base na string
 	contentTypeEnum := enum.ContentTypeFromString(contentType)
-	// instanciamos o content encoding como enum com base na string
 	contentEncodingEnum := enum.ContentEncodingFromString(contentEncoding)
 
-	// verificamos se tem encode valido, se tiver, chamamos a func para trabalhar em cima do encode
 	if contentEncodingEnum.IsEnumValid() {
 		return NewBodyByContentEncoding(contentTypeEnum, contentEncodingEnum, buffer)
 	}
-
-	// montamos o body com o valor original
 	return &Body{
 		contentType: contentTypeEnum,
 		value:       buffer,
 	}
 }
 
+// NewBodyByContentEncoding returns a new Body object based on the provided content type, content encoding,
+// and buffer. It checks if the content encoding is a valid enumeration value. If it is not valid,
+// it creates a new Body object with the provided content type and buffer. If the content encoding is valid,
+// it creates a gzip reader from the buffer, reads the reader to generate the uncompressed bytes,
+// and constructs the Body object with the uncompressed value.
+//
+// Parameters:
+// - contentType: A ContentType enumeration value representing the content type.
+// - contentEncoding: A ContentEncoding enumeration value representing the content encoding.
+// - buffer: A pointer to a bytes.Buffer object.
+//
+// Returns:
+// - A pointer to a Body object.
 func NewBodyByContentEncoding(contentType enum.ContentType, contentEncoding enum.ContentEncoding, buffer *bytes.Buffer,
 ) *Body {
-	// verificamos se o encoding é valido, caso não seja apenas retornamos sem trabalhar em cima do encode
 	if !contentEncoding.IsEnumValid() {
 		return &Body{
 			contentType: contentType,
 			value:       buffer,
 		}
 	}
-	// criamos o reader gzip a partir do buffer recebido
+
 	reader, err := gzip.NewReader(buffer)
 	if helper.IsNotNil(err) {
 		logger.Warning("Error creating gzip reader for body:", err)
 		return nil
 	}
 	defer reader.Close()
-	// lemos o reader gerando os bytes
 	unzipBytes, err := io.ReadAll(reader)
 	if helper.IsNotNil(err) {
 		logger.Warning("Error read gzip bytes body:", err)
 		return nil
 	}
-	// montamos o body com o valor descompactado
+
 	return &Body{
 		contentType: contentType,
 		value:       bytes.NewBuffer(unzipBytes),
 	}
 }
 
+// NewBodyByString creates a new Body object with a content type set to enum.ContentTypeText and a value
+// set to the converted buffer of the string parameter. It returns the created Body object.
 func NewBodyByString(s string) *Body {
 	if helper.IsEmpty(s) {
 		return nil
@@ -105,6 +130,9 @@ func NewBodyByString(s string) *Body {
 	}
 }
 
+// NewBodyByJson constructs a new Body object with the content type set to ContentTypeJson.
+// It converts the provided data to a buffer using helper.SimpleConvertToBuffer, and assigns it to the value field.
+// If the provided data is nil or empty, it returns nil.
 func NewBodyByJson(a any) *Body {
 	if helper.IsNil(a) || helper.IsEmpty(a) {
 		return nil
@@ -115,61 +143,72 @@ func NewBodyByJson(a any) *Body {
 	}
 }
 
+// NewBodyByError returns a new Body object based on the provided path and error.
+// It constructs an errorBody from the given error and path by calling the newErrorBody function.
+// If the errorBody is nil, it returns nil.
+// Otherwise, it constructs a Body object with the content type set to ContentTypeJson and the value
+// set to the buffer representation of the errorBody object.
 func NewBodyByError(path string, err error) *Body {
-	// construímos o errorBody a partir do erro e path
 	errBody := newErrorBody(path, err)
 	if helper.IsNil(errBody) {
 		return nil
 	}
-	// construímos o body com esse objeto
+
 	return &Body{
 		contentType: enum.ContentTypeJson,
 		value:       helper.SimpleConvertToBuffer(errBody),
 	}
 }
 
+// NewBodyByHttpBackendResponse returns a new Body object based on the provided HttpBackendResponse.
+// It constructs the default response body with initial fields "ok" and "code" from the HttpBackendResponse.
+// Then it constructs the body with default values.
+// If the body of the index is nil, it returns the body with only the default fields.
+// If GroupByType() returns true, it aggregates the body based on the key.
+// Otherwise, it aggregates all the JSON fields in bodyHistory.
+// It returns the modified body.
 func NewBodyByHttpBackendResponse(index int, httpBackendResponse *HttpBackendResponse) *Body {
-	// construímos o body padrão de resposta, com os campos iniciais
 	bodyJson := "{}"
 	bodyJson, _ = sjson.Set(bodyJson, "ok", httpBackendResponse.Ok())
 	bodyJson, _ = sjson.Set(bodyJson, "code", httpBackendResponse.StatusCode())
 
-	// construímos o body com os valores padrões
 	body := &Body{
 		contentType: enum.ContentTypeJson,
 		value:       helper.SimpleConvertToBuffer(bodyJson),
 	}
 
-	// caso o body do index seja nil retornamos apenas os campos padrões
 	if helper.IsNil(httpBackendResponse.Body()) {
 		return body
 	}
 
-	// caso seja string ou slice agregamos na chave, caso contrario, iremos agregar todos os campos json no bodyHistory
 	if httpBackendResponse.GroupByType() {
 		body = body.AggregateByKey(httpBackendResponse.Key(index), httpBackendResponse.Body())
 	} else {
 		body = body.Aggregate(httpBackendResponse.Body())
 	}
-	// retornamos o body
 	return body
 }
 
+// NewBodyAggregateByKey creates a new Body object by aggregating the provided body with the given key.
+// It creates a new Body object with a content type of enum.ContentTypeJson and a value of "{}",
+// then calls the AggregateByKey method on the new Body object, passing in the key and the provided body.
+// If the provided body is nil, it returns nil.
 func NewBodyAggregateByKey(key string, anotherBody *Body) *Body {
-	// se o body for nil retornamos nil
 	if helper.IsNil(anotherBody) {
 		return nil
 	}
 
-	// construímos o body vazio
 	body := &Body{
 		contentType: enum.ContentTypeJson,
 		value:       helper.SimpleConvertToBuffer("{}"),
 	}
-	// agregamos na chave indicada o valor do outro body
 	return body.AggregateByKey(key, anotherBody)
 }
 
+// NewBodyBySlice returns a new Body object based on the provided slice of Body objects.
+// If the sliceOfBodies is empty, it returns nil.
+// Otherwise, it creates a new Body object with ContentTypeJson and the value obtained by converting
+// the sliceOfBodies to a buffer using helper.SimpleConvertToBuffer function.
 func NewBodyBySlice(sliceOfBodies []*Body) *Body {
 	if helper.IsEmpty(sliceOfBodies) {
 		return nil
@@ -180,6 +219,10 @@ func NewBodyBySlice(sliceOfBodies []*Body) *Body {
 	}
 }
 
+// NewBodyByCache returns a new Body object based on the provided cacheBody.
+// If the cacheBody is nil, it returns nil.
+// Otherwise, it creates a new Body object with the contentType and value of the cacheBody.
+// The value is converted to the type *bytes.Buffer before assigning to the Body.
 func NewBodyByCache(cacheBody *CacheBody) *Body {
 	if helper.IsNil(cacheBody) {
 		return nil
@@ -190,29 +233,43 @@ func NewBodyByCache(cacheBody *CacheBody) *Body {
 	}
 }
 
-func NewBodyJson() *Body {
+// NewEmptyBodyJson returns a new Body object with content type as "JSON" and value as "{}".
+func NewEmptyBodyJson() *Body {
 	return &Body{
 		contentType: enum.ContentTypeJson,
 		value:       helper.SimpleConvertToBuffer("{}"),
 	}
 }
 
+// ContentType returns the ContentType value of the Body instance.
+// It returns the content format of the Body as defined by the enum.ContentType type.
+// The ContentType value can be one of enum.ContentTypeText, enum.ContentTypeJson,
+// enum.ContentTypeXml, or enum.ContentTypeYml, or an empty string if not set.
 func (b *Body) ContentType() enum.ContentType {
 	return b.contentType
 }
 
+// Buffer returns the *bytes.Buffer value of the Body instance.
+// It is used to access the buffer that contains the body data of the request.
+// The buffer can be used for reading or modifying the request body.
+// If the Body instance is nil, it returns nil.
 func (b *Body) Buffer() *bytes.Buffer {
 	return b.value
 }
 
+// Aggregate aggregates the values of anotherBody into the current Body instance.
+// If anotherBody is nil, it returns the current Body instance.
+// Otherwise, it calls the merge method to aggregate the values of anotherBody.
 func (b *Body) Aggregate(anotherBody *Body) *Body {
 	if helper.IsNil(anotherBody) {
 		return b
 	}
-	// chamamos o merge para agregar os valores do outro body
 	return b.merge(anotherBody)
 }
 
+// AggregateByKey aggregates the given `anotherBody` into the `b` Body instance
+// using the provided `key`. It checks if both the `b` Body instance is not in
+// JSON format and if `anotherBody`
 func (b *Body) AggregateByKey(key string, anotherBody *Body) *Body {
 	if b.IsNotJson() || helper.IsNil(anotherBody) {
 		return b
@@ -226,6 +283,11 @@ func (b *Body) AggregateByKey(key string, anotherBody *Body) *Body {
 	}
 }
 
+// Interface returns the interface representation of the Body instance.
+// It checks the content type of the Body. If the content type is ContentTypeJson,
+// it parses the body byte array using gjson.ParseBytes and returns its value.
+// Otherwise, it returns the string representation of the Body value.
+// The returned interface can be either a map or a string.
 func (b *Body) Interface() any {
 	switch b.contentType {
 	case enum.ContentTypeJson:
@@ -234,6 +296,12 @@ func (b *Body) Interface() any {
 	return b.value.String()
 }
 
+// Json returns the JSON representation of the Body value.
+// If the content type is ContentTypeText, it converts the value to a JSON object
+// with the "text" field set to the value.
+// If the content type is ContentTypeJson, it returns the JSON bytes as is.
+// Otherwise, it returns an empty byte array.
+// The returned byte array can be used to send the JSON representation of the Body in an HTTP request.
 func (b *Body) Json() []byte {
 	switch b.contentType {
 	case enum.ContentTypeText:
@@ -245,6 +313,12 @@ func (b *Body) Json() []byte {
 	}
 }
 
+// Xml converts the Body content to XML format.
+// It returns the XML representation of the Body content as a byte array.
+// If the Body content is in JSON format, it converts the JSON to XML using mxj package.
+// The converted XML is indented and prefixed with "<object></object>" if the conversion is successful.
+// If the conversion fails, it returns "<object></object>".
+// For all other content types, it returns the content value wrapped in "<string></string>" tags as a byte array.
 func (b *Body) Xml() []byte {
 	switch b.contentType {
 	case enum.ContentTypeJson:
@@ -261,6 +335,12 @@ func (b *Body) Xml() []byte {
 	}
 }
 
+// BytesByContentType returns the byte representation of the Body instance based on the content type.
+// It takes a content type as an argument and uses a switch statement to determine which method to call on the Body instance.
+// If the content type is ContentTypeJson, it calls the Json() method on the Body instance and returns the result.
+// If the content type is ContentTypeXml, it calls the Xml() method on the Body instance and returns the result.
+// Otherwise, it calls the Bytes() method on the Body instance and returns the result.
+// This method is used to convert the Body instance to a byte array based on the desired content type.
 func (b *Body) BytesByContentType(contentType enum.ContentType) []byte {
 	switch contentType {
 	case enum.ContentTypeJson:
@@ -284,10 +364,20 @@ func (b *Body) String() string {
 	return b.value.String()
 }
 
+// CompactString returns the compact string representation of the body.
+// It converts the body to string and passes it to the helper.CompactString function.
+// The helper.CompactString function removes leading/trailing spaces and multiple consecutive spaces.
+//
+// Returns:
+// - The compact string representation of the body.
 func (b *Body) CompactString() string {
 	return helper.CompactString(b.String())
 }
 
+// Raw returns the raw string value representation of the Body instance.
+// It parses the string value of the Body instance and returns the raw JSON string.
+// If the value is null, it returns the string "null".
+// This method is used for internal conversions and does not contain any additional logic or validation.
 func (b *Body) Raw() string {
 	return parseStringValueToRaw(b.String())
 }
@@ -405,12 +495,15 @@ func (b *Body) Delete(key string) (*Body, error) {
 	}
 }
 
+// Map applies a mapper to the Body instance and returns a new modified Body instance.
+// If the mapper is empty, it returns the original Body instance.
+// If the content type of the Body is ContentTypeJson, it calls the mapJson method on the Body and returns the modified Body.
+// If the content type of the Body is ContentTypeText, it calls the mapText method on the Body and returns the modified Body.
+// For all other content types, it returns the original Body instance without modifications.
 func (b *Body) Map(mapper *Mapper) *Body {
-	// se o mapper for vazio, retornamos o body atual
 	if mapper.IsEmpty() {
 		return b
 	}
-	// mapeamos o valor do body com base no tipo de conteúdo
 	switch b.contentType {
 	case enum.ContentTypeJson:
 		return b.mapJson(mapper)
@@ -421,24 +514,39 @@ func (b *Body) Map(mapper *Mapper) *Body {
 	}
 }
 
+// Projection applies a projection to the Body instance.
+// It returns the modified Body with the JSON projected based on the Projection object.
+// If the Body content type is not JSON, or the Projection object is nil or empty,
+// it returns the current Body instance without modifications.
+// The JSON projection is created based on the Projection object's keys and values.
 func (b *Body) Projection(projection *Projection) *Body {
-	// se não for do tipo json, ou a projeção for nil, ou vazia, retornamos o body atual, sem modificações
 	if helper.IsNotEqualTo(b.contentType, enum.ContentTypeJson) || helper.IsNil(projection) || projection.IsEmpty() {
 		return b
 	}
-	// criamos um novo body com o json projetado a partir do objeto de valor
 	return b.projectionJson(projection)
 }
 
+// Modify modifies the body of the request or response based on the provided Modifier.
+// It takes a Modifier, an HttpRequest, and an HttpResponse as parameters.
+// It returns the modified Body instance or the original Body instance if the modifier action is not recognized.
+// If an error occurs during the modification, it logs a warning message using the logger package.
+//
+// The Modify method first retrieves the new value by calling the ValueAsString method on the provided Modifier.
+// Then, it creates variables to hold the modified Body instance and an error.
+//
+// The method then uses a switch statement to determine the modifier action.
+// Based on the action, it calls the corresponding modification method on the Body instance (Add, Append, Set, Replace,
+// or Delete), passing the modifier key and the new value as arguments.
+//
+// If an error is returned from the modification method, it logs a warning message using the logger package.
+//
+// Finally, the method returns the modified Body instance or the original Body instance.
 func (b *Body) Modify(modifier *Modifier, httpRequest *HttpRequest, httpResponse *HttpResponse) *Body {
-	// instanciamos o valor a ser usado na modificação
 	newValue := modifier.ValueAsString(httpRequest, httpResponse)
 
-	// instanciamos o body modificado e o erro caso aconteça
 	var modifiedBody *Body
 	var err error
 
-	// abaixo verificamos qual ação desejada para modificar o valor do body
 	switch modifier.Action() {
 	case enum.ModifierActionAdd:
 		modifiedBody, err = b.Add(modifier.Key(), newValue)
@@ -454,7 +562,6 @@ func (b *Body) Modify(modifier *Modifier, httpRequest *HttpRequest, httpResponse
 		return b
 	}
 
-	// tratamos o erro e retornamos o próprio body
 	if helper.IsNotNil(err) {
 		logger.Warning("Error modify body:", err)
 	}
@@ -478,6 +585,14 @@ func (b *Body) OmitEmpty() *Body {
 	}
 }
 
+// ToCase converts the keys of the Body instance to the specified case format based on the value of Nomenclature.
+// If the Body instance does not have a content type of ContentTypeJson, it returns the Body unchanged.
+// If the Body instance has a content type of ContentTypeJson, it converts the keys of the JSON string to the specified
+// case format using the Nomenclature value.
+// The converted JSON string is then used to create a new Body instance with the same content type and the converted
+// JSON string as the value.
+// The method returns the new Body instance with the converted JSON keys.
+// If the Nomenclature value is not one of the predefined cases, the method returns the Body unchanged.
 func (b *Body) ToCase(nomenclature enum.Nomenclature) *Body {
 	if helper.IsNotEqualTo(b.contentType, enum.ContentTypeJson) {
 		return b
@@ -715,6 +830,10 @@ func (b *Body) mergeString(str string) *Body {
 	}
 }
 
+// mergeJSON merges the JSON values of a Body instance with the provided JSON string.
+// It iterates over the keys and values of the JSON string and merges them into the existing JSON data of the Body.
+// The merged result is then used to create a new Body instance with the same contentType,
+// which is returned as the result.
 func (b *Body) mergeJSON(jsonStr string) *Body {
 	merged := b.Raw()
 	parsedJsonStr := gjson.Parse(jsonStr)
@@ -728,236 +847,316 @@ func (b *Body) mergeJSON(jsonStr string) *Body {
 	}
 }
 
+// mapJson applies the specified mapper to the JSON content of the Body instance.
+// It parses the JSON content into a gjson.Result object and checks if it is an array or object.
+// If it is an array, it calls the mapJsonArray method on the Body and returns the modified Body instance.
+// If it is an object, it calls the mapJsonObject method on the Body and returns the modified Body instance.
+// If the JSON content is neither an array nor an object, it returns the original Body instance without modifications.
 func (b *Body) mapJson(mapper *Mapper) *Body {
-	// damos o parse do json do body
 	parsedJson := gjson.Parse(b.String())
-	// se for array chamamos o mapJsonArray
 	if parsedJson.IsArray() {
 		return b.mapJsonArray(mapper, parsedJson)
 	}
-	// se for um objeto chamamos o mapJsonObject
 	return b.mapJsonObject(mapper, parsedJson)
 }
 
+// mapJsonArray maps the JSON array using the specified mapper. It iterates through each element of the array,
+// checks if it is an object or an array. If it is an object, it calls the mapJsonObject method on the Body to map
+// the object.
+// If the element is an array, it recursively calls the mapJsonArray method to map the sub-array.
+// If the element is neither an object nor an array, it parses the value and sets it in the mapped array.
+// It returns a new Body instance with the mapped JSON array.
 func (b *Body) mapJsonArray(mapper *Mapper, jsonArray gjson.Result) *Body {
-	// iniciamos o json array vazio
 	mappedArray := "[]"
-	// iteramos o json array atual para mapear json caso seja um array de objeto
+
 	jsonArray.ForEach(func(key, value gjson.Result) bool {
 		if value.IsObject() {
-			// caso ele seja objeto, chamamos o mapJsonObject para mapear o json objeto do index atual
 			projectedObject := b.mapJsonObject(mapper, value)
 			mappedArray, _ = sjson.SetRaw(mappedArray, "-1", projectedObject.Raw())
 		} else if value.IsArray() {
-			// caso ele seja array, chamamos o mesmo novamente para iterar o sub array
 			projectedSubArray := b.mapJsonArray(mapper, value)
 			mappedArray, _ = sjson.SetRaw(mappedArray, "-1", projectedSubArray.Raw())
 		} else {
-			// caso ele não seja json, não tem nada para mapear, apenas adicionamos o valor
 			mappedArray, _ = sjson.SetRaw(mappedArray, "-1", parseValueToRaw(value))
 		}
 		return true
 	})
-	// retornamos o mappedArray como valor de um novo Body
+
 	return &Body{
 		contentType: b.contentType,
 		value:       helper.SimpleConvertToBuffer(mappedArray),
 	}
 }
 
+// mapJsonObject maps the JSON object using the specified mapper. It iterates through each key in the mapper's keys list,
+// compares it to its corresponding value, and if they are different, it tries to get the value from the jsonObject
+// using the original key. If the value exists, it sets the value in the newMappedJson with the new key, otherwise,
+// it proceeds to the next key.
+// If the newMappedJson is successfully created, it deletes the original key from the newMappedJson.
+// If any error occurs during the process, the original key and value are set in the newMappedJson.
+// Finally, it creates a new Body instance with the mapped JSON object and returns it.
 func (b *Body) mapJsonObject(mapper *Mapper, jsonObject gjson.Result) *Body {
-	// instanciamos o json mapeado com os valores atuais
 	mappedJson := jsonObject.String()
-	// iteramos o mapper para renomear os campos
+
 	for _, key := range mapper.Keys() {
-		// instanciamos a nova chave a partir da antiga
 		newKey := mapper.Get(key)
-		// se a chave for igual a chave atual, ignoramos
 		if helper.Equals(key, newKey) {
 			continue
 		}
-		// obtemos o valor do json pela chave antiga
 		jsonValue := jsonObject.Get(key)
-		// caso ele exista, inserimos ele na nova chave
-		if jsonValue.Exists() {
-			// inserimos o valor na nova chave
-			newMappedJson, err := sjson.SetRaw(mappedJson, newKey, parseValueToRaw(jsonValue))
-			if helper.IsNil(err) {
-				// caso tenha dado certo, removemos a chave antiga
-				mappedJson, _ = sjson.Delete(newMappedJson, key)
-			} else {
-				// caso tenha dado errado, adicionamos a chave antiga no novo mapped json
-				mappedJson, _ = sjson.SetRaw(mappedJson, key, parseValueToRaw(jsonValue))
-			}
+		if !jsonValue.Exists() {
+			continue
+		}
+		newMappedJson, err := sjson.SetRaw(mappedJson, newKey, parseValueToRaw(jsonValue))
+		if helper.IsNil(err) {
+			mappedJson, _ = sjson.Delete(newMappedJson, key)
+		} else {
+			mappedJson, _ = sjson.SetRaw(mappedJson, key, parseValueToRaw(jsonValue))
 		}
 	}
-	// retornamos o body com o json mapeado
+
 	return &Body{
 		contentType: b.contentType,
 		value:       helper.SimpleConvertToBuffer(mappedJson),
 	}
 }
 
+// mapText applies a mapper to the Body instance and returns a new modified Body instance.
+// It replaces all occurrences of keys in the Body's value with their corresponding new values from the mapper.
+// The modified Body instance has the same content type as the original Body instance.
+// If the mapper is empty or there are no key replacements, it returns the original Body instance.
 func (b *Body) mapText(mapper *Mapper) *Body {
-	// instanciamos o texto mapeado com o valor atual
 	mappedText := b.String()
-	// iteramos o mapper para renomear os campos
+
 	for _, key := range mapper.Keys() {
-		// instanciamos a nova chave a partir da antiga
 		newKey := mapper.Get(key)
-		// se a chave for igual a chave atual, ignoramos
-		if helper.Equals(key, newKey) {
-			continue
+		if helper.IsNotEqualTo(key, newKey) {
+			mappedText = strings.ReplaceAll(mappedText, key, newKey)
 		}
-		// damos o replace da chave antiga para chave atual
-		mappedText = strings.ReplaceAll(mappedText, key, newKey)
 	}
-	// retornamos o texto mapeado
+
 	return &Body{
 		contentType: b.contentType,
 		value:       helper.SimpleConvertToBuffer(mappedText),
 	}
 }
 
+// projectionJson applies a projection to the Body instance.
+// It parses the JSON content of the Body, and depending on whether it is an array or object,
+// it applies the projection using either the b.projectionJsonArray or b.projectionJsonObject method.
+// The parsed JSON is then returned as a modified Body instance with the projected JSON.
+// If the Body content type is not JSON, the provided Projection is nil, or the Projection is empty,
+// the method returns the current Body instance without modifications.
+//
+// Parameters:
+// - projection: The Projection object that defines the keys and values for the projection.
+//
+// Returns:
+// - *Body: The modified Body instance with the projected JSON, or the current instance if no modifications were made.
 func (b *Body) projectionJson(projection *Projection) *Body {
-	// damos o parse do json do body
 	parsedJson := gjson.Parse(b.String())
-	// se for array chamamos o projectionJsonArray
 	if parsedJson.IsArray() {
 		return b.projectionJsonArray(projection, parsedJson)
 	}
-	// se for um objeto chamamos o projectionJsonObject
 	return b.projectionJsonObject(projection, parsedJson)
 }
 
+// projectionJsonObject applies a projection to the Body instance when the JSON content is an object.
+// It checks the type of the projection and calls the appropriate method:
+// projectionRejectionJsonObject or projectionAdditionJsonObject.
+// If the projection.Type() is enum.ProjectionTypeRejection, it calls projectionRejectionJsonObject method.
+// Otherwise, it calls projectionAdditionJsonObject method.
+// The method returns the modified Body instance based on the projected JSON.
+//
+// Parameters:
+// - projection: The Projection object that defines the keys and values for the projection.
+// - jsonObject: The gjson.Result representing the parsed JSON content of the Body.
+//
+// Returns:
+// - *Body: The modified Body instance with the projected JSON.
 func (b *Body) projectionJsonObject(projection *Projection, jsonObject gjson.Result) *Body {
-	// verificamos se o tipo de projeção é Rejection, se for executamos as regras
 	if helper.Equals(projection.Type(), enum.ProjectionTypeRejection) {
 		return b.projectionRejectionJsonObject(projection, jsonObject)
 	}
-	// se não for do tipo rejeição, então é adição ou todos, os dois aplicam as mesmas regras
 	return b.projectionAdditionJsonObject(projection, jsonObject)
 }
 
+// projectionAdditionJsonObject projects a subset of JSON properties from the given jsonObject
+// based on the provided projection.
+// It returns a new instance of Body with a JSON string containing the projected properties.
+// The projected properties are determined by the projection's keys and values.
+// If a key in the projection exists in the jsonObject and is not rejected, its value will be added to the projected JSON.
+// The resulting projected JSON will be set as the value of the Body, with the same content type as the original Body.
+// The projectedJson variable is initialized as an empty JSON object.
+// The for loop iterates over each key in the projection's keys.
+// If the key is a rejection, the loop continues to the next key.
+// Otherwise, the value corresponding to the key is retrieved from the jsonObject.
+// If the value exists in the jsonObject, it is added to the projectedJson using the sjson.SetRaw function.
+// Finally, a new instance of Body is returned with the contentType and the value set to the projectedJson.
 func (b *Body) projectionAdditionJsonObject(projection *Projection, jsonObject gjson.Result) *Body {
-	// iniciamos o json vazio
 	projectedJson := "{}"
-	// iteramos o projection vo
+
 	for _, key := range projection.Keys() {
-		// se for rejection pulamos e não adicionamos no novo json
 		if projection.IsRejection(key) {
 			continue
 		}
-		// obtemos o valor da chave no json
 		jsonValue := jsonObject.Get(key)
-		// caso ele exista, adicionamos
 		if jsonValue.Exists() {
 			projectedJson, _ = sjson.SetRaw(projectedJson, key, parseValueToRaw(jsonValue))
 		}
 	}
-	// retornamos o body com o novo json
+
 	return &Body{
 		contentType: b.contentType,
 		value:       helper.SimpleConvertToBuffer(projectedJson),
 	}
 }
 
+// projectionRejectionJsonObject removes the keys specified in the projection from the given JSON object
+// and returns a modified Body instance.
+//
+// Parameters:
+// - projection: The Projection object that defines the keys to be removed.
+// - jsonObject: The gjson.Result representing the parsed JSON content.
+//
+// Returns:
+// - *Body: The modified Body instance with the projected JSON content.
 func (b *Body) projectionRejectionJsonObject(projection *Projection, jsonObject gjson.Result) *Body {
-	// iniciamos o json com o valor atual
 	projectionJson := jsonObject.String()
-	// iteramos o projection vo
+
 	for _, key := range projection.Keys() {
-		// removemos o campo com base na chave de projeção
 		projectionJson, _ = sjson.Delete(projectionJson, key)
 	}
-	// retornamos o body com o novo json
+
 	return &Body{
 		contentType: b.contentType,
 		value:       helper.SimpleConvertToBuffer(projectionJson),
 	}
 }
 
+// projectionJsonArray applies the projection on a JSON array.
+// It iterates over the current JSON array and performs projections according to the provided Projection object.
+// If the array element is an object, it calls the projectionJsonObject method to project the object.
+// If the array element is another JSON array, it recursively calls the projectionJsonArray method.
+// If the array element is not a JSON value, it adds the element as is.
+// The projected JSON array is returned as a modified Body instance.
+//
+// Parameters:
+// - projection: The Projection object that defines the keys and values for the projection.
+// - jsonArray: The input JSON array on which the projection is to be applied.
+//
+// Returns:
+// - *Body: The modified Body instance with the projected JSON array.
 func (b *Body) projectionJsonArray(projection *Projection, jsonArray gjson.Result) *Body {
-	// iniciamos o json array vazio
 	projectedArray := "[]"
-	// iteramos o json array atual para projetar json caso seja um array de objeto
+
 	jsonArray.ForEach(func(key, value gjson.Result) bool {
-		// processamos o index do array
 		projectedArray = b.projectionJsonArrayCurrentIndex(projection, projectedArray, value)
-		// retorna true para continuar iterando
 		return true
 	})
-	// se ele quer filtrar por index
 	projectedArray = b.projectionJsonArrayNumericKeys(projection, projectedArray)
-	// retornamos o body com o resultado da projeção
+
 	return &Body{
 		contentType: b.contentType,
 		value:       helper.SimpleConvertToBuffer(projectedArray),
 	}
 }
 
+// projectionJsonArrayCurrentIndex applies the projection on a JSON array at a specific index.
+// It iterates over the current JSON array element at the given index and performs projections according to the provided
+// Projection object.
+// If the array element is an object, it calls the projectionJsonObject method to project the object.
+// If the array element is another JSON array, it recursively calls the projectionJsonArray method.
+// If the array element is not a JSON value, it adds the element as is.
+// The projected JSON array is returned as a modified string representation.
+//
+// Parameters:
+// - projection: The Projection object that defines the keys and values for the projection.
+// - projectedArray: The string representation of the current JSON array on which the projection is to be applied.
+// - value: The JSON value at the given index for projection.
+//
+// Returns:
+// - string: The modified string representation of the projected JSON array.
 func (b *Body) projectionJsonArrayCurrentIndex(projection *Projection, projectedArray string, value gjson.Result,
 ) string {
 	if value.IsObject() {
-		// caso ele seja objeto, chamamos o projectionJsonObject para projetar o json objeto do index atual
 		projectedObject := b.projectionJsonObject(projection, value)
 		projectedArray, _ = sjson.SetRaw(projectedArray, "-1", projectedObject.Raw())
 	} else if value.IsArray() {
-		// caso ele seja array, chamamos o mesmo novamente para iterar o array filho
 		projectedSubArray := b.projectionJsonArray(projection, value)
 		projectedArray, _ = sjson.SetRaw(projectedArray, "-1", projectedSubArray.Raw())
 	} else {
-		// caso ele não seja json, não tem nada para projetar, apenas adicionamos o valor
 		projectedArray, _ = sjson.SetRaw(projectedArray, "-1", parseValueToRaw(value))
 	}
-	// retornamos o array com o index inserido
 	return projectedArray
 }
 
+// projectionJsonArrayNumericKeys projects the JSON array with numeric keys based on the given projection.
+// If the projection does not contain any numeric key, it returns the input JSON string.
+// If the projection type is numeric rejection, it applies rejection projection to the JSON array.
+// Otherwise, it applies addition projection to the JSON array.
 func (b *Body) projectionJsonArrayNumericKeys(projection *Projection, projectedJson string) string {
-	// se ele não contém ao menos uma chave de projeção numérica retornamos o json já projetado
 	if projection.NotContainsNumericKey() {
 		return projectedJson
-	}
-	// verificamos se o tipo da projeção numérica é rejeição, para seguir com as regras
-	if helper.Equals(projection.TypeNumeric(), enum.ProjectionTypeRejection) {
+	} else if helper.Equals(projection.TypeNumeric(), enum.ProjectionTypeRejection) {
 		return b.projectionRejectionJsonArray(projection, projectedJson)
 	}
-	// caso não seja rejection, ou ele é all, ou addition, usamos as mesmas regras
 	return b.projectionAdditionJsonArray(projection, projectedJson)
 }
 
+// projectionAdditionJsonArray returns a JSON array string containing the projected values from
+// the provided JSON string, based on the given projection.
+// It iterates through the projection keys and adds the corresponding values from the parsed JSON
+// into the array string if they exist.
+// The array string is returned as a result.
 func (b *Body) projectionAdditionJsonArray(projection *Projection, projectedJson string) string {
-	// transformamos o projectedJson em um gjson.Result
 	parsedProjectedJson := gjson.Parse(projectedJson)
-	// instanciamos a projeção de array zerada
 	projectedArray := "[]"
-	// iteramos a projeção para projetar os index mencionados
+
 	for _, key := range projection.Keys() {
-		if helper.IsNumeric(key) && projection.IsAddition(key) {
-			jsonValue := parsedProjectedJson.Get(key)
-			if jsonValue.Exists() {
-				projectedArray, _ = sjson.SetRaw(projectedArray, "-1", parseValueToRaw(jsonValue))
-			}
+		if !helper.IsNumeric(key) || projection.IsRejection(key) {
+			continue
+		}
+		jsonValue := parsedProjectedJson.Get(key)
+		if jsonValue.Exists() {
+			projectedArray, _ = sjson.SetRaw(projectedArray, "-1", parseValueToRaw(jsonValue))
 		}
 	}
-	// retornamos o array projetado
+
 	return projectedArray
 }
 
+// projectionRejectionJsonArray applies rejection projection to the given JSON array based on the given projection.
+// It returns a new JSON array with the rejected elements removed.
+// The projection specifies the keys to be rejected from the JSON array.
+// The rejected elements are identified by keys that are not present in the projection.
+//
+// If the projection is empty or does not have any keys, the original JSON array is returned.
+// The function takes a projection and a projected JSON string as input.
+//
+// The function parses the projected JSON string and iterates over each key-value pair.
+// If a key is not present in the projection, the value is added to the new JSON array.
+// Otherwise, the value is ignored.
+//
+// The function uses the `helper.NotContains` function to check if a key is not present in the projection.
+// It uses the `sjson.SetRaw` function to add the value to the new JSON array.
+// The final JSON array is returned as a string.
+//
+// An example usage of this method can be found in the `projectionJsonArrayNumericKeys` method of the `Body` struct.
+// The `projectionJsonArrayNumericKeys` method applies numeric rejection projection to a JSON array with numeric keys,
+// using the `projectionRejectionJsonArray` method to perform the rejection.
+// If the projection does not contain any numeric key, the method returns the input JSON string.
 func (b *Body) projectionRejectionJsonArray(projection *Projection, projectedJson string) string {
-	// transformamos o projectedJson em um gjson.Result
 	parsedProjectedJson := gjson.Parse(projectedJson)
-	// instanciamos a projeção de array vazia
 	projectedArray := "[]"
-	// iteramos a lista
+
 	parsedProjectedJson.ForEach(func(key, value gjson.Result) bool {
 		if helper.NotContains(projection.Keys(), key.String()) {
 			projectedArray, _ = sjson.SetRaw(projectedArray, "-1", parseValueToRaw(value))
 		}
 		return true
 	})
-	// retornamos o array projetado
+
 	return projectedArray
 }
 
@@ -987,10 +1186,22 @@ func (b *Body) omitEmptyText() *Body {
 	}
 }
 
+// setJsonKeyValue sets the value of a given key in a JSON string. If the key already exists in the JSON string and
+// its value is not null, the function aggregates the existing value with the new value. If the key does not exist,
+// the function adds the key-value pair to the JSON string. The updated JSON string is returned.
+// If the key already exists but its value is null, it sets the value of the key to the new value.
+//
+// Parameters:
+// - jsonStr: The original JSON string.
+// - key: The key to set or add.
+// - value: The new value for the key.
+//
+// Returns:
+//
+// The updated JSON string.
 func setJsonKeyValue(jsonStr, key string, value string) string {
 	result := gjson.Get(jsonStr, key)
 
-	// Se a key já existe no JSON A
 	if result.Exists() && helper.IsNotEqualTo(result.Type, gjson.Null) {
 		jsonStr, _ = sjson.SetRaw(jsonStr, key, aggregateJsonValue(result, value))
 	} else {
@@ -1000,6 +1211,8 @@ func setJsonKeyValue(jsonStr, key string, value string) string {
 	return jsonStr
 }
 
+// parseValueToRaw parses the value to a raw string representation.
+// If the value is of type Null, it returns the string "null". Otherwise, it returns the raw value as is.
 func parseValueToRaw(value gjson.Result) string {
 	if helper.Equals(value.Type, gjson.Null) {
 		return "null"
@@ -1007,6 +1220,10 @@ func parseValueToRaw(value gjson.Result) string {
 	return value.Raw
 }
 
+// parseStringValueToRaw parses the provided string value into a raw JSON string.
+// It uses the gjson.Parse() function from the gjson package to parse the value.
+// If the parsed value is of type Null, it returns the string "null".
+// Otherwise, it returns the raw value as is.
 func parseStringValueToRaw(value string) string {
 	parse := gjson.Parse(value)
 	if helper.Equals(parse.Type, gjson.Null) {
@@ -1015,6 +1232,19 @@ func parseStringValueToRaw(value string) string {
 	return parse.Raw
 }
 
+// aggregateJsonValue aggregates the provided JSON value with a new value.
+// It takes a gjson.Result value and a new value as inputs.
+// If the provided value is an array, it appends the new value to the existing array.
+// If the provided value is not an array, it creates a new array with the existing value and appends the new value.
+// The function then constructs a JSON string representation of the aggregated array.
+// It skips null and empty values, and returns the final JSON string.
+//
+// Parameters:
+// - value: The original JSON value.
+// - newValue: The new value to aggregate.
+//
+// Returns:
+// The JSON string representation of the aggregated array.
 func aggregateJsonValue(value gjson.Result, newValue string) string {
 	var newArray []gjson.Result
 
@@ -1025,7 +1255,6 @@ func aggregateJsonValue(value gjson.Result, newValue string) string {
 	}
 
 	newParsedValue := gjson.Parse(newValue)
-
 	if newParsedValue.IsArray() {
 		newArray = append(newArray, newParsedValue.Array()...)
 	} else {
@@ -1043,28 +1272,29 @@ func aggregateJsonValue(value gjson.Result, newValue string) string {
 		newArrayJson += parseValueToRaw(v)
 	}
 	newArrayJson += "]"
+
 	return newArrayJson
 }
 
-// removeAllEmptyFields removes all empty fields from a JSON string recursively.
-// It iterates over each line in the JSON string using gjson.ForEachLine, and for each line,
-// it iterates over each key-value pair using line.ForEach.
-// If the value is empty, it deletes the corresponding key-value pair using sjson.Delete.
-// If the value is an object or an array, it recursively calls removeAllEmptyFields on that value.
-// Note: The input JSON string is modified in-place.
+// removeAllEmptyFields removes all empty fields from the JSON string.
+// It recursively traverses the JSON structure and checks if a field is empty.
+// If a field is empty, it is deleted from the JSON string using the sjson.Delete function.
+// If a field is not empty, its value is updated using the sjson.SetRaw function with the raw value.
+// The function uses the parseValueToRaw function to parse the value to a raw string representation.
+// The final modified JSON string is returned as the result.
+//
+// Please note that the original JSON string is modified in-place.
+// Also, the parseValueToRaw function is used to parse the value to a raw string representation.
+// If the value is of type Null, it returns the string "null". Otherwise, it returns the raw value as is.
 func removeAllEmptyFields(jsonStr string) string {
 	gjson.Parse(jsonStr).ForEach(func(key, value gjson.Result) bool {
-		// se for objeto, chamamos novamente este método passando o value
 		if value.IsObject() || value.IsArray() {
 			subJsonStr := removeAllEmptyFields(parseValueToRaw(value))
 			value = gjson.Parse(subJsonStr)
 		}
-		// verificamos se o valor esta vazio
 		if helper.IsEmpty(value.Value()) {
-			// caso esteja vazio, removemos a chave
 			jsonStr, _ = sjson.Delete(jsonStr, key.String())
 		} else {
-			// caso não esteja vazio, inserimos o valor possivelmente modificado
 			jsonStr, _ = sjson.SetRaw(jsonStr, key.String(), parseValueToRaw(value))
 		}
 		return true
@@ -1072,6 +1302,9 @@ func removeAllEmptyFields(jsonStr string) string {
 	return jsonStr
 }
 
+// convertKeysToCase converts the keys of a JSON string to the specified case format
+// based on the provided Nomenclature. It recursively processes nested objects and arrays.
+// The function returns the modified JSON string with the converted keys.
 func convertKeysToCase(jsonStr string, nomenclature enum.Nomenclature) string {
 	parsedJson := gjson.Parse(jsonStr)
 
@@ -1079,7 +1312,6 @@ func convertKeysToCase(jsonStr string, nomenclature enum.Nomenclature) string {
 	if parsedJson.IsArray() {
 		jsonStrCase = "[]"
 	}
-
 	parsedJson.ForEach(func(key, value gjson.Result) bool {
 		newKey := nomenclature.Parse(key.String())
 		if value.IsObject() || value.IsArray() {

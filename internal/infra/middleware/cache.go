@@ -23,36 +23,51 @@ import (
 	"github.com/GabrielHCataldo/gopen-gateway/internal/infra/api"
 )
 
-// cacheMiddleware represents a Cache implementation that uses the provided infra.CacheStore for caching operations.
+// cacheMiddleware represents a middleware that handles caching for an API endpoint.
 type cacheMiddleware struct {
 	cacheService service.Cache
 }
 
+// Cache represents an interface for caching operations. Implementations of this interface
+// should provide a Do method that takes a context as input and is responsible for performing
+// the caching operation based on the provided context.
 type Cache interface {
+	// Do perform a caching operation based on the provided context.
+	//
+	// The context parameter is a pointer to an api.Context object that holds the information
+	// needed to perform the caching operation. This method should be implemented by
+	// implementations of the Cache interface.
 	Do(ctx *api.Context)
 }
 
+// NewCache initializes a new cacheMiddleware struct based on the provided cacheService.
+// The cacheMiddleware struct implements the Cache interface, and is responsible for handling
+// caching operations for an API endpoint. The NewCache function returns a Cache interface.
 func NewCache(cacheService service.Cache) Cache {
 	return cacheMiddleware{
 		cacheService: cacheService,
 	}
 }
 
+// Do handle caching for an API endpoint. It first checks if the endpoint has caching enabled.
+// If caching is disabled, it calls the next handler in the chain.
+// If caching is enabled, it retrieves the cache configuration and strategy key.
+// Then, it calls the cache service to read the cache based on the provided cache configuration and request.
+// If there is an error during cache reading, it logs a warning.
+// If there is a cache response available, it writes the cache response to the context and returns.
+// After that, it calls the next handler in the chain.
+// Finally, it calls the cache service to write the cache based on the provided cache configuration, request, and response.
+// If there is an error during cache writing, it logs a warning.
 func (c cacheMiddleware) Do(ctx *api.Context) {
-	// se meu endpoint não tem cache, ignoramos e chamamos o próximo
 	if ctx.Endpoint().NoCache() {
 		ctx.Next()
 		return
 	}
 
-	// instanciamos o cache vo
 	cache := ctx.Endpoint().Cache()
-	// instanciar httpRequest para manter o mesmo do inicio ao fim
 	httpRequest := ctx.HttpRequest()
-	// instanciamos a chave utilizada nos logs
 	strategyKey := cache.StrategyKey(httpRequest)
 
-	// chamamos o serviço de dominio esperando um possível response caso configurado e caso tenha
 	cacheResponse, err := c.cacheService.Read(ctx.Context(), cache, httpRequest)
 	if helper.IsNotNil(err) {
 		logger.Warning("Error read cache key:", strategyKey, "err:", err)
@@ -61,10 +76,8 @@ func (c cacheMiddleware) Do(ctx *api.Context) {
 		return
 	}
 
-	// damos próximo no handler
 	ctx.Next()
 
-	// chamamos o serviço de dominio para gravar o cache caso configurado
 	err = c.cacheService.Write(ctx.Context(), cache, httpRequest, ctx.HttpResponse())
 	if helper.IsNotNil(err) {
 		logger.Warning("Error write cache key:", strategyKey, "err:", err)

@@ -1,3 +1,19 @@
+/*
+ * Copyright 2024 Gabriel Cataldo
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package vo
 
 import (
@@ -9,34 +25,34 @@ import (
 	"net/http"
 )
 
+// HttpBackendResponse represents the structure of a backend HTTP response.
 type HttpBackendResponse struct {
+	// written is a boolean field that represents whether the response has been written or not.
 	written bool
-	config  *BackendResponse
+	// config is a pointer to the BackendResponse struct that holds configuration settings for the
+	// HttpBackendResponse instance.
+	config *BackendResponse
 	// statusCode represents HTTP statusCode of a backend httpResponse.
-	// The value of statusCode can be modified using the ModifyStatusCode() `method`.
 	statusCode int
 	// header represents the body fields of a backend httpResponse.
-	// The value of header can be modified using the ModifyHeader() `method`.
 	header Header
 	// body represents the body of a backend httpResponse.
-	// The value of body can be modified using the ModifyBody() `method`.
 	body *Body
 }
 
+// NewHttpBackendResponse creates a new HttpBackendResponse object based on the provided parameters.
+// It constructs the header from the netHttpResponse, parses the response bytes into a body interface,
+// and builds the backend httpResponse value object.
+// It then calls the ApplyConfig method with the enum.BackendResponseApplyEarly flag and returns the result.
 func NewHttpBackendResponse(backend *Backend, netHttpResponse *http.Response, httpRequest *HttpRequest,
 	httpResponse *HttpResponse) *HttpBackendResponse {
-	// construimos o header com base no netHttpResponse
-	header := NewHeader(netHttpResponse.Header)
-
-	// fazemos o parse dos bytes da resposta em para uma interface
-	bodyBytes, _ := io.ReadAll(netHttpResponse.Body)
-
-	// convertemos em body VO a partir dos bytes e do content-type
 	contentType := netHttpResponse.Header.Get("Content-Type")
 	contentEncoding := netHttpResponse.Header.Get("Content-Encoding")
+
+	header := NewHeader(netHttpResponse.Header)
+	bodyBytes, _ := io.ReadAll(netHttpResponse.Body)
 	body := NewBody(contentType, contentEncoding, bytes.NewBuffer(bodyBytes))
 
-	// construímos o objeto de valor do backend httpResponse
 	httpBackendResponse := &HttpBackendResponse{
 		config:     backend.Response(),
 		statusCode: netHttpResponse.StatusCode,
@@ -44,147 +60,137 @@ func NewHttpBackendResponse(backend *Backend, netHttpResponse *http.Response, ht
 		body:       body,
 	}
 
-	// chamamos o applyConfig no momento EARLY
 	return httpBackendResponse.ApplyConfig(enum.BackendResponseApplyEarly, httpRequest, httpResponse)
 }
 
-// Ok returns a boolean indicating if the statusCode of the httpBackendResponse instance is within the range 200-299.
-func (b *HttpBackendResponse) Ok() bool {
-	return helper.IsGreaterThanOrEqual(b.statusCode, 200) && helper.IsLessThanOrEqual(b.statusCode, 299)
+// Written returns a boolean indicating whether the response has been written or not.
+func (h *HttpBackendResponse) Written() bool {
+	return h.written
 }
 
-// Key returns the key of the httpBackendResponse for aggregation.
-// The key is composed of the string "backend" and the index, if it is greater than or equal to zero.
-// If the httpBackendResponse has a name, the key is set to the name.
-func (b *HttpBackendResponse) Key(index int) (key string) {
-	// montamos o key do backend para agregar
-	key = "backend"
-	if helper.IsGreaterThanOrEqual(index, 0) {
-		key = fmt.Sprintf("%s-%v", key, index)
-	}
-	// se o backend tiver informado group value
-	if helper.IsNotNil(b.Config()) && b.Config().HasGroup() {
-		key = b.Config().Group()
+// Ok returns a boolean indicating if the statusCode of the httpBackendResponse instance is within the range 200-299.
+func (h *HttpBackendResponse) Ok() bool {
+	return helper.IsGreaterThanOrEqual(h.statusCode, 200) && helper.IsLessThanOrEqual(h.statusCode, 299)
+}
+
+// Key returns a string representing the key for the HttpBackendResponse instance based on the given index.
+// If a Config exists, and it has a group, the key is set to the group value.
+// If no group is configured, the key is generated as "backend-{index}".
+func (h *HttpBackendResponse) Key(index int) (key string) {
+	key = fmt.Sprintf("backend-%v", index)
+	if helper.IsNotNil(h.Config()) && h.Config().HasGroup() {
+		key = h.Config().Group()
 	}
 	return key
 }
 
-// StatusCode returns the `statusCode` of the `httpBackendResponse` instance.
-func (b *HttpBackendResponse) StatusCode() int {
-	return b.statusCode
+// StatusCode returns the statusCode of the HttpBackendResponse instance.
+func (h *HttpBackendResponse) StatusCode() int {
+	return h.statusCode
 }
 
-// Header returns the `header` of the `httpBackendResponse` instance.
-func (b *HttpBackendResponse) Header() Header {
-	return b.header
+// Header returns the header of the HttpBackendResponse instance.
+func (h *HttpBackendResponse) Header() Header {
+	return h.header
 }
 
-// Body returns the `body` of the `httpBackendResponse` instance.
-func (b *HttpBackendResponse) Body() *Body {
-	return b.body
+// Body returns the body of the HttpBackendResponse instance.
+func (h *HttpBackendResponse) Body() *Body {
+	return h.body
 }
 
-func (b *HttpBackendResponse) Config() *BackendResponse {
-	return b.config
+// Config returns a pointer to the BackendResponse struct that holds configuration settings for the
+// HttpBackendResponse instance.
+func (h *HttpBackendResponse) Config() *BackendResponse {
+	return h.config
 }
 
-// GroupByType returns true if the httpBackendResponse instance should be grouped,
-// either by setting the groupResponse field to true or by the value of the body being a text or a slice.
-// Otherwise, it returns false.
-func (b *HttpBackendResponse) GroupByType() bool {
-	body := b.Body()
+// GroupByType returns a boolean indicating if the body of the HttpBackendResponse instance
+// is either a text or a slice of bytes. It checks whether the body is not nil and it's either
+// a text or a slice of bytes.
+func (h *HttpBackendResponse) GroupByType() bool {
+	body := h.Body()
 	return helper.IsNotNil(body) && body.IsText() || helper.IsSlice(body.Bytes())
 }
 
-func (b *HttpBackendResponse) Map() any {
+// Map returns a map[string]any containing the statusCode, header, and body of the HttpBackendResponse instance.
+// The body is only included if it is not nil, and it is converted to its underlying interface value.
+func (h *HttpBackendResponse) Map() any {
 	var body any
 	if helper.IsNotNil(body) {
-		body = b.body.Interface()
+		body = h.body.Interface()
 	}
 	return map[string]any{
-		"statusCode": b.statusCode,
-		"header":     b.header,
+		"statusCode": h.statusCode,
+		"header":     h.header,
 		"body":       body,
 	}
 }
 
-func (b *HttpBackendResponse) ApplyConfig(momentToApply enum.BackendResponseApply, httpRequest *HttpRequest,
+// ApplyConfig applies the configuration settings from the BackendResponse to the HttpBackendResponse instance.
+// First, it checks if the BackendResponse has already been applied or if it is nil or if the specified apply moment
+// is different from the configured moment. If any of these conditions are met, it returns the HttpBackendResponse
+// instance without applying any changes.
+// If the BackendResponse is configured to be omitted, the method returns nil.
+// Otherwise, it builds the header and body based on the configuration settings of the BackendResponse and returns a
+// new HttpBackendResponse instance with the applied changes.
+func (h *HttpBackendResponse) ApplyConfig(momentToApply enum.BackendResponseApply, httpRequest *HttpRequest,
 	httpResponse *HttpResponse) *HttpBackendResponse {
-	// instanciamos o httpResponse config do backend
-	backendResponse := b.Config()
-
-	// se o backend ja foi aplicado, ou a config for nil, ou o momento não é o que foi configurado
-	if b.Applied() || helper.IsNil(backendResponse) || helper.IsNotEqualTo(momentToApply, backendResponse.Apply()) {
-		return b
-	}
-
-	// ele quer ser omitido retornamos nil
-	if backendResponse.Omit() {
+	backendResponse := h.Config()
+	if h.Written() || helper.IsNil(backendResponse) || helper.IsNotEqualTo(momentToApply, backendResponse.Apply()) {
+		return h
+	} else if backendResponse.Omit() {
 		return nil
 	}
 
-	// construímos o header com base nas configs do backend
-	header := b.buildHeaderByConfig(backendResponse, httpRequest, httpResponse)
-	// construímos o body com base nas configs do backend
-	body := b.buildBodyByConfig(backendResponse, httpRequest, httpResponse)
-
-	// construímos o novo httpBackendResponse aplicado
 	return &HttpBackendResponse{
-		statusCode: b.statusCode,
-		header:     header,
-		body:       body,
+		statusCode: h.statusCode,
+		header:     h.buildHeaderByConfig(backendResponse, httpRequest, httpResponse),
+		body:       h.buildBodyByConfig(backendResponse, httpRequest, httpResponse),
 		written:    true,
 	}
 }
 
-func (b *HttpBackendResponse) Applied() bool {
-	return b.written
-}
-
-func (b *HttpBackendResponse) buildHeaderByConfig(backendResponse *BackendResponse, httpRequest *HttpRequest,
+// buildHeaderByConfig builds the header for the HttpBackendResponse instance based on the configuration settings
+// specified in the BackendResponse. If the BackendResponse is configured to omit the header, it returns an empty
+// header. Otherwise, it applies the header mappings, projections, and modifiers specified in the BackendResponse
+// to the existing header of the HttpBackendResponse.
+// It returns the modified header.
+func (h *HttpBackendResponse) buildHeaderByConfig(backendResponse *BackendResponse, httpRequest *HttpRequest,
 	httpResponse *HttpResponse) Header {
-	// se ele quer omitir retornamos o header vazio
 	if backendResponse.OmitHeader() {
 		return NewEmptyHeader()
 	}
 
-	// primeiro obtemos o header da própria resposta do backend
-	header := b.Header()
-	// mapeamos o header atual com base na config
+	header := h.Header()
 	header = header.Map(backendResponse.HeaderMapper())
-	// projetamos o header atual com base na config
 	header = header.Projection(backendResponse.HeaderProjection())
-	// modificamos o header atual com base na config
 	for _, modifier := range backendResponse.HeaderModifiers() {
 		header = header.Modify(&modifier, httpRequest, httpResponse)
 	}
 
-	// modificamos o header atual com base na config
 	return header
 }
 
-func (b *HttpBackendResponse) buildBodyByConfig(backendResponse *BackendResponse, httpRequest *HttpRequest,
+// buildBodyByConfig builds the body for the HttpBackendResponse instance based on the configuration settings
+// specified in the BackendResponse. If the BackendResponse is configured to omit the body or the existing body is nil,
+// it returns nil. Otherwise, it applies the body mappings, projections, modifiers, and grouping specified in the BackendResponse
+// to the existing body of the HttpBackendResponse. Finally, it returns the modified body.
+func (h *HttpBackendResponse) buildBodyByConfig(backendResponse *BackendResponse, httpRequest *HttpRequest,
 	httpResponse *HttpResponse) *Body {
-	// se o backend quer omitir o body ou não tem body retornamos
-	if backendResponse.OmitBody() || helper.IsNil(b.Body()) {
+	if backendResponse.OmitBody() || helper.IsNil(h.Body()) {
 		return nil
 	}
 
-	// primeiro obtemos o body da própria resposta do backend
-	body := b.Body()
-	// mapeamos o body atual com base na config
+	body := h.Body()
 	body = body.Map(backendResponse.BodyMapper())
-	// projetamos o body atual com base na config
 	body = body.Projection(backendResponse.BodyProjection())
-	// modificamos o body atual com base na config
 	for _, modifier := range backendResponse.BodyModifiers() {
 		body = body.Modify(&modifier, httpRequest, httpResponse)
 	}
-	// por fim, agrupamos caso tenha o campo "group"
 	if backendResponse.HasGroup() {
 		body = NewBodyAggregateByKey(backendResponse.Group(), body)
 	}
 
-	//retornamos o body modificado segundo a config de resposta do backend
 	return body
 }

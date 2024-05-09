@@ -1,3 +1,19 @@
+/*
+ * Copyright 2024 Gabriel Cataldo
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package vo
 
 import (
@@ -24,13 +40,22 @@ type errorBody struct {
 	Timestamp time.Time `json:"timestamp"`
 }
 
+// newErrorBody creates a new errorBody object based on the provided path and error.
+// It extracts details from the error using the errors.Details function, and constructs
+// an errorBody struct with the relevant information. If the details are empty, it returns nil.
+//
+// Parameters:
+//   - path: the path where the error occurred.
+//   - err: the error object.
+//
+// Returns:
+//   - a pointer to the new errorBody object, or nil if the details are empty.
 func newErrorBody(path string, err error) *errorBody {
-	// obtemos o detalhe do erro usando a lib go-errors
 	detailsErr := errors.Details(err)
 	if helper.IsNil(detailsErr) {
 		return nil
 	}
-	// com os detalhes, construímos o objeto de retorno padrão de erro da API Gateway
+
 	return &errorBody{
 		File:      detailsErr.GetFile(),
 		Line:      detailsErr.GetLine(),

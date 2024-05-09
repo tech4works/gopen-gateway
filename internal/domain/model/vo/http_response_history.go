@@ -1,3 +1,19 @@
+/*
+ * Copyright 2024 Gabriel Cataldo
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package vo
 
 import (
@@ -6,23 +22,23 @@ import (
 	"net/http"
 )
 
-// httpResponseHistory represents the history of backend responses.
-// It is a slice of httpBackendResponse, which represents the responses from a backend service.
-// The httpResponse history can be filtered and modified based on certain conditions.
-// It also provides methods to retrieve information about the httpResponse history, such as size, success, and status code.
+// httpResponseHistory type represents a collection of `HttpBackendResponse` objects.
+// It can be used to store and manipulate the history of HTTP responses from a backend.
+// The `httpResponseHistory` type provides methods to perform various operations on the history,
+// such as filtering, size calculation, checking for success, and getting the most common status code and header.
 type httpResponseHistory []*HttpBackendResponse
 
 // Size returns the number of elements in the httpResponseHistory.
-func (r httpResponseHistory) Size() int {
-	return len(r)
+func (h httpResponseHistory) Size() int {
+	return len(h)
 }
 
 // Success returns a boolean value indicating whether all backend responses in the httpResponseHistory are successful.
 // It iterates through each backend httpResponse in the httpResponseHistory.
 // If any backend httpResponse is not successful (Ok() returns false), it returns false.
 // Otherwise, it returns true, indicating that all backend responses are successful.
-func (r httpResponseHistory) Success() bool {
-	for _, httpBackendResponse := range r {
+func (h httpResponseHistory) Success() bool {
+	for _, httpBackendResponse := range h {
 		if !httpBackendResponse.Ok() {
 			return false
 		}
@@ -30,16 +46,16 @@ func (r httpResponseHistory) Success() bool {
 	return true
 }
 
-func (r httpResponseHistory) Filter(httpRequest *HttpRequest, httpResponse *HttpResponse) (
+// Filter applies a filter to the httpResponseHistory based on the provided httpRequest and httpResponse.
+// It iterates through each httpBackendResponse in the httpResponseHistory and applies the config using the ApplyConfig method.
+// If the ApplyConfig method returns a non-nil value, it appends the applied httpBackendResponse to the filteredHistory list.
+// Returns the filteredHistory httpResponseHistory.
+func (h httpResponseHistory) Filter(httpRequest *HttpRequest, httpResponse *HttpResponse) (
 	filteredHistory httpResponseHistory) {
-	// iteramos o histórico para ser filtrado
-	for _, httpBackendResponse := range r {
-		// aplicamos a config de forma LATE
-		httpBackendResponseApplied := httpBackendResponse.ApplyConfig(enum.BackendResponseApplyLate, httpRequest,
-			httpResponse)
-		// setamos a resposta caso não esteja nil
-		if helper.IsNotNil(httpBackendResponseApplied) {
-			filteredHistory = append(filteredHistory, httpBackendResponseApplied)
+	for _, httpBackendResponse := range h {
+		applied := httpBackendResponse.ApplyConfig(enum.BackendResponseApplyLate, httpRequest, httpResponse)
+		if helper.IsNotNil(applied) {
+			filteredHistory = append(filteredHistory, applied)
 		}
 	}
 	return filteredHistory
@@ -47,148 +63,170 @@ func (r httpResponseHistory) Filter(httpRequest *HttpRequest, httpResponse *Http
 
 // SingleResponse checks if the httpResponse history contains only one httpResponse.
 // Returns true if the httpResponse history size is less than or equal to 1, false otherwise.
-func (r httpResponseHistory) SingleResponse() bool {
-	return helper.Equals(r.Size(), 1)
+func (h httpResponseHistory) SingleResponse() bool {
+	return helper.Equals(h.Size(), 1)
 }
 
 // MultipleResponse returns true if the size of the httpResponse history is greater than 1, indicating multiple responses.
 // Otherwise, it returns false.
-func (r httpResponseHistory) MultipleResponse() bool {
-	return helper.IsGreaterThan(r.Size(), 1)
+func (h httpResponseHistory) MultipleResponse() bool {
+	return helper.IsGreaterThan(h.Size(), 1)
 }
 
-func (r httpResponseHistory) StatusCode() int {
+func (h httpResponseHistory) StatusCode() int {
 	// se tiver mais de 1 resposta obtemos o código de status mais frequente
-	if r.MultipleResponse() {
-		return r.mostFrequentStatusCode()
+	if h.MultipleResponse() {
+		return h.mostFrequentStatusCode()
 	}
-	return r.statusCode()
+	return h.statusCode()
 }
 
-func (r httpResponseHistory) Header() Header {
-	// instanciamos um novo header
+// Header aggregates the headers of all the HttpBackendResponse objects in the httpResponseHistory.
+// It creates an empty Header object to store the aggregated headers.
+// Then, it iterates through each HttpBackendResponse in the httpResponseHistory.
+// For each non-empty header in a HttpBackendResponse, it adds the header to the aggregated Header object using the
+// Aggregate method.
+// Finally, it returns the aggregated Header object.
+func (h httpResponseHistory) Header() Header {
 	historyHeader := Header{}
-	// iteramos as respostas do histórico
-	for _, httpBackendResponse := range r {
-		// se tiver nil ou vazio, ignoramos
-		if helper.IsNil(httpBackendResponse.Header()) || helper.IsEmpty(httpBackendResponse.Header()) {
-			continue
+	for _, httpBackendResponse := range h {
+		if helper.IsNotNil(httpBackendResponse.Header()) && helper.IsNotEmpty(httpBackendResponse.Header()) {
+			historyHeader = historyHeader.Aggregate(httpBackendResponse.Header())
 		}
-		// agregamos os valores ao header de resultado, gerando um novo objeto de valor a cada agregação
-		historyHeader = historyHeader.Aggregate(httpBackendResponse.Header())
 	}
-	// retornamos o header do histórico
 	return historyHeader
 }
 
-func (r httpResponseHistory) Body(aggregate bool) *Body {
-	// verificamos se o histórico é de múltiplas respostas
-	if r.MultipleResponse() {
+// Body returns the Body object of the last httpBackendResponse in the httpResponseHistory list.
+// If the httpResponseHistory contains multiple responses, it checks if aggregation is required.
+// If aggregation is required, it returns the aggregated Body by key or the aggregated Body.
+// If aggregation is not required, it returns a slice of Body objects from the backend responses.
+// If the httpResponseHistory contains a single response, it returns the Body of that response.
+// If the httpResponseHistory is empty, it returns nil.
+func (h httpResponseHistory) Body(aggregate bool) *Body {
+	if h.MultipleResponse() {
 		// caso seja de múltiplas respostas, verificamos se precisa agregar as respostas
-		return r.multipleResponseBody(aggregate)
+		return h.multipleBody(aggregate)
 	}
-	// caso seja uma única ou não chamamos o body()
-	return r.body()
+	return h.body()
 }
 
-func (r httpResponseHistory) Map() string {
+// Map iterates over each HttpBackendResponse in the httpResponseHistory and calls the Map method
+// on each HttpBackendResponse to get a mapped representation of the response.
+// The mapped representations are then added to a string slice called mappedHistory.
+// Finally, the mappedHistory slice is converted to a string using the helper.SimpleConvertToString function
+// and returned as the result of the Map method.
+func (h httpResponseHistory) Map() string {
 	var mappedHistory []any
-	for _, httpBackendResponse := range r {
+	for _, httpBackendResponse := range h {
 		mappedHistory = append(mappedHistory, httpBackendResponse.Map())
 	}
 	return helper.SimpleConvertToString(mappedHistory)
 }
 
-func (r httpResponseHistory) last() *HttpBackendResponse {
-	return r[len(r)-1]
+// last returns the last HttpBackendResponse in the httpResponseHistory list.
+func (h httpResponseHistory) last() *HttpBackendResponse {
+	return h[len(h)-1]
 }
 
-func (r httpResponseHistory) statusCode() int {
-	if helper.IsNil(r.last()) {
+// statusCode returns the status code of the last HttpBackendResponse in the httpResponseHistory list.
+// If the last response is nil, it returns http.StatusNoContent.
+// Otherwise, it returns the status code of the last response.
+//
+// If there are multiple responses in the history, it returns the most frequent status code.
+func (h httpResponseHistory) statusCode() int {
+	if helper.IsNil(h.last()) {
 		return http.StatusNoContent
 	}
-	return r.last().StatusCode()
+	return h.last().StatusCode()
 }
 
-// body returns the Body object of the last httpBackendResponse in the httpResponseHistory list.
-// Creates a new Body object using the last httpBackendResponse in the httpResponseHistory.
-// Returns the newly created Body object.
-func (r httpResponseHistory) body() *Body {
-	if helper.IsNil(r.last()) {
-		return nil
-	}
-	return r.last().Body()
-}
-
-func (r httpResponseHistory) aggregateBody() *Body {
-	// instanciamos primeiro o aggregate body para retornar
-	historyBody := NewBodyJson()
-	// iteramos o histórico de backends httpResponse
-	for index, httpBackendResponse := range r {
-		// se tiver nil pulamos para o próximo
-		if helper.IsNil(httpBackendResponse.Body()) {
-			continue
-		}
-		// instânciamos o body
-		body := httpBackendResponse.Body()
-		// caso seja string ou slice agregamos na chave
-		if httpBackendResponse.GroupByType() {
-			historyBody = historyBody.AggregateByKey(httpBackendResponse.Key(index), body)
-		} else {
-			historyBody = historyBody.Aggregate(body)
-		}
-	}
-	// se tudo ocorreu bem retornamos o corpo agregado
-	return historyBody
-}
-
-// sliceOfBodies iterates over the httpResponse history and constructs a slice of bodies from the backend responses.
-// If a backend httpResponse has an empty body, it is skipped.
-// For each backend httpResponse with a non-empty body, a bodyBackendResponse object is created and added to the list of bodies.
-// Returns a new Body object that contains the aggregated list of bodies from the httpResponse history.
-func (r httpResponseHistory) sliceOfBodies() *Body {
-	// instanciamos o valor a ser construído
-	var bodies []*Body
-	// iteramos o histórico para listar os bodies de resposta
-	for index, httpBackendResponse := range r {
-		// se tiver vazio pulamos para o próximo
-		if helper.IsNil(httpBackendResponse.Body()) {
-			continue
-		}
-		// inicializamos o body adicionando o campo "ok" e "code"
-		bodyHttpBackendResponse := NewBodyByHttpBackendResponse(index, httpBackendResponse)
-		// inserimos na lista de retorno
-		bodies = append(bodies, bodyHttpBackendResponse)
-	}
-	// se tudo ocorrer bem, teremos o body agregado
-	return NewBodyBySlice(bodies)
-}
-
-func (r httpResponseHistory) mostFrequentStatusCode() int {
-	// instanciamos um mapa de status code com um count como valor
+// mostFrequentStatusCode returns the most frequent status code in the httpResponseHistory.
+// It creates a map to store the count of occurrences for each status code.
+// Then, it iterates through each httpBackendResponse in the httpResponseHistory
+// and increments the count for the corresponding status code in the map.
+// After that, it finds the most frequent status code by comparing the count with the current maximum count.
+// If the count is greater than or equal to the maximum count, it updates the most frequent status code and the maximum count.
+// Finally, it returns the most frequent status code.
+func (h httpResponseHistory) mostFrequentStatusCode() int {
 	statusCodes := make(map[int]int)
-	// iteramos o histórico para alimentar esse map
-	for _, httpBackendResponse := range r {
+	for _, httpBackendResponse := range h {
 		statusCodes[httpBackendResponse.StatusCode()]++
 	}
-	// instanciamos o maxCount para manter o máximo utilizado
+
 	maxCount := 0
-	// instanciamos o mostFrequentCode para manter o statusCode mais utilizado
 	mostFrequentCode := 0
-	// iteramos para saber qual foi o mais frequente
 	for code, count := range statusCodes {
 		if count >= maxCount {
 			mostFrequentCode = code
 			maxCount = count
 		}
 	}
-	// retornamos o statusCode mais frequente do histórico
+
 	return mostFrequentCode
 }
 
-func (r httpResponseHistory) multipleResponseBody(aggregate bool) *Body {
-	if aggregate {
-		return r.aggregateBody()
+// body returns the Body object of the last httpBackendResponse in the  httpResponseHistory list.
+// If the httpResponseHistory contains multiple responses, it checks if aggregation is required.
+// If aggregation is required, it returns the aggregated Body by key or the aggregated Body.
+// If aggregation is not required, it returns a slice of Body objects from the backend responses.
+// If the httpResponseHistory contains a single response, it returns the Body of that response.
+// If the httpResponseHistory is empty, it returns nil.
+func (h httpResponseHistory) body() *Body {
+	if helper.IsNil(h.last()) {
+		return nil
 	}
-	return r.sliceOfBodies()
+	return h.last().Body()
+}
+
+// aggregateBody iterates over the httpResponseHistory and aggregates the bodies of the HTTP backend responses.
+// If the body is nil, it is skipped. If the backend response is grouped by type, the body is aggregated using the key.
+// Otherwise, the body is aggregated without using the key. The aggregated body is returned as a *Body.
+// Note: The method assumes that all HTTP backend responses in the httpResponseHistory have valid bodies.
+func (h httpResponseHistory) aggregateBody() *Body {
+	historyBody := NewEmptyBodyJson()
+
+	for index, httpBackendResponse := range h {
+		if helper.IsNil(httpBackendResponse.Body()) {
+			continue
+		}
+		body := httpBackendResponse.Body()
+		if httpBackendResponse.GroupByType() {
+			historyBody = historyBody.AggregateByKey(httpBackendResponse.Key(index), body)
+		} else {
+			historyBody = historyBody.Aggregate(body)
+		}
+	}
+
+	return historyBody
+}
+
+// sliceOfBodies iterates through the httpResponseHistory and creates a new slice of Body objects.
+// It skips over any HttpBackendResponse that has a nil body.
+// For each non-nil body, it creates a new Body object using the NewBodyByHttpBackendResponse function.
+// Finally, it returns a new Body object created by aggregating the slice of Body objects
+// using the NewBodyBySlice function.
+func (h httpResponseHistory) sliceOfBodies() *Body {
+	var bodies []*Body
+
+	for index, httpBackendResponse := range h {
+		if helper.IsNil(httpBackendResponse.Body()) {
+			continue
+		}
+		body := NewBodyByHttpBackendResponse(index, httpBackendResponse)
+		bodies = append(bodies, body)
+	}
+
+	return NewBodyBySlice(bodies)
+}
+
+// multipleBody returns the response body of the httpResponseHistory. If aggregation is needed,
+// it aggregates the body of all the responses using the aggregateBody method. Otherwise, it returns a
+// slice of body objects from the backend responses using the sliceOfBodies method. If the httpResponseHistory
+// is empty, it returns nil.
+func (h httpResponseHistory) multipleBody(aggregate bool) *Body {
+	if aggregate {
+		return h.aggregateBody()
+	}
+	return h.sliceOfBodies()
 }

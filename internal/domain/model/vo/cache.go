@@ -1,3 +1,19 @@
+/*
+ * Copyright 2024 Gabriel Cataldo
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package vo
 
 import (
@@ -28,6 +44,11 @@ type Cache struct {
 	allowCacheControl *bool
 }
 
+// newCache returns a new Cache object with values constructed from the provided CacheJson and EndpointCacheJson objects.
+// If both cacheJson and endpointCacheJson are nil, it returns nil.
+// The function checks if cacheJson is not nil and sets the specified values from cacheJson.
+// The function then checks if endpointCacheJson is not nil and updates the values from endpointCacheJson with priority.
+// Finally, it constructs a new Cache object with the obtained values and returns it.
 func newCache(cacheJson *CacheJson, endpointCacheJson *EndpointCacheJson) *Cache {
 	// se os dois cache VO estiver nil retornamos nil
 	if helper.IsNil(cacheJson) && helper.IsNil(endpointCacheJson) {
@@ -82,6 +103,21 @@ func newCache(cacheJson *CacheJson, endpointCacheJson *EndpointCacheJson) *Cache
 	}
 }
 
+// Enabled returns the value of the enabled field in the Cache struct.
+func (c Cache) Enabled() bool {
+	return c.enabled
+}
+
+// Disabled returns the inverse value of Enabled(). It indicates if caching is disabled for the endpoint.
+func (c Cache) Disabled() bool {
+	return !c.Enabled()
+}
+
+// IgnoreQuery returns the value of the ignoreQuery field in the Cache struct.
+func (c Cache) IgnoreQuery() bool {
+	return c.ignoreQuery
+}
+
 // Duration returns the value of the duration field in the Cache struct.
 func (c Cache) Duration() Duration {
 	return c.duration
@@ -101,92 +137,95 @@ func (c Cache) OnlyIfMethods() []string {
 	return c.onlyIfMethods
 }
 
-func (c Cache) Enabled() bool {
-	return c.enabled
-}
-
-func (c Cache) Disabled() bool {
-	return !c.Enabled()
-}
-
-func (c Cache) IgnoreQuery() bool {
-	return c.ignoreQuery
-}
-
+// StrategyHeaders returns the value of the strategyHeaders field in the Cache struct.
 func (c Cache) StrategyHeaders() []string {
 	return c.strategyHeaders
 }
 
+// CacheControl returns the Cache-Control header value from the provided HttpRequest header,
+// if the cache is allowed for the endpoint based on the Cache configuration. Otherwise, it returns an empty string.
+//
+// Parameters:
+// - httpRequest: the HttpRequest object used to retrieve the Cache-Control header value.
+//
+// Returns:
+// - enum.CacheControl: the Cache-Control header value, represented as an enum value of type enum.CacheControl.
+// If caching is not allowed for the endpoint or if the Cache-Control header is not present in the HttpRequest header,
+// it returns an empty enum value.
 func (c Cache) CacheControl(httpRequest *HttpRequest) enum.CacheControl {
 	var control enum.CacheControl
 	if c.AllowCacheControl() {
-		control = httpRequest.CacheControl()
+		control = enum.CacheControl(httpRequest.Header().Get("Cache-Control"))
 	}
 	return control
 }
 
+// CanRead checks if the cache is enabled and allows reading based on the cache configuration and the HTTP request.
+// It returns true if caching is enabled, the cache control value is not "no-cache", and the HTTP method is allowed;
+// otherwise, it returns false.
 func (c Cache) CanRead(httpRequest *HttpRequest) bool {
-	// verificamos se ta ativo
 	if c.Disabled() {
 		return false
 	}
-	// obtemos o cache-control
 	control := c.CacheControl(httpRequest)
-	// verificamos se no Cache-Control enviado veio como "no-cache" e se o método da requisição contains no campo
-	// de permissão, ou esse campo esteja vazio
 	return helper.IsNotEqualTo(enum.CacheControlNoCache, control) && c.AllowMethod(httpRequest.Method())
 }
 
+// CantRead returns the inverse value of CanRead method by passing the httpRequest parameter.
+//
+// Parameters:
+// - httpRequest: the HTTP request used to check if caching is allowed.
+//
+// Returns:
+// - bool: true if caching is not allowed based on the CanRead method, false otherwise.
 func (c Cache) CantRead(httpRequest *HttpRequest) bool {
 	return !c.CanRead(httpRequest)
 }
 
+// CanWrite checks if caching is enabled and allows writing based on the cache configuration and the HTTP request
+// and response.
+// It returns true if caching is enabled, the cache control value is not "no-store", the HTTP method is allowed, and
+// the response status code is allowed;
+// otherwise, it returns false.
 func (c Cache) CanWrite(httpRequest *HttpRequest, httpResponse *HttpResponse) bool {
-	// verificamos se ta ativo
 	if c.Disabled() {
 		return false
 	}
-	// obtemos o cache-control
 	control := c.CacheControl(httpRequest)
-	// verificamos se no Cache-Control enviado veio como "no-store" e se o método da requisição contains no campo
-	// de permissão, também verificamos o código de
 	return helper.IsNotEqualTo(enum.CacheControlNoStore, control) && c.AllowMethod(httpRequest.Method()) &&
 		c.AllowStatusCode(httpResponse.StatusCode())
 }
 
+// CantWrite returns the opposite value of the CanWrite method by passing the httpRequest and httpResponse parameters.
 func (c Cache) CantWrite(httpRequest *HttpRequest, httpResponse *HttpResponse) bool {
 	return !c.CanWrite(httpRequest, httpResponse)
 }
 
+// StrategyKey generates a key for caching based on the provided HTTP request.
+// The key is generated by concatenating the HTTP method and URL of the request.
+// If the cache is configured to ignore query parameters, only the path of the URL is used.
+// Additionally, any header values specified in the `strategyHeaders` field of the Cache struct
+// are appended to the key in the format "key1:value1:key2:value2:...".
+// The generated key is returned as a string.
 func (c Cache) StrategyKey(httpRequest *HttpRequest) string {
-	// inicializamos a url da requisição completa
 	url := httpRequest.Url()
-	// caso o cache queira ignorar as queries, ele ignora
 	if c.IgnoreQuery() {
 		url = httpRequest.Path().String()
 	}
+	strategyKey := fmt.Sprintf("%s:%s", httpRequest.Method(), url)
 
-	// construímos a chave inicialmente com os valores de requisição
-	key := fmt.Sprintf("%s:%s", httpRequest.Method(), url)
-
-	var strategyValues []string
-	// iteramos as chaves para obter os valores
-	for _, strategyKey := range c.strategyHeaders {
-		valueByStrategyKey := httpRequest.Header().Get(strategyKey)
+	var strategyHeaderValues []string
+	for _, strategyHeaderKey := range c.strategyHeaders {
+		valueByStrategyKey := httpRequest.Header().Get(strategyHeaderKey)
 		if helper.IsNotEmpty(valueByStrategyKey) {
-			strategyValues = append(strategyValues, valueByStrategyKey)
+			strategyHeaderValues = append(strategyHeaderValues, valueByStrategyKey)
 		}
 	}
-	// caso tenha encontrado valores, separamos os mesmos
-	strategyKey := strings.Join(strategyValues, ":")
-
-	// caso o valor não esteja vazio retornamos o key padrão com a estratégia imposto no objeto de valor
-	if helper.IsNotEmpty(strategyKey) {
-		key = fmt.Sprintf("%s:%s", key, strategyKey)
+	if helper.IsNotEmpty(strategyHeaderValues) {
+		strategyKey = fmt.Sprintf("%s:%s", strategyKey, strings.Join(strategyHeaderValues, ":"))
 	}
 
-	// retornamos a key construída
-	return key
+	return strategyKey
 }
 
 // AllowMethod checks if the given method is allowed in the Cache.
@@ -212,6 +251,7 @@ func (c Cache) AllowStatusCode(statusCode int) bool {
 		helper.Contains(c.onlyIfStatusCodes, statusCode)
 }
 
+// AllowCacheControl returns the value of the allowCacheControl field in the Cache struct.
 func (c Cache) AllowCacheControl() bool {
 	return helper.IfNilReturns(c.allowCacheControl, false)
 }

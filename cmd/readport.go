@@ -39,20 +39,15 @@ type JsonConfig struct {
 // Finally, it prints the port number to the standard output.
 // The function signature is: `func main()`.
 func main() {
-	// lemos o arquivo passado como argumento
 	file, err := os.Open(os.Args[1])
-	// caso tenha dado erro, ja retornamos como falha ao abrir o arquivo
 	if helper.IsNotNil(err) {
 		fmt.Fprintf(os.Stderr, "Failed to open file: %v\n", err)
 		os.Exit(1)
 	}
-	// fechamos a leitura do mesmo
 	defer file.Close()
 
-	// instanciamos o jsonConfig para ler a porta que está no json
 	data := JsonConfig{}
 	err = json.NewDecoder(file).Decode(&data)
-	// caso ocorra um erro retornamos
 	if helper.IsNotNil(err) {
 		fmt.Fprintf(os.Stderr, "Failed to decode JSON: %v\n", err)
 		os.Exit(1)

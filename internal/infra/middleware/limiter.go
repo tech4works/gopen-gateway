@@ -25,29 +25,42 @@ import (
 	"net/http"
 )
 
+// limiterMiddleware is a type that represents a middleware that handles requests by checking if they are within the
+// allowed rate limit and size limit. It implements the Limiter interface.
 type limiterMiddleware struct {
 }
 
+// Limiter is an interface that defines the behavior of a limiter.
+// Implementations of this interface must have a Do method that takes a context as input.
 type Limiter interface {
+	// Do execute the logic of the limiter.
+	//
+	// It takes a context as input to allow cancellation or passing of values between participating entities.
 	Do(ctx *api.Context)
 }
 
+// NewLimiter creates a new instance of a Limiter and returns it. The Limiter is implemented by the limiterMiddleware
+// struct.
 func NewLimiter() Limiter {
 	return limiterMiddleware{}
 }
 
+// Do handle the request by checking if it is within the allowed rate limit and size limit.
+// It first gets the limiter from the endpoint, then checks if the request is within the rate limit.
+// If the rate limit is exceeded, it writes an error response with status code 429 (Too Many Requests).
+// Next, it checks if the request is within the size limit.
+// If the payload size limit is exceeded, it writes an error response with status code 413 (Request Entity Too Large).
+// If the header size limit is exceeded, it writes an error response with status code 431 (Request Header Fields Too Large).
+// If all checks pass, it proceeds to the next handler.
 func (l limiterMiddleware) Do(ctx *api.Context) {
-	// instanciamos o limiter que esta no endpoint
 	limiter := ctx.Endpoint().Limiter()
 
-	// validamos com o objeto de valor se a requisição está dentro do limite de taxa permitido
 	err := limiter.Rate().Allow(ctx.HttpRequest().Header().Get(consts.XForwardedFor))
 	if helper.IsNotNil(err) {
 		ctx.WriteError(http.StatusTooManyRequests, err)
 		return
 	}
 
-	// validamos com o objeto de valor se a requisição está dentro do tamanho permitido
 	err = limiter.Allow(ctx.HttpRequest())
 	if errors.Contains(err, mapper.ErrPayloadTooLarge) {
 		ctx.WriteError(http.StatusRequestEntityTooLarge, err)
@@ -57,6 +70,5 @@ func (l limiterMiddleware) Do(ctx *api.Context) {
 		return
 	}
 
-	// se tudo ocorreu bem vamos para o próximo manipulador
 	ctx.Next()
 }
