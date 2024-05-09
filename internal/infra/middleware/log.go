@@ -17,16 +17,14 @@
 package middleware
 
 import (
-	"github.com/GabrielHCataldo/go-logger/logger"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/infra"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/infra/api"
-	"time"
 )
 
-// logMiddleware is a struct that represents a logging component. It uses an implementation of the LogProvider interface
+// logMiddleware is a struct that represents a logging component. It uses an implementation of the LogRequestProvider interface
 // to perform logging operations.
 type logMiddleware struct {
-	logProvider infra.LogProvider
+	httpLoggerProvider infra.HttpLoggerProvider
 }
 
 // Log is an interface that defines a logging operation. Implementation of this interface
@@ -37,10 +35,10 @@ type Log interface {
 	Do(ctx *api.Context)
 }
 
-// NewLog creates a new instance of the Log interface using the provided LogProvider.
-func NewLog(logProvider infra.LogProvider) Log {
+// NewLog creates a new instance of the Log interface using the provided LogRequestProvider.
+func NewLog(httpLoggerProvider infra.HttpLoggerProvider) Log {
 	return logMiddleware{
-		logProvider: logProvider,
+		httpLoggerProvider: httpLoggerProvider,
 	}
 }
 
@@ -49,18 +47,12 @@ func NewLog(logProvider infra.LogProvider) Log {
 // prints the start logMiddleware, calls the next request handler, and prints the finish logMiddleware.
 // It takes a *api.Context as a parameter.
 func (l logMiddleware) Do(ctx *api.Context) {
-	// mantemos o tempo que a requisição começou
-	startTime := time.Now()
-
-	// inicializamos a logger options global, com o traceId e XForwardedFor
-	l.logProvider.InitializeLoggerOptions(ctx)
-
-	// imprimimos o logMiddleware de start
-	logger.Info("Start!", l.logProvider.BuildStartRequestMessage(ctx))
+	// imprimimos o log de start
+	l.httpLoggerProvider.PrintHttpRequestInfo(ctx)
 
 	// chamamos o próximo handler da requisição
 	ctx.Next()
 
-	// imprimimos o logMiddleware de finish
-	logger.Info("Finish!", l.logProvider.BuildFinishRequestMessage(ctx.HttpResponse(), startTime))
+	// imprimimos o log de finish
+	l.httpLoggerProvider.PrintHttpResponseInfo(ctx)
 }

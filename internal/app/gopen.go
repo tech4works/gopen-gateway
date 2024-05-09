@@ -22,13 +22,15 @@ import (
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/go-logger/logger"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/app/controller"
-	configVO "github.com/GabrielHCataldo/gopen-gateway/internal/domain/config/model/vo"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/app/mapper"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/interfaces"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/service"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/infra"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/infra/api"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/infra/middleware"
 	"github.com/gin-gonic/gin"
 	"net/http"
-	"time"
 )
 
 // loggerOptions is a variable that holds the options for the logger package.
@@ -57,9 +59,8 @@ var httpServer *http.Server
 // securityCorsMiddleware, timeoutMiddleware, limiterMiddleware, cacheMiddleware, as well as static and endpoint
 // controllers to handle requests.
 type gopenApp struct {
-	gopen                   *configVO.Gopen
+	gopen                   *vo.Gopen
 	panicRecoveryMiddleware middleware.PanicRecovery
-	traceMiddleware         middleware.Trace
 	logMiddleware           middleware.Log
 	securityCorsMiddleware  middleware.SecurityCors
 	timeoutMiddleware       middleware.Timeout
@@ -83,24 +84,34 @@ type Gopen interface {
 	Shutdown(ctx context.Context) error
 }
 
-// NewGopen creates and returns a new `Gopen` object.
-// It returns a `Gopen` interface, which represents the Gopen object that stores the provided configuration and middleware.
-func NewGopen(
-	gopen *configVO.Gopen,
-	panicRecoveryMiddleware middleware.PanicRecovery,
-	traceMiddleware middleware.Trace,
-	logMiddleware middleware.Log,
-	securityCorsMiddleware middleware.SecurityCors,
-	timeoutMiddleware middleware.Timeout,
-	limiterMiddleware middleware.Limiter,
-	cacheMiddleware middleware.Cache,
-	staticController controller.Static,
-	endpointController controller.Endpoint,
-) Gopen {
+func NewGopen(gopenJson *vo.GopenJson, cacheStore interfaces.CacheStore) Gopen {
+	printInfo("Building value objects...")
+	gopen := vo.NewGopen(gopenJson)
+
+	printInfo("Building infra...")
+	restTemplate := infra.NewRestTemplate()
+	logProvider := infra.NewHttpLoggerProvider()
+
+	printInfo("Building domain...")
+	backendService := service.NewBackend(restTemplate)
+	endpointService := service.NewEndpoint(backendService)
+	cacheService := service.NewCache(cacheStore)
+
+	printInfo("Building middlewares...")
+	panicRecoveryMiddleware := middleware.NewPanicRecovery()
+	logMiddleware := middleware.NewLog(logProvider)
+	securityCorsMiddleware := middleware.NewSecurityCors(gopen.SecurityCors())
+	timeoutMiddleware := middleware.NewTimeout()
+	limiterMiddleware := middleware.NewLimiter()
+	cacheMiddleware := middleware.NewCache(cacheService)
+
+	printInfo("Building controllers...")
+	staticController := controller.NewStatic(gopenJson.Version, mapper.BuildSettingViewDTO(gopenJson, gopen))
+	endpointController := controller.NewEndpoint(endpointService)
+
 	return gopenApp{
 		gopen:                   gopen,
 		panicRecoveryMiddleware: panicRecoveryMiddleware,
-		traceMiddleware:         traceMiddleware,
 		logMiddleware:           logMiddleware,
 		timeoutMiddleware:       timeoutMiddleware,
 		limiterMiddleware:       limiterMiddleware,
@@ -120,7 +131,7 @@ func NewGopen(
 // The server uses the Gin engine as its handler.
 // This method doesn't accept parameters or return values.
 func (g gopenApp) ListerAndServer() {
-	printInfoLog("Starting lister and server...")
+	printInfo("Starting lister and server...")
 
 	// instanciamos o gin engine
 	gin.SetMode(gin.ReleaseMode)
@@ -130,25 +141,22 @@ func (g gopenApp) ListerAndServer() {
 	// configuramos rotas estáticas
 	g.buildStaticRoutes(engine)
 
-	printInfoLog("Starting to read endpoints to register routes...")
+	printInfo("Starting to read endpoints to register routes...")
 	// iteramos os endpoints para cadastrar as rotas
 	for _, endpoint := range g.gopen.Endpoints() {
-		// configuramos os handles do endpoint
-		handles := g.buildEndpointHandles(endpoint)
+		handles := g.buildEndpointHandles()
 
-		// cadastramos as rotas no nosso wrapper
 		api.Handle(engine, g.gopen, &endpoint, handles...)
 
-		// imprimimos a informação dos endpoints cadastrado
 		lenString := helper.SimpleConvertToString(len(handles))
-		printInfoLogf("Registered route with %s handles: %s", lenString, endpoint.Resume())
+		printInfof("Registered route with %s handles: %s", lenString, endpoint.Resume())
 	}
 
 	// montamos o endereço com a porta configurada
 	address := fmt.Sprint(":", g.gopen.Port())
 
 	// rodamos o gin engine
-	printInfoLogf("Listening and serving HTTP on %s!", address)
+	printInfof("Listening and serving HTTP on %s!", address)
 
 	// construímos o http server do go com o handler gin
 	httpServer = &http.Server{
@@ -180,56 +188,53 @@ func (g gopenApp) Shutdown(ctx context.Context) error {
 // - "/settings" with the HTTP method "GET" that maps to gopen.staticController.Settings
 func (g gopenApp) buildStaticRoutes(engine *gin.Engine) {
 	// imprimimos o log cmd
-	printInfoLog("Configuring static routes...")
+	printInfo("Configuring static routes...")
 
 	// format
 	formatLog := "Registered route with 5 handles: %s --> \"%s\""
 
 	// ping route
 	pingEndpoint := g.registerStaticPingRoute(engine)
-	printInfoLogf(formatLog, pingEndpoint.Method(), pingEndpoint.Path())
+	printInfof(formatLog, pingEndpoint.Method(), pingEndpoint.Path())
 
 	// version
 	versionEndpoint := g.registerStaticVersionRoute(engine)
-	printInfoLogf(formatLog, versionEndpoint.Method(), versionEndpoint.Path())
+	printInfof(formatLog, versionEndpoint.Method(), versionEndpoint.Path())
 
 	// gopen config infos
 	settingsEndpoint := g.registerStaticSettingsRoute(engine)
-	printInfoLogf(formatLog, settingsEndpoint.Method(), settingsEndpoint.Path())
+	printInfof(formatLog, settingsEndpoint.Method(), settingsEndpoint.Path())
 }
 
-func (g gopenApp) registerStaticPingRoute(engine *gin.Engine) *configVO.Endpoint {
-	endpoint := configVO.NewEndpointStatic(g.gopen, "/ping", http.MethodGet)
+func (g gopenApp) registerStaticPingRoute(engine *gin.Engine) *vo.Endpoint {
+	endpoint := vo.NewEndpointStatic("/ping", http.MethodGet)
 	g.registerStaticRoute(engine, &endpoint, g.staticController.Ping)
 	return &endpoint
 }
 
-func (g gopenApp) registerStaticVersionRoute(engine *gin.Engine) *configVO.Endpoint {
-	endpoint := configVO.NewEndpointStatic(g.gopen, "/version", http.MethodGet)
+func (g gopenApp) registerStaticVersionRoute(engine *gin.Engine) *vo.Endpoint {
+	endpoint := vo.NewEndpointStatic("/version", http.MethodGet)
 	g.registerStaticRoute(engine, &endpoint, g.staticController.Version)
 	return &endpoint
 }
 
-func (g gopenApp) registerStaticSettingsRoute(engine *gin.Engine) *configVO.Endpoint {
-	endpoint := configVO.NewEndpointStatic(g.gopen, "/settings", http.MethodGet)
+func (g gopenApp) registerStaticSettingsRoute(engine *gin.Engine) *vo.Endpoint {
+	endpoint := vo.NewEndpointStatic("/settings", http.MethodGet)
 	g.registerStaticRoute(engine, &endpoint, g.staticController.Settings)
 	return &endpoint
 }
 
-func (g gopenApp) registerStaticRoute(engine *gin.Engine, endpointStatic *configVO.Endpoint, handler api.HandlerFunc) {
+func (g gopenApp) registerStaticRoute(engine *gin.Engine, endpointStatic *vo.Endpoint, handler api.HandlerFunc) {
 	// configuramos o handler do timeout do endpoint como o middleware
-	timeoutHandler := g.timeoutMiddleware.Do(configVO.Duration(10 * time.Second))
+	timeoutHandler := g.timeoutMiddleware.Do
 	// configuramos o handler de panic recovery
 	panicHandler := g.panicRecoveryMiddleware.Do
-	// configuramos o handler do trace como o middleware
-	traceHandler := g.traceMiddleware.Do
 	// configuramos o handler do log como o middleware
 	logHandler := g.logMiddleware.Do
 	// configuramos o handler do limiter do endpoint como o middleware
-	limiterHandler := g.buildLimiterMiddlewareHandler(*endpointStatic)
+	limiterHandler := g.limiterMiddleware.Do
 	// registramos o endpoint estático
-	api.Handle(engine, g.gopen, endpointStatic, timeoutHandler, panicHandler, traceHandler, logHandler,
-		limiterHandler, handler)
+	api.Handle(engine, g.gopen, endpointStatic, timeoutHandler, panicHandler, logHandler, limiterHandler, handler)
 }
 
 // buildEndpointHandles is a method of the gopenApp type that builds a list of middleware handlers for a given endpoint.
@@ -246,28 +251,25 @@ func (g gopenApp) registerStaticRoute(engine *gin.Engine, endpointStatic *config
 // gopenApp configurations.
 // 7. cacheHandler: Used to handle cache requests. The cache duration, cache strategy headers, and allow cache control
 // configurations are determined based on both the endpointVO and gopenApp
-func (g gopenApp) buildEndpointHandles(endpoint configVO.Endpoint) []api.HandlerFunc {
+func (g gopenApp) buildEndpointHandles() []api.HandlerFunc {
 	// configuramos o handler do timeout do endpoint como o middleware
-	timeoutHandler := g.timeoutMiddleware.Do(endpoint.Timeout())
+	timeoutHandler := g.timeoutMiddleware.Do
 	// configuramos o handler de panic recovery
 	panicHandler := g.panicRecoveryMiddleware.Do
-	// configuramos o handler do trace como o middleware
-	traceHandler := g.traceMiddleware.Do
 	// configuramos o handler do log como o middleware
 	logHandler := g.logMiddleware.Do
 	// configuramos o handler do security cors como o middleware
 	securityCorsHandler := g.securityCorsMiddleware.Do
 	// configuramos o handler do limiter do endpoint como o middleware
-	limiterHandler := g.buildLimiterMiddlewareHandler(endpoint)
+	limiterHandler := g.limiterMiddleware.Do
 	// configuramos o handler de cache do endpoint como o middleware
-	cacheHandler := g.cacheMiddleware.Do(endpoint.Cache())
+	cacheHandler := g.cacheMiddleware.Do
 	// configuramos o handler do endpoint como controlador
 	endpointHandler := g.endpointController.Execute
 	// montamos a lista de manipuladores
 	return []api.HandlerFunc{
 		timeoutHandler,
 		panicHandler,
-		traceHandler,
 		logHandler,
 		securityCorsHandler,
 		limiterHandler,
@@ -276,31 +278,17 @@ func (g gopenApp) buildEndpointHandles(endpoint configVO.Endpoint) []api.Handler
 	}
 }
 
-// buildLimiterMiddlewareHandler is a method of the gopenApp type that constructs and returns a limiter middleware handler
-// for the given endpoint. It first retrieves the limiter rate and capacity values from the gopenApp configuration. If
-// these values are specified in the endpoint, they take priority. Next, it retrieves the max header size, max body size,
-// and max multipart form size values from the gopenApp configuration. If these values are specified in the endpoint,
-// they take.
-func (g gopenApp) buildLimiterMiddlewareHandler(endpoint configVO.Endpoint) api.HandlerFunc {
-	// inicializamos o limitador de taxa
-	rateLimiterProvider := infra.NewRateLimiterProvider(endpoint.Limiter().Rate())
-	// inicializamos o limitador de tamanho
-	sizeLimiterProvider := infra.NewSizeLimiterProvider(endpoint.Limiter())
-	// construímos a chamada limiter
-	return g.limiterMiddleware.Do(rateLimiterProvider, sizeLimiterProvider)
-}
-
-// printInfoLog is a function that logs informational messages using logger.InfoOpts from the logger package.
+// printInfo is a function that logs informational messages using logger.InfoOpts from the logger package.
 // It accepts a variadic parameter 'msg' of any type that represents the message to be logged.
 // The loggerOptions variable is used as the logger's options, which contains custom configuration options.
-func printInfoLog(msg ...any) {
+func printInfo(msg ...any) {
 	logger.InfoOpts(loggerOptions, msg...)
 }
 
-// printInfoLogf is a function that logs informational messages using logger.InfoOptsf from the logger package.
+// printInfof is a function that logs informational messages using logger.InfoOptsf from the logger package.
 // It accepts a parameter 'format' of type string that represents the format string for the log message.
 // It also accepts a variadic parameter 'msg' of any type that represents the message to be logged.
 // The loggerOptions variable is used as the logger's options, which contains custom configuration options.
-func printInfoLogf(format string, msg ...any) {
+func printInfof(format string, msg ...any) {
 	logger.InfoOptsf(format, loggerOptions, msg...)
 }

@@ -17,15 +17,12 @@
 package infra
 
 import (
-	"bytes"
 	berrors "errors"
 	"fmt"
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/go-logger/logger"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/main/interfaces"
-	backendMapper "github.com/GabrielHCataldo/gopen-gateway/internal/domain/main/mapper"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/main/model/vo"
-	"io"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/interfaces"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/mapper"
 	"net/http"
 	"net/url"
 	"time"
@@ -85,16 +82,16 @@ func (r restTemplate) printNetHttpRequest(netHttpRequest *http.Request) {
 	msg := fmt.Sprintf("Backend HTTP request: %s --> %s", httpMethod, httpUrl)
 
 	// obtemos o body caso tenha
-	if helper.IsNotNil(netHttpRequest.Body) {
-		bodyBytes, _ := io.ReadAll(netHttpRequest.Body)
-		netHttpRequest.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
-
-		contentType := netHttpRequest.Header.Get("Content-Type")
-		contentEncoding := netHttpRequest.Header.Get("Content-Encoding")
-
-		body := vo.NewBody(contentType, contentEncoding, bytes.NewBuffer(bodyBytes))
-		msg = fmt.Sprintf("%s body: %s", msg, body.CompactString())
-	}
+	//if helper.IsNotNil(netHttpRequest.Body) {
+	//	bodyBytes, _ := io.ReadAll(netHttpRequest.Body)
+	//	netHttpRequest.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+	//
+	//	contentType := netHttpRequest.Header.Get("Content-Type")
+	//	contentEncoding := netHttpRequest.Header.Get("Content-Encoding")
+	//
+	//	body := vo.NewBody(contentType, contentEncoding, bytes.NewBuffer(bodyBytes))
+	//	msg = fmt.Sprintf("%s body: %s", msg, body.CompactString())
+	//}
 
 	// imprimir em forma de debug
 	logger.Debug(msg)
@@ -118,17 +115,17 @@ func (r restTemplate) printNetHttpResponse(netHttpRequest *http.Request, netHttp
 		netHttpResponse.StatusCode)
 
 	// lemos o body
-	bodyBytes, _ := io.ReadAll(netHttpResponse.Body)
-	netHttpResponse.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
-
-	// se tiver body imprimimos
-	if helper.IsNotEmpty(bodyBytes) {
-		contentType := netHttpResponse.Header.Get("Content-Type")
-		contentEncoding := netHttpResponse.Header.Get("Content-Encoding")
-
-		body := vo.NewBody(contentType, contentEncoding, bytes.NewBuffer(bodyBytes))
-		msg = fmt.Sprintf("%s body: %s", msg, body.CompactString())
-	}
+	//bodyBytes, _ := io.ReadAll(netHttpResponse.Body)
+	//netHttpResponse.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+	//
+	//// se tiver body imprimimos
+	//if helper.IsNotEmpty(bodyBytes) {
+	//	contentType := netHttpResponse.Header.Get("Content-Type")
+	//	contentEncoding := netHttpResponse.Header.Get("Content-Encoding")
+	//
+	//	body := vo.NewBody(contentType, contentEncoding, bytes.NewBuffer(bodyBytes))
+	//	msg = fmt.Sprintf("%s body: %s", msg, body.CompactString())
+	//}
 
 	// imprimimos o log de debug da resposta
 	logger.Debug(msg)
@@ -151,9 +148,9 @@ func (r restTemplate) treatHttpClientErr(err error) error {
 		var urlErr *url.Error
 		berrors.As(err, &urlErr)
 		if urlErr.Timeout() {
-			err = backendMapper.NewErrGatewayTimeoutByErr(err)
+			err = mapper.NewErrGatewayTimeoutByErr(err)
 		} else {
-			err = backendMapper.NewErrBadGateway(err)
+			err = mapper.NewErrBadGateway(err)
 		}
 	}
 

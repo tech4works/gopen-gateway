@@ -19,7 +19,6 @@ package middleware
 import (
 	"context"
 	"github.com/GabrielHCataldo/go-errors/errors"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/config/model/vo"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/infra/api"
 	"net/http"
 )
@@ -27,12 +26,8 @@ import (
 type timeoutMiddleware struct {
 }
 
-// Timeout represents an interface for implementing timeoutMiddleware functionality. It has a single method Do
-// that takes a timeoutMiddleware duration and returns a HandlerFunc.
 type Timeout interface {
-	// Do is a method of the Timeout interface that takes a timeoutMiddleware duration and returns a HandlerFunc.
-	// It is used to implement timeoutMiddleware functionality for HTTP route handlers.
-	Do(timeoutDuration vo.Duration) api.HandlerFunc
+	Do(ctx *api.Context)
 }
 
 // NewTimeout returns a new instance of the `timeoutMiddleware` type that implements the `Timeout` interface.
@@ -40,39 +35,31 @@ func NewTimeout() Timeout {
 	return timeoutMiddleware{}
 }
 
-// Do execute a timeoutMiddleware handler for an HTTP request.
-// It initializes the context with the timeoutMiddleware provided in the gateway configuration.
-// The timeoutMiddleware context is set in the current request to propagate it to other handlers.
-// It creates finishChan and starts a goroutine to call the next handler in the request.
-// If the execution finishes on time, it signals the finishChan channel.
-// The main goroutine waits for either the finishChan channel or the context to be notified.
-// If the timeoutMiddleware is reached, it writes a gateway timeoutMiddleware error to the response.
-// If the execution finishes before the timeoutMiddleware, it breaks from the select block.
-func (t timeoutMiddleware) Do(timeoutDuration vo.Duration) api.HandlerFunc {
-	return func(ctx *api.Context) {
-		// inicializamos o context com timeoutMiddleware fornecido na config do gateway
-		timeoutContext, cancel := context.WithTimeout(ctx.Context(), timeoutDuration.Time())
-		defer cancel()
+func (t timeoutMiddleware) Do(ctx *api.Context) {
+	// instanciamos a configuração do endpoint de timeout para aplicar
+	timeout := ctx.Endpoint().Timeout()
 
-		// setamos esse context na request atual para propagar para os outros manipuladores
-		ctx.RequestWithContext(timeoutContext)
+	// inicializamos o context com timeoutMiddleware fornecido na config do gateway
+	timeoutCtx, cancel := context.WithTimeout(ctx.Context(), timeout.Time())
+	defer cancel()
 
-		// criamos os canais de alerta
-		finishChan := make(chan interface{}, 1)
+	// setamos esse context na request atual para propagar para os outros manipuladores
+	ctx.RequestWithContext(timeoutCtx)
 
-		go func() {
-			// chamamos o próximo handler na requisição
-			ctx.Next()
-			// se finalizou a tempo, chamamos o channel para seguir normalmente
-			finishChan <- struct{}{}
-		}()
+	// criamos os canais de alerta
+	finishChan := make(chan interface{}, 1)
 
-		// seguramos o goroutine principal aguardando os canais ou o context serem notificados
-		select {
-		case <-finishChan:
-		case <-ctx.Context().Done():
-			err := errors.New("gateway timeoutMiddleware:", timeoutDuration.String())
-			ctx.WriteError(http.StatusGatewayTimeout, err)
-		}
+	go func() {
+		// chamamos o próximo handler na requisição
+		ctx.Next()
+		// se finalizou a tempo, chamamos o channel para seguir normalmente
+		finishChan <- struct{}{}
+	}()
+
+	// seguramos o goroutine principal aguardando os canais ou o context serem notificados
+	select {
+	case <-finishChan:
+	case <-ctx.Done():
+		ctx.WriteError(http.StatusGatewayTimeout, errors.New("gateway timeout:", timeout.String()))
 	}
 }

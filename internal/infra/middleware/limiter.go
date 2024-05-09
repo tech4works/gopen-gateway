@@ -19,9 +19,8 @@ package middleware
 import (
 	"github.com/GabrielHCataldo/go-errors/errors"
 	"github.com/GabrielHCataldo/go-helper/helper"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/main/mapper"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/main/model/consts"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/infra"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/mapper"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/consts"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/infra/api"
 	"net/http"
 )
@@ -29,50 +28,35 @@ import (
 type limiterMiddleware struct {
 }
 
-// Limiter is an interface that defines a method for handling rate limiting and size limiting
-// for API endpoints. The Do method takes a rateLimiterProvider and a sizeLimiterProvider
-// as arguments and returns a HandlerFunc. The returned HandlerFunc can be used as an HTTP
-// route handler.
 type Limiter interface {
-	// Do handles rate limiting and size limiting for API endpoints.
-	// It takes a rateLimiterProvider and a sizeLimiterProvider as arguments
-	// and returns a HandlerFunc that can be used as an HTTP route handler.
-	Do(rateLimiterProvider infra.RateLimiterProvider, sizeLimiterProvider infra.SizeLimiterProvider) api.HandlerFunc
+	Do(ctx *api.Context)
 }
 
-// NewLimiter creates a new instance of Limiter.
-// It returns a Limiter value which implements the Limiter interface.
 func NewLimiter() Limiter {
 	return limiterMiddleware{}
 }
 
-// Do execute a handler that implements the api.HandlerFunc interface, providing rate limiting and size limiting functionality.
-// It takes a RateLimiterProvider instance and a SizeLimiterProvider instance as input parameters.
-// The rateLimiterProvider is used to check whether the request is allowed based on the rate limit.
-// The sizeLimiterProvider is used to check whether the request size is within the allowed limit.
-// If the request is not allowed, it returns an error and writes an error response to the request.
-// If the request is allowed, it calls the Next() method of the HttpRequest object to execute the next handler in the chain.
-func (l limiterMiddleware) Do(rateLimiterProvider infra.RateLimiterProvider, sizeLimiterProvider infra.SizeLimiterProvider,
-) api.HandlerFunc {
-	return func(ctx *api.Context) {
-		// aqui ja verificamos se a chave hoje sendo ela o IP está permitida
-		err := rateLimiterProvider.Allow(ctx.HeaderValue(consts.XForwardedFor))
-		if helper.IsNotNil(err) {
-			ctx.WriteError(http.StatusTooManyRequests, err)
-			return
-		}
+func (l limiterMiddleware) Do(ctx *api.Context) {
+	// instanciamos o limiter que esta no endpoint
+	limiter := ctx.Endpoint().Limiter()
 
-		// verificamos o tamanho da requisição, e tratamos o erro logo em seguida
-		err = sizeLimiterProvider.Allow(ctx.Http())
-		if errors.Contains(err, mapper.ErrHeaderTooLarge) {
-			ctx.WriteError(http.StatusRequestHeaderFieldsTooLarge, err)
-			return
-		} else if helper.IsNotNil(err) {
-			ctx.WriteError(http.StatusRequestEntityTooLarge, err)
-			return
-		}
-
-		// chamamos o próximo handler da requisição
-		ctx.Next()
+	// validamos com o objeto de valor se a requisição está dentro do limite de taxa permitido
+	err := limiter.Rate().Allow(ctx.HttpRequest().Header().Get(consts.XForwardedFor))
+	if helper.IsNotNil(err) {
+		ctx.WriteError(http.StatusTooManyRequests, err)
+		return
 	}
+
+	// validamos com o objeto de valor se a requisição está dentro do tamanho permitido
+	err = limiter.Allow(ctx.HttpRequest())
+	if errors.Contains(err, mapper.ErrPayloadTooLarge) {
+		ctx.WriteError(http.StatusRequestEntityTooLarge, err)
+		return
+	} else if errors.Contains(err, mapper.ErrHeaderTooLarge) {
+		ctx.WriteError(http.StatusRequestHeaderFieldsTooLarge, err)
+		return
+	}
+
+	// se tudo ocorreu bem vamos para o próximo manipulador
+	ctx.Next()
 }

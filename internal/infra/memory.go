@@ -21,6 +21,7 @@ import (
 	"github.com/GabrielHCataldo/go-errors/errors"
 	"github.com/GabrielHCataldo/go-helper/helper"
 	appmapper "github.com/GabrielHCataldo/gopen-gateway/internal/app/mapper"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/interfaces"
 	"github.com/jellydator/ttlcache/v2"
 	"time"
 )
@@ -32,7 +33,7 @@ type memoryStore struct {
 
 // NewMemoryStore returns a new instance of the MemoryStore structure that implements the CacheStore interface.
 // This implementation uses an in-memory cache with a time-to-live (TTL)
-func NewMemoryStore() CacheStore {
+func NewMemoryStore() interfaces.CacheStore {
 	ttlCache := ttlcache.NewCache()
 	ttlCache.SkipTTLExtensionOnHit(true)
 	return &memoryStore{

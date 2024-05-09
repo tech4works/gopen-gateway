@@ -17,11 +17,22 @@
 package mapper
 
 import (
-	"context"
+	"github.com/GabrielHCataldo/go-helper/helper"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/app/model/dto"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/infra/api"
+	"os"
 )
 
-func BuildExecuteServiceParams(ctx *api.Context) (context.Context, *vo.ExecuteEndpoint) {
-	return ctx.Context(), vo.NewExecuteEndpoint(ctx.Gopen(), ctx.Endpoint(), ctx.HttpRequest())
+func BuildSettingViewDTO(gopenJson *vo.GopenJson, gopen *vo.Gopen) dto.SettingView {
+	return dto.SettingView{
+		Version:         os.Getenv("VERSION"),
+		VersionDate:     os.Getenv("VERSION_DATE"),
+		Founder:         os.Getenv("FOUNDER"),
+		Contributors:    helper.SimpleConvertToInt(os.Getenv("CONTRIBUTORS")),
+		Endpoints:       gopen.CountEndpoints(),
+		Middlewares:     gopen.CountMiddlewares(),
+		Backends:        gopen.CountBackends(),
+		Transformations: gopen.CountAllDataTransforms(),
+		Setting:         gopenJson.Filter(),
+	}
 }

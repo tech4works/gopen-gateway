@@ -17,19 +17,19 @@
 package api
 
 import (
-	configVO "github.com/GabrielHCataldo/gopen-gateway/internal/domain/config/model/vo"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/main/model/vo"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
 	"github.com/gin-gonic/gin"
 	"sync"
+	"time"
 )
 
 type HandlerFunc func(ctx *Context)
 
-func Handle(engine *gin.Engine, gopen *configVO.Gopen, endpoint *configVO.Endpoint, handles ...HandlerFunc) {
+func Handle(engine *gin.Engine, gopen *vo.Gopen, endpoint *vo.Endpoint, handles ...HandlerFunc) {
 	engine.Handle(endpoint.Method(), endpoint.Path(), parseHandles(gopen, endpoint, handles)...)
 }
 
-func parseHandles(gopen *configVO.Gopen, endpoint *configVO.Endpoint, handles []HandlerFunc) []gin.HandlerFunc {
+func parseHandles(gopen *vo.Gopen, endpoint *vo.Endpoint, handles []HandlerFunc) []gin.HandlerFunc {
 	var ginHandler []gin.HandlerFunc
 	for _, apiHandler := range handles {
 		ginHandler = append(ginHandler, handle(gopen, endpoint, apiHandler))
@@ -37,24 +37,20 @@ func parseHandles(gopen *configVO.Gopen, endpoint *configVO.Endpoint, handles []
 	return ginHandler
 }
 
-func handle(gopen *configVO.Gopen, endpoint *configVO.Endpoint, handle HandlerFunc) gin.HandlerFunc {
+func handle(gopen *vo.Gopen, endpoint *vo.Endpoint, handle HandlerFunc) gin.HandlerFunc {
 	return func(gin *gin.Context) {
-		// verificamos se esse contexto ja foi construído
 		ctx, ok := gin.Get("context")
 		if !ok {
-			// construímos o contexto da requisição através dos objetos de valores e o gin
 			ctx = buildContext(gin, gopen, endpoint)
-			// setamos o contexto criado da requisição
 			gin.Set("context", ctx)
 		}
-		// chamamos a função persistida
 		handle(ctx.(*Context))
 	}
 }
 
-func buildContext(gin *gin.Context, gopen *configVO.Gopen, endpoint *configVO.Endpoint) *Context {
-	// o contexto da requisição é criado
+func buildContext(gin *gin.Context, gopen *vo.Gopen, endpoint *vo.Endpoint) *Context {
 	return &Context{
+		startTime:   time.Now(),
 		mutex:       &sync.RWMutex{},
 		framework:   gin,
 		gopen:       gopen,
