@@ -21,6 +21,7 @@ import (
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/go-logger/logger"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/consts"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/infra/api"
 	"net/http"
 	"strings"
@@ -138,37 +139,32 @@ func (h httpLoggerProvider) uriText(uri string) string {
 // statusCodeText returns the status code text to be logged.
 // It calls the statusCodeTextStyle method to get the colorized text and concatenates it with the status code.
 // Example: "200" or "200" (in color)
-func (h httpLoggerProvider) statusCodeText(statusCode int) string {
+func (h httpLoggerProvider) statusCodeText(statusCode vo.StatusCode) string {
 	return fmt.Sprint(h.statusCodeTextStyle(statusCode), " ", statusCode)
 }
 
-// statusCodeTextStyle returns the color text for the given status code.
-// It follows the below conditions to determine the color:
+// statusCodeTextStyle returns the color style to be applied to the status code text.
+// It takes a StatusCode value as input and returns the style as a string which can be used
+// to format the log message. The style is determined based on the range of the given status code.
+// If the status code is within the range of 200 to 299, the style is bold with a green background.
+// If the status code is within the range of 300 to 399, the style is bold with a cyan background.
+// If the status code is within the range of 400 to 499, the style is bold with a yellow background.
+// If the status code is 500 or greater, the style is bold with a red background.
+// If the status code does not fall into any of the above ranges, the style is bold.
 //
-// If the status code is greater than or equal to http.StatusOK and less than http.StatusMultipleChoices,
-// it returns the color text as logger.StyleBold and logger.BackgroundGreen.
+// Parameters:
+// - statusCode: The status code value.
 //
-// If the status code is greater than or equal to http.StatusMultipleChoices and less than http.StatusBadRequest,
-// it returns the color text as logger.StyleBold and logger.BackgroundCyan.
-//
-// If the status code is greater than or equal to http.StatusBadRequest and less than http.StatusInternalServerError,
-// it returns the color text as logger.StyleBold and logger.BackgroundYellow.
-//
-// If the status code is greater than or equal to http.StatusInternalServerError,
-// it returns the color text as logger.StyleBold and logger.BackgroundRed.
-//
-// If none of the above conditions are met, it returns the color text as logger.StyleBold.
-func (h httpLoggerProvider) statusCodeTextStyle(statusCode int) string {
-	if helper.IsGreaterThanOrEqual(statusCode, http.StatusOK) &&
-		helper.IsLessThan(statusCode, http.StatusMultipleChoices) {
+// Returns:
+// - The style as a string which can be used to format the log message.
+func (h httpLoggerProvider) statusCodeTextStyle(statusCode vo.StatusCode) string {
+	if helper.IsGreaterThanOrEqual(statusCode, 200) && helper.IsLessThan(statusCode, 299) {
 		return fmt.Sprint(logger.StyleBold, logger.BackgroundGreen)
-	} else if helper.IsGreaterThanOrEqual(statusCode, http.StatusMultipleChoices) &&
-		helper.IsLessThan(statusCode, http.StatusBadRequest) {
+	} else if helper.IsGreaterThanOrEqual(statusCode, 300) && helper.IsLessThan(statusCode, 400) {
 		return fmt.Sprint(logger.StyleBold, logger.BackgroundCyan)
-	} else if helper.IsGreaterThanOrEqual(statusCode, http.StatusBadRequest) &&
-		helper.IsLessThan(statusCode, http.StatusInternalServerError) {
+	} else if helper.IsGreaterThanOrEqual(statusCode, 400) && helper.IsLessThan(statusCode, 500) {
 		return fmt.Sprint(logger.StyleBold, logger.BackgroundYellow)
-	} else if helper.IsGreaterThanOrEqual(statusCode, http.StatusInternalServerError) {
+	} else if helper.IsGreaterThanOrEqual(statusCode, 500) {
 		return fmt.Sprint(logger.StyleBold, logger.BackgroundRed)
 	}
 	return logger.StyleBold

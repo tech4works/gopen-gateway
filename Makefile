@@ -34,27 +34,21 @@ build-readport-windows:
 	GOOS=windows GOARCH=amd64 go build -o bin/readport-windows-amd64.exe ./cmd/readport.go
 
 define check_env_param
-	@echo "Getting env name argument..."
+	echo "Getting env name argument..."
 
 	# Check the ENV passed in the argument
-	@if [ -z "$(ENV)" ]; then \
-		@echo "Error: No ENV argument provided. Usage: make run ENV=value"; \
-		exit 1; \
-	fi
+    if [ -z "${ENV}" ]; then echo "No ENV argument provided. Usage: make run ENV=value"; exit 1; fi;
 endef
 
 define check_json_exists
-	@echo "Checking if json ./gopen/$(ENV)/.json exists..."
+	echo "Checking if json ./gopen/$(ENV)/.json exists..."
 
 	# Check if the configuration json exists using the environment name passed
-	@if [ ! -f "./gopen/$(ENV)/.json" ]; then \
-		@echo "Error: File ./gopen/$(ENV)/.json does not exist"; \
-		exit 1; \
-	fi
+	if [ ! -f "./gopen/$(ENV)/.json" ]; then echo "File ./gopen/$(ENV)/.json does not exist"; exit 1; fi
 endef
 
 define get_port_by_json
-	@echo "Getting port from json ./gopen/$(ENV)/.json..."
+	echo "Getting port from json ./gopen/$(ENV)/.json..."
 
 	# Defining a temporary variable to store the command output
 	$(eval TEMP_PORT := $(shell ./$(READPORT) ./gopen/$(ENV)/.json 2>/dev/null))
@@ -64,18 +58,25 @@ define get_port_by_json
 endef
 
 define docker_compose
-	@echo "Starting docker-compose with ENV=$(ENV) and PORT=$(PORT)..."
-
 	# Initialize docker-compose with the environment name and the configured port
 	ENV=$(ENV) PORT=$(PORT) docker-compose up
 endef
 
+# Command to generate a docker image and send to docker-hub
+docker-image:
+	echo "-----------------------> \033[1mDOCKERFILE\033[0m <-----------------------"
+	echo "Building image gabrielhcataldo/gopen-gateway..."
+	docker build -t gabrielhcataldo/gopen-gateway:latest .
+	echo "Sending to docker-hub..."
+	docker push gabrielhcataldo/gopen-gateway:latest
+
 # Command to run API Gateway via docker-compose
 run:
-	@echo "-----------------------> \033[1mMAKEFILE\033[0m <-----------------------"
+	echo "-----------------------> \033[1mMAKEFILE\033[0m <-----------------------"
 	$(call check_env_param)
 	$(call check_json_exists)
 	$(call get_port_by_json)
-	@echo ""
-	@echo "-----------------------> \033[1mDOCKER COMPOSE\033[0m <-----------------------"
+	echo "Starting docker-compose with ENV=$(ENV) and PORT=$(PORT)..."
+	echo ""
+	echo "-----------------------> \033[1mDOCKER COMPOSE\033[0m <-----------------------"
 	$(call docker_compose)

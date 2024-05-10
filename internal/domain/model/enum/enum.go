@@ -123,6 +123,8 @@ func ContentTypeFromString(s string) ContentType {
 	// todo: aqui podemos ter XML, YAML, form-data
 	if helper.ContainsIgnoreCase(s, ContentTypeJson.String()) {
 		return ContentTypeJson
+	} else if helper.ContainsIgnoreCase(s, ContentTypeXml.String()) {
+		return ContentTypeXml
 	} else if helper.ContainsIgnoreCase(s, ContentTypeText.String()) {
 		return ContentTypeText
 	}
@@ -157,7 +159,8 @@ func (r Encode) IsEnumValid() bool {
 // otherwise it returns false.
 func (n Nomenclature) IsEnumValid() bool {
 	switch n {
-	case NomenclatureCamel, NomenclatureLowerCamel, NomenclatureSnake, NomenclatureKebab:
+	case NomenclatureCamel, NomenclatureLowerCamel, NomenclatureSnake, NomenclatureKebab, NomenclatureScreamingSnake,
+		NomenclatureScreamingKebab:
 		return true
 	}
 	return false

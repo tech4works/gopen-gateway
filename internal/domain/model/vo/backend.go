@@ -157,10 +157,30 @@ func newBackendResponseForMiddleware() *BackendResponse {
 // newBackendRequest creates a new BackendRequest instance based on the provided backendRequestJson.
 // It takes the fields from backendRequestJson and assigns them to the corresponding fields in the BackendRequest struct.
 // The function returns the created BackendRequest instance.
+// It also initializes the headerModifiers, paramModifiers, queryModifiers, and bodyModifiers by iterating over the
+// corresponding fields in the backendRequestJson.
 func newBackendRequest(backendRequestJson *BackendRequestJson) *BackendRequest {
 	if helper.IsNil(backendRequestJson) {
 		return nil
 	}
+
+	var headerModifiers []Modifier
+	for _, modifierJson := range backendRequestJson.HeaderModifiers {
+		headerModifiers = append(headerModifiers, newModifier(modifierJson))
+	}
+	var paramModifiers []Modifier
+	for _, modifierJson := range backendRequestJson.ParamModifiers {
+		paramModifiers = append(paramModifiers, newModifier(modifierJson))
+	}
+	var queryModifiers []Modifier
+	for _, modifierJson := range backendRequestJson.QueryModifiers {
+		queryModifiers = append(queryModifiers, newModifier(modifierJson))
+	}
+	var bodyModifiers []Modifier
+	for _, modifierJson := range backendRequestJson.BodyModifiers {
+		bodyModifiers = append(bodyModifiers, newModifier(modifierJson))
+	}
+
 	return &BackendRequest{
 		omitHeader:       backendRequestJson.OmitHeader,
 		omitQuery:        backendRequestJson.OmitQuery,
@@ -171,6 +191,10 @@ func newBackendRequest(backendRequestJson *BackendRequestJson) *BackendRequest {
 		headerProjection: backendRequestJson.HeaderProjection,
 		queryProjection:  backendRequestJson.QueryProjection,
 		bodyProjection:   backendRequestJson.BodyProjection,
+		headerModifiers:  headerModifiers,
+		paramModifiers:   paramModifiers,
+		queryModifiers:   queryModifiers,
+		bodyModifiers:    bodyModifiers,
 	}
 }
 

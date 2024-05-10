@@ -27,7 +27,7 @@ import (
 type CacheResponse struct {
 	// StatusCode is an integer field representing the status code of an HTTP httpResponse.
 	// It is included in the CacheResponse struct and is used to store the status code of a cached httpResponse.
-	StatusCode int `json:"statusCode"`
+	StatusCode StatusCode `json:"statusCode"`
 	// Header is a field representing the header of an HTTP httpResponse.
 	// It is included in the CacheResponse struct and is used to store the header of a cached httpResponse.
 	Header Header `json:"header"`
@@ -56,7 +56,7 @@ func NewCacheResponse(httpResponse *HttpResponse, duration Duration) *CacheRespo
 // TTL calculates the time to live (TTL) for the CacheResponse object.
 // It subtracts the current time from the sum of the CreatedAt time and the Duration of the CacheResponse.
 // Returns the TTL duration as a string representation.
-func (c CacheResponse) TTL() string {
+func (c *CacheResponse) TTL() string {
 	timeDuration := c.Duration.Time()
 	sub := c.CreatedAt.Add(timeDuration).Sub(time.Now())
 	return sub.String()

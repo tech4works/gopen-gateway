@@ -233,16 +233,13 @@ func (c Cache) AllowMethod(method string) bool {
 		helper.Contains(c.onlyIfMethods, method)
 }
 
-// AllowStatusCode checks whether the provided status code is allowed based on the following conditions:
-//  1. If the `onlyIfStatusCodes` field in the `EndpointCache` struct is nil, any status code is allowed.
-//  2. If the `onlyIfStatusCodes` field in the `EndpointCache` struct is empty and the status code is between
-//     200 and 299 (inclusive), the status code is allowed.
-//  3. If the `onlyIfStatusCodes` field in the `EndpointCache` struct contains the status code, it is allowed.
-//
-// It returns true if the status code is allowed; otherwise, it returns false.
-func (c Cache) AllowStatusCode(statusCode int) bool {
-	return helper.IsNil(c.onlyIfStatusCodes) || (helper.IsEmpty(c.onlyIfStatusCodes) &&
-		helper.IsGreaterThanOrEqual(statusCode, 200) && helper.IsLessThanOrEqual(statusCode, 299)) ||
+// AllowStatusCode checks if the given status code is allowed in the Cache.
+// If the onlyIfStatusCodes field is nil, it allows all status codes.
+// If onlyIfStatusCodes is empty and the status code is OK, it allows the status code.
+// Otherwise, it checks if the status code exists in the onlyIfStatusCodes field and allows it.
+// It returns true if the status code is allowed, false otherwise.
+func (c Cache) AllowStatusCode(statusCode StatusCode) bool {
+	return helper.IsNil(c.onlyIfStatusCodes) || (helper.IsEmpty(c.onlyIfStatusCodes) && statusCode.Ok()) ||
 		helper.Contains(c.onlyIfStatusCodes, statusCode)
 }
 

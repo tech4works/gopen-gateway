@@ -33,7 +33,7 @@ type HttpBackendResponse struct {
 	// HttpBackendResponse instance.
 	config *BackendResponse
 	// statusCode represents HTTP statusCode of a backend httpResponse.
-	statusCode int
+	statusCode StatusCode
 	// header represents the body fields of a backend httpResponse.
 	header Header
 	// body represents the body of a backend httpResponse.
@@ -55,7 +55,7 @@ func NewHttpBackendResponse(backend *Backend, netHttpResponse *http.Response, ht
 
 	httpBackendResponse := &HttpBackendResponse{
 		config:     backend.Response(),
-		statusCode: netHttpResponse.StatusCode,
+		statusCode: NewStatusCode(netHttpResponse.StatusCode),
 		header:     header,
 		body:       body,
 	}
@@ -68,9 +68,9 @@ func (h *HttpBackendResponse) Written() bool {
 	return h.written
 }
 
-// Ok returns a boolean indicating if the statusCode of the httpBackendResponse instance is within the range 200-299.
+// Ok returns a boolean value indicating whether the HttpBackendResponse's StatusCode is within the valid range of 200 to 299.
 func (h *HttpBackendResponse) Ok() bool {
-	return helper.IsGreaterThanOrEqual(h.statusCode, 200) && helper.IsLessThanOrEqual(h.statusCode, 299)
+	return h.StatusCode().Ok()
 }
 
 // Key returns a string representing the key for the HttpBackendResponse instance based on the given index.
@@ -85,7 +85,7 @@ func (h *HttpBackendResponse) Key(index int) (key string) {
 }
 
 // StatusCode returns the statusCode of the HttpBackendResponse instance.
-func (h *HttpBackendResponse) StatusCode() int {
+func (h *HttpBackendResponse) StatusCode() StatusCode {
 	return h.statusCode
 }
 
@@ -117,12 +117,12 @@ func (h *HttpBackendResponse) GroupByType() bool {
 // The body is only included if it is not nil, and it is converted to its underlying interface value.
 func (h *HttpBackendResponse) Map() any {
 	var body any
-	if helper.IsNotNil(body) {
-		body = h.body.Interface()
+	if helper.IsNotNil(h.Body()) {
+		body = h.Body().Interface()
 	}
 	return map[string]any{
-		"statusCode": h.statusCode,
-		"header":     h.header,
+		"statusCode": h.StatusCode(),
+		"header":     h.Header(),
 		"body":       body,
 	}
 }

@@ -30,7 +30,7 @@ import (
 )
 
 // jsonSchemaUri is a constant string representing the URI of the JSON schema file.
-const jsonSchemaUri = "https://raw.githubusercontent.com/GabrielHCataldo/gopen-gateway/v1.0.0/json-schema.json"
+const jsonSchemaUri = "https://raw.githubusercontent.com/GabrielHCataldo/gopen-gateway/main/json-schema.json"
 
 // bootService is a type that represents the boot service for initializing the application.
 // It holds the environment, cache store provider, logger provider, and JSON provider.

@@ -11,4 +11,4 @@ services:
       - ./gopen/${ENV}:/root/gopen/${ENV}
     environment:
       - ENV=${ENV}
-    restart: unless-stopped
+    restart: no

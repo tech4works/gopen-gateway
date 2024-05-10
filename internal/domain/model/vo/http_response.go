@@ -28,7 +28,7 @@ import (
 // HttpResponse represents the gateway HTTP httpResponse.
 type HttpResponse struct {
 	// statusCode stores the integer HTTP status code of the HttpResponse object.
-	statusCode int
+	statusCode StatusCode
 	// header represents the header of the HttpResponse object.
 	header Header
 	// Body represents the body of the gateway HTTP httpResponse.
@@ -64,32 +64,24 @@ func NewHttpResponseAborted(endpoint *Endpoint, httpBackendResponse *HttpBackend
 	}
 }
 
-// NewHttpResponseByStatusCode creates a new HttpResponse object with the given status code.
-// It checks if the status code is in the range of 200-299, and sets the "ok" header to true.
-// The returned HttpResponse object contains the status code and a new response header object.
-func NewHttpResponseByStatusCode(statusCode int) *HttpResponse {
-	ok := helper.IsGreaterThanOrEqual(statusCode, 200) || helper.IsLessThanOrEqual(statusCode, 299)
+// NewHttpResponseByStatusCode creates a new HttpResponse object with the provided status code.
+// The header is set to a new ResponseHeader object with the "Ok" field set based on the provided status code.
+// The "Ok" field is set to true if the status code is within the valid range of 200 to 299, otherwise false.
+func NewHttpResponseByStatusCode(statusCode StatusCode) *HttpResponse {
 	return &HttpResponse{
 		statusCode: statusCode,
-		header:     NewResponseHeader(true, ok),
+		header:     NewResponseHeader(true, statusCode.Ok()),
 	}
 }
 
-// NewHttpResponseByString creates a new HttpResponse object with the given status code and body.
-// It sets the header to a new ResponseHeader object with the following values:
-//   - The consts.XGopenCache header is set to "false".
-//   - The consts.XGopenComplete header is set to a string representation of the 'ok' boolean value,
-//     which is true if the status code is within the range of 200 to 299 (inclusive), and false otherwise.
-//   - The consts.XGopenSuccess header is set to a string representation of the 'ok' boolean value.
-//     Same as consts.XGopenComplete.
-//
-// The body is set to a new Body object with the content type enum.ContentTypeText and the
-// string value converted to a buffer. It returns the created HttpResponse object.
-func NewHttpResponseByString(statusCode int, body string) *HttpResponse {
-	ok := helper.IsGreaterThanOrEqual(statusCode, 200) || helper.IsLessThanOrEqual(statusCode, 299)
+// NewHttpResponseByString creates a new HttpResponse object with the specified StatusCode and body string.
+// The StatusCode parameter determines the HTTP status code of the response.
+// The body parameter is used to set the body of the response as a string.
+// This function returns a pointer to the created HttpResponse object.
+func NewHttpResponseByString(statusCode StatusCode, body string) *HttpResponse {
 	return &HttpResponse{
 		statusCode: statusCode,
-		header:     NewResponseHeader(true, ok),
+		header:     NewResponseHeader(true, statusCode.Ok()),
 		body:       NewBodyByString(body),
 	}
 }
@@ -100,18 +92,19 @@ func NewHttpResponseByString(statusCode int, body string) *HttpResponse {
 // parameter is set to true if the statusCode is within range, and the 'success' parameter is set to the
 // value of 'ok'. The body is initialized with NewBodyByJson, using the provided 'body' parameter.
 // The created HttpResponse object is returned.
-func NewHttpResponseByJson(statusCode int, body any) *HttpResponse {
-	ok := helper.IsGreaterThanOrEqual(statusCode, 200) || helper.IsLessThanOrEqual(statusCode, 299)
+func NewHttpResponseByJson(statusCode StatusCode, body any) *HttpResponse {
 	return &HttpResponse{
 		statusCode: statusCode,
-		header:     NewResponseHeader(true, ok),
+		header:     NewResponseHeader(true, statusCode.Ok()),
 		body:       NewBodyByJson(body),
 	}
 }
 
-// NewHttpResponseByCache creates a new HttpResponse object based on the provided CacheResponse object.
-// It sets the status code, header, and body of the HttpResponse to the corresponding values in the CacheResponse object.
-// Returns the created HttpResponse object.
+// NewHttpResponseByCache creates a new HttpResponse object with the status code, header, body,
+// and written attribute set based on the given CacheResponse object.
+// The XGopenCache and XGopenCacheTTL headers are added to the header of the HttpResponse object
+// with appropriate values.
+// The body is created by calling the NewBodyByCache function with the CacheResponse object's body.
 func NewHttpResponseByCache(cacheResponse *CacheResponse) *HttpResponse {
 	header := cacheResponse.Header
 	header = header.Set(consts.XGopenCache, helper.SimpleConvertToString(true))
@@ -120,13 +113,13 @@ func NewHttpResponseByCache(cacheResponse *CacheResponse) *HttpResponse {
 		statusCode: cacheResponse.StatusCode,
 		header:     header,
 		body:       NewBodyByCache(cacheResponse.Body),
+		written:    true,
 	}
 }
 
-// NewHttpResponseByErr constructs a new HttpResponse object representing a gateway HTTP error
-// httpResponse. It sets the status code, header, body, and abort properties based on the
-// received error, path, and statusCode. Returns the constructed HttpResponse object.
-func NewHttpResponseByErr(path string, statusCode int, err error) *HttpResponse {
+// NewHttpResponseByErr creates a new HttpResponse object with the given status code,
+// a failed header, a body constructed from the given path and error, and sets abort to true.
+func NewHttpResponseByErr(path string, statusCode StatusCode, err error) *HttpResponse {
 	return &HttpResponse{
 		statusCode: statusCode,
 		header:     NewHeaderFailed(),
@@ -166,7 +159,7 @@ func (r *HttpResponse) Append(httpBackendResponse *HttpBackendResponse) *HttpRes
 // The abort property of the HttpResponse object is set to true.
 // Returns the constructed HttpResponse object with the updated status code, header, body, and abort property.
 func (r *HttpResponse) Error(path string, err error) *HttpResponse {
-	var statusCode int
+	var statusCode StatusCode
 	if errors.Contains(err, mapper.ErrBadGateway) {
 		statusCode = http.StatusBadGateway
 	} else if errors.Contains(err, mapper.ErrGatewayTimeout) {
@@ -197,7 +190,7 @@ func (r *HttpResponse) Written() bool {
 }
 
 // StatusCode returns the status code of the HttpResponse object.
-func (r *HttpResponse) StatusCode() int {
+func (r *HttpResponse) StatusCode() StatusCode {
 	return r.statusCode
 }
 
@@ -276,7 +269,7 @@ func (r *HttpResponse) Map() string {
 // It obtains the body from the filtered history.
 // Returns the updated status code, header, and body.
 func (r *HttpResponse) writeByHistory(endpoint *Endpoint, httpRequest *HttpRequest, httpResponse *HttpResponse) (
-	statusCode int, header Header, body *Body) {
+	statusCode StatusCode, header Header, body *Body) {
 	endpointResponse := endpoint.Response()
 
 	filteredHistory := r.History().Filter(httpRequest, httpResponse)
@@ -294,10 +287,18 @@ func (r *HttpResponse) writeByHistory(endpoint *Endpoint, httpRequest *HttpReque
 	return statusCode, header, body
 }
 
-// writeByEndpointConfig creates a new HttpResponse object with the provided status code, header, body,
-// and sets the written property to true. The body is obtained by calling the writeBodyByEndpointConfig method
-// with the endpoint configuration and the original body object. Returns the constructed HttpResponse object.
-func (r *HttpResponse) writeByEndpointConfig(endpoint *Endpoint, statusCode int, header Header, body *Body) *HttpResponse {
+// writeByEndpointConfig updates the body of the HttpResponse object based on the provided Endpoint and Body objects.
+// It first retrieves the response object from the endpoint.
+// If either the response object or the body object is nil, it returns the original body object.
+// If the omitEmpty flag in the response object is true, it removes any empty values from the body object.
+// If the nomenclature flag in the response object is true, it converts the body object to the specified case.
+// It then determines the content type based on the response object's encode properties and the body object's content
+// type.
+// If the content type is different from the body object's content type, it converts the body object to the specified
+// content type using byte conversion.
+// The updated body object is returned.
+func (r *HttpResponse) writeByEndpointConfig(endpoint *Endpoint, statusCode StatusCode, header Header, body *Body,
+) *HttpResponse {
 	return &HttpResponse{
 		statusCode: statusCode,
 		header:     header,

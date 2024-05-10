@@ -19,9 +19,6 @@ COPY ./cmd/main.go ./cmd/main.go
 # Copy the internal folder
 COPY ./internal ./internal
 
-# Copy the gopen folder
-COPY ./gopen ./gopen
-
 # Change to the directory containing the "main.go" file
 WORKDIR /app/cmd
 
@@ -40,9 +37,6 @@ COPY --from=builder /app/cmd .
 
 # Copy the .env file
 COPY --from=builder /app/.env ./.env
-
-# Copy the gopen folder
-COPY --from=builder /app/gopen ./gopen
 
 # Create the runtime folder in the "root" working repository
 RUN mkdir -p ./runtime

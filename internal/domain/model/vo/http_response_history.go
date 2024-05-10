@@ -73,7 +73,7 @@ func (h httpResponseHistory) MultipleResponse() bool {
 	return helper.IsGreaterThan(h.Size(), 1)
 }
 
-func (h httpResponseHistory) StatusCode() int {
+func (h httpResponseHistory) StatusCode() StatusCode {
 	// se tiver mais de 1 resposta obtemos o código de status mais frequente
 	if h.MultipleResponse() {
 		return h.mostFrequentStatusCode()
@@ -105,7 +105,6 @@ func (h httpResponseHistory) Header() Header {
 // If the httpResponseHistory is empty, it returns nil.
 func (h httpResponseHistory) Body(aggregate bool) *Body {
 	if h.MultipleResponse() {
-		// caso seja de múltiplas respostas, verificamos se precisa agregar as respostas
 		return h.multipleBody(aggregate)
 	}
 	return h.body()
@@ -134,28 +133,26 @@ func (h httpResponseHistory) last() *HttpBackendResponse {
 // Otherwise, it returns the status code of the last response.
 //
 // If there are multiple responses in the history, it returns the most frequent status code.
-func (h httpResponseHistory) statusCode() int {
+func (h httpResponseHistory) statusCode() StatusCode {
 	if helper.IsNil(h.last()) {
 		return http.StatusNoContent
 	}
 	return h.last().StatusCode()
 }
 
-// mostFrequentStatusCode returns the most frequent status code in the httpResponseHistory.
-// It creates a map to store the count of occurrences for each status code.
-// Then, it iterates through each httpBackendResponse in the httpResponseHistory
-// and increments the count for the corresponding status code in the map.
-// After that, it finds the most frequent status code by comparing the count with the current maximum count.
-// If the count is greater than or equal to the maximum count, it updates the most frequent status code and the maximum count.
-// Finally, it returns the most frequent status code.
-func (h httpResponseHistory) mostFrequentStatusCode() int {
-	statusCodes := make(map[int]int)
+// mostFrequentStatusCode calculates and returns the most frequent status code
+// from the httpResponseHistory. It iterates through the history and counts
+// the occurrences of each status code by using a map. Then, it finds the
+// status code with the maximum count and returns it. If there are multiple
+// status codes with the same maximum count, it returns the first one found.
+func (h httpResponseHistory) mostFrequentStatusCode() StatusCode {
+	statusCodes := make(map[StatusCode]int)
 	for _, httpBackendResponse := range h {
 		statusCodes[httpBackendResponse.StatusCode()]++
 	}
 
-	maxCount := 0
-	mostFrequentCode := 0
+	var mostFrequentCode StatusCode = http.StatusNoContent
+	var maxCount int
 	for code, count := range statusCodes {
 		if count >= maxCount {
 			mostFrequentCode = code

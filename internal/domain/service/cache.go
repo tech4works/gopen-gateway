@@ -62,11 +62,17 @@ func (c cacheService) Read(ctx context.Context, cache *vo.Cache, httpRequest *vo
 		return nil, nil
 	}
 
-	var cacheResponse vo.CacheResponse
-	err := c.cacheStore.Get(ctx, cache.StrategyKey(httpRequest), &cacheResponse)
+	var cacheGzipBase64 string
+	err := c.cacheStore.Get(ctx, cache.StrategyKey(httpRequest), &cacheGzipBase64)
 	if errors.Is(err, mapper.ErrCacheNotFound) {
 		return nil, nil
 	} else if helper.IsNotNil(err) {
+		return nil, err
+	}
+
+	var cacheResponse vo.CacheResponse
+	err = helper.ConvertGzipBase64ToDest(cacheGzipBase64, &cacheResponse)
+	if helper.IsNotNil(err) {
 		return nil, err
 	}
 
@@ -88,5 +94,11 @@ func (c cacheService) Write(ctx context.Context, cache *vo.Cache, httpRequest *v
 
 	duration := cache.Duration()
 	cacheResponse := vo.NewCacheResponse(httpResponse, duration)
-	return c.cacheStore.Set(ctx, cache.StrategyKey(httpRequest), cacheResponse, duration.Time())
+
+	cacheGzipBase64, err := helper.ConvertToGzipBase64(cacheResponse)
+	if helper.IsNotNil(err) {
+		return err
+	}
+
+	return c.cacheStore.Set(ctx, cache.StrategyKey(httpRequest), cacheGzipBase64, duration.Time())
 }

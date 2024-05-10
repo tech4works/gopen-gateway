@@ -74,7 +74,7 @@ type GopenJson struct {
 	// Endpoints is a field in the Gopen struct that represents a slice of Endpoint objects.
 	// Each Endpoint object defines a specific API endpoint with its corresponding settings such as path, method,
 	// timeout, limiter, cache, etc.
-	Endpoints []EndpointJson `json:"endpoints,omitempty"`
+	Endpoints []EndpointJson `json:"endpoints,omitempty" validate:"omitempty,dive"`
 }
 
 // StoreJson represents the store configuration json for the Gopen application.
@@ -203,7 +203,7 @@ type EndpointJson struct {
 	Cache *EndpointCacheJson `json:"cache,omitempty"`
 	// AbortIfStatusCodes represents a slice of integers representing the HTTP status codes
 	// for which the API endpoint should abort. It is a field in the Endpoint struct.
-	AbortIfStatusCodes *[]int `json:"abort-if-status-codes,omitempty" validate:"dive,gte=100,lte=599"`
+	AbortIfStatusCodes *[]int `json:"abort-if-status-codes,omitempty" validate:"omitempty,dive,gte=100,lte=599"`
 	// Response is the field in the `EndpointJson` struct that represents the configuration for an API endpoint response.
 	// It is of type `EndpointResponseJson` and is used to define how the response should be encoded and if the responses
 	// should be aggregated from multiple backends.
@@ -221,7 +221,7 @@ type EndpointJson struct {
 	Afterwares []string `json:"afterwares,omitempty"`
 	// Backends represents the backend configurations for an API endpoint in the Gopen application.
 	// It is a slice of Backend structs.
-	Backends []BackendJson `json:"backends,omitempty" validate:"required,min=1"`
+	Backends []BackendJson `json:"backends,omitempty" validate:"required,min=1,dive"`
 }
 
 // EndpointResponseJson represents the configuration for an API endpoint response.

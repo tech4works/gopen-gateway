@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/enum"
+	"strconv"
 )
 
 // CacheBody represents the caching value of an HTTP httpResponse body.
@@ -87,21 +88,37 @@ func (c *CacheBodyValue) Bytes() []byte {
 	return (*bytes.Buffer)(c).Bytes()
 }
 
-// MarshalJSON returns the JSON encoding of the CacheBodyValue instance.
-// The JSON encoding is obtained by calling the String method of the
-// underlying bytes.Buffer type to retrieve the string representation,
-// and then encoding it using json.Marshal.
-// It returns a byte slice representing the JSON encoding and an error,
-// if any occurred during the encoding process.
+// MarshalJSON converts the CacheBodyValue instance to a JSON representation.
+// It calls the Bytes method of the underlying bytes.Buffer type to get the byte slice representation,
+// then it converts the byte slice to a gzip-compressed Base64 string using the helper.ConvertToGzipBase64 function.
+// Finally, it converts the compressed string to a byte slice using the helper.SimpleConvertToBytes function and returns it.
+// If there is an error during the conversion process, it returns the error.
 func (c *CacheBodyValue) MarshalJSON() ([]byte, error) {
-	return c.Bytes(), nil
+	b64, err := helper.ConvertToGzipBase64(c.Bytes())
+	if helper.IsNotNil(err) {
+		return nil, err
+	}
+	b64 = strconv.Quote(b64)
+	return helper.SimpleConvertToBytes(b64), nil
 }
 
-// UnmarshalJSON decodes the JSON data into a string and writes
-// the string to the underlying bytes.Buffer type.
-// It returns an error if there is an issue with decoding or writing
-// the string to the buffer.
+// UnmarshalJSON unmarshals the JSON representation of a CacheBodyValue instance.
+// It converts the input data to a byte slice by passing it to the helper.ConvertGzipBase64ToBytes function.
+// If there is an error during this conversion, it returns the error.
+// Otherwise, it creates a new CacheBodyValue instance using the obtained byte slice as the underlying buffer.
+// Note that the assignment to `c` in this method does not modify the original value of `c`.
+// The method then returns nil indicating a successful unmarshaling.
 func (c *CacheBodyValue) UnmarshalJSON(data []byte) error {
-	_, err := (*bytes.Buffer)(c).Write(data)
-	return err
+	if helper.IsEmpty(data) {
+		return nil
+	}
+
+	unquote, _ := strconv.Unquote(string(data))
+	bs, err := helper.ConvertGzipBase64ToBytes(unquote)
+	if helper.IsNotNil(err) {
+		return err
+	}
+	*c = *(*CacheBodyValue)(bytes.NewBuffer(bs))
+
+	return nil
 }

@@ -17,15 +17,17 @@ go 1.22
 
 require (
 	github.com/GabrielHCataldo/go-errors v1.2.0
-	github.com/GabrielHCataldo/go-helper v1.7.2
+	github.com/GabrielHCataldo/go-helper v1.7.6
 	github.com/GabrielHCataldo/go-logger v1.3.0
 	github.com/GabrielHCataldo/go-redis-template v1.1.5
 	github.com/clbanning/mxj/v2 v2.7.0
 	github.com/fsnotify/fsnotify v1.7.0
 	github.com/gin-gonic/gin v1.9.1
 	github.com/google/uuid v1.6.0
+	github.com/iancoleman/strcase v0.3.0
 	github.com/jellydator/ttlcache/v2 v2.11.1
 	github.com/joho/godotenv v1.5.1
+	github.com/json-iterator/go v1.1.12
 	github.com/tidwall/gjson v1.17.1
 	github.com/tidwall/sjson v1.2.5
 	github.com/xeipuuv/gojsonschema v1.2.0
@@ -47,8 +49,6 @@ require (
 	github.com/go-playground/validator/v10 v10.19.0 // indirect
 	github.com/goccy/go-json v0.10.2 // indirect
 	github.com/iancoleman/orderedmap v0.3.0 // indirect
-	github.com/iancoleman/strcase v0.3.0 // indirect
-	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klassmann/cpfcnpj v0.0.0-20200907140233-a595c5fd8de1 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.7 // indirect
 	github.com/kr/pretty v0.3.0 // indirect

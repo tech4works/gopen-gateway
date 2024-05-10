@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/enum"
-	"net/http"
 	"time"
 )
 
@@ -254,12 +253,12 @@ func (e *Endpoint) Completed(responseHistorySize int) bool {
 	return helper.Equals(responseHistorySize, e.CountBackendsNonOmit())
 }
 
-// Abort checks if the given statusCode should trigger an abort based on the configured abortIfStatusCodes.
-// If abortIfStatusCodes is nil, it returns true if the statusCode is greater than or equal to http.StatusBadRequest,
-// otherwise it returns true if statusCode is found in abortIfStatusCodes.
-func (e *Endpoint) Abort(statusCode int) bool {
+// Abort checks if the given StatusCode should cause the endpoint to be aborted.
+// It returns true if the StatusCode is present in the abortIfStatusCodes slice.
+// If the abortIfStatusCodes slice is nil, it returns whether the StatusCode is a Failed status.
+func (e *Endpoint) Abort(statusCode StatusCode) bool {
 	if helper.IsNil(e.abortIfStatusCodes) {
-		return helper.IsGreaterThanOrEqual(statusCode, http.StatusBadRequest)
+		return statusCode.Failed()
 	}
 	return helper.Contains(e.abortIfStatusCodes, statusCode)
 }

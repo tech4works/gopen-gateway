@@ -240,7 +240,7 @@ func (c *Context) WriteHttpResponse(httpResponse *vo.HttpResponse) {
 // WriteStatusCode writes the given status code to the HTTP response.
 // It creates a new HttpResponse object based on the status code,
 // and then calls WriteHttpResponse to write the response to the client.
-func (c *Context) WriteStatusCode(code int) {
+func (c *Context) WriteStatusCode(code vo.StatusCode) {
 	httpResponse := vo.NewHttpResponseByStatusCode(code)
 	c.WriteHttpResponse(httpResponse)
 }
@@ -248,7 +248,7 @@ func (c *Context) WriteStatusCode(code int) {
 // WriteString takes an HTTP status code and a string body as input and creates
 // an HTTP response using the given code and body. It then writes this response
 // to the underlying HTTP writer by calling WriteHttpResponse.
-func (c *Context) WriteString(code int, body string) {
+func (c *Context) WriteString(code vo.StatusCode, body string) {
 	httpResponse := vo.NewHttpResponseByString(code, body)
 	c.WriteHttpResponse(httpResponse)
 }
@@ -256,7 +256,7 @@ func (c *Context) WriteString(code int, body string) {
 // WriteJson writes a JSON response based on the given status code and body.
 // It creates a new HttpResponse using the provided code and body, then calls
 // WriteHttpResponse with the created HttpResponse object.
-func (c *Context) WriteJson(code int, body any) {
+func (c *Context) WriteJson(code vo.StatusCode, body any) {
 	httpResponse := vo.NewHttpResponseByJson(code, body)
 	c.WriteHttpResponse(httpResponse)
 }
@@ -271,18 +271,18 @@ func (c *Context) WriteCacheResponse(cacheResponse *vo.CacheResponse) {
 // WriteError writes an HTTP response with the given status code and error message.
 // It creates a new HTTP response using the given error and endpoint path, and
 // then calls WriteHttpResponse to send the response back to the client.
-func (c *Context) WriteError(code int, err error) {
+func (c *Context) WriteError(code vo.StatusCode, err error) {
 	httpResponse := vo.NewHttpResponseByErr(c.Endpoint().Path(), code, err)
 	c.WriteHttpResponse(httpResponse)
 }
 
 // writeStatusCode writes the specified status code to the framework's response.
 // If the framework is already aborted, the function returns immediately without modifying the response.
-func (c *Context) writeStatusCode(code int) {
+func (c *Context) writeStatusCode(code vo.StatusCode) {
 	if c.framework.IsAborted() {
 		return
 	}
-	c.framework.Status(code)
+	c.framework.Status(int(code))
 }
 
 // writeHeader writes the specified header to the response. It skips certain headers such as
@@ -300,13 +300,11 @@ func (c *Context) writeHeader(header vo.Header) {
 	}
 }
 
-// writeBody writes the given body with the specified status code and content type to the response.
-// It first checks if the framework's IsAborted method returns true. If true, it returns immediately
-// without writing the response. Otherwise, it calls the framework's Data method to set the response
-// code, content type, and body.
-func (c *Context) writeBody(code int, contentType string, body []byte) {
+// writeBody writes the response body with the given status code, content type, and body.
+// If the framework is aborted, the function returns without writing the body.
+func (c *Context) writeBody(code vo.StatusCode, contentType string, body []byte) {
 	if c.framework.IsAborted() {
 		return
 	}
-	c.framework.Data(code, contentType, body)
+	c.framework.Data(int(code), contentType, body)
 }

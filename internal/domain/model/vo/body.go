@@ -27,6 +27,7 @@ import (
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 	"io"
+	"strconv"
 	"strings"
 )
 
@@ -37,13 +38,6 @@ type Body struct {
 	contentType enum.ContentType
 	// value represents the content of an HTTP httpRequest or httpResponse body. It is stored as a bytes.Buffer object.
 	value *bytes.Buffer
-}
-
-// NewBodyByContentType returns a new Body object based on the provided content type and buffer.
-// It calls the underlying NewBody function with the provided content type, an empty content encoding,
-// and the given buffer.
-func NewBodyByContentType(contentType string, buffer *bytes.Buffer) *Body {
-	return NewBody(contentType, "", buffer)
 }
 
 // NewBody returns a new Body object based on the provided content type, content encoding, and buffer.
@@ -76,6 +70,13 @@ func NewBody(contentType, contentEncoding string, buffer *bytes.Buffer) *Body {
 		contentType: contentTypeEnum,
 		value:       buffer,
 	}
+}
+
+// NewBodyByContentType returns a new Body object based on the provided content type and buffer.
+// It calls the underlying NewBody function with the provided content type, an empty content encoding,
+// and the given buffer.
+func NewBodyByContentType(contentType string, buffer *bytes.Buffer) *Body {
+	return NewBody(contentType, "", buffer)
 }
 
 // NewBodyByContentEncoding returns a new Body object based on the provided content type, content encoding,
@@ -374,12 +375,18 @@ func (b *Body) CompactString() string {
 	return helper.CompactString(b.String())
 }
 
-// Raw returns the raw string value representation of the Body instance.
-// It parses the string value of the Body instance and returns the raw JSON string.
-// If the value is null, it returns the string "null".
-// This method is used for internal conversions and does not contain any additional logic or validation.
+// Raw returns the raw string representation of the Body instance.
+// If the content type of the Body is ContentTypeText,
+// the string will be quoted using strconv.Quote function.
+// Otherwise, the string will be returned as is.
+// The raw string is parsed using parseStringValueToRaw function
+// to convert it into a raw JSON string.
 func (b *Body) Raw() string {
-	return parseStringValueToRaw(b.String())
+	s := b.String()
+	if helper.Equals(b.ContentType(), enum.ContentTypeText) {
+		s = strconv.Quote(s)
+	}
+	return parseStringValueToRaw(s)
 }
 
 // MarshalJSON marshals the value of the Body instance into JSON format.

@@ -641,6 +641,36 @@
         "method"
       ],
       "additionalProperties": false
+    },
+    "backend-middleware": {
+      "type": "object",
+      "properties": {
+        "@comment": {
+          "type": "string"
+        },
+        "hosts": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/url"
+          }
+        },
+        "path": {
+          "$ref": "#/definitions/path"
+        },
+        "method": {
+          "$ref": "#/definitions/http-method"
+        },
+        "request": {
+          "$ref": "#/definitions/backend-request"
+        }
+      },
+      "required": [
+        "hosts",
+        "path",
+        "method"
+      ],
+      "additionalProperties": false
     }
   },
   "type": "object",
@@ -684,7 +714,7 @@
     "middlewares": {
       "type": "object",
       "additionalProperties": {
-        "$ref": "#/definitions/backend"
+        "$ref": "#/definitions/backend-middleware"
       }
     },
     "endpoints": {
