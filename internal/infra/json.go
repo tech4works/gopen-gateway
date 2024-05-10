@@ -1,5 +1,3 @@
-package infra
-
 /*
  * Copyright 2024 Gabriel Cataldo
  *
@@ -15,6 +13,8 @@ package infra
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+package infra
 
 import (
 	"encoding/json"

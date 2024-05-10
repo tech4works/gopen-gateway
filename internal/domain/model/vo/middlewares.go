@@ -35,6 +35,9 @@ func newMiddlewares(middlewaresJson MiddlewaresJson) (m Middlewares) {
 	return m
 }
 
+// Get retrieves a backend from the Middlewares map based on the given key and returns it with a boolean
+// indicating whether it exists or not. The returned backend is wrapped in a new middleware backend
+// using the newMiddlewareBackend function.
 func (m Middlewares) Get(key string) (*Backend, bool) {
 	backend, ok := m[key]
 	if !ok {

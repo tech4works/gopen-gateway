@@ -30,6 +30,8 @@ import (
 // parameters, such as adding, setting, deleting, filtering, and encoding.
 type Query map[string][]string
 
+// NewEmptyQuery creates a new empty instance of the Query type.
+// It returns an empty Query map with no key-value pairs.
 func NewEmptyQuery() Query {
 	return Query{}
 }
@@ -99,25 +101,30 @@ func (q Query) NotExists(key string) bool {
 	return !q.Exists(key)
 }
 
+// Projection modifies the Query map based on the provided Projection.
+// If the projection is nil or empty, the original Query map is returned unchanged.
+// If the projection type is ProjectionValueRejection, a new Query map is returned with the keys specified in the
+// projection removed. Otherwise, a new Query map is returned with only the keys specified in the projection added.
 func (q Query) Projection(projection *Projection) Query {
-	// se o objeto de valor estiver nil ou vazio, retornamos
 	if helper.IsNil(projection) || projection.IsEmpty() {
 		return q
-	}
-	// projetamos com base no tipo de projeção, All, Addition, Rejection
-	if helper.Equals(projection.Type(), enum.ProjectionValueRejection) {
+	} else if helper.Equals(projection.Type(), enum.ProjectionValueRejection) {
 		return q.projectionRejection(projection)
 	}
-	// se não for rejection, ele é Addition ou All, que é a mesma regra
 	return q.projectionAddition(projection)
 }
 
+// Map applies the provided mapper to each key-value pair in the Query map.
+// If the mapper is nil or empty, the original Query map is returned unchanged.
+// If a key exists in the mapper, the key is replaced with the mapped key in a new Query map,
+// while the value remains the same. If a key does not exist in the mapper, the key-value pair is
+// added to the new Query map as is.
+// The new copy of the Query map with the applied mapper is then returned.
 func (q Query) Map(mapper *Mapper) Query {
-	// se tiver nil ou vazio, retornamos o query atual
 	if helper.IsNil(mapper) || mapper.IsEmpty() {
 		return q
 	}
-	// instanciamos o novo query a ser mapeado
+
 	mappedQuery := Query{}
 	for key, value := range q {
 		if mapper.Exists(key) {
@@ -126,14 +133,28 @@ func (q Query) Map(mapper *Mapper) Query {
 			mappedQuery[key] = value
 		}
 	}
-	// retornamos o query mapeado
+
 	return mappedQuery
 }
 
+// Modify modifies the Query map based on the provided Modifier.
+// It extracts the value as a slice of strings using the ValueAsSliceOfString method from the Modifier.
+// It then performs a specific action based on the ActionType of the Modifier.
+// The ActionType can be Add, Append, Set, Replace, or Delete.
+//   - Add: appends the values to the slice associated with the given key in a new copy of the Query map.
+//     If the key does not exist, it creates a new key-value pair with the provided values.
+//   - Append: appends the values to the slice associated with the given key in a new copy of the Query map.
+//     If the key does not exist, it returns the original Query map without any modifications.
+//   - Set: sets the slice of values for the given key in a new copy of the Query map.
+//     If the key does not exist, it creates a new key-value pair with the provided values.
+//   - Replace: replaces the slice of values associated with the given key in a new copy of the Query map.
+//     If the key does not exist, it returns the original Query map without any modifications.
+//   - Delete: deletes the slice associated with the given key in a new copy of the Query map.
+//     If the key does not exist, it returns the original Query map without any modifications.
+//
+// The new copy of the Query map with the applied modification is then returned.
 func (q Query) Modify(modifier *Modifier, httpRequest *HttpRequest, httpResponse *HttpResponse) Query {
-	// instanciamos o valor a ser usado para modificar
 	newValue := modifier.ValueAsSliceOfString(httpRequest, httpResponse)
-	// modificamos com base no action
 	switch modifier.Action() {
 	case enum.ModifierActionAdd:
 		return q.Add(modifier.Key(), newValue)
@@ -150,52 +171,44 @@ func (q Query) Modify(modifier *Modifier, httpRequest *HttpRequest, httpResponse
 	}
 }
 
-// Encode encodes the values into “URL encoded” form
-// ("bar=baz&foo=qux") sorted by key.
+// Encode encodes the Query map into a URL-encoded string.
+// If the Query map is empty, it returns an empty string.
+// The keys in the Query map are sorted in lexicographical order.
+// The values associated with each key are also sorted in lexicographical order.
+// The keys and values are URL-encoded using url.QueryEscape.
+// The URL-encoded key-value pairs are joined with '&' and returned as a single string.
 func (q Query) Encode() string {
-	// se for vazio retornamos a string vazia
 	if helper.IsEmpty(q) {
 		return ""
 	}
 
-	// instanciamos o valor string a ser usado para adicionar os valores
-	var buf strings.Builder
-
-	// obtemos as keys
 	keys := make([]string, 0, len(q))
-	for k := range q {
-		keys = append(keys, k)
+	for key := range q {
+		keys = append(keys, key)
 	}
-	// fazemos o sort
 	sort.Strings(keys)
 
-	// iteramos as chaves ordenadas
-	for _, k := range keys {
-		// obtemos o valor da chave
-		vs := q[k]
-		// fazemos o sort dos valores
-		sort.Strings(vs)
+	var strBuilder strings.Builder
+	for _, key := range keys {
+		valuesByKey := q[key]
+		sort.Strings(valuesByKey)
 
-		// escapamos a chave
-		keyEscaped := url.QueryEscape(k)
-
-		// iteramos sobre os valores pela chave ja ordenados
-		for _, v := range vs {
-			if buf.Len() > 0 {
-				buf.WriteByte('&')
+		keyEscaped := url.QueryEscape(key)
+		for _, value := range valuesByKey {
+			if strBuilder.Len() > 0 {
+				strBuilder.WriteByte('&')
 			}
-			buf.WriteString(keyEscaped)
-			buf.WriteByte('=')
-			buf.WriteString(url.QueryEscape(v))
+			strBuilder.WriteString(keyEscaped)
+			strBuilder.WriteByte('=')
+			strBuilder.WriteString(url.QueryEscape(value))
 		}
 	}
-	// retornamos o valor da query como string
-	return buf.String()
+	return strBuilder.String()
 }
 
-// copy creates a shallow copy of the Query map.
-// It iterates over each key-value pair in the original Query map and assigns them to the new copy.
-// The copied Query map is then returned.
+// copy creates a new copy of the Query map by iterating over the key-value pairs
+// of the original Query map and assigning them to the newly created Query map.
+// The new copy of the Query map is then returned.
 func (q Query) copy() Query {
 	copiedQuery := Query{}
 	for key, value := range q {
@@ -204,30 +217,27 @@ func (q Query) copy() Query {
 	return copiedQuery
 }
 
+// projectionAddition creates a new Query map by adding only the key-value pairs that are specified
+// in the projection and exist in the original Query map. Other key-value pairs are not included.
+// The new copy of the Query map with the projected key-value pairs is then returned.
 func (q Query) projectionAddition(projection *Projection) Query {
-	// inicializamos o query vazio
 	projectedQuery := Query{}
-	// iteramos o query atual
 	for key, value := range q {
-		// se a key atual conter na projeção com o valor 1, adicionamos
 		if projection.IsAddition(key) {
 			projectedQuery[key] = value
 		}
 	}
-	// retornamos o novo query
 	return projectedQuery
 }
 
+// projectionRejection removes the key-value pairs from the Query map that are specified
+// in the projection and exist in the original Query map. The modified Query map is returned.
 func (q Query) projectionRejection(projection *Projection) Query {
-	// iniciamos o valor do query copiando os valores originais
 	projectedQuery := q.copy()
-	// iteramos o query atual
 	for key := range q {
-		// se ele estiver na projeção, removemos
 		if projection.Exists(key) {
 			delete(projectedQuery, key)
 		}
 	}
-	// retornamos o novo query
 	return projectedQuery
 }

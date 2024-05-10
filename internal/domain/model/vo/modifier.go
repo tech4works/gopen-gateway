@@ -17,11 +17,10 @@
 package vo
 
 import (
-	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/enum"
 )
 
-// Modifier represents a modification that can be applied to a httpRequest or httpResponse in the Gopen application.
+// Modifier represents a modification that can be applied to a data structure.
 type Modifier struct {
 	// action represents the action to be performed in the Modifier struct.
 	// It is an enum.ModifierAction value and can be one of the following values:
@@ -36,11 +35,15 @@ type Modifier struct {
 	// key represents a string value that serves as the key for a modification in the Modifier structure.
 	// Indicates the field that you want to modify.
 	key string
-	// value represents a string value in the Modifier struct.
-	// It is used as a field to store the value of a modification.
+	// value represents a dynamic value that can be processed and converted into different types.
 	value DynamicValue
 }
 
+// newModifier creates a new Modifier object with the given ModifierJson.
+// It assigns the action, propagate, key, and value fields from the ModifierJson to the corresponding fields in the
+// Modifier struct.
+// The value field is created by calling the NewDynamicValue function with the value field of the ModifierJson as
+// the argument.
 func newModifier(modifierJson ModifierJson) Modifier {
 	return Modifier{
 		action:    modifierJson.Action,
@@ -65,25 +68,21 @@ func (m Modifier) Key() string {
 	return m.key
 }
 
+// ValueAsString returns the string representation of the value in the Modifier struct.
 func (m Modifier) ValueAsString(httpRequest *HttpRequest, httpResponse *HttpResponse) string {
 	return m.value.AsString(httpRequest, httpResponse)
 }
 
+// ValueAsInt returns the integer representation of the value in the Modifier struct.
+// It uses the Value's AsInt method and passes the HttpRequest and HttpResponse as parameters.
+// This method can be used to obtain an integer representation of the value in the Modifier struct.
 func (m Modifier) ValueAsInt(httpRequest *HttpRequest, httpResponse *HttpResponse) int {
 	return m.value.AsInt(httpRequest, httpResponse)
 }
 
+// ValueAsSliceOfString returns the value from the Modifier struct as a slice of strings.
+// It uses the Value's AsSliceOfString method and passes the HttpRequest and HttpResponse as parameters.
+// This method can be used to obtain a slice of strings representation of the value in the Modifier struct.
 func (m Modifier) ValueAsSliceOfString(httpRequest *HttpRequest, httpResponse *HttpResponse) []string {
 	return m.value.AsSliceOfString(httpRequest, httpResponse)
-}
-
-// Valid checks if a Modifier is valid.
-// A Modifier is considered valid if both the Modifier and its value are not empty.
-func (m Modifier) Valid() bool {
-	return helper.IsNotEmpty(m)
-}
-
-// Invalid checks if the Modifier is invalid. It returns true if the Modifier is not valid, otherwise it returns false.
-func (m Modifier) Invalid() bool {
-	return !m.Valid()
 }

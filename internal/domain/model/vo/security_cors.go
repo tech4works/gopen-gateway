@@ -37,7 +37,7 @@ type SecurityCors struct {
 }
 
 // newSecurityCors creates a new SecurityCors object based on the given SecurityCorsJson object.
-// If the securityCorsJsonVO is nil, it returns nil.
+// If the securityCorsJson is nil, it returns nil.
 // Otherwise, it initializes a new SecurityCors object with the allowOrigins, allowMethods, and allowHeaders fields
 // populated with the corresponding values from the SecurityCorsJson object.
 // The newly created SecurityCors object is returned as a pointer.
@@ -56,7 +56,6 @@ func newSecurityCors(securityCorsJson *SecurityCorsJson) *SecurityCors {
 // If the allowOrigins field is not empty and does not contain the given IP, it returns an error "Origin not mapped
 // on security-cors.allow-origins". Otherwise, it returns nil.
 func (s SecurityCors) AllowOrigins(ip string) (err error) {
-	// verificamos se na configuração security-cors.allow-origins ta vazia, ou tá informado o ip da requisição
 	if helper.IsNotEmpty(s.allowOrigins) && helper.NotContains(s.allowOrigins, ip) {
 		err = errors.New("Origin not mapped on security-cors.allow-origins")
 	}
@@ -67,39 +66,36 @@ func (s SecurityCors) AllowOrigins(ip string) (err error) {
 // If the allowMethods field is not empty and does not contain the given method, it returns an error "Method not mapped
 // on security-cors.allow-methods". Otherwise, it returns nil.
 func (s SecurityCors) AllowMethods(method string) (err error) {
-	// verificamos se na configuração security-cors.allow-methods ta vazia ou tá informado com oq vem na requisição
 	if helper.IsNotEmpty(s.allowMethods) && helper.NotContains(s.allowMethods, method) {
 		err = errors.New("Method not mapped on security-cors.allow-methods")
 	}
 	return err
 }
 
-// AllowHeaders checks if the requested HTTP headers are allowed based on the allowHeaders field in the SecurityCors struct.
+// AllowHeaders checks if the given HTTP headers are allowed based on the allowHeaders field in the SecurityCors struct.
 // If the allowHeaders field is empty, it returns nil.
-// Otherwise, it iterates over the headers of the httpRequest and adds any headers that are not mapped in the allowHeaders list,
-// except for the X-Forwarded-For and X-Trace-Id headers.
-// If there are headers that are not allowed, it returns an error "Headers contains not mapped fields on security-cors.allow-headers"
-// along with the list of headers that are not allowed.
-// If all headers are allowed, it returns nil.
+// Otherwise, it iterates through the keys in the header map and checks if the key is not equal to consts.XForwardedFor,
+// consts.XTraceId, and if it is not contained in the allowHeaders list.
+// If any headers are found that are not allowed, it appends them to the headersNotAllowed slice.
+// Finally, if headersNotAllowed is not empty, it joins the values into a comma-separated string and returns an error
+// "Headers contains not mapped fields on security-cors.allow-headers: <comma-separated headers>".
+// Otherwise, it returns nil.
 func (s SecurityCors) AllowHeaders(header Header) (err error) {
-	// verificamos se na configuração security-cors.allow-headers ta vazia
 	if helper.IsEmpty(s.allowHeaders) {
 		return nil
 	}
-	// inicializamos os headers não permitidos
+
 	var headersNotAllowed []string
-	// iteramos o header da requisição para verificar os headers que contain
 	for key := range header {
 		if helper.IsNotEqualTo(key, consts.XForwardedFor) && helper.IsNotEqualToIgnoreCase(key, consts.XTraceId) &&
 			helper.NotContains(s.allowHeaders, key) {
 			headersNotAllowed = append(headersNotAllowed, key)
 		}
 	}
-	// caso a lista não esteja vazia, quer dizer que tem headers não permitidos
 	if helper.IsNotEmpty(headersNotAllowed) {
 		headersFields := strings.Join(headersNotAllowed, ", ")
-		return errors.New("Headers contains not mapped fields on security-cors.allow-headers:", headersFields)
+		err = errors.New("Headers contains not mapped fields on security-cors.allow-headers:", headersFields)
 	}
-	// se tudo ocorreu bem retornamos nil
-	return nil
+
+	return err
 }

@@ -224,11 +224,12 @@ type EndpointJson struct {
 	Backends []BackendJson `json:"backends,omitempty" validate:"required,min=1"`
 }
 
+// EndpointResponseJson represents the configuration for an API endpoint response.
 type EndpointResponseJson struct {
-	// AggregateResponses represents a boolean indicating whether the API endpoint should aggregate responses
+	// Aggregate represents a boolean indicating whether the API endpoint should aggregate responses
 	// from multiple backends.
 	Aggregate bool `json:"aggregate,omitempty"`
-	// ResponseEncode represents the encoding format for the API endpoint response. The ResponseEncode
+	// Encode represents the encoding format for the API endpoint response. The ResponseEncode
 	// field is an enum.Encode value, which can have one of the following values:
 	// - enum.EncodeText: for encoding the response as plain text.
 	// - enum.EncodeJson: for encoding the response as JSON.
@@ -268,42 +269,82 @@ type BackendJson struct {
 
 // BackendRequestJson represents the JSON structure for a backend request in the Gopen application configuration.
 type BackendRequestJson struct {
-	// OmitHeader is a boolean flag that indicates whether the header should be omitted in the backend
-	// request JSON structure.
+	// OmitHeader is a boolean flag that indicates whether the header should be omitted in the backend HTTP request.
 	OmitHeader bool `json:"omit-header,omitempty"`
-	// OmitQuery is a boolean flag that indicates whether the query should be omitted in the backend
-	// request JSON structure.
+	// OmitQuery is a boolean flag that indicates whether the query should be omitted in the backend HTTP request.
 	OmitQuery bool `json:"omit-query,omitempty"`
-	// OmitBody is a boolean flag that indicates whether the body should be omitted in the backend request JSON structure.
+	// OmitBody is a boolean flag that indicates whether the body should be omitted in the backend HTTP request.
 	OmitBody bool `json:"omit-body,omitempty"`
 	// HeaderMapper represents the mapping of header fields in a backend request.
-	// It is used to define the mapping of header keys to corresponding values.
+	// It is used to rename keys in the header of a request.
 	HeaderMapper *Mapper `json:"header-mapper,omitempty"`
-
-	// todo
-	QueryMapper      *Mapper        `json:"query-mapper,omitempty"`
-	BodyMapper       *Mapper        `json:"body-mapper,omitempty"`
-	HeaderProjection *Projection    `json:"header-projection,omitempty"`
-	QueryProjection  *Projection    `json:"query-projection,omitempty"`
-	BodyProjection   *Projection    `json:"body-projection,omitempty"`
-	HeaderModifiers  []ModifierJson `json:"header-modifiers,omitempty" validate:"dive,required"`
-	ParamModifiers   []ModifierJson `json:"param-modifiers,omitempty" validate:"dive,required"`
-	QueryModifiers   []ModifierJson `json:"query-modifiers,omitempty" validate:"dive,required"`
-	BodyModifiers    []ModifierJson `json:"body-modifiers,omitempty" validate:"dive,required"`
+	// QueryMapper represents a mapper for mapping keys to values in the query parameters of a backend request.
+	// It is used to rename keys in the query of a request.
+	QueryMapper *Mapper `json:"query-mapper,omitempty"`
+	// BodyMapper is a field in the BackendRequestJson structure that represents a mapper for the body of a backend request.
+	// It is used to rename keys in the body of a request.
+	BodyMapper *Mapper `json:"body-mapper,omitempty"`
+	// HeaderProjection represents a projection of headers in the BackendRequestJson structure.
+	HeaderProjection *Projection `json:"header-projection,omitempty"`
+	// QueryProjection represents a projection of keys and values that can be applied to the query parameters
+	// of a backend request in the Gopen application configuration.
+	QueryProjection *Projection `json:"query-projection,omitempty"`
+	// BodyProjection is a struct that represents a projection for the body of a BackendRequestJson.
+	BodyProjection *Projection `json:"body-projection,omitempty"`
+	// HeaderModifiers represents a slice of ModifierJson objects that can be applied to the header of a backend request
+	// in the Gopen application configuration.
+	HeaderModifiers []ModifierJson `json:"header-modifiers,omitempty" validate:"dive,required"`
+	// ParamModifiers represents a list of modifications that can be applied to request parameters
+	ParamModifiers []ModifierJson `json:"param-modifiers,omitempty" validate:"dive,required"`
+	// QueryModifiers is a slice of ModifierJson structs representing modifications that can be applied to an HTTP
+	// request or response.
+	QueryModifiers []ModifierJson `json:"query-modifiers,omitempty" validate:"dive,required"`
+	// BodyModifiers represents an array of ModifierJson objects. It is a field
+	// in the BackendRequestJson struct and is used to specify modifications that
+	// can be applied to the body of an HTTP request.
+	BodyModifiers []ModifierJson `json:"body-modifiers,omitempty" validate:"dive,required"`
 }
 
+// BackendResponseJson represents the JSON response from a backend.
 type BackendResponseJson struct {
-	Apply            enum.BackendResponseApply `json:"apply,omitempty" validate:"omitempty,enum"`
-	Omit             bool                      `json:"omit,omitempty"`
-	OmitHeader       bool                      `json:"omit-header,omitempty"`
-	OmitBody         bool                      `json:"omit-body,omitempty"`
-	Group            string                    `json:"group,omitempty" validate:"omitempty,min=1"`
-	HeaderMapper     *Mapper                   `json:"header-mapper,omitempty"`
-	BodyMapper       *Mapper                   `json:"body-mapper,omitempty"`
-	HeaderProjection *Projection               `json:"header-projection,omitempty"`
-	BodyProjection   *Projection               `json:"body-projection,omitempty"`
-	HeaderModifiers  []ModifierJson            `json:"header-modifiers,omitempty" validate:"dive,required"`
-	BodyModifiers    []ModifierJson            `json:"body-modifiers,omitempty" validate:"dive,required"`
+	// Apply represents the application scope of a BackendResponse. It is an optional field that indicates whether
+	// these settings must be applied sooner or later. Possible values for Apply are "EARLY" and "LATE".
+	Apply enum.BackendResponseApply `json:"apply,omitempty" validate:"omitempty,enum"`
+	// Omit is a field that indicates whether the HTTP response from the backend should be omitted or not.
+	// If Omit is true, the HTTP response from the backend will be omitted to the final HTTP client. Otherwise,
+	// it will be returned to the end customer.
+	Omit bool `json:"omit,omitempty"`
+	// OmitHeader is a boolean field that indicates whether the backend HTTP response header should be omitted or not.
+	// If OmitHeader is true, the header property will be omitted for the final HTTP client. Otherwise, the header will
+	// be displayed to the end customer.
+	OmitHeader bool `json:"omit-header,omitempty"`
+	// OmitBody is a boolean field that indicates whether the body of the backend response should be omitted or not.
+	// If OmitBody is true, the body property will be omitted for the final HTTP client. Otherwise, it will be displayed
+	// if it has a body.
+	OmitBody bool `json:"omit-body,omitempty"`
+	// Group is a string field, which represents the field to be used to group the backend HTTP response body, to the
+	// final HTTP response body. It is optional and must have a minimum length of 1 character.
+	Group string `json:"group,omitempty" validate:"omitempty,min=1"`
+	// HeaderMapper represents a mapper for headers in a BackendResponseJson.
+	// Allows you to rename header fields using the key to identify the current field, and the value representing the
+	// new value of the header key.
+	HeaderMapper *Mapper `json:"header-mapper,omitempty"`
+	// BodyMapper represents a mapper for the body in a BackendResponseJson.
+	// Allows you to rename JSON fields using the key to identify the current field and the value that represents the
+	// new JSON key value.
+	BodyMapper *Mapper `json:"body-mapper,omitempty"`
+	// HeaderProjection represents the header projection of a BackendResponseJson.
+	// It is used to define which header fields should be included or excluded when processing the response.
+	HeaderProjection *Projection `json:"header-projection,omitempty"`
+	// BodyProjection represents the body projection of a BackendResponseJson.
+	// It is used to define which body fields should be included or excluded when processing the response.
+	BodyProjection *Projection `json:"body-projection,omitempty"`
+	// HeaderModifiers is a slice of ModifierJson objects representing modifications that can be applied to backend
+	// response HTTP headers.
+	HeaderModifiers []ModifierJson `json:"header-modifiers,omitempty" validate:"dive,required"`
+	// BodyModifiers is a slice of ModifierJson representing modifications that can be applied to backend
+	// response HTTP body.
+	BodyModifiers []ModifierJson `json:"body-modifiers,omitempty" validate:"dive,required"`
 }
 
 // ModifierJson represents a modification that can be applied to a httpRequest or response in the Gopen application.
@@ -329,48 +370,49 @@ type ModifierJson struct {
 	Value string `json:"value,omitempty"`
 }
 
+// NewGopenJson parses the given bytes as a GopenJson object and returns a pointer to it.
+// It first converts the bytes into a GopenJson object using the ConvertToDest function.
+// Then it validates the GopenJson object using the Validate function.
+// If any validation errors occur, it returns an error with a descriptive message.
+// Next, it calls the ValidateEndpoints function to validate the endpoints in the GopenJson object.
+// If any errors occur during endpoint validation, it returns an error with a descriptive message.
+// Finally, it returns the pointer to the parsed and validated GopenJson object and nil error.
+// If any errors occur during the parsing or validation process, it returns nil and an error message.
 func NewGopenJson(bytes []byte) (*GopenJson, error) {
-	// convertemos o valor em bytes em VO
 	var gopenJson GopenJson
 	err := helper.ConvertToDest(bytes, &gopenJson)
 	if helper.IsNil(err) {
 		err = helper.Validate().Struct(gopenJson)
 	}
 
-	// se ocorreu algum erro retornamos
 	if helper.IsNotNil(err) {
 		return nil, errors.New("Error parse Gopen json file to VO:", err)
-	}
-
-	// verificamos se os endpoints estão cadastrados de forma correta
-	if err = ValidateEndpoints(gopenJson.Endpoints); helper.IsNotNil(err) {
+	} else if err = ValidateEndpoints(gopenJson.Endpoints); helper.IsNotNil(err) {
 		return nil, err
 	}
 
-	// retornamos o VO que é a configuração do Gopen
 	return &gopenJson, nil
 }
 
+// ValidateEndpoints validates the given endpoints for any duplicate registrations.
+// It compares each endpoint with every other endpoint to check if the path and method are already registered.
+// If any duplicate registrations are found, it adds a warning message to the warnings slice.
+// If no warnings are found, it returns nil.
+// Otherwise, it returns an error with all the warning messages joined by a newline character.
 func ValidateEndpoints(endpoints []EndpointJson) error {
-	// instanciamos uma lista de mensagens para utilizar na validação dos endpoints
-	var messages []string
-	// iteramos sobre os endpoints para validar
+	var warnings []string
 	for index, endpoint := range endpoints {
-		// iteramos a própria lista para verificar possível repetição de endpoint
 		for anotherIndex, anotherEndpoint := range endpoints {
-			// verificamos se a posição é diferente e se o endpoint e igual, caso seja adicionamos uma mensagem de erro
 			if helper.IsNotEqualTo(index, anotherIndex) && endpoint.Equals(anotherEndpoint) {
 				format := "endpoint path: %s method: %s on index: %v already registered on index %v!"
-				messages = append(messages, fmt.Sprintf(format, endpoint.Path, endpoint.Method, anotherIndex, index))
+				warnings = append(warnings, fmt.Sprintf(format, endpoint.Path, endpoint.Method, anotherIndex, index))
 			}
 		}
 	}
-	// caso a lista de mensagem esteja vazia, retornamos nil
-	if helper.IsEmpty(messages) {
+	if helper.IsEmpty(warnings) {
 		return nil
 	}
-	// retornamos um erro com todas as mensagens listadas
-	return errors.New(fmt.Sprintf("Error %s", strings.Join(messages, "\n ")))
+	return errors.New(fmt.Sprintf("Error %s", strings.Join(warnings, "\n ")))
 }
 
 // Filter returns a new GopenJson object with the same values as the receiver.
@@ -393,6 +435,9 @@ func (g GopenJson) Filter() *GopenJson {
 	}
 }
 
+// Equals checks if the current EndpointJson object is equal to another EndpointJson object.
+// Two EndpointJson objects are considered equal if their `Path` and `Method` fields are equal.
+// If both fields are equal, the method returns true. Otherwise, it returns false.
 func (e EndpointJson) Equals(another EndpointJson) bool {
 	return helper.Equals(e.Path, another.Path) && helper.Equals(e.Method, another.Method)
 }
