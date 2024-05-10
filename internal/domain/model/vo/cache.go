@@ -50,12 +50,10 @@ type Cache struct {
 // The function then checks if endpointCacheJson is not nil and updates the values from endpointCacheJson with priority.
 // Finally, it constructs a new Cache object with the obtained values and returns it.
 func newCache(cacheJson *CacheJson, endpointCacheJson *EndpointCacheJson) *Cache {
-	// se os dois cache VO estiver nil retornamos nil
 	if helper.IsNil(cacheJson) && helper.IsNil(endpointCacheJson) {
 		return nil
 	}
 
-	// obtemos o valor do pai
 	var enabled bool
 	var ignoreQuery bool
 	var duration Duration
@@ -64,7 +62,6 @@ func newCache(cacheJson *CacheJson, endpointCacheJson *EndpointCacheJson) *Cache
 	var onlyIfMethods []string
 	var allowCacheControl *bool
 
-	// caso seja informado na raiz
 	if helper.IsNotNil(cacheJson) {
 		duration = cacheJson.Duration
 		strategyHeaders = cacheJson.StrategyHeaders
@@ -73,7 +70,6 @@ func newCache(cacheJson *CacheJson, endpointCacheJson *EndpointCacheJson) *Cache
 		allowCacheControl = cacheJson.AllowCacheControl
 	}
 
-	// caso seja informado no endpoint, damos prioridade
 	if helper.IsNotNil(endpointCacheJson) {
 		enabled = endpointCacheJson.Enabled
 		ignoreQuery = endpointCacheJson.IgnoreQuery
@@ -91,7 +87,6 @@ func newCache(cacheJson *CacheJson, endpointCacheJson *EndpointCacheJson) *Cache
 		}
 	}
 
-	// construímos o objeto de valor com os valores padrões ou informados no json
 	return &Cache{
 		enabled:           enabled,
 		duration:          duration,

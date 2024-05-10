@@ -386,7 +386,7 @@ func NewGopenJson(bytes []byte) (*GopenJson, error) {
 	}
 
 	if helper.IsNotNil(err) {
-		return nil, errors.New("Error parse Gopen json file to VO:", err)
+		return nil, errors.New("Error parse Gopen json file to value object:", err)
 	} else if err = ValidateEndpoints(gopenJson.Endpoints); helper.IsNotNil(err) {
 		return nil, err
 	}

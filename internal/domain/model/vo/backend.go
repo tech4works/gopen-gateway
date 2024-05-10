@@ -185,12 +185,12 @@ func newBackendResponse(backendResponseJson *BackendResponseJson) *BackendRespon
 	}
 
 	var headerModifiers []Modifier
-	for _, headerModifierJsonVO := range backendResponseJson.HeaderModifiers {
-		headerModifiers = append(headerModifiers, newModifier(headerModifierJsonVO))
+	for _, headerModifierJson := range backendResponseJson.HeaderModifiers {
+		headerModifiers = append(headerModifiers, newModifier(headerModifierJson))
 	}
 	var bodyModifiers []Modifier
-	for _, bodyModifierJsonVO := range backendResponseJson.BodyModifiers {
-		bodyModifiers = append(bodyModifiers, newModifier(bodyModifierJsonVO))
+	for _, bodyModifierJson := range backendResponseJson.BodyModifiers {
+		bodyModifiers = append(bodyModifiers, newModifier(bodyModifierJson))
 	}
 
 	return &BackendResponse{
