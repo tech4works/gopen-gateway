@@ -1,54 +1,55 @@
-# Início do arquivo Dockerfile
+# Build phase
 FROM golang:1.22 AS builder
 
-# Definindo o diretório de trabalho
+# Setting the working directory
 WORKDIR /app
 
-# Copiando os arquivos go mod e sum
+# Copying the go mod and sum files
 COPY go.mod go.sum ./
 
-# Baixando todas as dependências
+# Downloading all dependencies
 RUN go mod download
 
-# Copiando o arquivo .env
+# Copy the .env file
 COPY ./.env ./.env
 
-# Copiando a pasta cmd
+# Copy the cmd folder
 COPY ./cmd/main.go ./cmd/main.go
 
-# Copiando a pasta internal
+# Copy the internal folder
 COPY ./internal ./internal
 
-# Copiando a pasta gopen
+# Copy the gopen folder
 COPY ./gopen ./gopen
 
-# Mude para o diretório contendo o arquivo "main.go"
+# Change to the directory containing the "main.go" file
 WORKDIR /app/cmd
 
-# Construindo o aplicativo
+# Build the Go app
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main . && rm main.go
 
-# Fase de execução
+# Execution phase
 FROM alpine:latest
 RUN apk --no-cache add ca-certificates
 
+# Change to the "root" working directory
 WORKDIR /root/
 
-# Copiando do builder
+# Copy the main files from the cmd folder
 COPY --from=builder /app/cmd .
 
-# Copiando o arquivo .env
+# Copy the .env file
 COPY --from=builder /app/.env ./.env
 
-# Copiando a pasta gopen
+# Copy the gopen folder
 COPY --from=builder /app/gopen ./gopen
 
-# Criamos a pasta runtime no repositorio de trabalho root
+# Create the runtime folder in the "root" working repository
 RUN mkdir -p ./runtime
 
-# Adicionando uma variável ARG para receber um valor externo
-ARG ENV_NAME
-ENV ENV_NAME ${ENV_NAME}
+# Add an ARG variable to receive an external value
+ARG ENV
+ENV ENV ${ENV}
 
-# Comando para executar
-CMD ./main ${ENV_NAME}
+# Command to run the Go application
+CMD ./main ${ENV}

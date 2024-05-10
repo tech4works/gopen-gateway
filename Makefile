@@ -1,68 +1,81 @@
 .SILENT:
 
-# Obtemos o nome do sistema operacional
+# Get the name of the operating system
 UNAME_S := $(shell uname -s 2>/dev/null)
 
-# No Windows obtemos pela variável OS
+# Windows we obtain it through the OS variable
 ifeq ($(OS),Windows_NT)
-	# Obtemos o bin de leitura de porta para windows
+	# Get the port reading bin for Windows
 	READPORT := ./bin/readport-windows-amd64.exe
 else ifeq ($(UNAME_S),Linux)
-	# Obtemos o bin de leitura de porta para linux
+	# Get the port reading bin for Linux
 	READPORT := ./bin/readport-linux-amd64
 else ifeq ($(UNAME_S),Darwin)
-	# Obtemos o bin de leitura de porta para darwin (MacOS)
+	# Get the port reading bin for MacOS
 	READPORT := ./bin/readport-darwin-amd64
 else
-	# Imprimimos um erro de sistema operacional não reconhecido
+	# Print an unrecognized operating system error
 	$(error Unknown operating system: $(UNAME_S))
 endif
 
-# Comando para fazer o build dos binários utilizados no playground
+# Command to build binaries used in the playground
 build-readport: build-readport-linux build-readport-darwin build-readport-windows
 
-# Comando para fazer o build do binário linux utilizado no playground
+# Command to build the Linux binary used in the playground
 build-readport-linux:
 	GOOS=linux GOARCH=amd64 go build -o bin/readport-linux-amd64 ./cmd/readport.go
 
-# Comando para fazer o build do binário darwin (MacOS) utilizado no playground
+# Command to build the Darwin binary (MacOS) used in the playground
 build-readport-darwin:
 	GOOS=darwin GOARCH=amd64 go build -o bin/readport-darwin-amd64 ./cmd/readport.go
 
-# Comando para fazer o build do binário windows utilizado no playground
+# Command to build the Windows binary used in the playground
 build-readport-windows:
 	GOOS=windows GOARCH=amd64 go build -o bin/readport-windows-amd64.exe ./cmd/readport.go
 
-# Comando para executar a API Gateway via docker
+define check_env_param
+	@echo "Getting env name argument..."
+
+	# Check the ENV passed in the argument
+	@if [ -z "$(ENV)" ]; then \
+		@echo "Error: No ENV argument provided. Usage: make run ENV=value"; \
+		exit 1; \
+	fi
+endef
+
+define check_json_exists
+	@echo "Checking if json ./gopen/$(ENV)/.json exists..."
+
+	# Check if the configuration json exists using the environment name passed
+	@if [ ! -f "./gopen/$(ENV)/.json" ]; then \
+		@echo "Error: File ./gopen/$(ENV)/.json does not exist"; \
+		exit 1; \
+	fi
+endef
+
+define get_port_by_json
+	@echo "Getting port from json ./gopen/$(ENV)/.json..."
+
+	# Defining a temporary variable to store the command output
+	$(eval TEMP_PORT := $(shell ./$(READPORT) ./gopen/$(ENV)/.json 2>/dev/null))
+
+	# Check if the command was successful and the TEMP_PORT variable is not empty
+	$(eval PORT := $(if $(TEMP_PORT),$(TEMP_PORT),$(error Error to read port on ./gopen/$(ENV)/.json)))
+endef
+
+define docker_compose
+	@echo "Starting docker-compose with ENV=$(ENV) and PORT=$(PORT)..."
+
+	# Initialize docker-compose with the environment name and the configured port
+	ENV=$(ENV) PORT=$(PORT) docker-compose up
+endef
+
+# Command to run API Gateway via docker-compose
 run:
-	echo "Checking you operation system..."
-	echo "Operating System: $(UNAME_S)"
-
-	echo "Getting env name argument..."
-
-	# Obtemos o nome do ambiente passado no primeiro argumento no terminal
-	$(eval ENV_NAME := $(filter-out $@,$(MAKECMDGOALS)))
-	@if [ -z "$(ENV_NAME)" ]; then \
-		echo "Error: No argument provided. Usage: make run {env name}"; \
-		exit 1; \
-	fi
-
-	echo "Checking if json ./gopen/$(ENV_NAME)/.json exists..."
-
-	# Verificamos se o json de configuração existe pelo nome do ambiente passado
-	@if [ ! -f "./gopen/$(ENV_NAME)/.json" ]; then \
-		echo "Error: File ./gopen/$(ENV_NAME)/.json does not exist"; \
-		exit 1; \
-	fi
-
-	echo "Getting port from json ./gopen/$(ENV_NAME)/.json..."
-
-	# Obtemos a porta configurada no json, através do binário do sistema operacional
-	$(eval PORT := $(shell ./$(READPORT) ./gopen/$(ENV_NAME)/.json))
-
-	echo "Starting docker with ENV_NAME=$(ENV_NAME) and PORT=$(PORT)..."
-
-	# Inicializamos o docker-compose com o nome do ambiente e a porta configurada
-	ENV_NAME=$(ENV_NAME) PORT=$(PORT)  docker-compose up
-%:
-	@:
+	@echo "-----------------------> \033[1mMAKEFILE\033[0m <-----------------------"
+	$(call check_env_param)
+	$(call check_json_exists)
+	$(call get_port_by_json)
+	@echo ""
+	@echo "-----------------------> \033[1mDOCKER COMPOSE\033[0m <-----------------------"
+	$(call docker_compose)

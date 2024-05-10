@@ -30,7 +30,7 @@ import (
 )
 
 // jsonSchemaUri is a constant string representing the URI of the JSON schema file.
-const jsonSchemaUri = "file://./json-schema.json"
+const jsonSchemaUri = "https://raw.githubusercontent.com/GabrielHCataldo/gopen-gateway/v1.0.0/json-schema.json"
 
 // bootService is a type that represents the boot service for initializing the application.
 // It holds the environment, cache store provider, logger provider, and JSON provider.
@@ -75,7 +75,7 @@ type Boot interface {
 	// The method takes an eventCallback function as input, which will be called
 	// when any file system event occurs.
 	// The function has no return value.
-	Watcher(eventCallback func()) *fsnotify.Watcher
+	Watcher(callback func()) *fsnotify.Watcher
 }
 
 // NewBoot returns a new instance of the bootService structure that implements the Boot interface.

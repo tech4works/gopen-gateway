@@ -4,11 +4,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        ENV_NAME: ${ENV_NAME}
     ports:
       - "${PORT}:${PORT}"
     volumes:
       - ./runtime:/root/runtime
-      - ./gopen/${ENV_NAME}:/root/gopen/${ENV_NAME}
+      - ./gopen/${ENV}:/root/gopen/${ENV}
+    environment:
+      - ENV=${ENV}
     restart: unless-stopped
