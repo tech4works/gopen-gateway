@@ -46,7 +46,7 @@
       "enum": [
         "JSON",
         "XML",
-        "TEXT_PLAIN"
+        "PLAIN_TEXT"
       ]
     },
     "content-encoding": {
