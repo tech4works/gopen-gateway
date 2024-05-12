@@ -110,7 +110,7 @@ func (h *HttpBackendResponse) Config() *BackendResponse {
 // a text or a slice of bytes.
 func (h *HttpBackendResponse) GroupByType() bool {
 	body := h.Body()
-	return helper.IsNotNil(body) && body.IsText() || helper.IsSlice(body.Bytes())
+	return helper.IsNotNil(body) && body.ContentType().IsText() || helper.IsSlice(body.Bytes())
 }
 
 // Map returns a map[string]any containing the statusCode, header, and body of the HttpBackendResponse instance.

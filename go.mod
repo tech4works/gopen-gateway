@@ -17,9 +17,10 @@ go 1.22
 
 require (
 	github.com/GabrielHCataldo/go-errors v1.2.0
-	github.com/GabrielHCataldo/go-helper v1.7.6
+	github.com/GabrielHCataldo/go-helper v1.7.9
 	github.com/GabrielHCataldo/go-logger v1.3.0
 	github.com/GabrielHCataldo/go-redis-template v1.1.5
+	github.com/basgys/goxml2json v1.1.0
 	github.com/clbanning/mxj/v2 v2.7.0
 	github.com/fsnotify/fsnotify v1.7.0
 	github.com/gin-gonic/gin v1.9.1
@@ -36,6 +37,7 @@ require (
 )
 
 require (
+	github.com/bitly/go-simplejson v0.5.1 // indirect
 	github.com/bytedance/sonic v1.11.3 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/chenzhuoyu/base64x v0.0.0-20230717121745-296ad89f973d // indirect

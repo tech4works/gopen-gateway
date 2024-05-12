@@ -43,6 +43,10 @@ func (m *Mapper) IsEmpty() bool {
 	return helper.IsEmpty(m)
 }
 
+func (m *Mapper) IsNotEmpty() bool {
+	return !m.IsEmpty()
+}
+
 // Exists checks if the specified key exists in the Mapper object.
 // It returns true if the key exists, false otherwise.
 func (m *Mapper) Exists(key string) bool {

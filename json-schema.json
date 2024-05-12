@@ -41,12 +41,18 @@
       "minimum": 1,
       "pattern": "^[\\w-]+(\\.[\\w-]+)*$"
     },
-    "response-encode": {
+    "content-type": {
       "type": "string",
       "enum": [
         "JSON",
         "XML",
-        "TEXT"
+        "TEXT_PLAIN"
+      ]
+    },
+    "content-encoding": {
+      "type": "string",
+      "enum": [
+        "GZIP"
       ]
     },
     "request-modifier": {
@@ -329,8 +335,11 @@
         "aggregate": {
           "type": "boolean"
         },
-        "encode": {
-          "$ref": "#/definitions/response-encode"
+        "content-type": {
+          "$ref": "#/definitions/content-type"
+        },
+        "content-encoding": {
+          "$ref": "#/definitions/content-encoding"
         },
         "nomenclature": {
           "type": "string",
@@ -420,6 +429,12 @@
         "omit-body": {
           "type": "boolean"
         },
+        "content-type": {
+          "$ref": "#/definitions/content-type"
+        },
+        "content-encoding": {
+          "$ref": "#/definitions/content-encoding"
+        },
         "header-mapper": {
           "$ref": "#/definitions/header-mapper"
         },
@@ -489,6 +504,8 @@
         "omit-body": {
           "not": {
             "anyOf": [
+              {"required": ["content-type"]},
+              {"required": ["content-encoding"]},
               {"required": ["body-mapper"]},
               {"required": ["body-projection"]},
               {"required": ["body-modifiers"]}

@@ -17,6 +17,9 @@
 package consts
 
 const (
+	ContentType     = "Content-Type"
+	ContentEncoding = "Content-Encoding"
+	ContentLength   = "Content-Length"
 	// XForwardedFor represents the name of the "X-Forwarded-For" HTTP header.
 	// It is used to indicate the original IP address of a client connecting to a web server
 	// through an HTTP proxy or a load balancer.

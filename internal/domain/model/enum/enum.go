@@ -17,7 +17,6 @@
 package enum
 
 import (
-	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/iancoleman/strcase"
 )
 
@@ -27,8 +26,11 @@ type ModifierScope string
 // ModifierAction represents the action to be performed in the Modifier struct.
 type ModifierAction string
 
-// Encode represents the encoding format for the API endpoint response.
-type Encode string
+// ContentType represents the encoding format for the API endpoint response.
+type ContentType string
+
+// ContentEncoding represents the encoding format for the API endpoint response.
+type ContentEncoding string
 
 // Nomenclature represents the case format for text values.
 type Nomenclature string
@@ -49,12 +51,6 @@ type ProjectionValue int
 
 // CacheControl represents the header value of cache control.
 type CacheControl string
-
-// ContentType represents the format of the content.
-type ContentType string
-
-// ContentEncoding represents the encoding used for content.
-type ContentEncoding string
 
 const (
 	ModifierScopeRequest  ModifierScope = "REQUEST"
@@ -89,66 +85,41 @@ const (
 	NomenclatureScreamingKebab Nomenclature = "SCREAMING_KEBAB"
 )
 const (
-	EncodeText Encode = "TEXT"
-	EncodeJson Encode = "JSON"
-	EncodeXml  Encode = "XML"
-	EncodeYaml Encode = "YAML"
+	ContentTypePlainText ContentType = "PLAIN_TEXT"
+	ContentTypeJson      ContentType = "JSON"
+	ContentTypeXml       ContentType = "XML"
+)
+const (
+	ContentEncodingNone    ContentEncoding = "NONE"
+	ContentEncodingGzip    ContentEncoding = "GZIP"
+	ContentEncodingDeflate ContentEncoding = "DEFLATE"
 )
 const (
 	BackendResponseApplyEarly BackendResponseApply = "EARLY"
 	BackendResponseApplyLate  BackendResponseApply = "LATE"
 )
 const (
-	ContentEncodingGzip ContentEncoding = "gzip"
-)
-const (
 	CacheControlNoCache CacheControl = "no-cache"
 	CacheControlNoStore CacheControl = "no-store"
 )
-const (
-	ContentTypeJson ContentType = "JSON"
-	ContentTypeXml  ContentType = "XML"
-	ContentTypeYml  ContentType = "YML"
-	ContentTypeText ContentType = "TEXT"
-)
 
-// ContentTypeFromString converts a string representation of a content type
-// to its corresponding ContentType value. It checks if the given string
-// contains the string representation of ContentTypeJson or ContentTypeText case-insensitively.
-// If the string contains ContentTypeJson, it returns ContentTypeJson.
-// If the string contains ContentTypeText, it returns ContentTypeText.
-// Otherwise, it returns an empty string.
-// This function is used to convert a string content type to the ContentType enumeration value.
-func ContentTypeFromString(s string) ContentType {
-	// todo: aqui podemos ter XML, YAML, form-data
-	if helper.ContainsIgnoreCase(s, ContentTypeJson.String()) {
-		return ContentTypeJson
-	} else if helper.ContainsIgnoreCase(s, ContentTypeXml.String()) {
-		return ContentTypeXml
-	} else if helper.ContainsIgnoreCase(s, ContentTypeText.String()) {
-		return ContentTypeText
-	}
-	return ""
-}
-
-// ContentEncodingFromString converts a string representation of a content encoding
-// to its corresponding ContentEncoding value. It checks if the given string
-// contains ContentEncodingGzip case-insensitively. If the string contains
-// ContentEncodingGzip, it returns ContentEncodingGzip. Otherwise, it returns an empty string.
-// This function is used to convert a string content encoding to the ContentEncoding enumeration value.
-func ContentEncodingFromString(s string) ContentEncoding {
-	if helper.ContainsIgnoreCase(s, ContentEncodingGzip) {
-		return ContentEncodingGzip
-	}
-	return ""
-}
-
-// IsEnumValid checks if the Encode is a valid enumeration value.
-// It returns true if the Encode is either EncodeText,
-// EncodeJson or EncodeXml, otherwise it returns false.
-func (r Encode) IsEnumValid() bool {
+// IsEnumValid checks if the ContentType is a valid enumeration value.
+// It returns true if the ContentType is either ContentTypePlainText,
+// ContentTypeJson or ContentTypeXml, otherwise it returns false.
+func (r ContentType) IsEnumValid() bool {
 	switch r {
-	case EncodeText, EncodeJson, EncodeXml:
+	case ContentTypePlainText, ContentTypeJson, ContentTypeXml:
+		return true
+	}
+	return false
+}
+
+// IsEnumValid checks if the ContentEncoding is a valid enumeration value.
+// It returns true if the ContentEncoding is either ContentEncodingNone,
+// ContentEncodingGzip or ContentEncodingDeflate, otherwise it returns false.
+func (r ContentEncoding) IsEnumValid() bool {
+	switch r {
+	case ContentEncodingNone, ContentEncodingGzip, ContentEncodingDeflate:
 		return true
 	}
 	return false
@@ -200,21 +171,6 @@ func (m ModifierAction) IsEnumValid() bool {
 	return false
 }
 
-// ContentType returns the format of the content based on the Encode value.
-func (r Encode) ContentType() ContentType {
-	switch r {
-	case EncodeText:
-		return ContentTypeText
-	case EncodeJson:
-		return ContentTypeJson
-	case EncodeXml:
-		return ContentTypeXml
-	case EncodeYaml:
-		return ContentTypeYml
-	}
-	return ""
-}
-
 // Parse takes a key string and converts it to the specified case format based on the value of Nomenclature.
 // It returns the key string converted to the specified case format as per the Nomenclature value.
 // If the Nomenclature value is not one of the predefined cases, it returns the key as is.
@@ -246,43 +202,4 @@ func (c CacheControl) IsEnumValid() bool {
 		return true
 	}
 	return false
-}
-
-// IsEnumValid checks if the ContentType is a valid enumeration value.
-// It returns true if the ContentType is either ContentTypeText, ContentTypeJson,
-// ContentTypeXml, or ContentTypeYml, otherwise it returns false.
-func (c ContentType) IsEnumValid() bool {
-	switch c {
-	case ContentTypeText, ContentTypeJson, ContentTypeXml, ContentTypeYml:
-		return true
-	}
-	return false
-}
-
-// IsEnumValid checks if the ContentEncoding is a valid enumeration value.
-// It returns true if the ContentEncoding is ContentEncodingGzip,
-// otherwise it returns false.
-func (c ContentEncoding) IsEnumValid() bool {
-	switch c {
-	case ContentEncodingGzip:
-		return true
-	}
-	return false
-}
-
-// String returns the string representation of the ContentType value.
-// It returns "application/json" if c is ContentTypeJson, "application/xml" if c is ContentTypeXml,
-// "application/x-yaml" if c is ContentTypeYml, and "text/plain" for any other value of c.
-// This method is used to convert the ContentType value to its corresponding MIME type string representation.
-func (c ContentType) String() string {
-	switch c {
-	case ContentTypeJson:
-		return "application/json"
-	case ContentTypeXml:
-		return "application/xml"
-	case ContentTypeYml:
-		return "application/x-yaml"
-	default:
-		return "text/plain"
-	}
 }

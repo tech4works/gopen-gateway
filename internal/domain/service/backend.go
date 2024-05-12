@@ -54,8 +54,8 @@ type Backend interface {
 }
 
 // NewBackend is a function that creates and returns a new instance of the Backend interface.
-// It takes a parameter restTemplate of type interfaces.RestTemplate, which represents a template for making HTTP requests.
-// The function returns a backendService object that implements the Backend interface.
+// It takes a parameter restTemplate of type interfaces.RestTemplate, which represents a template for making HTTP
+// requests. The function returns a backendService object that implements the Backend interface.
 func NewBackend(restTemplate interfaces.RestTemplate) Backend {
 	return backendService{
 		restTemplate: restTemplate,
@@ -64,105 +64,45 @@ func NewBackend(restTemplate interfaces.RestTemplate) Backend {
 
 // Execute is a method that executes a backend request and handles the corresponding response.
 // It takes two parameters: ctx of type context.Context, which represents the context of the request,
-// and executeData of type *vo.ExecuteBackend, which represents the execution context for a backend request.
-// The method retrieves the endpoint and backend from the executeData object.
-// It then calls the buildRequest() method to construct the httpRequest and httpResponse objects.
-// The method calls the executeRequest() method to send the httpRequest to the backend service.
-// If an error occurs during the execution of the request, the method returns an HTTP error response
-// using the httpRequest and httpResponse objects.
-// The method calls the closeNetHttpResponse() method to close the netHttpResponse object.
-// Finally, the method calls the buildResponse() method to construct the final httpResponse object
-// based on the netHttpResponse object and the httpRequest and httpResponse objects.
-// The method returns the httpRequest and httpResponse objects.
+// and executeData of type *vo.ExecuteBackend, which represents the execution context for a backend in the application.
+// The method retrieves the endpoint, backend, httpRequest, and httpResponse from the executeData object.
+// It modifies the httpRequest by calling the Modify() method of the executeData's backend and passing in the request
+// and response.
+// It creates a new httpBackendRequest object using the backend, modified httpRequest, and httpResponse.
+// The httpRequest is then appended with httpBackendRequest using the Append() method.
+// The method makes an HTTP request by calling the makeNetHttpRequest() method with the context and httpBackendRequest,
+// capturing the returned netHttpResponse and error.
+// If an error occurs, it returns the httpRequest and an error response created by the httpResponse.Error() method.
+// The netHttpResponse is closed using the closeNetHttpResponse() method.
+// It creates a new httpBackendResponse using the backend, netHttpResponse, httpRequest, and httpResponse.
+// If httpBackendResponse is not nil and endpoint.Abort() returns true with the httpBackendResponse's status code,
+// it returns the httpRequest and a new response of type HttpResponseAborted using the NewHttpResponseAborted() method.
+// The httpResponse is then appended with the httpBackendResponse.
+// Finally, it returns the httpRequest and httpResponse.
 func (b backendService) Execute(ctx context.Context, executeData *vo.ExecuteBackend) (*vo.HttpRequest, *vo.HttpResponse) {
 	endpoint := executeData.Endpoint()
 	backend := executeData.Backend()
+	httpResponse := executeData.HttpResponse()
+	httpRequest := executeData.HttpRequest()
 
-	httpRequest, httpResponse := b.buildRequest(executeData)
-
-	netHttpResponse, err := b.executeRequest(ctx, backend, httpRequest, httpResponse)
-	if helper.IsNotNil(err) {
-		return httpRequest, httpResponse.Error(executeData.Endpoint().Path(), err)
-	}
-	defer b.closeNetHttpResponse(netHttpResponse)
-
-	httpResponse = b.buildResponse(endpoint, backend, netHttpResponse, httpRequest, httpResponse)
-
-	return httpRequest, httpResponse
-}
-
-// buildRequest is a method that constructs a *vo.HttpRequest and *vo.HttpResponse objects
-// using the given *vo.ExecuteBackend object.
-//
-// It takes one parameter: executeData of type *vo.ExecuteBackend, which represents the execution context
-// for a backend request. This object contains an endpoint, backend, httpRequest, and httpResponse.
-//
-// The method creates an *vo.HttpRequest object by modifying the backend's request with the incoming request
-// and response objects. This is done by calling the Modify() method of the executeData.HttpRequest object.
-//
-// It then creates an *vo.HttpBackendRequest object using the given executeData.Backend(), httpRequest, and
-// executeData.HttpResponse() objects. The creation is performed by calling the NewHttpBackendRequest() function
-// of the vo package.
-//
-// Next, it appends the httpBackendRequest to the httpRequest using the Append() method of the httpRequest object.
-//
-// Finally, the method returns the httpRequest and executeData.HttpResponse objects.
-func (b backendService) buildRequest(executeData *vo.ExecuteBackend) (*vo.HttpRequest, *vo.HttpResponse) {
-	httpRequest := executeData.HttpRequest().Modify(executeData.Backend().Request(), executeData.HttpResponse())
+	httpRequest = httpRequest.Modify(executeData.Backend().Request(), httpResponse)
 
 	httpBackendRequest := vo.NewHttpBackendRequest(executeData.Backend(), httpRequest, executeData.HttpResponse())
 	httpRequest = httpRequest.Append(httpBackendRequest)
 
-	return httpRequest, executeData.HttpResponse()
-}
+	netHttpResponse, err := b.makeNetHttpRequest(ctx, httpBackendRequest)
+	if helper.IsNotNil(err) {
+		return httpRequest, vo.NewHttpResponseByErr(executeData.Endpoint().Path(), err)
+	}
+	defer b.closeNetHttpResponse(netHttpResponse)
 
-// executeRequest is a method that sends an HTTP request to the backend service.
-// It takes four parameters: ctx of type context.Context, which represents the context of the request,
-// backend of type *vo.Backend, which represents the backend configuration,
-// httpRequest of type *vo.HttpRequest, which represents the HTTP request object,
-// and httpResponse of type *vo.HttpResponse, which represents the HTTP response object.
-// The method creates an *vo.HttpBackendRequest object using the given parameters. This object represents the
-// backend HTTP request. The creation is performed by calling the NewHttpBackendRequest() function of the vo package.
-// The method then calls the makeNetHttpRequest() method to send the HTTP request and returns the
-// *http.Response and error returned by the makeNetHttpRequest() method.
-func (b backendService) executeRequest(
-	ctx context.Context,
-	backend *vo.Backend,
-	httpRequest *vo.HttpRequest,
-	httpResponse *vo.HttpResponse,
-) (*http.Response, error) {
-	httpBackendRequest := vo.NewHttpBackendRequest(backend, httpRequest, httpResponse)
-	return b.makeNetHttpRequest(ctx, httpBackendRequest)
-}
-
-// buildResponse is a method that constructs a *vo.HttpResponse object based on the given parameters.
-// It takes five parameters: endpoint of type *vo.Endpoint, backend of type *vo.Backend, netHttpResponse of type
-// *http.Response, httpRequest of type *vo.HttpRequest, and httpResponse of type *vo.HttpResponse.
-//
-// The method creates an *vo.HttpBackendResponse object using the given parameters. This object represents the
-// backend HTTP response. The creation is performed by calling the NewHttpBackendResponse() function of the vo package.
-//
-// If the httpBackendResponse object is not nil and the endpoint's Abort() method returns true for the response's
-// status code, the method creates and returns a new *vo.HttpResponseAborted object. This object represents the
-// aborted HTTP response. The creation is performed by calling the NewHttpResponseAborted() function of the vo package.
-//
-// If the httpBackendResponse object is nil or the endpoint's Abort() method returns false for the response's
-// status code, the method appends the httpBackendResponse object to the given httpResponse object and returns it.
-// The appending is performed by calling the Append() method of the httpResponse object.
-//
-// The method returns the *vo.HttpResponse object.
-func (b backendService) buildResponse(
-	endpoint *vo.Endpoint,
-	backend *vo.Backend,
-	netHttpResponse *http.Response,
-	httpRequest *vo.HttpRequest,
-	httpResponse *vo.HttpResponse,
-) *vo.HttpResponse {
 	httpBackendResponse := vo.NewHttpBackendResponse(backend, netHttpResponse, httpRequest, httpResponse)
 	if helper.IsNotNil(httpBackendResponse) && endpoint.Abort(httpBackendResponse.StatusCode()) {
-		return vo.NewHttpResponseAborted(endpoint, httpBackendResponse)
+		return httpRequest, vo.NewHttpResponseAborted(endpoint, httpBackendResponse)
 	}
-	return httpResponse.Append(httpBackendResponse)
+	httpResponse = httpResponse.Append(httpBackendResponse)
+
+	return httpRequest, httpResponse
 }
 
 // makeNetHttpRequest is a method that sends an HTTP request to the backend service.

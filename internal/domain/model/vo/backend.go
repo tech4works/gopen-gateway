@@ -44,7 +44,9 @@ type BackendRequest struct {
 	// omitQuery represents a boolean flag indicating whether the query should be omitted in the BackendRequest config.
 	omitQuery bool
 	// omitBody represents a boolean flag indicating whether the body should be omitted in the BackendRequest config.
-	omitBody bool
+	omitBody        bool
+	contentType     enum.ContentType
+	contentEncoding enum.ContentEncoding
 	// headerMapper is a field of type *Mapper in the BackendRequest struct.
 	// It represents the mapper for the header fields in the backend request config.
 	// The mapper is used to map keys to values for the header fields in the request.
@@ -289,6 +291,36 @@ func (b BackendRequest) OmitQuery() bool {
 // OmitBody returns a boolean value indicating whether the body should be omitted or not.
 func (b BackendRequest) OmitBody() bool {
 	return b.omitBody
+}
+
+func (b BackendRequest) HasContentType() bool {
+	return b.contentType.IsEnumValid()
+}
+
+func (b BackendRequest) HasContentEncoding() bool {
+	return b.contentEncoding.IsEnumValid()
+}
+
+func (b BackendRequest) ContentType() ContentType {
+	switch b.contentType {
+	default:
+		return NewContentTypeTextPlain()
+	case enum.ContentTypeJson:
+		return NewContentTypeJson()
+	case enum.ContentTypeXml:
+		return NewContentTypeXml()
+	}
+}
+
+func (b BackendRequest) ContentEncoding() ContentEncoding {
+	switch b.contentEncoding {
+	default:
+		return ""
+	case enum.ContentEncodingGzip:
+		return NewContentEncodingGzip()
+	case enum.ContentEncodingDeflate:
+		return NewContentEncodingDeflate()
+	}
 }
 
 // HeaderMapper returns the header mapper configuration of the BackendRequest.

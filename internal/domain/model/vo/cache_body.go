@@ -19,14 +19,13 @@ package vo
 import (
 	"bytes"
 	"github.com/GabrielHCataldo/go-helper/helper"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/enum"
 	"strconv"
 )
 
 // CacheBody represents the caching value of an HTTP httpResponse body.
 type CacheBody struct {
 	// ContentType represents the format of the content.
-	ContentType enum.ContentType `json:"content-type,omitempty"`
+	ContentType ContentType `json:"content-type,omitempty"`
 	// Value represents the caching content of an HTTP httpResponse body.
 	// It is a pointer to the CacheBodyValue type, which is an alias for bytes.Buffer.
 	// The value is nullable and is omitted in JSON if it is empty.
@@ -88,13 +87,8 @@ func (c *CacheBodyValue) Bytes() []byte {
 	return (*bytes.Buffer)(c).Bytes()
 }
 
-// MarshalJSON converts the CacheBodyValue instance to a JSON representation.
-// It calls the Bytes method of the underlying bytes.Buffer type to get the byte slice representation,
-// then it converts the byte slice to a gzip-compressed Base64 string using the helper.ConvertToGzipBase64 function.
-// Finally, it converts the compressed string to a byte slice using the helper.SimpleConvertToBytes function and returns it.
-// If there is an error during the conversion process, it returns the error.
 func (c *CacheBodyValue) MarshalJSON() ([]byte, error) {
-	b64, err := helper.ConvertToGzipBase64(c.Bytes())
+	b64, err := helper.CompressWithGzipToBase64(c.Bytes())
 	if helper.IsNotNil(err) {
 		return nil, err
 	}
@@ -102,19 +96,13 @@ func (c *CacheBodyValue) MarshalJSON() ([]byte, error) {
 	return helper.SimpleConvertToBytes(b64), nil
 }
 
-// UnmarshalJSON unmarshals the JSON representation of a CacheBodyValue instance.
-// It converts the input data to a byte slice by passing it to the helper.ConvertGzipBase64ToBytes function.
-// If there is an error during this conversion, it returns the error.
-// Otherwise, it creates a new CacheBodyValue instance using the obtained byte slice as the underlying buffer.
-// Note that the assignment to `c` in this method does not modify the original value of `c`.
-// The method then returns nil indicating a successful unmarshaling.
 func (c *CacheBodyValue) UnmarshalJSON(data []byte) error {
 	if helper.IsEmpty(data) {
 		return nil
 	}
 
 	unquote, _ := strconv.Unquote(string(data))
-	bs, err := helper.ConvertGzipBase64ToBytes(unquote)
+	bs, err := helper.DecompressFromBase64WithGzip(unquote)
 	if helper.IsNotNil(err) {
 		return err
 	}

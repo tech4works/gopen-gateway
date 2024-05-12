@@ -107,7 +107,7 @@ func (r restTemplate) printNetHttpResponse(netHttpRequest *http.Request, netHttp
 	httpUrl := netHttpRequest.URL.String()
 	httpMethod := netHttpRequest.Method
 
-	msg := fmt.Sprintf("Backend HTTP response: %s --> %s latency: %s statusCode: %v", httpMethod, httpUrl, latency,
+	msg := fmt.Sprintf("Backend HTTP response: %s --> %s latency: %s code: %v", httpMethod, httpUrl, latency,
 		netHttpResponse.StatusCode)
 	logger.Debug(msg)
 }

@@ -67,14 +67,15 @@ type EndpointResponse struct {
 	// aggregate represents a boolean indicating whether the API endpoint should aggregate responses
 	// from multiple backends.
 	aggregate bool
-	// encode represents the encoding format for the API endpoint httpResponse. The ResponseEncode
-	// field is an enum.Encode value, which can have one of the following values:
-	// - enum.EncodeText: for encoding the httpResponse as plain text.
-	// - enum.EncodeJson: for encoding the httpResponse as JSON.
-	// - enum.EncodeXml: for encoding the httpResponse as XML.
+	// contentType represents the encoding format for the API endpoint httpResponse. The ResponseEncode
+	// field is an enum.ContentType value, which can have one of the following values:
+	// - enum.ContentTypePlainText: for encoding the httpResponse as plain text.
+	// - enum.ContentTypeJson: for encoding the httpResponse as JSON.
+	// - enum.ContentTypeXml: for encoding the httpResponse as XML.
 	// The default value is empty. If not provided, the httpResponse will be encoded by type, if the string is json it
 	// returns json, otherwise it responds to plain text.
-	encode enum.Encode
+	contentType     enum.ContentType
+	contentEncoding enum.ContentEncoding
 	// nomenclature represents the case format for json text fields.
 	nomenclature enum.Nomenclature
 	// omitEmpty represents a boolean indicating whether empty fields should be omitted in the API endpoint response.
@@ -150,7 +151,7 @@ func newEndpointResponse(endpointResponseJson *EndpointResponseJson) *EndpointRe
 	}
 	return &EndpointResponse{
 		aggregate:    endpointResponseJson.Aggregate,
-		encode:       endpointResponseJson.Encode,
+		contentType:  endpointResponseJson.ContentType,
 		nomenclature: endpointResponseJson.Nomenclature,
 		omitEmpty:    endpointResponseJson.OmitEmpty,
 	}
@@ -287,21 +288,49 @@ func (e *Endpoint) NoCache() bool {
 	return helper.IsNil(e.Cache()) || e.Cache().Disabled()
 }
 
-// HasEncode checks if the encode field of EndpointResponse is a valid enumeration value.
-// It returns true if the encode is either EncodeText, EncodeJson, or EncodeXml, otherwise it returns false.
-func (e EndpointResponse) HasEncode() bool {
-	return e.encode.IsEnumValid()
+// HasContentType checks if the encode field of EndpointResponse is a valid enumeration value.
+// It returns true if the encode is either ContentTypePlainText, EncodeJson, or ContentTypeXml, otherwise it returns false.
+func (e EndpointResponse) HasContentType() bool {
+	return e.contentType.IsEnumValid()
 }
 
-// Encode returns the encoding format for the API endpoint httpResponse.
-// The Encode method of EndpointResponse struct returns an enum.Encode value, which can have one of the following values:
-// - enum.EncodeText: for encoding the httpResponse as plain text.
-// - enum.EncodeJson: for encoding the httpResponse as JSON.
-// - enum.EncodeXml: for encoding the httpResponse as XML.
-// The default value is empty. If not provided, the httpResponse will be encoded by type, if the string is json it
-// returns json, otherwise it responds to plain text.
-func (e EndpointResponse) Encode() enum.Encode {
-	return e.encode
+func (e EndpointResponse) HasContentEncoding() bool {
+	return e.contentEncoding.IsEnumValid()
+}
+
+// ContentType returns the ContentType based on the encoding format specified in the EndpointResponse.
+//
+// The function performs a switch on the encode field of the EndpointResponse struct and returns
+// different ContentType objects based on the value of encode:
+// - If encode is enum.ContentTypeJson, it returns NewContentTypeJson().
+// - If encode is enum.ContentTypeXml, it returns NewContentTypeXml().
+// - For any other value of encode, it returns NewContentTypeTextPlain() as the default.
+//
+// The returned ContentType represents the encoding format for the HttpResponse.
+// Example usage:
+//
+//	endpointResponse := EndpointResponse{encode: enum.EncodeJson}
+//	contentType := endpointResponse.ContentType() // Returns NewContentTypeJson()
+func (e EndpointResponse) ContentType() ContentType {
+	switch e.contentType {
+	default:
+		return NewContentTypeTextPlain()
+	case enum.ContentTypeJson:
+		return NewContentTypeJson()
+	case enum.ContentTypeXml:
+		return NewContentTypeXml()
+	}
+}
+
+func (e EndpointResponse) ContentEncoding() ContentEncoding {
+	switch e.contentEncoding {
+	default:
+		return ""
+	case enum.ContentEncodingGzip:
+		return NewContentEncodingGzip()
+	case enum.ContentEncodingDeflate:
+		return NewContentEncodingDeflate()
+	}
 }
 
 // Aggregate returns the value of the aggregate field in the EndpointResponse struct.
@@ -335,7 +364,7 @@ func (e EndpointResponse) Nomenclature() enum.Nomenclature {
 // It increments the count by 1 for each data transform:
 //   - Aggregate: if the API endpoint should aggregate responses from multiple backends.
 //   - OmitEmpty: if empty fields should be omitted in the API endpoint response.
-//   - HasEncode: if the encode field is a valid enumeration value (EncodeText, EncodeJson, EncodeXml).
+//   - HasContentType: if the encode field is a valid enumeration value (ContentTypePlainText, EncodeJson, ContentTypeXml).
 //   - HasNomenclature: if the nomenclature field is a valid enumeration value (NomenclatureCamel, NomenclatureLowerCamel,
 //     NomenclatureSnake, NomenclatureKebab).
 //
@@ -347,7 +376,7 @@ func (e EndpointResponse) CountAllDataTransforms() (count int) {
 	if e.OmitEmpty() {
 		count++
 	}
-	if e.HasEncode() {
+	if e.HasContentType() {
 		count++
 	}
 	if e.HasNomenclature() {

@@ -20,8 +20,8 @@ import (
 	"context"
 	"github.com/GabrielHCataldo/go-errors/errors"
 	"github.com/GabrielHCataldo/go-helper/helper"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/app/mapper"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/interfaces"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/mapper"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
 )
 
@@ -51,54 +51,27 @@ func NewCache(cacheStore interfaces.CacheStore) Cache {
 	}
 }
 
-// Read retrieves the cache response for the given cache and HTTP request.
-// If the cache is unable to read or if the cache response is not found, it returns nil.
-// It initializes the cache response value before obtaining it from the cache store.
-// The cache store is responsible for getting the cache response based on the strategy key derived from the HTTP request.
-// If there is an error during the cache retrieval process, it returns the error.
-// Otherwise, it returns the obtained cache response.
 func (c cacheService) Read(ctx context.Context, cache *vo.Cache, httpRequest *vo.HttpRequest) (*vo.CacheResponse, error) {
 	if cache.CantRead(httpRequest) {
 		return nil, nil
 	}
 
-	var cacheGzipBase64 string
-	err := c.cacheStore.Get(ctx, cache.StrategyKey(httpRequest), &cacheGzipBase64)
+	cacheResponse, err := c.cacheStore.Get(ctx, cache.StrategyKey(httpRequest))
 	if errors.Is(err, mapper.ErrCacheNotFound) {
 		return nil, nil
 	} else if helper.IsNotNil(err) {
 		return nil, err
 	}
 
-	var cacheResponse vo.CacheResponse
-	err = helper.ConvertGzipBase64ToDest(cacheGzipBase64, &cacheResponse)
-	if helper.IsNotNil(err) {
-		return nil, err
-	}
-
-	return &cacheResponse, nil
+	return cacheResponse, nil
 }
 
-// Write stores the cache response obtained from the HTTP response
-// into the cache store. If the cache is unable to write, it returns nil.
-// It retrieves the cache duration from the cache and creates a new
-// cache response using the HTTP response and duration. Then, it calls
-// the cache store's Set method to store the cache response based on the
-// strategy key derived from the HTTP request. If there is an error during
-// the cache storage process, it returns the error.
 func (c cacheService) Write(ctx context.Context, cache *vo.Cache, httpRequest *vo.HttpRequest,
 	httpResponse *vo.HttpResponse) error {
 	if cache.CantWrite(httpRequest, httpResponse) {
 		return nil
 	}
 
-	duration := cache.Duration()
-	cacheResponse := vo.NewCacheResponse(httpResponse, duration)
-
-	cacheGzipBase64, err := helper.ConvertToGzipBase64(cacheResponse)
-	if helper.IsNotNil(err) {
-		return err
-	}
-
-	return c.cacheStore.Set(ctx, cache.StrategyKey(httpRequest), cacheGzipBase64, duration.Time())
+	cacheResponse := vo.NewCacheResponse(httpResponse, cache.Duration())
+	return c.cacheStore.Set(ctx, cache.StrategyKey(httpRequest), cacheResponse)
 }

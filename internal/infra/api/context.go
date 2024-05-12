@@ -207,12 +207,18 @@ func (c *Context) Write(httpRequest *vo.HttpRequest, httpResponse *vo.HttpRespon
 	c.WriteHttpResponse(httpResponse)
 }
 
-// WriteHttpResponse writes the provided http response into the context's response writer.
-// It acquires a lock to ensure exclusive access to the context, checks if the request has been aborted, and if so, returns.
-// It then writes the response headers and obtains the status code, content type, and body bytes.
-// If the body is not empty, it writes the body along with the status code and content type.
-// Otherwise, it writes only the status code.
-// After writing the response, it aborts the request and sets the written http response in the context.
+// WriteHttpResponse writes the HTTP response to the underlying writer.
+// The response is written based on the specified HttpResponse object.
+// The method first acquires a lock on the context's mutex to ensure
+// thread-safety. If the framework is aborted, the method returns immediately without writing the response.
+// The method calls the Write method on the HttpResponse object, passing in the endpoint, HTTP request, and HttpResponse
+// object itself to  write the response. The returned HttpResponse object is assigned to httpResponseWritten variable.
+// The status code, content type, and raw body bytes are then retrieved from the httpResponseWritten object.
+// The method writes the response header using the writeHeader method.
+// If the raw body bytes is not empty, the method writes the response body along with the status code and content type
+// using the writeBody method.
+// If the raw body bytes is empty, the method writes only the status code using the writeStatusCode method.
+// Finally, the method aborts the framework and assigns the httpResponseWritten object to c.httpResponse.
 func (c *Context) WriteHttpResponse(httpResponse *vo.HttpResponse) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
@@ -222,13 +228,14 @@ func (c *Context) WriteHttpResponse(httpResponse *vo.HttpResponse) {
 	}
 
 	httpResponseWritten := httpResponse.Write(c.Endpoint(), c.HttpRequest(), httpResponse)
+
 	statusCode := httpResponseWritten.StatusCode()
 	contentType := httpResponseWritten.ContentType()
-	bodyBytes := httpResponseWritten.BodyBytes()
+	rawBodyBytes := httpResponseWritten.RawBodyBytes()
 
 	c.writeHeader(httpResponseWritten.Header())
-	if helper.IsNotEmpty(bodyBytes) {
-		c.writeBody(statusCode, contentType.String(), bodyBytes)
+	if helper.IsNotEmpty(rawBodyBytes) {
+		c.writeBody(statusCode, contentType.String(), rawBodyBytes)
 	} else {
 		c.writeStatusCode(statusCode)
 	}
@@ -272,7 +279,7 @@ func (c *Context) WriteCacheResponse(cacheResponse *vo.CacheResponse) {
 // It creates a new HTTP response using the given error and endpoint path, and
 // then calls WriteHttpResponse to send the response back to the client.
 func (c *Context) WriteError(code vo.StatusCode, err error) {
-	httpResponse := vo.NewHttpResponseByErr(c.Endpoint().Path(), code, err)
+	httpResponse := vo.NewHttpResponseByStatusCodeAndErr(c.Endpoint().Path(), code, err)
 	c.WriteHttpResponse(httpResponse)
 }
 
@@ -285,17 +292,8 @@ func (c *Context) writeStatusCode(code vo.StatusCode) {
 	c.framework.Status(int(code))
 }
 
-// writeHeader writes the specified header to the response. It skips certain headers such as
-// "Content-Length", "Content-Type", "Content-Encoding" (if it contains "gzip"), and "Date".
-// Other headers are passed to the underlying framework to be written to the response.
 func (c *Context) writeHeader(header vo.Header) {
 	for key := range header {
-		headerValue := header.Get(key)
-		if helper.EqualsIgnoreCase(key, "Content-Length") || helper.EqualsIgnoreCase(key, "Content-Type") ||
-			(helper.EqualsIgnoreCase(key, "Content-Encoding") && helper.ContainsIgnoreCase(headerValue, "gzip")) ||
-			helper.EqualsIgnoreCase(key, "Date") {
-			continue
-		}
 		c.framework.Header(key, header.Get(key))
 	}
 }

@@ -229,14 +229,18 @@ type EndpointResponseJson struct {
 	// Aggregate represents a boolean indicating whether the API endpoint should aggregate responses
 	// from multiple backends.
 	Aggregate bool `json:"aggregate,omitempty"`
-	// Encode represents the encoding format for the API endpoint response. The ResponseEncode
-	// field is an enum.Encode value, which can have one of the following values:
-	// - enum.EncodeText: for encoding the response as plain text.
-	// - enum.EncodeJson: for encoding the response as JSON.
-	// - enum.EncodeXml: for encoding the response as XML.
+	// ContentType represents the encoding format for the API endpoint response. The ResponseEncode
+	// field is an enum.ContentType value, which can have one of the following values:
+	// - enum.ContentTypePlainText: for encoding the response as plain text.
+	// - enum.ContentTypeJson: for encoding the response as JSON.
+	// - enum.ContentTypeXml: for encoding the response as XML.
 	// The default value is empty. If not provided, the response will be encoded by type, if the string is json it
 	// returns json, otherwise it responds to plain text
-	Encode enum.Encode `json:"encode,omitempty" validate:"omitempty,enum"`
+	ContentType enum.ContentType `json:"content-type,omitempty" validate:"omitempty,enum"`
+	// ContentEncoding represents the encoding format for the API endpoint response. The ResponseEncoder
+	// field is an enum.ContentEncoding value, which can have one of the following values: Gzip, Deflate, or None.
+	// The default value is empty. If not provided, the response will not be encoded.
+	ContentEncoding enum.ContentEncoding `json:"content-encoding,omitempty" validate:"omitempty,enum"`
 	// Nomenclature field represents the case format for json text fields.
 	Nomenclature enum.Nomenclature `json:"nomenclature,omitempty" validate:"omitempty,enum"`
 	// OmitEmpty represents a boolean value indicating whether the field should be omitted
@@ -274,7 +278,9 @@ type BackendRequestJson struct {
 	// OmitQuery is a boolean flag that indicates whether the query should be omitted in the backend HTTP request.
 	OmitQuery bool `json:"omit-query,omitempty"`
 	// OmitBody is a boolean flag that indicates whether the body should be omitted in the backend HTTP request.
-	OmitBody bool `json:"omit-body,omitempty"`
+	OmitBody        bool                 `json:"omit-body,omitempty"`
+	ContentType     enum.ContentType     `json:"content-type,omitempty" validate:"omitempty,enum"`
+	ContentEncoding enum.ContentEncoding `json:"content-encoding,omitempty" validate:"omitempty,enum"`
 	// HeaderMapper represents the mapping of header fields in a backend request.
 	// It is used to rename keys in the header of a request.
 	HeaderMapper *Mapper `json:"header-mapper,omitempty"`

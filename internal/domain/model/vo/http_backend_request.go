@@ -46,22 +46,23 @@ type HttpBackendRequest struct {
 	body *Body
 }
 
-// NewHttpBackendRequest creates a new HttpBackendRequest with the specified backend, httpRequest, and httpResponse.
-// The host of the HttpBackendRequest is set to the balanced host from the backend.
-// The path is set using the newBackendRequestPath function.
-// The method is set to the method used by the backend.
-// The header is set using the newBackendRequestHeader function.
-// The query is set using the newBackendRequestQuery function.
-// The body is set using the newBackendRequestBody function.
-// The returned HttpBackendRequest contains the updated fields based on the function parameters.
+// NewHttpBackendRequest creates a new HttpBackendRequest using the specified backend, httpRequest, and httpResponse.
+// The host of the HttpBackendRequest is set to the balanced host of the backend.
+// The path of the HttpBackendRequest is set using the newBackendRequestPath function.
+// The method of the HttpBackendRequest is set to the method of the backend.
+// The header of the HttpBackendRequest is set using the newBackendRequestHeader function.
+// The query of the HttpBackendRequest is set using the newBackendRequestQuery function.
+// The body of the HttpBackendRequest is set using the newBackendRequestBody function.
+// The newly created HttpBackendRequest is returned as a pointer.
 func NewHttpBackendRequest(backend *Backend, httpRequest *HttpRequest, httpResponse *HttpResponse) *HttpBackendRequest {
+	body := newBackendRequestBody(backend, httpRequest, httpResponse)
 	return &HttpBackendRequest{
 		host:   backend.BalancedHost(),
 		path:   newBackendRequestPath(backend, httpRequest, httpResponse),
 		method: backend.Method(),
-		header: newBackendRequestHeader(backend, httpRequest, httpResponse),
+		header: newBackendRequestHeader(backend, body, httpRequest, httpResponse),
 		query:  newBackendRequestQuery(backend, httpRequest, httpResponse),
-		body:   newBackendRequestBody(backend, httpRequest, httpResponse),
+		body:   body,
 	}
 }
 
@@ -78,34 +79,36 @@ func newBackendRequestPath(backend *Backend, httpRequest *HttpRequest, httpRespo
 			path = path.Modify(&modifier, httpRequest, httpResponse)
 		}
 	}
+
 	return path
 }
 
-// newBackendRequestHeader initializes the backendRequest variable to configure the header.
-// If the backendRequest is nil, the function returns the header from the httpRequest.
-// If the backendRequest wants to omit the header, an empty header is returned.
-// The header is instantiated from the existing information in the httpRequest.
-// The header is mapped according to the backendRequest's headerMapper configuration.
-// The header is projected according to the backendRequest's headerProjection configuration.
-// The header is modified based on the backendRequest's headerModifiers.
-// The function returns the modified header.
-func newBackendRequestHeader(backend *Backend, httpRequest *HttpRequest, httpResponse *HttpResponse) Header {
+// newBackendRequestHeader creates a new header for the backend request using the specified backend, body, httpRequest,
+// and httpResponse.
+// The function checks if the backend request is nil. If it is, the header is set using the httpRequest's header.
+// If the backend request has an omit header flag, an empty header is created.
+// Otherwise, the httpRequest's header is used and mapped according to the backend request's header mapper function.
+// The header is then projected based on the backend request's header projection.
+// Finally, the header is modified using each modifier in the backend request's header modifiers slice.
+// The modified header is written to the specified body and returned.
+func newBackendRequestHeader(backend *Backend, body *Body, httpRequest *HttpRequest, httpResponse *HttpResponse) Header {
 	backendRequest := backend.Request()
 
+	var header Header
 	if helper.IsNil(backendRequest) {
-		return httpRequest.Header()
+		header = httpRequest.Header()
 	} else if backendRequest.OmitHeader() {
-		return NewEmptyHeader()
+		header = NewEmptyHeader()
+	} else {
+		header = httpRequest.Header()
+		header = header.Map(backendRequest.HeaderMapper())
+		header = header.Projection(backendRequest.HeaderProjection())
+		for _, modifier := range backendRequest.HeaderModifiers() {
+			header = header.Modify(&modifier, httpRequest, httpResponse)
+		}
 	}
 
-	header := httpRequest.Header()
-	header = header.Map(backendRequest.HeaderMapper())
-	header = header.Projection(backendRequest.HeaderProjection())
-	for _, modifier := range backendRequest.HeaderModifiers() {
-		header = header.Modify(&modifier, httpRequest, httpResponse)
-	}
-
-	return header
+	return header.Write(body)
 }
 
 // newBackendRequestQuery creates a new Query object based on the specified backend, httpRequest, and httpResponse.
@@ -133,16 +136,19 @@ func newBackendRequestQuery(backend *Backend, httpRequest *HttpRequest, httpResp
 	return query
 }
 
-// newBackendRequestBody creates a new Body object for the HttpBackendRequest based on the provided backend,
-// httpRequest, and httpResponse.
-// If the backend's request is nil, it returns the body from the httpRequest.
-// If the httpRequest's body is nil or the backend's request has OmitBody set to true, it returns nil.
-// Otherwise, it performs the following operations:
-//   - Maps the body based on the backend's request.BodyMapper()
-//   - Projects the body based on the backend's request.BodyProjection()
-//   - Modifies the body using the backend's request.BodyModifiers()
-//
-// The resulting body is then returned.
+// newBackendRequestBody returns the body of the backend request based on the given backend, httpRequest, and httpResponse.
+// If the backend request is nil, it returns the body of the httpRequest.
+// If the httpRequest body is nil or the backend request specifies omitting the body, it returns nil.
+// It applies body mapper, projection, and modifiers specified in the backend request.
+// It also adjusts the content type and content encoding based on the backend request.
+// Returns the modified body as a pointer.
+// PARAMETERS:
+// - backend: The backend configuration for the request.
+// - httpRequest: The HTTP request object.
+// - httpResponse: The HTTP response object.
+// RETURNS:
+//   - *Body: The modified body of the backend request.
+//     nil if the backend request specifies omitting the body or if the httpRequest body is nil.
 func newBackendRequestBody(backend *Backend, httpRequest *HttpRequest, httpResponse *HttpResponse) *Body {
 	backendRequest := backend.Request()
 
@@ -159,7 +165,16 @@ func newBackendRequestBody(backend *Backend, httpRequest *HttpRequest, httpRespo
 		body = body.Modify(&modifier, httpRequest, httpResponse)
 	}
 
-	return body
+	contentType := body.ContentType()
+	if backendRequest.HasContentType() {
+		contentType = backendRequest.ContentType()
+	}
+	contentEncoding := body.ContentEncoding()
+	if backendRequest.HasContentEncoding() {
+		contentEncoding = backendRequest.ContentEncoding()
+	}
+
+	return body.ModifyContentType(contentType, contentEncoding)
 }
 
 // Path returns the URL path of the HttpBackendRequest instance.
@@ -210,25 +225,13 @@ func (h *HttpBackendRequest) Body() *Body {
 	return h.body
 }
 
-// BodyToReadCloser returns the body to send as an `io.ReadCloser` interface.
-// If `omitRequestBody` is set to `true` or `body` is `nil`, it returns `nil`.
-//
-// It converts the body to bytes using the desired encoding (XML, JSON, TEXT/PLAIN) based on `Content-Type` config.
-//
-// If there is an error during the conversion, it returns `nil`.
-//
-// Finally, it returns the `io.ReadCloser` interface with the bytes of the body.
 func (h *HttpBackendRequest) BodyToReadCloser() io.ReadCloser {
-	if helper.IsNil(h.body) {
+	if helper.IsNil(h.Body()) {
 		return nil
 	}
-	// todo: aqui podemos futuramente colocar encode de httpRequest customizado
-	return io.NopCloser(h.body.Buffer())
+	return io.NopCloser(h.Body().Buffer())
 }
 
-// NetHttp creates a *http.Request instance using the information from the HttpBackendRequest instance.
-// It sets the context, method, URL, body, header, and query of the created request.
-// It returns the created *http.Request instance and an error, if any occurred.
 func (h *HttpBackendRequest) NetHttp(ctx context.Context) (*http.Request, error) {
 	netHttpRequest, err := http.NewRequestWithContext(ctx, h.Method(), h.Url(), h.BodyToReadCloser())
 	if helper.IsNotNil(err) {
@@ -237,6 +240,7 @@ func (h *HttpBackendRequest) NetHttp(ctx context.Context) (*http.Request, error)
 
 	netHttpRequest.Header = h.Header().Http()
 	netHttpRequest.URL.RawQuery = h.RawQuery()
+
 	return netHttpRequest, nil
 }
 

@@ -21,7 +21,6 @@ import (
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/mapper"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/consts"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/enum"
 	"net/http"
 )
 
@@ -117,9 +116,13 @@ func NewHttpResponseByCache(cacheResponse *CacheResponse) *HttpResponse {
 	}
 }
 
-// NewHttpResponseByErr creates a new HttpResponse object with the given status code,
-// a failed header, a body constructed from the given path and error, and sets abort to true.
-func NewHttpResponseByErr(path string, statusCode StatusCode, err error) *HttpResponse {
+// NewHttpResponseByStatusCodeAndErr creates a new HttpResponse object with the provided status code and error.
+// It sets the statusCode field of the HttpResponse object to the provided status code.
+// It creates a new HeaderFailed object and assigns it to the header field of the HttpResponse object.
+// It generates a new Body object based on the provided path and error using the NewBodyByError function.
+// It sets the abort field of the HttpResponse object to true.
+// Returns the newly created HttpResponse object.
+func NewHttpResponseByStatusCodeAndErr(path string, statusCode StatusCode, err error) *HttpResponse {
 	return &HttpResponse{
 		statusCode: statusCode,
 		header:     NewHeaderFailed(),
@@ -128,37 +131,15 @@ func NewHttpResponseByErr(path string, statusCode StatusCode, err error) *HttpRe
 	}
 }
 
-// Append appends the provided HttpBackendResponse object to the history list of the HttpResponse object.
-// If the provided HttpBackendResponse object is nil, it is ignored and the original HttpResponse object is returned.
-// Otherwise, it creates a new list of history by appending the HttpBackendResponse object to the existing history list.
-// A new HttpResponse object is returned with the same status code, header, body, and the updated history list.
-// Returns the constructed HttpResponse object with the appended HttpBackendResponse object in the history list.
-func (r *HttpResponse) Append(httpBackendResponse *HttpBackendResponse) *HttpResponse {
-	if helper.IsNil(httpBackendResponse) {
-		return r
-	}
-
-	history := r.history
-	history = append(history, httpBackendResponse)
-
-	return &HttpResponse{
-		statusCode: r.StatusCode(),
-		header:     r.Header(),
-		body:       r.Body(),
-		history:    history,
-	}
-}
-
-// Error sets the status code, header, and body of the HttpResponse object based on the provided path and error.
-// If the error contains ErrBadGateway, the status code is set to http.StatusBadGateway.
-// If the error contains ErrGatewayTimeout, the status code is set to http.StatusGatewayTimeout.
-// Otherwise, the status code is set to http.StatusInternalServerError.
-// The header is set to a new Header object with failed status values for consts.XGopenCache, consts.XGopenComplete,
-// and consts.XGopenSuccess.
-// The body is set to a new Body object constructed from the path and error using the NewBodyByError function.
-// The abort property of the HttpResponse object is set to true.
-// Returns the constructed HttpResponse object with the updated status code, header, body, and abort property.
-func (r *HttpResponse) Error(path string, err error) *HttpResponse {
+// NewHttpResponseByErr creates a new HttpResponse object with the status code determined by the provided error.
+// If the error is mapper.ErrBadGateway, the status code will be http.StatusBadGateway.
+// If the error is mapper.ErrGatewayTimeout, the status code will be http.StatusGatewayTimeout.
+// Otherwise, the default status code will be http.StatusInternalServerError.
+// The header will be created using the NewHeaderFailed function.
+// The body will be created using the NewBodyByError function with the provided path and error.
+// The abort property will be set to true.
+// Returns the newly created HttpResponse object.
+func NewHttpResponseByErr(path string, err error) *HttpResponse {
 	var statusCode StatusCode
 	if errors.Contains(err, mapper.ErrBadGateway) {
 		statusCode = http.StatusBadGateway
@@ -176,61 +157,90 @@ func (r *HttpResponse) Error(path string, err error) *HttpResponse {
 	}
 }
 
+// Append appends the provided HttpBackendResponse object to the history list of the HttpResponse object.
+// If the provided HttpBackendResponse object is nil, it is ignored and the original HttpResponse object is returned.
+// Otherwise, it creates a new list of history by appending the HttpBackendResponse object to the existing history list.
+// A new HttpResponse object is returned with the same status code, header, body, and the updated history list.
+// Returns the constructed HttpResponse object with the appended HttpBackendResponse object in the history list.
+func (h *HttpResponse) Append(httpBackendResponse *HttpBackendResponse) *HttpResponse {
+	if helper.IsNil(httpBackendResponse) {
+		return h
+	}
+
+	history := h.history
+	history = append(history, httpBackendResponse)
+
+	return &HttpResponse{
+		statusCode: h.StatusCode(),
+		header:     h.Header(),
+		body:       h.Body(),
+		history:    history,
+	}
+}
+
 // Abort returns the value of the `abort` property of the HttpResponse object.
 // If `abort` is true, it indicates that the httpResponse should be aborted.
 // Returns a boolean value representing the `abort` property.
-func (r *HttpResponse) Abort() bool {
-	return r.abort
+func (h *HttpResponse) Abort() bool {
+	return h.abort
 }
 
 // Written returns a boolean value indicating whether the HttpResponse has been written.
 // Returns true if the HttpResponse has been written, false otherwise.
-func (r *HttpResponse) Written() bool {
-	return r.written
+func (h *HttpResponse) Written() bool {
+	return h.written
 }
 
 // StatusCode returns the status code of the HttpResponse object.
-func (r *HttpResponse) StatusCode() StatusCode {
-	return r.statusCode
+func (h *HttpResponse) StatusCode() StatusCode {
+	return h.statusCode
 }
 
 // Header returns the header of the HttpResponse object.
-func (r *HttpResponse) Header() Header {
-	return r.header
+func (h *HttpResponse) Header() Header {
+	return h.header
 }
 
-func (r *HttpResponse) ContentType() enum.ContentType {
-	if helper.IsNotNil(r.Body()) {
-		return r.Body().ContentType()
+func (h *HttpResponse) ContentType() ContentType {
+	if helper.IsNotNil(h.Body()) {
+		return h.Body().ContentType()
+	}
+	return ""
+}
+
+func (h *HttpResponse) HasContentEncoding() bool {
+	return helper.IsNotNil(h.Body()) && h.Body().HasContentEncoding()
+}
+
+func (h *HttpResponse) ContentEncoding() ContentEncoding {
+	if helper.IsNotNil(h.Body()) {
+		return h.Body().ContentEncoding()
 	}
 	return ""
 }
 
 // Body returns the body of the HttpResponse object.
-func (r *HttpResponse) Body() *Body {
-	return r.body
+func (h *HttpResponse) Body() *Body {
+	return h.body
 }
 
-// BodyBytes returns the body of the HttpResponse object as a slice of bytes.
-// If the body is nil, it returns nil.
-// Otherwise, it returns the result of calling the Bytes method on the body object.
-func (r *HttpResponse) BodyBytes() []byte {
-	if helper.IsNil(r.body) {
+func (h *HttpResponse) RawBodyBytes() []byte {
+	if helper.IsNil(h.body) {
 		return nil
 	}
-	return r.Body().Bytes()
+	return h.Body().RawBytes()
 }
 
 // HasHistory returns a boolean value indicating whether the HttpResponse object has a history.
 // It checks if the history list stored in the HttpResponse object is not empty.
 // Returns true if the history list is not empty, false otherwise.
-func (r *HttpResponse) HasHistory() bool {
-	return helper.IsNotEmpty(r.History())
+func (h *HttpResponse) HasHistory() bool {
+	return helper.IsNotEmpty(h.History())
 }
 
 // History returns the history list of backend responses stored in the HttpResponse object.
-func (r *HttpResponse) History() httpResponseHistory {
-	return r.history
+func (h *HttpResponse) History() httpResponseHistory {
+	return h.history
 }
 
 // Write writes the HttpResponse object based on the provided Endpoint, HttpRequest, and HttpResponse objects.
@@ -239,25 +249,25 @@ func (r *HttpResponse) History() httpResponseHistory {
 // If the HttpResponse object has a history, it calls the writeByHistory method to update the status code, header, and body based on the history.
 // Then, it calls the writeByEndpointConfig method to write the response based on the endpoint configuration.
 // Returns the modified HttpResponse object after writing the response.
-func (r *HttpResponse) Write(endpoint *Endpoint, httpRequest *HttpRequest, httpResponse *HttpResponse) *HttpResponse {
-	if r.Written() {
-		return r
+func (h *HttpResponse) Write(endpoint *Endpoint, httpRequest *HttpRequest, httpResponse *HttpResponse) *HttpResponse {
+	if h.Written() {
+		return h
 	}
 
-	statusCode := r.StatusCode()
-	header := r.Header()
-	body := r.Body()
+	statusCode := h.StatusCode()
+	header := h.Header()
+	body := h.Body()
 
-	if r.HasHistory() {
-		statusCode, header, body = r.writeByHistory(endpoint, httpRequest, httpResponse)
+	if h.HasHistory() {
+		statusCode, header, body = h.writeByHistory(endpoint, httpRequest, httpResponse)
 	}
 
-	return r.writeByEndpointConfig(endpoint, statusCode, header, body)
+	return h.writeByEndpointConfig(endpoint, statusCode, header, body)
 }
 
 // Map returns a string representation of the history list stored in the HttpResponse object.
-func (r *HttpResponse) Map() string {
-	return r.History().Map()
+func (h *HttpResponse) Map() string {
+	return h.History().Map()
 }
 
 // writeByHistory updates the status code, header, and body of the HttpResponse object
@@ -268,11 +278,11 @@ func (r *HttpResponse) Map() string {
 // It checks if it needs to aggregate the body based on the endpoint configuration.
 // It obtains the body from the filtered history.
 // Returns the updated status code, header, and body.
-func (r *HttpResponse) writeByHistory(endpoint *Endpoint, httpRequest *HttpRequest, httpResponse *HttpResponse) (
+func (h *HttpResponse) writeByHistory(endpoint *Endpoint, httpRequest *HttpRequest, httpResponse *HttpResponse) (
 	statusCode StatusCode, header Header, body *Body) {
 	endpointResponse := endpoint.Response()
 
-	filteredHistory := r.History().Filter(httpRequest, httpResponse)
+	filteredHistory := h.History().Filter(httpRequest, httpResponse)
 
 	statusCode = filteredHistory.StatusCode()
 	header = NewResponseHeader(endpoint.Completed(filteredHistory.Size()), filteredHistory.Success())
@@ -287,37 +297,21 @@ func (r *HttpResponse) writeByHistory(endpoint *Endpoint, httpRequest *HttpReque
 	return statusCode, header, body
 }
 
-// writeByEndpointConfig updates the body of the HttpResponse object based on the provided Endpoint and Body objects.
-// It first retrieves the response object from the endpoint.
-// If either the response object or the body object is nil, it returns the original body object.
-// If the omitEmpty flag in the response object is true, it removes any empty values from the body object.
-// If the nomenclature flag in the response object is true, it converts the body object to the specified case.
-// It then determines the content type based on the response object's encode properties and the body object's content
-// type.
-// If the content type is different from the body object's content type, it converts the body object to the specified
-// content type using byte conversion.
-// The updated body object is returned.
-func (r *HttpResponse) writeByEndpointConfig(endpoint *Endpoint, statusCode StatusCode, header Header, body *Body,
+// writeByEndpointConfig updates the HttpResponse object based on the provided Endpoint object,
+// StatusCode, Header, and Body parameters. It handles updating the Body and Header based on the Endpoint's configuration.
+// It returns a new HttpResponse object with the updated StatusCode, Header, Body, and the written flag set to true.
+func (h *HttpResponse) writeByEndpointConfig(endpoint *Endpoint, statusCode StatusCode, header Header, body *Body,
 ) *HttpResponse {
+	body = h.writeBodyByEndpointConfig(endpoint, body)
 	return &HttpResponse{
 		statusCode: statusCode,
-		header:     header,
-		body:       r.writeBodyByEndpointConfig(endpoint, body),
+		header:     header.Write(body),
+		body:       body,
 		written:    true,
 	}
 }
 
-// writeBodyByEndpointConfig updates the body of the HttpResponse object based on the provided Endpoint and Body objects.
-// It first retrieves the response object from the endpoint.
-// If either the response object or the body object is nil, it returns the original body object.
-// If the omitEmpty flag in the response object is true, it removes any empty values from the body object.
-// If the nomenclature flag in the response object is true, it converts the body object to the specified case.
-// It then determines the content type based on the response object's encode properties and the body object's content
-// type.
-// If the content type is different from the body object's content type, it converts the body object to the specified
-// content type using byte conversion.
-// The updated body object is returned.
-func (r *HttpResponse) writeBodyByEndpointConfig(endpoint *Endpoint, body *Body) *Body {
+func (h *HttpResponse) writeBodyByEndpointConfig(endpoint *Endpoint, body *Body) *Body {
 	endpointResponse := endpoint.Response()
 	if helper.IsNil(endpointResponse) || helper.IsNil(body) {
 		return body
@@ -330,17 +324,14 @@ func (r *HttpResponse) writeBodyByEndpointConfig(endpoint *Endpoint, body *Body)
 		body = body.ToCase(endpointResponse.Nomenclature())
 	}
 
-	var contentType enum.ContentType
-	if helper.IsNotNil(endpoint.Response()) && endpoint.Response().HasEncode() {
-		contentType = endpoint.Response().Encode().ContentType()
-	} else if helper.IsNotNil(body) {
-		contentType = body.ContentType()
+	contentType := body.ContentType()
+	if endpointResponse.HasContentType() {
+		contentType = endpointResponse.ContentType()
+	}
+	contentEncoding := body.ContentEncoding()
+	if endpointResponse.HasContentEncoding() {
+		contentEncoding = endpointResponse.ContentEncoding()
 	}
 
-	if helper.IsNotEqualTo(contentType, body.ContentType()) {
-		bs := body.BytesByContentType(contentType)
-		body = NewBodyByContentType(contentType.String(), helper.SimpleConvertToBuffer(bs))
-	}
-
-	return body
+	return body.ModifyContentType(contentType, contentEncoding)
 }

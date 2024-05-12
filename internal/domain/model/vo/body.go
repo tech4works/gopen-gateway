@@ -18,15 +18,14 @@ package vo
 
 import (
 	"bytes"
-	"compress/gzip"
 	"fmt"
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/go-logger/logger"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/enum"
+	xj "github.com/basgys/goxml2json"
 	"github.com/clbanning/mxj/v2"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
-	"io"
 	"strconv"
 	"strings"
 )
@@ -34,8 +33,9 @@ import (
 // Body represents the content and format of an HTTP request or response body.
 type Body struct {
 	// contentType is an enumeration type that represents the format of the content.
-	// It can have the following values: ContentTypeText, ContentTypeJson.
-	contentType enum.ContentType
+	// It can have the following values: ContentTypePlainText, ContentTypeJson.
+	contentType     ContentType
+	contentEncoding ContentEncoding
 	// value represents the content of an HTTP httpRequest or httpResponse body. It is stored as a bytes.Buffer object.
 	value *bytes.Buffer
 }
@@ -59,74 +59,21 @@ func NewBody(contentType, contentEncoding string, buffer *bytes.Buffer) *Body {
 	if helper.IsEmpty(buffer.Bytes()) {
 		return nil
 	}
-
-	contentTypeEnum := enum.ContentTypeFromString(contentType)
-	contentEncodingEnum := enum.ContentEncodingFromString(contentEncoding)
-
-	if contentEncodingEnum.IsEnumValid() {
-		return NewBodyByContentEncoding(contentTypeEnum, contentEncodingEnum, buffer)
-	}
 	return &Body{
-		contentType: contentTypeEnum,
-		value:       buffer,
+		contentType:     NewContentType(contentType),
+		contentEncoding: NewContentEncoding(contentEncoding),
+		value:           buffer,
 	}
 }
 
-// NewBodyByContentType returns a new Body object based on the provided content type and buffer.
-// It calls the underlying NewBody function with the provided content type, an empty content encoding,
-// and the given buffer.
-func NewBodyByContentType(contentType string, buffer *bytes.Buffer) *Body {
-	return NewBody(contentType, "", buffer)
-}
-
-// NewBodyByContentEncoding returns a new Body object based on the provided content type, content encoding,
-// and buffer. It checks if the content encoding is a valid enumeration value. If it is not valid,
-// it creates a new Body object with the provided content type and buffer. If the content encoding is valid,
-// it creates a gzip reader from the buffer, reads the reader to generate the uncompressed bytes,
-// and constructs the Body object with the uncompressed value.
-//
-// Parameters:
-// - contentType: A ContentType enumeration value representing the content type.
-// - contentEncoding: A ContentEncoding enumeration value representing the content encoding.
-// - buffer: A pointer to a bytes.Buffer object.
-//
-// Returns:
-// - A pointer to a Body object.
-func NewBodyByContentEncoding(contentType enum.ContentType, contentEncoding enum.ContentEncoding, buffer *bytes.Buffer,
-) *Body {
-	if !contentEncoding.IsEnumValid() {
-		return &Body{
-			contentType: contentType,
-			value:       buffer,
-		}
-	}
-
-	reader, err := gzip.NewReader(buffer)
-	if helper.IsNotNil(err) {
-		logger.Warning("Error creating gzip reader for body:", err)
-		return nil
-	}
-	defer reader.Close()
-	unzipBytes, err := io.ReadAll(reader)
-	if helper.IsNotNil(err) {
-		logger.Warning("Error read gzip bytes body:", err)
-		return nil
-	}
-
-	return &Body{
-		contentType: contentType,
-		value:       bytes.NewBuffer(unzipBytes),
-	}
-}
-
-// NewBodyByString creates a new Body object with a content type set to enum.ContentTypeText and a value
+// NewBodyByString creates a new Body object with a content type set to enum.ContentTypePlainText and a value
 // set to the converted buffer of the string parameter. It returns the created Body object.
 func NewBodyByString(s string) *Body {
 	if helper.IsEmpty(s) {
 		return nil
 	}
 	return &Body{
-		contentType: enum.ContentTypeText,
+		contentType: NewContentTypeJson(),
 		value:       helper.SimpleConvertToBuffer(s),
 	}
 }
@@ -139,7 +86,7 @@ func NewBodyByJson(a any) *Body {
 		return nil
 	}
 	return &Body{
-		contentType: enum.ContentTypeJson,
+		contentType: NewContentTypeJson(),
 		value:       helper.SimpleConvertToBuffer(a),
 	}
 }
@@ -154,9 +101,8 @@ func NewBodyByError(path string, err error) *Body {
 	if helper.IsNil(errBody) {
 		return nil
 	}
-
 	return &Body{
-		contentType: enum.ContentTypeJson,
+		contentType: NewContentTypeJson(),
 		value:       helper.SimpleConvertToBuffer(errBody),
 	}
 }
@@ -174,7 +120,7 @@ func NewBodyByHttpBackendResponse(index int, httpBackendResponse *HttpBackendRes
 	bodyJson, _ = sjson.Set(bodyJson, "code", httpBackendResponse.StatusCode())
 
 	body := &Body{
-		contentType: enum.ContentTypeJson,
+		contentType: NewContentTypeJson(),
 		value:       helper.SimpleConvertToBuffer(bodyJson),
 	}
 
@@ -183,11 +129,9 @@ func NewBodyByHttpBackendResponse(index int, httpBackendResponse *HttpBackendRes
 	}
 
 	if httpBackendResponse.GroupByType() {
-		body = body.AggregateByKey(httpBackendResponse.Key(index), httpBackendResponse.Body())
-	} else {
-		body = body.Aggregate(httpBackendResponse.Body())
+		return body.AggregateByKey(httpBackendResponse.Key(index), httpBackendResponse.Body())
 	}
-	return body
+	return body.Aggregate(httpBackendResponse.Body())
 }
 
 // NewBodyAggregateByKey creates a new Body object by aggregating the provided body with the given key.
@@ -200,7 +144,7 @@ func NewBodyAggregateByKey(key string, anotherBody *Body) *Body {
 	}
 
 	body := &Body{
-		contentType: enum.ContentTypeJson,
+		contentType: NewContentTypeJson(),
 		value:       helper.SimpleConvertToBuffer("{}"),
 	}
 	return body.AggregateByKey(key, anotherBody)
@@ -215,7 +159,7 @@ func NewBodyBySlice(sliceOfBodies []*Body) *Body {
 		return nil
 	}
 	return &Body{
-		contentType: enum.ContentTypeJson,
+		contentType: NewContentTypeJson(),
 		value:       helper.SimpleConvertToBuffer(sliceOfBodies),
 	}
 }
@@ -237,25 +181,29 @@ func NewBodyByCache(cacheBody *CacheBody) *Body {
 // NewEmptyBodyJson returns a new Body object with content type as "JSON" and value as "{}".
 func NewEmptyBodyJson() *Body {
 	return &Body{
-		contentType: enum.ContentTypeJson,
+		contentType: NewContentTypeJson(),
 		value:       helper.SimpleConvertToBuffer("{}"),
 	}
 }
 
 // ContentType returns the ContentType value of the Body instance.
-// It returns the content format of the Body as defined by the enum.ContentType type.
-// The ContentType value can be one of enum.ContentTypeText, enum.ContentTypeJson,
-// enum.ContentTypeXml, or enum.ContentTypeYml, or an empty string if not set.
-func (b *Body) ContentType() enum.ContentType {
+// It is used to access the content type of the request body.
+// The content type can be used to determine how the request body should be interpreted or processed.
+// If the Body instance is nil, it returns an empty ContentType value.
+func (b *Body) ContentType() ContentType {
 	return b.contentType
 }
 
-// Buffer returns the *bytes.Buffer value of the Body instance.
-// It is used to access the buffer that contains the body data of the request.
-// The buffer can be used for reading or modifying the request body.
-// If the Body instance is nil, it returns nil.
+func (b *Body) ContentEncoding() ContentEncoding {
+	return b.contentEncoding
+}
+
+func (b *Body) HasContentEncoding() bool {
+	return b.contentEncoding.Valid()
+}
+
 func (b *Body) Buffer() *bytes.Buffer {
-	return b.value
+	return bytes.NewBuffer(b.RawBytes())
 }
 
 // Aggregate aggregates the values of anotherBody into the current Body instance.
@@ -268,11 +216,8 @@ func (b *Body) Aggregate(anotherBody *Body) *Body {
 	return b.merge(anotherBody)
 }
 
-// AggregateByKey aggregates the given `anotherBody` into the `b` Body instance
-// using the provided `key`. It checks if both the `b` Body instance is not in
-// JSON format and if `anotherBody`
 func (b *Body) AggregateByKey(key string, anotherBody *Body) *Body {
-	if b.IsNotJson() || helper.IsNil(anotherBody) {
+	if b.ContentType().IsNotJson() || helper.IsNil(anotherBody) {
 		return b
 	}
 
@@ -290,79 +235,64 @@ func (b *Body) AggregateByKey(key string, anotherBody *Body) *Body {
 // Otherwise, it returns the string representation of the Body value.
 // The returned interface can be either a map or a string.
 func (b *Body) Interface() any {
-	switch b.contentType {
-	case enum.ContentTypeJson:
-		return gjson.ParseBytes(b.value.Bytes()).Value()
+	if b.ContentType().IsJson() {
+		return gjson.ParseBytes(b.Bytes()).Value()
 	}
 	return b.value.String()
 }
 
-// Json returns the JSON representation of the Body value.
-// If the content type is ContentTypeText, it converts the value to a JSON object
-// with the "text" field set to the value.
-// If the content type is ContentTypeJson, it returns the JSON bytes as is.
-// Otherwise, it returns an empty byte array.
-// The returned byte array can be used to send the JSON representation of the Body in an HTTP request.
-func (b *Body) Json() []byte {
-	switch b.contentType {
-	case enum.ContentTypeText:
-		return helper.SimpleConvertToBytes(fmt.Sprintf("{\"text\": \"%v\"}", b.value))
-	case enum.ContentTypeJson:
-		return b.Bytes()
-	default:
-		return []byte{}
+func (b *Body) Json() ([]byte, error) {
+	if b.ContentType().IsText() {
+		return helper.SimpleConvertToBytes(fmt.Sprintf("{\"text\": \"%v\"}", b.value)), nil
+	} else if b.ContentType().IsJson() {
+		return b.Bytes(), nil
+	} else if b.ContentType().IsXml() {
+		return convertXmlToJson(b.Bytes())
 	}
+	return []byte{}, nil
 }
 
-// Xml converts the Body content to XML format.
-// It returns the XML representation of the Body content as a byte array.
-// If the Body content is in JSON format, it converts the JSON to XML using mxj package.
-// The converted XML is indented and prefixed with "<object></object>" if the conversion is successful.
-// If the conversion fails, it returns "<object></object>".
-// For all other content types, it returns the content value wrapped in "<string></string>" tags as a byte array.
-func (b *Body) Xml() []byte {
-	switch b.contentType {
-	case enum.ContentTypeJson:
-		mapJson, err := mxj.NewMapJson(b.Bytes())
-		if helper.IsNil(err) {
-			xmlBytes, err := mapJson.XmlIndent("", "  ", "object")
-			if helper.IsNil(err) {
-				return xmlBytes
-			}
-		}
-		return []byte("<object></object>")
-	default:
-		return []byte(fmt.Sprintf("<string>%s</string>", b.value))
+func (b *Body) Xml() ([]byte, error) {
+	if b.ContentType().IsText() {
+		return []byte(fmt.Sprintf("<root>%s</root>", b.value)), nil
+	} else if b.ContentType().IsJson() {
+		return convertJsonToXml(b.Bytes())
+	} else if b.ContentType().IsXml() {
+		return b.Bytes(), nil
 	}
+	return []byte{}, nil
 }
 
-// BytesByContentType returns the byte representation of the Body instance based on the content type.
-// It takes a content type as an argument and uses a switch statement to determine which method to call on the Body instance.
-// If the content type is ContentTypeJson, it calls the Json() method on the Body instance and returns the result.
-// If the content type is ContentTypeXml, it calls the Xml() method on the Body instance and returns the result.
-// Otherwise, it calls the Bytes() method on the Body instance and returns the result.
-// This method is used to convert the Body instance to a byte array based on the desired content type.
-func (b *Body) BytesByContentType(contentType enum.ContentType) []byte {
-	switch contentType {
-	case enum.ContentTypeJson:
-		return b.Json()
-	case enum.ContentTypeXml:
-		return b.Xml()
-	default:
-		return b.Bytes()
+func compressByEncoding(bs []byte, contentEncoding ContentEncoding) ([]byte, error) {
+	if contentEncoding.IsGzip() {
+		return helper.CompressWithGzip(bs)
+	} else if contentEncoding.IsDeflate() {
+		return helper.CompressWithDeflate(bs)
 	}
+	return bs, nil
 }
 
-// Bytes returns the byte representation of the `Body` instance by returning the byte array from the `bytes.Buffer` value.
 func (b *Body) Bytes() []byte {
+	if b.ContentEncoding().IsGzip() {
+		decompressBytes, err := helper.DecompressWithGzip(b.RawBytes())
+		if helper.IsNil(err) {
+			return decompressBytes
+		}
+	} else if b.ContentEncoding().IsDeflate() {
+		decompressBytes, err := helper.DecompressWithDeflate(b.RawBytes())
+		if helper.IsNil(err) {
+			return decompressBytes
+		}
+	}
+	return b.RawBytes()
+}
+
+func (b *Body) RawBytes() []byte {
 	return b.value.Bytes()
 }
 
-// String returns a string representation of the current Body instance.
-// It utilizes the SimpleConvertToString function from the helper package to convert the value of the Body to a string.
-// The resulting string representation of the Body is returned.
 func (b *Body) String() string {
-	return b.value.String()
+	return string(b.Bytes())
 }
 
 // CompactString returns the compact string representation of the body.
@@ -376,14 +306,14 @@ func (b *Body) CompactString() string {
 }
 
 // Raw returns the raw string representation of the Body instance.
-// If the content type of the Body is ContentTypeText,
+// If the content type of the Body is ContentTypePlainText,
 // the string will be quoted using strconv.Quote function.
 // Otherwise, the string will be returned as is.
 // The raw string is parsed using parseStringValueToRaw function
 // to convert it into a raw JSON string.
 func (b *Body) Raw() string {
 	s := b.String()
-	if helper.Equals(b.ContentType(), enum.ContentTypeText) {
+	if b.ContentType().IsText() {
 		s = strconv.Quote(s)
 	}
 	return parseStringValueToRaw(s)
@@ -395,130 +325,60 @@ func (b *Body) MarshalJSON() ([]byte, error) {
 	return b.value.Bytes(), nil
 }
 
-// IsText returns a boolean value indicating whether the contentType of the Body is ContentTypeText.
-func (b *Body) IsText() bool {
-	return helper.Equals(b.contentType, enum.ContentTypeText)
-}
-
-// IsJson returns a boolean value indicating whether the contentType of the Body is ContentTypeJson.
-func (b *Body) IsJson() bool {
-	return helper.Equals(b.contentType, enum.ContentTypeJson)
-}
-
-// IsNotJson returns a boolean value indicating whether the contentType of the Body is not ContentTypeJson.
-func (b *Body) IsNotJson() bool {
-	return !b.IsJson()
-}
-
-// Add adds a new key-value pair to the Body instance.
-// The key is a string and the value can be any type.
-// If the contentType of the Body is ContentTypeText, the value will be converted to string
-// using helper.SimpleConvertToString function and added to the Body.
-// If the contentType is ContentTypeJson, the key-value pair will be added to the Body
-// using the addJson method.
-// If the contentType is neither ContentTypeText nor ContentTypeJson,
-// the Body instance will not be modified, and it will be returned as is.
-// The method returns the updated Body instance and an error if any.
 func (b *Body) Add(key string, value string) (*Body, error) {
-	switch b.contentType {
-	case enum.ContentTypeText:
+	if b.ContentType().IsText() {
 		return b.addString(value), nil
-	case enum.ContentTypeJson:
+	} else if b.ContentType().IsJson() {
 		return b.addJson(key, value)
-	default:
-		return b, nil
 	}
+	return b, nil
 }
 
-// Append appends a key-value pair to the Body instance.
-// The key-value pair is appended according to the contentType of the Body:
-//   - If the contentType is ContentTypeText, the value is converted to a string
-//     and appended as the value of the provided key.
-//   - If the contentType is ContentTypeJson, the key-value pair is appended as a
-//     JSON object to the Body.
-//   - For other contentTypes, the Body instance is returned unchanged.
-//
-// An error is returned if there is any issue with appending the key-value pair.
 func (b *Body) Append(key string, value string) (*Body, error) {
-	switch b.contentType {
-	case enum.ContentTypeText:
+	if b.ContentType().IsText() {
 		return b.appendString(value), nil
-	case enum.ContentTypeJson:
+	} else if b.ContentType().IsJson() {
 		return b.appendJson(key, value)
-	default:
-		return b, nil
 	}
+	return b, nil
 }
 
-// Set returns a new instance of Body with the provided key-value pair.
-// The new Body instance will have the same contentType as the original Body instance.
-// If the contentType is ContentTypeText, Set converts the value to a string and calls setString.
-// If the contentType is ContentTypeJson, Set calls setJson.
-// If the contentType is neither ContentTypeText nor ContentTypeJson, Set returns the original Body instance.
-// If an error occurs during the set operation, Set returns an error.
 func (b *Body) Set(key string, value string) (*Body, error) {
-	switch b.contentType {
-	case enum.ContentTypeText:
+	if b.ContentType().IsText() {
 		return b.setString(value), nil
-	case enum.ContentTypeJson:
+	} else if b.ContentType().IsJson() {
 		return b.setJson(key, value)
-	default:
-		return b, nil
 	}
+	return b, nil
 }
 
-// Replace is a method that replaces the value of a specified key in the Body instance.
-// The new value is specified by the provided 'value' argument.
-// If the content type of the Body is ContentTypeText, the value is converted to a string before replacing it.
-// If the content type is ContentTypeJson, the value is replaced in the JSON object.
-// If the content type is not ContentTypeText or ContentTypeJson, the same Body instance is returned.
-// The method returns the modified Body instance and an error if any occurred during the replacement process.
 func (b *Body) Replace(key string, value string) (*Body, error) {
-	switch b.contentType {
-	case enum.ContentTypeText:
+	if b.ContentType().IsText() {
 		return b.replaceString(key, value), nil
-	case enum.ContentTypeJson:
+	} else if b.ContentType().IsJson() {
 		return b.replaceJson(key, value)
-	default:
-		return b, nil
 	}
+	return b, nil
 }
 
-// Delete removes the value associated with the specified key from the Body instance.
-// If the content type of the Body is ContentTypeText, the resulting Body instance will have the value of the specified
-// key replaced by an empty string.
-// If the content type of the Body is ContentTypeJson, the resulting Body instance will have the value associated with
-// the specified key removed.
-// If the content type of the Body is not ContentTypeText or ContentTypeJson, the same Body instance will be returned.
-// An error will be returned if there are any issues during the deletion process.
 func (b *Body) Delete(key string) (*Body, error) {
-	switch b.contentType {
-	case enum.ContentTypeText:
+	if b.ContentType().IsText() {
 		return b.replaceString(key, ""), nil
-	case enum.ContentTypeJson:
+	} else if b.ContentType().IsJson() {
 		return b.deleteJson(key)
-	default:
-		return b, nil
 	}
+	return b, nil
 }
 
-// Map applies a mapper to the Body instance and returns a new modified Body instance.
-// If the mapper is empty, it returns the original Body instance.
-// If the content type of the Body is ContentTypeJson, it calls the mapJson method on the Body and returns the modified Body.
-// If the content type of the Body is ContentTypeText, it calls the mapText method on the Body and returns the modified Body.
-// For all other content types, it returns the original Body instance without modifications.
 func (b *Body) Map(mapper *Mapper) *Body {
-	if mapper.IsEmpty() {
-		return b
+	if helper.IsNotNil(mapper) && mapper.IsNotEmpty() {
+		if b.ContentType().IsText() {
+			return b.mapText(mapper)
+		} else if b.ContentType().IsJson() {
+			return b.mapJson(mapper)
+		}
 	}
-	switch b.contentType {
-	case enum.ContentTypeJson:
-		return b.mapJson(mapper)
-	case enum.ContentTypeText:
-		return b.mapText(mapper)
-	default:
-		return b
-	}
+	return b
 }
 
 // Projection applies a projection to the Body instance.
@@ -527,7 +387,7 @@ func (b *Body) Map(mapper *Mapper) *Body {
 // it returns the current Body instance without modifications.
 // The JSON projection is created based on the Projection object's keys and values.
 func (b *Body) Projection(projection *Projection) *Body {
-	if helper.IsNotEqualTo(b.contentType, enum.ContentTypeJson) || helper.IsNil(projection) || projection.IsEmpty() {
+	if b.ContentType().IsNotJson() || helper.IsNil(projection) || projection.IsEmpty() {
 		return b
 	}
 	return b.projectionJson(projection)
@@ -576,32 +436,46 @@ func (b *Body) Modify(modifier *Modifier, httpRequest *HttpRequest, httpResponse
 	return modifiedBody
 }
 
-// OmitEmpty returns a new instance of Body with empty values omitted.
-// The new Body instance will have the same contentType as the original Body instance.
-// If the contentType is ContentTypeJson, omitEmptyJson() will be called.
-// If the contentType is ContentTypeText, omitEmptyText() will be called.
-// If the contentType is neither ContentTypeJson nor ContentTypeText, the original Body instance will be returned.
-func (b *Body) OmitEmpty() *Body {
-	switch b.contentType {
-	case enum.ContentTypeJson:
-		return b.omitEmptyJson()
-	case enum.ContentTypeText:
-		return b.omitEmptyText()
-	default:
+func (b *Body) ModifyContentType(contentType ContentType, contentEncoding ContentEncoding) *Body {
+	var bs []byte
+	var err error
+	if contentType.IsJson() {
+		bs, err = b.Json()
+	} else if contentType.IsXml() {
+		bs, err = b.Xml()
+	} else {
+		bs = b.Bytes()
+	}
+
+	if helper.IsNotNil(err) {
+		logger.Warningf("Error modify content-type: %s err: %s", contentType, err)
 		return b
+	}
+
+	bs, err = compressByEncoding(bs, contentEncoding)
+	if helper.IsNotNil(err) {
+		logger.Warningf("Error modify content-encoding: %s err: %s", contentEncoding, err)
+		return b
+	}
+
+	return &Body{
+		contentType:     contentType,
+		contentEncoding: contentEncoding,
+		value:           helper.SimpleConvertToBuffer(bs),
 	}
 }
 
-// ToCase converts the keys of the Body instance to the specified case format based on the value of Nomenclature.
-// If the Body instance does not have a content type of ContentTypeJson, it returns the Body unchanged.
-// If the Body instance has a content type of ContentTypeJson, it converts the keys of the JSON string to the specified
-// case format using the Nomenclature value.
-// The converted JSON string is then used to create a new Body instance with the same content type and the converted
-// JSON string as the value.
-// The method returns the new Body instance with the converted JSON keys.
-// If the Nomenclature value is not one of the predefined cases, the method returns the Body unchanged.
+func (b *Body) OmitEmpty() *Body {
+	if b.ContentType().IsText() {
+		return b.omitEmptyText()
+	} else if b.ContentType().IsJson() {
+		return b.omitEmptyJson()
+	}
+	return b
+}
+
 func (b *Body) ToCase(nomenclature enum.Nomenclature) *Body {
-	if helper.IsNotEqualTo(b.contentType, enum.ContentTypeJson) {
+	if b.ContentType().IsNotJson() {
 		return b
 	}
 	jsonStr := convertKeysToCase(b.String(), nomenclature)
@@ -808,19 +682,17 @@ func (b *Body) deleteJson(key string) (*Body, error) {
 // If anotherBody is nil, it returns the current Body instance.
 // It checks the contentType of the Body instance and performs the merge operation accordingly.
 // If the contentType is ContentTypeJson, it uses the mergeJSON function to merge the JSON values of the bodies.
-// If the contentType is ContentTypeText, it uses the mergeString function to merge the string values of the bodies.
+// If the contentType is ContentTypePlainText, it uses the mergeString function to merge the string values of the bodies.
 // The merged Body value is then used to create a new Body instance with the same contentType,
 // which is returned as the result.
-// If the contentType is neither ContentTypeJson nor ContentTypeText, it returns the current Body instance unchanged.
+// If the contentType is neither ContentTypeJson nor ContentTypePlainText, it returns the current Body instance unchanged.
 func (b *Body) merge(anotherBody *Body) *Body {
-	if helper.IsNil(anotherBody) {
-		return b
-	}
-	switch b.contentType {
-	case enum.ContentTypeJson:
-		return b.mergeJSON(anotherBody.Raw())
-	case enum.ContentTypeText:
-		return b.mergeString(anotherBody.String())
+	if helper.IsNotNil(anotherBody) {
+		if b.ContentType().IsText() {
+			return b.mergeString(anotherBody.String())
+		} else if b.ContentType().IsJson() {
+			return b.mergeJSON(anotherBody.Raw())
+		}
 	}
 	return b
 }
@@ -851,6 +723,26 @@ func (b *Body) mergeJSON(jsonStr string) *Body {
 	return &Body{
 		contentType: b.ContentType(),
 		value:       helper.SimpleConvertToBuffer(merged),
+	}
+}
+
+// mapText applies a mapper to the Body instance and returns a new modified Body instance.
+// It replaces all occurrences of keys in the Body's value with their corresponding new values from the mapper.
+// The modified Body instance has the same content type as the original Body instance.
+// If the mapper is empty or there are no key replacements, it returns the original Body instance.
+func (b *Body) mapText(mapper *Mapper) *Body {
+	mappedText := b.String()
+
+	for _, key := range mapper.Keys() {
+		newKey := mapper.Get(key)
+		if helper.IsNotEqualTo(key, newKey) {
+			mappedText = strings.ReplaceAll(mappedText, key, newKey)
+		}
+	}
+
+	return &Body{
+		contentType: b.contentType,
+		value:       helper.SimpleConvertToBuffer(mappedText),
 	}
 }
 
@@ -925,26 +817,6 @@ func (b *Body) mapJsonObject(mapper *Mapper, jsonObject gjson.Result) *Body {
 	return &Body{
 		contentType: b.contentType,
 		value:       helper.SimpleConvertToBuffer(mappedJson),
-	}
-}
-
-// mapText applies a mapper to the Body instance and returns a new modified Body instance.
-// It replaces all occurrences of keys in the Body's value with their corresponding new values from the mapper.
-// The modified Body instance has the same content type as the original Body instance.
-// If the mapper is empty or there are no key replacements, it returns the original Body instance.
-func (b *Body) mapText(mapper *Mapper) *Body {
-	mappedText := b.String()
-
-	for _, key := range mapper.Keys() {
-		newKey := mapper.Get(key)
-		if helper.IsNotEqualTo(key, newKey) {
-			mappedText = strings.ReplaceAll(mappedText, key, newKey)
-		}
-	}
-
-	return &Body{
-		contentType: b.contentType,
-		value:       helper.SimpleConvertToBuffer(mappedText),
 	}
 }
 
@@ -1183,14 +1055,38 @@ func (b *Body) omitEmptyJson() *Body {
 // The new Body instance will have the same contentType as the original Body instance.
 //
 // If the contentType is ContentTypeJson, omitEmptyJson() will be called.
-// If the contentType is ContentTypeText, omitEmptyText() will be called.
-// If the contentType is neither ContentTypeJson nor ContentTypeText, the original Body instance will be returned.
+// If the contentType is ContentTypePlainText, omitEmptyText() will be called.
+// If the contentType is neither ContentTypeJson nor ContentTypePlainText, the original Body instance will be returned.
 func (b *Body) omitEmptyText() *Body {
 	s := helper.CleanAllRepeatSpaces(b.String())
 	return &Body{
 		contentType: b.contentType,
 		value:       helper.SimpleConvertToBuffer(s),
 	}
+}
+
+func (b *Body) Length() int {
+	return len(b.RawBytes())
+}
+
+func (b *Body) LengthStr() string {
+	return helper.SimpleConvertToString(b.Length())
+}
+
+func convertJsonToXml(bs []byte) ([]byte, error) {
+	mapJson, err := mxj.NewMapJson(bs)
+	if helper.IsNotNil(err) {
+		return nil, err
+	}
+	return mapJson.Xml()
+}
+
+func convertXmlToJson(bs []byte) ([]byte, error) {
+	jsonData, err := xj.Convert(bytes.NewBuffer(bs))
+	if helper.IsNotNil(err) {
+		return nil, err
+	}
+	return jsonData.Bytes(), nil
 }
 
 // setJsonKeyValue sets the value of a given key in a JSON string. If the key already exists in the JSON string and

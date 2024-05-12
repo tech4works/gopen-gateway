@@ -22,9 +22,9 @@ import (
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/go-redis-template/redis"
 	"github.com/GabrielHCataldo/go-redis-template/redis/option"
-	appmapper "github.com/GabrielHCataldo/gopen-gateway/internal/app/mapper"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/interfaces"
-	"time"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/mapper"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
 )
 
 // redisStore represents a Redis cache store that implements the CacheStore interface.
@@ -43,15 +43,12 @@ func NewRedisStore(address, password string) interfaces.CacheStore {
 	}
 }
 
-// Set sets the value of the given key in the Redis cache.
-// It takes the context, key, value, and expiration duration as parameters.
-// The value can be of any type.
-// The expiry parameter specifies the time after which the key will expire in the cache.
-// It returns an error if there was a problem setting the value in the cache.
-// If the key does not exist in the cache, it will be created.
-// If the value is not already of type "any", it will be converted to "any".
-func (r redisStore) Set(ctx context.Context, key string, value any, expire time.Duration) error {
-	return r.redisTemplate.Set(ctx, key, value, option.NewSet().SetTTL(expire))
+func (r redisStore) Set(ctx context.Context, key string, cacheResponse *vo.CacheResponse) error {
+	gzipBase64, err := helper.CompressWithGzipToBase64(cacheResponse)
+	if helper.IsNotNil(err) {
+		return err
+	}
+	return r.redisTemplate.Set(ctx, key, gzipBase64, option.NewSet().SetTTL(cacheResponse.Duration.Time()))
 }
 
 // Del deletes the value associated with the given key from the Redis cache.
@@ -63,20 +60,20 @@ func (r redisStore) Del(ctx context.Context, key string) error {
 	return r.redisTemplate.Del(ctx, key)
 }
 
-// Get retrieves the value associated with the given key from the Redis cache.
-// It takes the context, key, and a destination variable as parameters.
-// The destination variable represents the result of the retrieval operation.
-// If the key does not exist in the cache, Get returns an error of type ErrCacheNotFound.
-// If there is any other error during the retrieval, that error is returned.
-// If everything goes well, Get returns nil.
-func (r redisStore) Get(ctx context.Context, key string, dest any) error {
-	err := r.redisTemplate.Get(ctx, key, dest)
+func (r redisStore) Get(ctx context.Context, key string) (*vo.CacheResponse, error) {
+	var cacheGzipBase64 string
+	err := r.redisTemplate.Get(ctx, key, &cacheGzipBase64)
 	if errors.Is(err, redis.ErrKeyNotFound) {
-		return appmapper.NewErrCacheNotFound()
+		return nil, mapper.NewErrCacheNotFound()
 	} else if helper.IsNotNil(err) {
-		return err
+		return nil, err
 	}
-	return nil
+	var cacheResponse vo.CacheResponse
+	err = helper.DecompressFromBase64WithGzipToDest(cacheGzipBase64, &cacheResponse)
+	if helper.IsNotNil(err) {
+		return nil, err
+	}
+	return &cacheResponse, nil
 }
 
 // Close closes the connection to the Redis server.

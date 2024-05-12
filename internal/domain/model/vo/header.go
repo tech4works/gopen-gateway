@@ -22,6 +22,7 @@ import (
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/enum"
 	"net/http"
 	"strings"
+	"time"
 )
 
 // Header represents a map of string keys to slices of string values.
@@ -59,13 +60,13 @@ func NewResponseHeader(complete, success bool) Header {
 	}
 }
 
-// HeaderMandatoryKeys returns a slice of strings representing the mandatory keys in an HTTP header.
-// This function includes the following keys: "X-Forwarded-For", "X-Trace-Id", "X-Gopen-Cache",
-// "X-Gopen-Cache-Ttl", "X-Gopen-Complete", and "X-Gopen-Success".
-// The returned slice can be used to check if a given key is a mandatory key in an HTTP header.
+// HeaderMandatoryKeys returns a slice containing the names of the mandatory keys
+// in an HTTP header. The keys include XForwardedFor, XTraceId, XGopenCache,
+// XGopenCacheTTL, XGopenComplete, XGopenSuccess, ContentType, ContentEncoding,
+// and ContentLength.
 func HeaderMandatoryKeys() []string {
 	return []string{consts.XForwardedFor, consts.XTraceId, consts.XGopenCache, consts.XGopenCacheTTL,
-		consts.XGopenComplete, consts.XGopenSuccess}
+		consts.XGopenComplete, consts.XGopenSuccess, consts.ContentType, consts.ContentEncoding, consts.ContentLength}
 }
 
 // IsHeaderMandatoryKey checks if a given key is a mandatory key in an HTTP header.
@@ -266,6 +267,25 @@ func (h Header) Modify(modifier *Modifier, httpRequest *HttpRequest, httpRespons
 	default:
 		return h
 	}
+}
+
+func (h Header) Write(body *Body) Header {
+	modifiedHeader := h.copy()
+	modifiedHeader = modifiedHeader.Set("Date", time.Now().Format(time.RFC3339))
+	if helper.IsNil(body) {
+		modifiedHeader = modifiedHeader.Delete("Content-Type")
+		modifiedHeader = modifiedHeader.Delete("Content-Encoding")
+		modifiedHeader = modifiedHeader.Delete("Content-Length")
+		return h
+	}
+	modifiedHeader = modifiedHeader.Set("Content-Length", body.LengthStr())
+	modifiedHeader = modifiedHeader.Set("Content-Type", body.ContentType().String())
+	if body.HasContentEncoding() {
+		modifiedHeader = modifiedHeader.Set("Content-Encoding", body.ContentEncoding().String())
+	} else {
+		modifiedHeader = modifiedHeader.Delete("Content-Encoding")
+	}
+	return modifiedHeader
 }
 
 // Aggregate combines the headers of two Header objects.
