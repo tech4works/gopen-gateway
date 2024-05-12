@@ -116,7 +116,7 @@ func main() {
 
 	bootService.LoadEnvs()
 
-	go startApp()
+	startApp()
 
 	keepActive()
 }
@@ -151,7 +151,7 @@ func startApp() {
 
 	loggerProvider.PrintInfo("Building application...")
 	gopenApp = app.NewGopen(gopenJson, cacheStore)
-	gopenApp.ListerAndServer()
+	go gopenApp.ListerAndServer()
 }
 
 // restartApp is a function that restarts the Gopen application by performing the following steps:
@@ -189,7 +189,7 @@ func restartApp() {
 
 	bootService.ReloadEnvs()
 
-	go startApp()
+	startApp()
 }
 
 // restartPanicRecovery is a function that handles panics and performs recovery operations.
@@ -207,7 +207,7 @@ func restartPanicRecovery() {
 func recoveryApp() {
 	fmt.Println()
 	loggerProvider.PrintTitle("RECOVERY")
-	go startApp()
+	startApp()
 }
 
 // keepActive is a function that keeps the main goroutine active by waiting for an OS interrupt signal.

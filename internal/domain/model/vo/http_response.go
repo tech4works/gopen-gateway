@@ -148,7 +148,6 @@ func NewHttpResponseByErr(path string, err error) *HttpResponse {
 	} else {
 		statusCode = http.StatusInternalServerError
 	}
-
 	return &HttpResponse{
 		statusCode: statusCode,
 		header:     NewHeaderFailed(),

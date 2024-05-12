@@ -28,11 +28,6 @@ import (
 // Header represents a map of string keys to slices of string values.
 type Header map[string][]string
 
-// NewEmptyHeader creates a new empty Header object.
-func NewEmptyHeader() Header {
-	return Header{}
-}
-
 // NewHeader creates a new Header object from an existing http.Header object.
 func NewHeader(httpHeader http.Header) Header {
 	return Header(httpHeader)
@@ -267,6 +262,16 @@ func (h Header) Modify(modifier *Modifier, httpRequest *HttpRequest, httpRespons
 	default:
 		return h
 	}
+}
+
+func (h Header) OnlyMandatoryKeys() Header {
+	newHeader := Header{}
+	for key, value := range h {
+		if IsHeaderMandatoryKey(key) {
+			newHeader[key] = value
+		}
+	}
+	return newHeader
 }
 
 func (h Header) Write(body *Body) Header {

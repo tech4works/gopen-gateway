@@ -127,13 +127,12 @@ func (h *HttpBackendResponse) Map() any {
 	}
 }
 
-// ApplyConfig applies the configuration settings from the BackendResponse to the HttpBackendResponse instance.
-// First, it checks if the BackendResponse has already been applied or if it is nil or if the specified apply moment
-// is different from the configured moment. If any of these conditions are met, it returns the HttpBackendResponse
-// instance without applying any changes.
-// If the BackendResponse is configured to be omitted, the method returns nil.
-// Otherwise, it builds the header and body based on the configuration settings of the BackendResponse and returns a
-// new HttpBackendResponse instance with the applied changes.
+// ApplyConfig applies the given configuration settings to the HttpBackendResponse instance.
+// It checks if the response has already been written or if the momentToApply value is not equal
+// to the moment to apply specified in the backendResponse configuration. If any of these conditions
+// are true, it returns the original HttpBackendResponse instance. If the backendResponse is configured to be omitted,
+// it returns nil. Otherwise, it builds the body based on the backendResponse configuration and the given httpRequest
+// and httpResponse. It creates a new HttpBackendResponse instance with the updated configuration settings and returns it.
 func (h *HttpBackendResponse) ApplyConfig(momentToApply enum.BackendResponseApply, httpRequest *HttpRequest,
 	httpResponse *HttpResponse) *HttpBackendResponse {
 	backendResponse := h.Config()
@@ -143,33 +142,30 @@ func (h *HttpBackendResponse) ApplyConfig(momentToApply enum.BackendResponseAppl
 		return nil
 	}
 
+	body := h.buildBodyByConfig(backendResponse, httpRequest, httpResponse)
 	return &HttpBackendResponse{
 		statusCode: h.statusCode,
-		header:     h.buildHeaderByConfig(backendResponse, httpRequest, httpResponse),
-		body:       h.buildBodyByConfig(backendResponse, httpRequest, httpResponse),
+		header:     h.buildHeaderByConfig(backendResponse, body, httpRequest, httpResponse),
+		body:       body,
 		written:    true,
 	}
 }
 
-// buildHeaderByConfig builds the header for the HttpBackendResponse instance based on the configuration settings
-// specified in the BackendResponse. If the BackendResponse is configured to omit the header, it returns an empty
-// header. Otherwise, it applies the header mappings, projections, and modifiers specified in the BackendResponse
-// to the existing header of the HttpBackendResponse.
-// It returns the modified header.
-func (h *HttpBackendResponse) buildHeaderByConfig(backendResponse *BackendResponse, httpRequest *HttpRequest,
+func (h *HttpBackendResponse) buildHeaderByConfig(backendResponse *BackendResponse, body *Body, httpRequest *HttpRequest,
 	httpResponse *HttpResponse) Header {
-	if backendResponse.OmitHeader() {
-		return NewEmptyHeader()
-	}
-
 	header := h.Header()
-	header = header.Map(backendResponse.HeaderMapper())
-	header = header.Projection(backendResponse.HeaderProjection())
-	for _, modifier := range backendResponse.HeaderModifiers() {
-		header = header.Modify(&modifier, httpRequest, httpResponse)
+
+	if backendResponse.OmitHeader() {
+		header = header.OnlyMandatoryKeys()
+	} else {
+		header = header.Map(backendResponse.HeaderMapper())
+		header = header.Projection(backendResponse.HeaderProjection())
+		for _, modifier := range backendResponse.HeaderModifiers() {
+			header = header.Modify(&modifier, httpRequest, httpResponse)
+		}
 	}
 
-	return header
+	return header.Write(body)
 }
 
 // buildBodyByConfig builds the body for the HttpBackendResponse instance based on the configuration settings

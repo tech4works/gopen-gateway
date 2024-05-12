@@ -187,6 +187,8 @@ func newBackendRequest(backendRequestJson *BackendRequestJson) *BackendRequest {
 		omitHeader:       backendRequestJson.OmitHeader,
 		omitQuery:        backendRequestJson.OmitQuery,
 		omitBody:         backendRequestJson.OmitBody,
+		contentType:      backendRequestJson.ContentType,
+		contentEncoding:  backendRequestJson.ContentEncoding,
 		headerMapper:     backendRequestJson.HeaderMapper,
 		queryMapper:      backendRequestJson.QueryMapper,
 		bodyMapper:       backendRequestJson.BodyMapper,

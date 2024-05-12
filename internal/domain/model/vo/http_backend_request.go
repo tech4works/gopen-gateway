@@ -98,7 +98,7 @@ func newBackendRequestHeader(backend *Backend, body *Body, httpRequest *HttpRequ
 	if helper.IsNil(backendRequest) {
 		header = httpRequest.Header()
 	} else if backendRequest.OmitHeader() {
-		header = NewEmptyHeader()
+		header = httpRequest.Header().OnlyMandatoryKeys()
 	} else {
 		header = httpRequest.Header()
 		header = header.Map(backendRequest.HeaderMapper())
