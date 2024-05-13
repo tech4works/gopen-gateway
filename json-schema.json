@@ -41,6 +41,17 @@
       "minimum": 1,
       "pattern": "^[\\w-]+(\\.[\\w-]+)*$"
     },
+    "nomenclature": {
+      "type": "string",
+      "enum": [
+        "LOWER_CAMEL",
+        "CAMEL",
+        "SNAKE",
+        "SCREAMING_SNAKE",
+        "KEBAB",
+        "SCREAMING_KEBAB"
+      ]
+    },
     "content-type": {
       "type": "string",
       "enum": [
@@ -52,7 +63,9 @@
     "content-encoding": {
       "type": "string",
       "enum": [
-        "GZIP"
+        "GZIP",
+        "DEFLATE",
+        "NONE"
       ]
     },
     "request-modifier": {
@@ -342,15 +355,7 @@
           "$ref": "#/definitions/content-encoding"
         },
         "nomenclature": {
-          "type": "string",
-          "enum": [
-            "LOWER_CAMEL",
-            "CAMEL",
-            "SNAKE",
-            "SCREAMING_SNAKE",
-            "KEBAB",
-            "SCREAMING_KEBAB"
-          ]
+          "$ref": "#/definitions/nomenclature"
         },
         "omit-empty": {
           "type": "boolean"
@@ -435,6 +440,12 @@
         "content-encoding": {
           "$ref": "#/definitions/content-encoding"
         },
+        "nomenclature": {
+          "$ref": "#/definitions/nomenclature"
+        },
+        "omit-empty": {
+          "type": "boolean"
+        },
         "header-mapper": {
           "$ref": "#/definitions/header-mapper"
         },
@@ -506,6 +517,8 @@
             "anyOf": [
               {"required": ["content-type"]},
               {"required": ["content-encoding"]},
+              {"required": ["nomenclature"]},
+              {"required": ["omit-empty"]},
               {"required": ["body-mapper"]},
               {"required": ["body-projection"]},
               {"required": ["body-modifiers"]}
