@@ -44,9 +44,15 @@ type BackendRequest struct {
 	// omitQuery represents a boolean flag indicating whether the query should be omitted in the BackendRequest config.
 	omitQuery bool
 	// omitBody represents a boolean flag indicating whether the body should be omitted in the BackendRequest config.
-	omitBody        bool
-	contentType     enum.ContentType
+	omitBody bool
+	// contentType represents the encoding format of the backend request body.
+	contentType enum.ContentType
+	// contentEncoding represents the encoding format for the backend request.
 	contentEncoding enum.ContentEncoding
+	// nomenclature is an enumeration type representing the case format for text values.
+	nomenclature enum.Nomenclature
+	// omitEmpty is a boolean value that indicates whether the JSON field in the body should be omitted or not if empty.
+	omitEmpty bool
 	// headerMapper is a field of type *Mapper in the BackendRequest struct.
 	// It represents the mapper for the header fields in the backend request config.
 	// The mapper is used to map keys to values for the header fields in the request.
@@ -189,6 +195,8 @@ func newBackendRequest(backendRequestJson *BackendRequestJson) *BackendRequest {
 		omitBody:         backendRequestJson.OmitBody,
 		contentType:      backendRequestJson.ContentType,
 		contentEncoding:  backendRequestJson.ContentEncoding,
+		nomenclature:     backendRequestJson.Nomenclature,
+		omitEmpty:        backendRequestJson.OmitEmpty,
 		headerMapper:     backendRequestJson.HeaderMapper,
 		queryMapper:      backendRequestJson.QueryMapper,
 		bodyMapper:       backendRequestJson.BodyMapper,
@@ -323,6 +331,18 @@ func (b BackendRequest) ContentEncoding() ContentEncoding {
 	case enum.ContentEncodingDeflate:
 		return NewContentEncodingDeflate()
 	}
+}
+
+func (b BackendRequest) HasNomenclature() bool {
+	return b.nomenclature.IsEnumValid()
+}
+
+func (b BackendRequest) Nomenclature() enum.Nomenclature {
+	return b.nomenclature
+}
+
+func (b BackendRequest) OmitEmpty() bool {
+	return b.omitEmpty
 }
 
 // HeaderMapper returns the header mapper configuration of the BackendRequest.

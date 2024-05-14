@@ -206,6 +206,17 @@ func (q Query) Encode() string {
 	return strBuilder.String()
 }
 
+func (q Query) String() string {
+	if helper.IsEmpty(q) {
+		return ""
+	}
+	mapString := map[string]string{}
+	for key, value := range q {
+		mapString[key] = strings.Join(value, ",")
+	}
+	return helper.SimpleConvertToString(mapString)
+}
+
 // copy creates a new copy of the Query map by iterating over the key-value pairs
 // of the original Query map and assigning them to the newly created Query map.
 // The new copy of the Query map is then returned.

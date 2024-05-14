@@ -38,8 +38,9 @@ import (
 // The CustomAfterPrefixText field is used to set a custom text that will be
 // printed after the log prefix. In this example, the value is set to "APP".
 var loggerOptions = logger.Options{
-	HideArgCaller:         true,
 	CustomAfterPrefixText: "APP",
+	HideArgCaller:         true,
+	HideArgDatetime:       true,
 }
 
 // httpServer is a variable that holds an instance of the http.Server struct.
@@ -278,4 +279,8 @@ func printInfo(msg ...any) {
 // The loggerOptions variable is used as the logger's options, which contains custom configuration options.
 func printInfof(format string, msg ...any) {
 	logger.InfoOptsf(format, loggerOptions, msg...)
+}
+
+func printWarningf(format string, msg ...any) {
+	logger.WarningOptsf(format, loggerOptions, msg...)
 }

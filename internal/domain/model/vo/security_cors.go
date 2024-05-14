@@ -87,7 +87,7 @@ func (s SecurityCors) AllowHeaders(header Header) (err error) {
 
 	var headersNotAllowed []string
 	for key := range header {
-		if helper.IsNotEqualTo(key, consts.XForwardedFor) && helper.IsNotEqualToIgnoreCase(key, consts.XTraceId) &&
+		if helper.IsNotEqualTo(key, consts.XForwardedFor) &&
 			helper.NotContains(s.allowHeaders, key) {
 			headersNotAllowed = append(headersNotAllowed, key)
 		}

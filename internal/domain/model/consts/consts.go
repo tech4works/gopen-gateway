@@ -24,10 +24,6 @@ const (
 	// It is used to indicate the original IP address of a client connecting to a web server
 	// through an HTTP proxy or a load balancer.
 	XForwardedFor = "X-Forwarded-For"
-	// XTraceId represents the name of the "X-Trace-Id" HTTP header.
-	// It is used to uniquely identify a request or a set of related requests
-	// for tracing and debugging purposes.
-	XTraceId = "X-Trace-Id"
 	// XGopenCache represents the name of the "X-Gopen-Cache" HTTP header.
 	// It is used to indicate whether a cache is being used for the request.
 	XGopenCache = "X-Gopen-Cache"

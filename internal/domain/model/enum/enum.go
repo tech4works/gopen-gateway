@@ -26,10 +26,11 @@ type ModifierScope string
 // ModifierAction represents the action to be performed in the Modifier struct.
 type ModifierAction string
 
-// ContentType represents the encoding format for the API endpoint response.
+// ContentType represents the encoding format. It is a string type.
+// The valid values for ContentType are "PLAIN_TEXT", "JSON", and "XML".
 type ContentType string
 
-// ContentEncoding represents the encoding format for the API endpoint response.
+// ContentEncoding represents the encoding format.
 type ContentEncoding string
 
 // Nomenclature represents the case format for text values.

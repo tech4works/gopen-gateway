@@ -27,6 +27,7 @@ import (
 var loggerOptions = logger.Options{
 	CustomAfterPrefixText: "CMD",
 	HideArgCaller:         true,
+	HideArgDatetime:       true,
 }
 
 // cmdLoggerProvider is a type that implements the CmdLoggerProvider interface.

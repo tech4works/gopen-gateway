@@ -17,8 +17,10 @@
 package api
 
 import (
+	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
 	"github.com/gin-gonic/gin"
+	"github.com/opentracing/opentracing-go"
 	"sync"
 	"time"
 )
@@ -66,26 +68,38 @@ func handle(gopen *vo.Gopen, endpoint *vo.Endpoint, handle HandlerFunc) gin.Hand
 	}
 }
 
-// buildContext initializes and returns a new instance of the Context struct.
-// It takes a pointer to a gin.Context object, vo.Gopen object, and vo.Endpoint object as arguments.
-// The Context struct is initialized with the current timestamp, a RWMutex, gin.Context object, vo.Gopen object,
-// vo.Endpoint object, and a new instance of the vo.HttpRequest struct created with the gin.Context object passed as an
-// argument. The resulting Context struct is then returned as a pointer.
-//
-// Parameters:
-//   - gin: A pointer to the gin.Context object.
-//   - gopen: A pointer to the vo.Gopen object.
-//   - endpoint: A pointer to the vo.Endpoint object.
-//
-// Returns:
-//   - A pointer to the newly created Context struct.
+// buildContext creates and returns a new Context object with the given gin.Context, vo.Gopen, and vo.Endpoint.
+// It initializes a new vo.HttpRequest object with the provided gin.Context and builds a new span using the buildSpan function.
+// The gin.Context is then updated with the new span using opentracing.ContextWithSpan function.
+// Finally, a new Context object is created with the start time, the created span, a mutex, the gin.Context,
+// the vo.Gopen, vo.Endpoint, and vo.HttpRequest objects, and returned by the function.
 func buildContext(gin *gin.Context, gopen *vo.Gopen, endpoint *vo.Endpoint) *Context {
+	httpRequest := vo.NewHttpRequest(gin)
+
+	span := buildSpan(httpRequest)
+	gin.Request = gin.Request.WithContext(opentracing.ContextWithSpan(gin.Request.Context(), span))
+
 	return &Context{
 		startTime:   time.Now(),
+		span:        span,
 		mutex:       &sync.RWMutex{},
 		framework:   gin,
 		gopen:       gopen,
 		endpoint:    endpoint,
-		httpRequest: vo.NewHttpRequest(gin),
+		httpRequest: httpRequest,
 	}
+}
+
+func buildSpan(httpRequest *vo.HttpRequest) opentracing.Span {
+	urlTag := opentracing.Tag{Key: "request.url", Value: httpRequest.Url()}
+	methodTag := opentracing.Tag{Key: "request.method", Value: httpRequest.Method()}
+	paramsTag := opentracing.Tag{Key: "request.params", Value: httpRequest.Params().String()}
+	queryTag := opentracing.Tag{Key: "request.query", Value: httpRequest.Query().String()}
+	headerTag := opentracing.Tag{Key: "request.header", Value: httpRequest.Header().String()}
+	bodyTag := opentracing.Tag{Key: "request.body", Value: ""}
+	if helper.IsNotNil(httpRequest.Body()) {
+		bodyTag.Value = httpRequest.Body().CompactString()
+	}
+	return opentracing.StartSpan(httpRequest.Path().RawString(), urlTag, methodTag, paramsTag, queryTag, headerTag,
+		bodyTag)
 }

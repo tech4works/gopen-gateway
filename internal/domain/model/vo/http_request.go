@@ -18,13 +18,10 @@ package vo
 
 import (
 	"bytes"
-	"fmt"
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/consts"
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"io"
-	"time"
 )
 
 // HttpRequest represents an HTTP request.
@@ -50,20 +47,9 @@ type HttpRequest struct {
 	history []*HttpBackendRequest
 }
 
-// NewHttpRequest creates a new instance of HttpRequest.
-// It initializes the HttpRequest with data from the gin.Context parameter.
-// The function performs various operations to populate the fields of the HttpRequest struct,
-// such as updating headers, constructing the URL path, processing and parsing the query parameters,
-// reading the request body, and setting the HTTP method.
-// The function returns the created HttpRequest object.
 func NewHttpRequest(gin *gin.Context) *HttpRequest {
 	header := NewHeader(gin.Request.Header)
 	header = header.Add(consts.XForwardedFor, gin.ClientIP())
-	if helper.IsEmpty(header.Get(consts.XTraceId)) {
-		u := uuid.New().String()
-		unixNano := time.Now().UnixNano()
-		header = header.Set(consts.XTraceId, fmt.Sprintf("%s%d", u[:8], unixNano)[:16])
-	}
 
 	query := NewQuery(gin.Request.URL.Query())
 	url := gin.Request.URL.Path

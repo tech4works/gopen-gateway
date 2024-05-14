@@ -44,8 +44,7 @@ type HttpBackendResponse struct {
 // It constructs the header from the netHttpResponse, parses the response bytes into a body interface,
 // and builds the backend httpResponse value object.
 // It then calls the ApplyConfig method with the enum.BackendResponseApplyEarly flag and returns the result.
-func NewHttpBackendResponse(backend *Backend, netHttpResponse *http.Response, httpRequest *HttpRequest,
-	httpResponse *HttpResponse) *HttpBackendResponse {
+func NewHttpBackendResponse(backend *Backend, netHttpResponse *http.Response) *HttpBackendResponse {
 	contentType := netHttpResponse.Header.Get("Content-Type")
 	contentEncoding := netHttpResponse.Header.Get("Content-Encoding")
 
@@ -53,14 +52,12 @@ func NewHttpBackendResponse(backend *Backend, netHttpResponse *http.Response, ht
 	bodyBytes, _ := io.ReadAll(netHttpResponse.Body)
 	body := NewBody(contentType, contentEncoding, bytes.NewBuffer(bodyBytes))
 
-	httpBackendResponse := &HttpBackendResponse{
+	return &HttpBackendResponse{
 		config:     backend.Response(),
 		statusCode: NewStatusCode(netHttpResponse.StatusCode),
 		header:     header,
 		body:       body,
 	}
-
-	return httpBackendResponse.ApplyConfig(enum.BackendResponseApplyEarly, httpRequest, httpResponse)
 }
 
 // Written returns a boolean indicating whether the response has been written or not.
@@ -87,6 +84,11 @@ func (h *HttpBackendResponse) Key(index int) (key string) {
 // StatusCode returns the statusCode of the HttpBackendResponse instance.
 func (h *HttpBackendResponse) StatusCode() StatusCode {
 	return h.statusCode
+}
+
+func (h *HttpBackendResponse) Status() string {
+	code := h.StatusCode()
+	return fmt.Sprintf("%v (%s)", code, http.StatusText(code.AsInt()))
 }
 
 // Header returns the header of the HttpBackendResponse instance.

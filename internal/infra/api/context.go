@@ -20,6 +20,8 @@ import (
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
 	"github.com/gin-gonic/gin"
+	"github.com/opentracing/opentracing-go"
+	"github.com/uber/jaeger-client-go"
 	"golang.org/x/net/context"
 	"net/http"
 	"sync"
@@ -31,6 +33,8 @@ import (
 type Context struct {
 	// startTime represents the start time of the request processing in the Context struct.
 	startTime time.Time
+	// span represents a single unit of work in the context of distributed tracing.
+	span opentracing.Span
 	// mutex is a pointer to a sync.RWMutex, which implements the sync.Locker interface.
 	// It is used for controlling concurrent access to shared resources in the Context struct.
 	mutex *sync.RWMutex
@@ -65,6 +69,18 @@ type Context struct {
 // Latency returns the duration between the current time and the start time of the Context.
 func (c *Context) Latency() time.Duration {
 	return time.Now().Sub(c.startTime)
+}
+
+func (c *Context) Span() opentracing.Span {
+	return c.span
+}
+
+func (c *Context) TraceId() string {
+	spanContext, ok := c.span.Context().(jaeger.SpanContext)
+	if ok {
+		return spanContext.TraceID().String()
+	}
+	return "unknown"
 }
 
 // Context returns the context of the Context. It delegates the call to the underlying framework's Context.Context() method.
@@ -242,6 +258,8 @@ func (c *Context) WriteHttpResponse(httpResponse *vo.HttpResponse) {
 	c.framework.Abort()
 
 	c.httpResponse = httpResponseWritten
+
+	c.finishSpan()
 }
 
 // WriteStatusCode writes the given status code to the HTTP response.
@@ -289,7 +307,7 @@ func (c *Context) writeStatusCode(code vo.StatusCode) {
 	if c.framework.IsAborted() {
 		return
 	}
-	c.framework.Status(int(code))
+	c.framework.Status(code.AsInt())
 }
 
 func (c *Context) writeHeader(header vo.Header) {
@@ -304,5 +322,16 @@ func (c *Context) writeBody(code vo.StatusCode, contentType string, body []byte)
 	if c.framework.IsAborted() {
 		return
 	}
-	c.framework.Data(int(code), contentType, body)
+	c.framework.Data(code.AsInt(), contentType, body)
+}
+
+func (c *Context) finishSpan() {
+	c.span.SetTag("response.status", c.HttpResponse().Status())
+	c.span.SetTag("response.header", c.HttpResponse().Header().String())
+	if helper.IsNotNil(c.HttpResponse().Body()) {
+		c.span.SetTag("response.body", c.HttpResponse().Body().String())
+	} else {
+		c.span.SetTag("response.body", "")
+	}
+	c.span.Finish()
 }

@@ -20,6 +20,8 @@ import (
 	"context"
 	"fmt"
 	"github.com/GabrielHCataldo/go-helper/helper"
+	"github.com/GabrielHCataldo/go-logger/logger"
+	"github.com/opentracing/opentracing-go"
 	"io"
 	"net/http"
 	"net/url"
@@ -136,19 +138,14 @@ func newBackendRequestQuery(backend *Backend, httpRequest *HttpRequest, httpResp
 	return query
 }
 
-// newBackendRequestBody returns the body of the backend request based on the given backend, httpRequest, and httpResponse.
-// If the backend request is nil, it returns the body of the httpRequest.
-// If the httpRequest body is nil or the backend request specifies omitting the body, it returns nil.
-// It applies body mapper, projection, and modifiers specified in the backend request.
-// It also adjusts the content type and content encoding based on the backend request.
-// Returns the modified body as a pointer.
-// PARAMETERS:
-// - backend: The backend configuration for the request.
-// - httpRequest: The HTTP request object.
-// - httpResponse: The HTTP response object.
-// RETURNS:
-//   - *Body: The modified body of the backend request.
-//     nil if the backend request specifies omitting the body or if the httpRequest body is nil.
+// newBackendRequestBody creates a new Backend Request Body based on the specified backend, httpRequest, and httpResponse.
+// If the backend does not have a request configured, it returns the body of the httpRequest.
+// If the httpRequest does not have a body or the backend's request specifies to omit the body, it returns nil.
+// It applies body mapping, projection, modifiers, and nomenclature if specified in the backend's request.
+// If the backend's request specifies to omit empty fields, it removes empty fields from the body.
+// If the backend's request specifies a content type, it overrides the content type of the body.
+// If the backend's request specifies a content encoding, it overrides the content encoding of the body.
+// The modified body is returned.
 func newBackendRequestBody(backend *Backend, httpRequest *HttpRequest, httpResponse *HttpResponse) *Body {
 	backendRequest := backend.Request()
 
@@ -163,6 +160,12 @@ func newBackendRequestBody(backend *Backend, httpRequest *HttpRequest, httpRespo
 	body = body.Projection(backendRequest.BodyProjection())
 	for _, modifier := range backendRequest.BodyModifiers() {
 		body = body.Modify(&modifier, httpRequest, httpResponse)
+	}
+	if backendRequest.OmitEmpty() {
+		body = body.OmitEmpty()
+	}
+	if backendRequest.HasNomenclature() {
+		body = body.ToCase(backendRequest.Nomenclature())
 	}
 
 	contentType := body.ContentType()
@@ -240,6 +243,15 @@ func (h *HttpBackendRequest) NetHttp(ctx context.Context) (*http.Request, error)
 
 	netHttpRequest.Header = h.Header().Http()
 	netHttpRequest.URL.RawQuery = h.RawQuery()
+
+	span := opentracing.SpanFromContext(ctx)
+	if helper.IsNotNil(span) {
+		tracer := opentracing.GlobalTracer()
+		err = tracer.Inject(span.Context(), opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(netHttpRequest.Header))
+		if helper.IsNotNil(err) {
+			logger.Warningf("Error injecting tracer context: %v", err)
+		}
+	}
 
 	return netHttpRequest, nil
 }

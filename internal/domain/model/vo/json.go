@@ -281,6 +281,8 @@ type BackendRequestJson struct {
 	OmitBody        bool                 `json:"omit-body,omitempty"`
 	ContentType     enum.ContentType     `json:"content-type,omitempty" validate:"omitempty,enum"`
 	ContentEncoding enum.ContentEncoding `json:"content-encoding,omitempty" validate:"omitempty,enum"`
+	Nomenclature    enum.Nomenclature    `json:"nomenclature,omitempty" validate:"omitempty,enum"`
+	OmitEmpty       bool                 `json:"omit-empty,omitempty"`
 	// HeaderMapper represents the mapping of header fields in a backend request.
 	// It is used to rename keys in the header of a request.
 	HeaderMapper *Mapper `json:"header-mapper,omitempty"`

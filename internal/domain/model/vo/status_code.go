@@ -16,3 +16,7 @@ func (s StatusCode) Ok() bool {
 func (s StatusCode) Failed() bool {
 	return helper.IsGreaterThanOrEqual(s, 400)
 }
+
+func (s StatusCode) AsInt() int {
+	return int(s)
+}

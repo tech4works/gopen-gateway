@@ -91,13 +91,14 @@ func (h httpLoggerProvider) PrintHttpResponseInfo(ctx *api.Context) {
 // It obtains the values to be printed in the request logs such as traceId, IP address, URL, and method.
 // Then, it sets the global log options with the values obtained.
 func (h httpLoggerProvider) initializeLoggerOptions(ctx *api.Context) {
-	traceId := ctx.Header().Get(consts.XTraceId)
+	traceId := ctx.TraceId()
 	ip := ctx.Header().Get(consts.XForwardedFor)
 	url := ctx.Url()
 	method := ctx.Method()
 	logger.SetOptions(&logger.Options{
-		HideArgCaller:         true,
 		CustomAfterPrefixText: h.afterPrefixText(traceId, ip, url, method),
+		HideArgCaller:         true,
+		HideArgDatetime:       true,
 	})
 }
 

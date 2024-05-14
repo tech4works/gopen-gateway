@@ -56,11 +56,11 @@ func NewResponseHeader(complete, success bool) Header {
 }
 
 // HeaderMandatoryKeys returns a slice containing the names of the mandatory keys
-// in an HTTP header. The keys include XForwardedFor, XTraceId, XGopenCache,
+// in an HTTP header. The keys include XForwardedFor, XGopenCache,
 // XGopenCacheTTL, XGopenComplete, XGopenSuccess, ContentType, ContentEncoding,
 // and ContentLength.
 func HeaderMandatoryKeys() []string {
-	return []string{consts.XForwardedFor, consts.XTraceId, consts.XGopenCache, consts.XGopenCacheTTL,
+	return []string{consts.XForwardedFor, consts.XGopenCache, consts.XGopenCacheTTL,
 		consts.XGopenComplete, consts.XGopenSuccess, consts.ContentType, consts.ContentEncoding, consts.ContentLength}
 }
 
@@ -304,6 +304,17 @@ func (h Header) Aggregate(anotherHeader Header) Header {
 		aggregatedHeader = aggregatedHeader.AddAll(key, values)
 	}
 	return aggregatedHeader
+}
+
+func (h Header) String() string {
+	if helper.IsEmpty(h) {
+		return ""
+	}
+	mapStr := map[string]string{}
+	for key, value := range h {
+		mapStr[key] = strings.Join(value, ", ")
+	}
+	return helper.SimpleConvertToString(mapStr)
 }
 
 // copy creates a deep copy of the Header object.

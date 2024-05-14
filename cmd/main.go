@@ -27,6 +27,7 @@ import (
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/service"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/infra"
 	"github.com/fsnotify/fsnotify"
+	"github.com/opentracing/opentracing-go"
 	"os"
 	"os/signal"
 	"time"
@@ -115,27 +116,44 @@ func main() {
 	loggerProvider.PrintTitle("START")
 
 	bootService.LoadEnvs()
+	gopenJson = bootService.LoadJson()
 
-	startApp()
+	loggerProvider.PrintInfo("Booting Jaeger...")
+	tracer, closer, err := infra.InitJaeger()
+	if helper.IsNotNil(err) {
+		loggerProvider.PrintWarningf("Error boot jaeger: %v", err)
+	} else {
+		defer closer.Close()
+		opentracing.SetGlobalTracer(tracer)
+	}
+
+	go startApp()
 
 	keepActive()
 }
 
-// startApp is a function that starts the Gopen application with the loaded configuration and cache store.
-// It performs the following steps:
-//  1. Load the gopenJson configuration by calling bootService.LoadJson().
-//  2. Get the cache store instance by calling bootService.CacheStore(gopenJson.Store).
-//  3. Close the cache store when the function returns by calling closeCacheStore(cacheStore) using a defer statement.
-//  4. Start a file watcher if the hot-reload flag is enabled in the gopenJson configuration, and close the watcher when the function returns
-//     by calling bootService.Watcher(restartApp) and using a defer statement to call closeWatcher(watcher).
-//  5. Write the gopenJson configuration to the runtime JSON file by calling jsonProvider.WriteGopenJson(gopenJson).
-//  6. If there is an error while writing the runtime JSON, log a warning message using loggerProvider.PrintWarning().
-//  7. Log an informational message indicating that the application is being built using loggerProvider.PrintInfo().
-//  8. Create a new instance of the Gopen application by calling app.NewGopen(gopenJson, cacheStore).
-//  9. Call the ListerAndServer method on the Gopen application instance to start the application.
+// startApp is a function that starts the Gopen application.
+//
+// Steps:
+//
+// 1. Get the cache store using the bootService.CacheStore() method with the value gopenJson.Store.
+// 2. Defer the execution of the closeCacheStore() function with the cacheStore as a parameter.
+//
+// 3. Check if the gopenJson.HotReload flag is set to true.
+//   - If true, continue to the next step. Otherwise, skip the next steps and proceed to step 8.
+//
+// 4. Get the file watcher using the bootService.Watcher() method with the restartApp function as a parameter.
+// 5. Defer the execution of the closeWatcher() function with the watcher as a parameter.
+//
+//  6. Write the gopenJson to the file system using the jsonProvider.WriteGopenJson() method.
+//     If an error occurs, log a warning message with the error.
+//
+// 7. Print an info log message with the text "Building application..." using the loggerProvider.PrintInfo() method.
+//
+// 8. Create a new instance of the gopenApp with the gopenJson and cacheStore using the app.NewGopen() function.
+//
+// 9. Call the ListerAndServer() method on the gopenApp to start the application.
 func startApp() {
-	gopenJson = bootService.LoadJson()
-
 	cacheStore := bootService.CacheStore(gopenJson.Store)
 	defer closeCacheStore(cacheStore)
 
@@ -151,25 +169,21 @@ func startApp() {
 
 	loggerProvider.PrintInfo("Building application...")
 	gopenApp = app.NewGopen(gopenJson, cacheStore)
-	go gopenApp.ListerAndServer()
+	gopenApp.ListerAndServer()
 }
 
-// restartApp is a function that restarts the Gopen application by performing the following steps:
-//
-// 1. Recover from any panic that occurs during the execution of this function by calling the restartPanicRecovery()
-// function.
-// 2. Print two empty lines to separate the restart log messages from previous messages.
-// 3. Print a title "RESTART" using the loggerProvider.PrintTitle() method.
-// 4. Create a new context with a timeout of 30 seconds using the context.WithTimeout() function.
-// 5. Defer the cancel() function to cancel the context when this function returns.
-// 6. Print an info log message "Shutting down current server..." using the loggerProvider.PrintInfo() method.
-// 7. Call the Shutdown() method on the gopenApp instance to shut down the current server.
-// 8. Check if an error occurred during the server shutdown.
-//   - If true, print a warning log message with the error using the loggerProvider.PrintWarningf() method and return
-//     from the function.
-//
-// 9. Reload the environment variables by calling the bootService.ReloadEnvs() method.
-// 10. Call the startApp() function in a new goroutine to start the Gopen application again.
+// restartApp is a function that handles the restart of the application:
+//  1. Print two new lines.
+//  2. Print the title "RESTART" using the loggerProvider.PrintTitle() method.
+//  3. Create a new context with a timeout of 30 seconds using the context.WithTimeout() method.
+//     Defer the cancellation of the context using the defer keyword and cancel() function.
+//  4. Print an info log message "Shutting down current server..." using the loggerProvider.PrintInfo() method.
+//  5. Shut down the current server instance using the gopenApp.Shutdown() method.
+//     If an error occurs during the shutdown process, log a warning message using the loggerProvider.PrintWarningf() method
+//     with the error message and return from the function.
+//  6. Reload the environment variables using the bootService.ReloadEnvs() method.
+//  7. Load the JSON configuration using the bootService.LoadJson() method and assign it to the gopenJson variable.
+//  8. Start the application by calling the startApp() function as a goroutine using the go keyword.
 func restartApp() {
 	defer restartPanicRecovery()
 
@@ -188,8 +202,9 @@ func restartApp() {
 	}
 
 	bootService.ReloadEnvs()
+	gopenJson = bootService.LoadJson()
 
-	startApp()
+	go startApp()
 }
 
 // restartPanicRecovery is a function that handles panics and performs recovery operations.
@@ -207,7 +222,7 @@ func restartPanicRecovery() {
 func recoveryApp() {
 	fmt.Println()
 	loggerProvider.PrintTitle("RECOVERY")
-	startApp()
+	go startApp()
 }
 
 // keepActive is a function that keeps the main goroutine active by waiting for an OS interrupt signal.

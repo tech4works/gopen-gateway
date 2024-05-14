@@ -24,7 +24,7 @@ import (
 )
 
 // Params is a type alias for a map of string key-value pairs that represents additional parameters for a URL path.
-type Params = map[string]string
+type Params map[string]string
 
 // UrlPath is a struct that represents a URL path with additional parameter mappings.
 // It consists of a value, which is the actual URL path, and params, which is a map
@@ -75,6 +75,10 @@ func (u UrlPath) String() string {
 		urlPathString = strings.ReplaceAll(urlPathString, paramPathKey, v)
 	}
 	return urlPathString
+}
+
+func (u UrlPath) RawString() string {
+	return u.value
 }
 
 // SetParam sets a parameter with the given key and value in the UrlPath.
@@ -155,6 +159,13 @@ func (u UrlPath) Modify(modifier *Modifier, httpRequest *HttpRequest, httpRespon
 	default:
 		return u
 	}
+}
+
+func (p Params) String() string {
+	if helper.IsEmpty(p) {
+		return ""
+	}
+	return helper.SimpleConvertToString(p)
 }
 
 // copyParams creates a deep copy of the current parameter map in UrlPath.

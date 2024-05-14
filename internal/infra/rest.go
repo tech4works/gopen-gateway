@@ -17,12 +17,15 @@
 package infra
 
 import (
+	"context"
 	berrors "errors"
-	"fmt"
+	"github.com/GabrielHCataldo/go-errors/errors"
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/go-logger/logger"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/interfaces"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/mapper"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
+	"github.com/opentracing/opentracing-go"
 	"net/http"
 	"net/url"
 	"time"
@@ -40,76 +43,31 @@ func NewRestTemplate() interfaces.RestTemplate {
 	return restTemplate{}
 }
 
-// MakeRequest sends an HTTP request to a backend and returns the HTTP response.
-// It logs the backend HTTP request, handles HTTP client errors, and logs the backend
-// HTTP response. If an error occurs during the request, it returns nil for the response
-// and the error.
-//
-// Inputs:
-//   - netHttpRequest: The HTTP request to be sent to the backend.
-//
-// Returns:
-//   - *http.Response: The HTTP response obtained from the backend, if successful.
-//   - error: The error occurred during the request, if any.
-//
-// Note: This method internally calls printNetHttpRequest to log the backend HTTP request.
-// If an error occurs during the request, it calls treatHttpClientErr to handle the error,
-// calls printNetHttpResponseError to log the error, and returns the error.
-// Otherwise, it calls printNetHttpResponse to log the backend HTTP response and returns
-// the response.
-func (r restTemplate) MakeRequest(netHttpRequest *http.Request) (*http.Response, error) {
+func (r restTemplate) MakeRequest(ctx context.Context, backend *vo.Backend, httpBackendRequest *vo.HttpBackendRequest) (
+	*vo.HttpBackendResponse, error) {
+	netHttp, err := httpBackendRequest.NetHttp(ctx)
+	if helper.IsNotNil(err) {
+		return nil, err
+	}
+
+	span := r.traceHttpBackendRequest(ctx, httpBackendRequest)
+	defer span.Finish()
+
 	startTime := time.Now()
-
-	r.printNetHttpRequest(netHttpRequest)
-
-	httpClient := http.Client{}
-	netHttpResponse, err := httpClient.Do(netHttpRequest)
-
+	netHttpResponse, err := http.DefaultClient.Do(netHttp)
 	latency := time.Since(startTime).String()
 
 	err = r.treatHttpClientErr(err)
 	if helper.IsNotNil(err) {
-		r.printNetHttpResponseError(netHttpRequest, latency, err)
+		r.traceHttpBackendResponseError(httpBackendRequest, span, latency, err)
 		return nil, err
 	}
+	defer netHttpResponse.Body.Close()
 
-	r.printNetHttpResponse(netHttpRequest, netHttpResponse, latency)
-	return netHttpResponse, nil
-}
+	httpBackendResponse := vo.NewHttpBackendResponse(backend, netHttpResponse)
+	r.traceHttpBackendResponse(httpBackendRequest, httpBackendResponse, span, latency)
 
-// printNetHttpRequest prints the information about an HTTP request being made to a backend.
-// It includes the HTTP method and URL.
-//
-// Note: This method is used internally in MakeRequest to log the backend HTTP request.
-func (r restTemplate) printNetHttpRequest(netHttpRequest *http.Request) {
-	httpUrl := netHttpRequest.URL.String()
-	httpMethod := netHttpRequest.Method
-
-	msg := fmt.Sprintf("Backend HTTP request: %s --> %s", httpMethod, httpUrl)
-	logger.Debug(msg)
-}
-
-// printNetHttpResponseError prints the information about an error that occurred during an HTTP response from the backend.
-// It includes the HTTP method, URL, latency, and the error message.
-//
-// Note: This method is used internally in MakeRequest to log the backend HTTP response error.
-func (r restTemplate) printNetHttpResponseError(netHttpRequest *http.Request, latency string, err error) {
-	httpUrl := netHttpRequest.URL.String()
-	httpMethod := netHttpRequest.Method
-	logger.Errorf("Backend HTTP response: %s --> %s latency: %s err: %s", httpMethod, httpUrl, latency, err)
-}
-
-// printNetHttpResponse prints the information about the HTTP response obtained from the backend.
-// It includes the HTTP method, URL, latency, and status code.
-//
-// Note: This method is used internally in MakeRequest to log the backend HTTP response.
-func (r restTemplate) printNetHttpResponse(netHttpRequest *http.Request, netHttpResponse *http.Response, latency string) {
-	httpUrl := netHttpRequest.URL.String()
-	httpMethod := netHttpRequest.Method
-
-	msg := fmt.Sprintf("Backend HTTP response: %s --> %s latency: %s code: %v", httpMethod, httpUrl, latency,
-		netHttpResponse.StatusCode)
-	logger.Debug(msg)
+	return httpBackendResponse, nil
 }
 
 // treatHttpClientErr handles and transforms HTTP client errors.
@@ -141,4 +99,64 @@ func (r restTemplate) treatHttpClientErr(err error) error {
 		err = mapper.NewErrBadGateway(err)
 	}
 	return err
+}
+
+func (r restTemplate) traceHttpBackendRequest(ctx context.Context, httpBackendRequest *vo.HttpBackendRequest,
+) opentracing.Span {
+	span := r.buildRequestSubSpan(ctx, httpBackendRequest)
+	logger.Debugf("Backend HTTP request: %s --> %s", httpBackendRequest.Method(), httpBackendRequest.Url())
+	return span
+}
+
+func (r restTemplate) traceHttpBackendResponseError(
+	httpBackendRequest *vo.HttpBackendRequest,
+	span opentracing.Span,
+	latency string,
+	err error,
+) {
+	reqMethod := httpBackendRequest.Method()
+	reqUrl := httpBackendRequest.Url()
+
+	errorDetails := errors.Details(err)
+	errCause := errorDetails.GetCause()
+
+	span.SetTag("response.error", errCause)
+	logger.Errorf("Backend HTTP response: %s --> %s latency: %s err: %s", reqMethod, reqUrl, latency, errCause)
+}
+
+func (r restTemplate) traceHttpBackendResponse(
+	httpBackendRequest *vo.HttpBackendRequest,
+	httpBackendResponse *vo.HttpBackendResponse,
+	span opentracing.Span,
+	latency string,
+) {
+	reqMethod := httpBackendRequest.Method()
+	reqUrl := httpBackendRequest.Url()
+	resStatus := httpBackendResponse.Status()
+
+	span.SetTag("response.status", resStatus)
+	span.SetTag("response.header", httpBackendResponse.Header().String())
+	if helper.IsNotNil(httpBackendResponse.Body()) {
+		span.SetTag("response.body", httpBackendResponse.Body().CompactString())
+	} else {
+		span.SetTag("response.body", "")
+	}
+
+	logger.Debugf("Backend HTTP response: %s --> %s latency: %s status: %v", reqMethod, reqUrl, latency, resStatus)
+}
+
+func (r restTemplate) buildRequestSubSpan(ctx context.Context, httpBackendRequest *vo.HttpBackendRequest) opentracing.Span {
+	span := opentracing.SpanFromContext(ctx)
+	if helper.IsNil(span) {
+		return nil
+	}
+	urlTag := opentracing.Tag{Key: "request.url", Value: httpBackendRequest.Url()}
+	methodTag := opentracing.Tag{Key: "request.method", Value: httpBackendRequest.Method()}
+	headerTag := opentracing.Tag{Key: "request.header", Value: httpBackendRequest.Header().String()}
+	bodyTag := opentracing.Tag{Key: "request.body", Value: ""}
+	if helper.IsNotNil(httpBackendRequest.Body()) {
+		bodyTag.Value = httpBackendRequest.Body().CompactString()
+	}
+	return span.Tracer().StartSpan(httpBackendRequest.Path().RawString(), opentracing.ChildOf(span.Context()),
+		urlTag, methodTag, headerTag, bodyTag)
 }

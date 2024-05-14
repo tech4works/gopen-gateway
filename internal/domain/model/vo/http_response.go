@@ -17,6 +17,7 @@
 package vo
 
 import (
+	"fmt"
 	"github.com/GabrielHCataldo/go-errors/errors"
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/mapper"
@@ -188,6 +189,11 @@ func (h *HttpResponse) Abort() bool {
 // Returns true if the HttpResponse has been written, false otherwise.
 func (h *HttpResponse) Written() bool {
 	return h.written
+}
+
+func (h *HttpResponse) Status() string {
+	code := h.StatusCode()
+	return fmt.Sprintf("%v (%s)", code, http.StatusText(code.AsInt()))
 }
 
 // StatusCode returns the status code of the HttpResponse object.
