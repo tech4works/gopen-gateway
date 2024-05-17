@@ -17,14 +17,14 @@
 package middleware
 
 import (
-	"github.com/GabrielHCataldo/gopen-gateway/internal/infra"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/app/interfaces"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/infra/api"
 )
 
 // logMiddleware is a struct that represents a middleware for logging HTTP requests and responses.
 // It contains an instance of HttpLoggerProvider interface to handle HTTP logging.
 type logMiddleware struct {
-	httpLoggerProvider infra.HttpLoggerProvider
+	logger interfaces.LoggerProvider
 }
 
 // Log is an interface that represents a logging operation.
@@ -38,21 +38,15 @@ type Log interface {
 
 // NewLog is a function that creates a new instance of logMiddleware struct and
 // returns it as a value of Log interface.
-func NewLog(httpLoggerProvider infra.HttpLoggerProvider) Log {
+func NewLog(loggerProvider interfaces.LoggerProvider) Log {
 	return logMiddleware{
-		httpLoggerProvider: httpLoggerProvider,
+		logger: loggerProvider,
 	}
 }
 
-// Do is a method of logMiddleware struct that handles logging of HTTP requests and responses.
-// It takes a pointer to api.Context as a parameter.
-// The method prints the log of the start of the request using the httpLoggerProvider.
-// Then it calls the Next() method of the context to proceed to the next handler.
-// Finally, it prints the log of the finish of the request using the httpLoggerProvider.
 func (l logMiddleware) Do(ctx *api.Context) {
-	l.httpLoggerProvider.PrintHttpRequestInfo(ctx)
-
 	ctx.Next()
 
-	l.httpLoggerProvider.PrintHttpResponseInfo(ctx)
+	l.logger.PrintEndpointResponseInfo(ctx)
+	l.logger.PrintHttpResponseInfo(ctx)
 }

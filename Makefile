@@ -18,6 +18,9 @@ else
 	$(error Unknown operating system: $(UNAME_S))
 endif
 
+# Set the default Jaeger host address
+JAEGER_HOST ?= jaeger:6831
+
 # Command to build binaries used in the playground
 build-readport: build-readport-linux build-readport-darwin build-readport-windows
 
@@ -59,7 +62,7 @@ endef
 
 define docker_compose
 	# Initialize docker-compose with the environment name and the configured port
-	ENV=$(ENV) PORT=$(PORT) docker-compose up
+	ENV=$(ENV) PORT=$(PORT) JAEGER_HOST=$(JAEGER_HOST) docker-compose up
 endef
 
 # Command to generate a docker image and send to docker-hub

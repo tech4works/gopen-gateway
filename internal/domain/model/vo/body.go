@@ -19,8 +19,8 @@ package vo
 import (
 	"bytes"
 	"fmt"
+	"github.com/GabrielHCataldo/go-errors/errors"
 	"github.com/GabrielHCataldo/go-helper/helper"
-	"github.com/GabrielHCataldo/go-logger/logger"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/enum"
 	xj "github.com/basgys/goxml2json"
 	"github.com/clbanning/mxj/v2"
@@ -241,26 +241,22 @@ func (b *Body) Interface() any {
 	return b.value.String()
 }
 
-func (b *Body) Json() ([]byte, error) {
+func (b *Body) Json() []byte {
 	if b.ContentType().IsText() {
-		return helper.SimpleConvertToBytes(fmt.Sprintf("{\"text\": \"%v\"}", b.value)), nil
-	} else if b.ContentType().IsJson() {
-		return b.Bytes(), nil
+		return helper.SimpleConvertToBytes(fmt.Sprintf("{\"text\": \"%v\"}", b.value))
 	} else if b.ContentType().IsXml() {
 		return convertXmlToJson(b.Bytes())
 	}
-	return []byte{}, nil
+	return b.Bytes()
 }
 
-func (b *Body) Xml() ([]byte, error) {
+func (b *Body) Xml() []byte {
 	if b.ContentType().IsText() {
-		return []byte(fmt.Sprintf("<root>%s</root>", b.value)), nil
+		return []byte(fmt.Sprintf("<root>%s</root>", b.value))
 	} else if b.ContentType().IsJson() {
 		return convertJsonToXml(b.Bytes())
-	} else if b.ContentType().IsXml() {
-		return b.Bytes(), nil
 	}
-	return []byte{}, nil
+	return b.Bytes()
 }
 
 func compressByEncoding(bs []byte, contentEncoding ContentEncoding) ([]byte, error) {
@@ -354,7 +350,7 @@ func (b *Body) Set(key string, value string) (*Body, error) {
 
 func (b *Body) Replace(key string, value string) (*Body, error) {
 	if b.ContentType().IsText() {
-		return b.replaceString(key, value), nil
+		return b.replaceString(key, value)
 	} else if b.ContentType().IsJson() {
 		return b.replaceJson(key, value)
 	}
@@ -363,7 +359,7 @@ func (b *Body) Replace(key string, value string) (*Body, error) {
 
 func (b *Body) Delete(key string) (*Body, error) {
 	if b.ContentType().IsText() {
-		return b.replaceString(key, ""), nil
+		return b.replaceString(key, "")
 	} else if b.ContentType().IsJson() {
 		return b.deleteJson(key)
 	}
@@ -412,52 +408,40 @@ func (b *Body) Modify(modifier *Modifier, httpRequest *HttpRequest, httpResponse
 	newValue := modifier.ValueAsString(httpRequest, httpResponse)
 
 	var modifiedBody *Body
-	var err error
 
 	switch modifier.Action() {
 	case enum.ModifierActionAdd:
-		modifiedBody, err = b.Add(modifier.Key(), newValue)
+		modifiedBody, _ = b.Add(modifier.Key(), newValue)
 	case enum.ModifierActionApd:
-		modifiedBody, err = b.Append(modifier.Key(), newValue)
+		modifiedBody, _ = b.Append(modifier.Key(), newValue)
 	case enum.ModifierActionSet:
-		modifiedBody, err = b.Set(modifier.Key(), newValue)
+		modifiedBody, _ = b.Set(modifier.Key(), newValue)
 	case enum.ModifierActionRpl:
-		modifiedBody, err = b.Replace(modifier.Key(), newValue)
+		modifiedBody, _ = b.Replace(modifier.Key(), newValue)
 	case enum.ModifierActionDel:
-		modifiedBody, err = b.Delete(modifier.Key())
-	default:
+		modifiedBody, _ = b.Delete(modifier.Key())
+	}
+
+	if helper.IsNil(modifiedBody) {
 		return b
 	}
-
-	if helper.IsNotNil(err) {
-		logger.Warning("Error modify body:", err)
-	}
-
 	return modifiedBody
 }
 
 func (b *Body) ModifyContentType(contentType ContentType, contentEncoding ContentEncoding) *Body {
 	var bs []byte
-	var err error
 	if contentType.IsJson() {
-		bs, err = b.Json()
+		bs = b.Json()
 	} else if contentType.IsXml() {
-		bs, err = b.Xml()
+		bs = b.Xml()
 	} else {
 		bs = b.Bytes()
 	}
 
+	bs, err := compressByEncoding(bs, contentEncoding)
 	if helper.IsNotNil(err) {
-		logger.Warningf("Error modify content-type: %s err: %s", contentType, err)
 		return b
 	}
-
-	bs, err = compressByEncoding(bs, contentEncoding)
-	if helper.IsNotNil(err) {
-		logger.Warningf("Error modify content-encoding: %s err: %s", contentEncoding, err)
-		return b
-	}
-
 	return &Body{
 		contentType:     contentType,
 		contentEncoding: contentEncoding,
@@ -619,17 +603,16 @@ func (b *Body) setJson(key string, value string) (*Body, error) {
 // replaceString replaces all occurrences of the key in the Body's string representation
 // with the provided value. It returns a new instance of Body with the modified value.
 // The new Body instance will have the same contentType as the original Body instance.
-func (b *Body) replaceString(key, value string) *Body {
+func (b *Body) replaceString(key, value string) (*Body, error) {
 	if helper.IsEmpty(key) {
-		logger.Warning("Replace ignored as the modifier key is empty!")
-		return b
+		return b, errors.New("RPL ignored as the modifier key is empty!")
 	}
 
 	modifiedValue := strings.ReplaceAll(b.String(), key, value)
 	return &Body{
 		contentType: b.contentType,
 		value:       helper.SimpleConvertToBuffer(modifiedValue),
-	}
+	}, nil
 }
 
 // replaceJson replaces the value of the specified key in the JSON body with the provided value.
@@ -1073,20 +1056,23 @@ func (b *Body) LengthStr() string {
 	return helper.SimpleConvertToString(b.Length())
 }
 
-func convertJsonToXml(bs []byte) ([]byte, error) {
+func convertJsonToXml(bs []byte) []byte {
 	mapJson, err := mxj.NewMapJson(bs)
-	if helper.IsNotNil(err) {
-		return nil, err
+	if helper.IsNil(err) {
+		bsXml, err := mapJson.Xml("root")
+		if helper.IsNil(err) {
+			return bsXml
+		}
 	}
-	return mapJson.Xml()
+	return bs
 }
 
-func convertXmlToJson(bs []byte) ([]byte, error) {
+func convertXmlToJson(bs []byte) []byte {
 	jsonData, err := xj.Convert(bytes.NewBuffer(bs))
-	if helper.IsNotNil(err) {
-		return nil, err
+	if helper.IsNil(err) {
+		return jsonData.Bytes()
 	}
-	return jsonData.Bytes(), nil
+	return bs
 }
 
 // setJsonKeyValue sets the value of a given key in a JSON string. If the key already exists in the JSON string and

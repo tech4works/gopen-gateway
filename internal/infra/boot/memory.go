@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-package infra
+package boot
 
 import (
 	"context"
 	"github.com/GabrielHCataldo/go-errors/errors"
 	"github.com/GabrielHCataldo/go-helper/helper"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/interfaces"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/domain"
 	domainmapper "github.com/GabrielHCataldo/gopen-gateway/internal/domain/mapper"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
 	"github.com/jellydator/ttlcache/v2"
@@ -33,7 +33,7 @@ type memoryStore struct {
 
 // NewMemoryStore returns a new instance of the MemoryStore structure that implements the CacheStore interface.
 // This implementation uses an in-memory cache with a time-to-live (TTL)
-func NewMemoryStore() interfaces.CacheStore {
+func NewMemoryStore() domain.CacheStore {
 	ttlCache := ttlcache.NewCache()
 	ttlCache.SkipTTLExtensionOnHit(true)
 	return &memoryStore{
@@ -41,12 +41,12 @@ func NewMemoryStore() interfaces.CacheStore {
 	}
 }
 
-func (r memoryStore) Set(_ context.Context, key string, cacheResponse *vo.CacheResponse) error {
+func (m memoryStore) Set(_ context.Context, key string, cacheResponse *vo.CacheResponse) error {
 	gzipBase64, err := helper.CompressWithGzipToBase64(cacheResponse)
 	if helper.IsNotNil(err) {
 		return err
 	}
-	return r.ttlCache.SetWithTTL(key, gzipBase64, cacheResponse.Duration.Time())
+	return m.ttlCache.SetWithTTL(key, gzipBase64, cacheResponse.Duration.Time())
 }
 
 // Del removes a key-value pair from the memory cache with the specified key.
@@ -54,12 +54,12 @@ func (r memoryStore) Set(_ context.Context, key string, cacheResponse *vo.CacheR
 // The error returned indicates any issues encountered while removing the key-value pair.
 // Implementing the CacheStore interface, this method uses the underlying ttlCache to remove the data.
 // The ttlCache.Remove function is used to remove the key-value pair from the cache.
-func (r memoryStore) Del(_ context.Context, key string) error {
-	return r.ttlCache.Remove(key)
+func (m memoryStore) Del(_ context.Context, key string) error {
+	return m.ttlCache.Remove(key)
 }
 
-func (r memoryStore) Get(_ context.Context, key string) (*vo.CacheResponse, error) {
-	value, err := r.ttlCache.Get(key)
+func (m memoryStore) Get(_ context.Context, key string) (*vo.CacheResponse, error) {
+	value, err := m.ttlCache.Get(key)
 	if errors.Is(err, ttlcache.ErrNotFound) {
 		return nil, domainmapper.NewErrCacheNotFound()
 	} else if helper.IsNotNil(err) {
@@ -73,6 +73,6 @@ func (r memoryStore) Get(_ context.Context, key string) (*vo.CacheResponse, erro
 	return &cacheResponse, nil
 }
 
-func (r memoryStore) Close() error {
+func (m memoryStore) Close() error {
 	return nil
 }

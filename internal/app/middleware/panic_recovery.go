@@ -19,7 +19,7 @@ package middleware
 import (
 	"github.com/GabrielHCataldo/go-errors/errors"
 	"github.com/GabrielHCataldo/go-helper/helper"
-	"github.com/GabrielHCataldo/go-logger/logger"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/app/interfaces"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/infra/api"
 	"net/http"
 	"runtime/debug"
@@ -28,6 +28,7 @@ import (
 // panicRecoveryMiddleware is a type that represents a middleware implementation for recovering from panics and handling
 // the recovery process.
 type panicRecoveryMiddleware struct {
+	logger interfaces.LoggerProvider
 }
 
 // PanicRecovery represents a type that can recover from panics.
@@ -40,21 +41,24 @@ type PanicRecovery interface {
 // NewPanicRecovery returns a PanicRecovery implementation.
 // The returned PanicRecovery contains a Do method that recovers from panics and handles the recovery process.
 // The Do method takes a *api.Context as a parameter and performs the necessary recovery actions.
-// The recovery actions include logging the recovered panic and stack traceMiddleware, and writing an error response to the context.
+// The recovery actions include logging the recovered panic and stack traceMiddleware, and writing an error response to
+// the context.
 // The Do method also calls ctx.Next() to proceed to the next request handling.
-func NewPanicRecovery() PanicRecovery {
-	return panicRecoveryMiddleware{}
+func NewPanicRecovery(logger interfaces.LoggerProvider) PanicRecovery {
+	return panicRecoveryMiddleware{
+		logger: logger,
+	}
 }
 
 // Do recovers from panics and handles the recovery process.
 // It takes an *api.Context as a parameter and performs the necessary recovery actions.
-// The recovery actions include logging the recovered panic and stack traceMiddleware,
 // and writing an error response to the context.
 // It also calls ctx.Next() to proceed to the next request handling.
 func (p panicRecoveryMiddleware) Do(ctx *api.Context) {
 	defer func() {
 		if r := recover(); helper.IsNotNil(r) {
-			logger.Errorf("%s:%s", r, string(debug.Stack()))
+			p.logger.PrintEndpointErrorf(ctx, "%s:%s", r, string(debug.Stack()))
+
 			err := errors.New("gateway panic error occurred! detail:", r)
 			ctx.WriteError(http.StatusInternalServerError, err)
 		}

@@ -18,7 +18,7 @@ package service
 
 import (
 	"context"
-	"github.com/GabrielHCataldo/go-logger/logger"
+	"github.com/GabrielHCataldo/go-errors/errors"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/enum"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
 )
@@ -138,13 +138,11 @@ func (e endpointService) processMiddlewares(
 	for _, middlewareKey := range middlewareKeys {
 		middlewareBackend, ok := gopen.Middleware(middlewareKey)
 		if !ok {
-			logger.Warning(middlewareType, middlewareKey, "not configured on middlewares field!")
-			continue
+			panic(errors.New(middlewareType, middlewareKey, "not configured on middlewares field!"))
 		}
 
 		executeBackend := vo.NewExecuteBackend(endpoint, middlewareBackend, httpRequest, httpResponse)
 		httpRequest, httpResponse = e.backendService.Execute(ctx, executeBackend)
-
 		if e.checkHttpResponse(httpResponse) {
 			break
 		}

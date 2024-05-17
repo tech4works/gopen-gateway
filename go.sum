@@ -6,6 +6,10 @@ github.com/GabrielHCataldo/go-helper v1.7.9 h1:qxGG8xJ4ZCooctMYnFFdoOolq13+KnqDz
 github.com/GabrielHCataldo/go-helper v1.7.9/go.mod h1:0lWjHErv57Qkk+w25kbYKTmZYrNe0/0q0wUlt00OmRg=
 github.com/GabrielHCataldo/go-logger v1.3.0 h1:fKjEXOYJ0Tk3DrFTOVdFXNhp+szlTUFfZEnByQdInxY=
 github.com/GabrielHCataldo/go-logger v1.3.0/go.mod h1:d68a0zmUQJZCnqMIG8fze8fkBhjCb0A9QpeN7f32vnA=
+github.com/GabrielHCataldo/go-logger v1.3.2 h1:ldgqDBzKjle7/hN+fQmfAuhZ1EZ5k9ANeKtbLJ/advk=
+github.com/GabrielHCataldo/go-logger v1.3.2/go.mod h1:my8UX7xh+eVI8ruJhcUNw6Jfdp2H3IxWYSLMEuhm9PU=
+github.com/GabrielHCataldo/go-logger v1.3.4 h1:7pJS8YhF7SEdIXkthO1xLJK8kPbFI5wSweF8FLxIGwM=
+github.com/GabrielHCataldo/go-logger v1.3.4/go.mod h1:my8UX7xh+eVI8ruJhcUNw6Jfdp2H3IxWYSLMEuhm9PU=
 github.com/GabrielHCataldo/go-redis-template v1.1.5 h1:vb6/TPmszZhPUiB4337BCACQobBjtFtyjhskq6oQrW8=
 github.com/GabrielHCataldo/go-redis-template v1.1.5/go.mod h1:Wvxml47OZKXWskRLiDnrncbWFcdpkOkdM4sHZ6tktGU=
 github.com/HdrHistogram/hdrhistogram-go v1.1.2 h1:5IcZpTvzydCQeHzK4Ef/D5rrSqwxob0t8PQPMybUNFM=

@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/go-logger/logger"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/app/interfaces"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/consts"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/infra/api"
@@ -27,98 +28,89 @@ import (
 	"strings"
 )
 
-// httpLoggerProvider is a struct that implements the HttpLoggerProvider interface.
-// It provides methods to print HTTP request and response information.
-type httpLoggerProvider struct {
+type loggerProvider struct {
 }
 
-// HttpLoggerProvider is an interface for logging HTTP request and response information.
-type HttpLoggerProvider interface {
-	PrintHttpRequestInfo(ctx *api.Context)
-	PrintHttpResponseInfo(ctx *api.Context)
+func NewLoggerProvider() interfaces.LoggerProvider {
+	return loggerProvider{}
 }
 
-// NewHttpLoggerProvider creates and returns a new instance of HttpLoggerProvider.
-func NewHttpLoggerProvider() HttpLoggerProvider {
-	return httpLoggerProvider{}
+func (l loggerProvider) PrintBackendErrorf(backend *vo.Backend, format string, msg ...any) {
+	logger.ErrorOptsf(format, l.backendLoggerOptions(backend), msg...)
 }
 
-// PrintHttpRequestInfo prints the information of the HTTP request.
-// It initializes the logger options with the request data and then prints the log message.
-//
-// Parameters:
-// - ctx: The API context containing the request data.
-func (h httpLoggerProvider) PrintHttpRequestInfo(ctx *api.Context) {
-	h.initializeLoggerOptions(ctx)
-
-	var bodyInfo string
-	bodyType := ctx.Header().Get("Content-Type")
-	bodySize := ctx.Header().Get("Content-Length")
-	if helper.ContainsIgnoreCase(bodyType, "application/json") ||
-		helper.ContainsIgnoreCase(bodyType, "application/xml") ||
-		helper.ContainsIgnoreCase(bodyType, "plain/text") {
-		bodyInfo = helper.CompactString(ctx.BodyString())
-	} else if helper.IsNotEmpty(bodyType, bodySize) {
-		msg := fmt.Sprintf("content-type: %s ", bodyType)
-		msg += fmt.Sprintf("content-length: %s ", bodySize)
-		bodyInfo = msg
-	}
-
-	logger.Info("Start!", bodyInfo)
-}
-
-// PrintHttpResponseInfo prints the information of the HTTP response.
-// It obtains the status code text, latency, and response body data to be logged.
-// Then, it prints the log message using the logger.Info function.
-// Parameters:
-// - ctx: The API context containing the response data.
-func (h httpLoggerProvider) PrintHttpResponseInfo(ctx *api.Context) {
+func (l loggerProvider) PrintBackendResponseInfo(backend *vo.Backend, httpBackendResponse *vo.HttpBackendResponse) {
 	var text strings.Builder
-	text.WriteString(h.statusCodeText(ctx.HttpResponse().StatusCode()))
-	text.WriteString(" • ")
+	text.WriteString(statusCodeText(httpBackendResponse.StatusCode()))
+	text.WriteString(" - ")
+	text.WriteString(httpBackendResponse.Latency().String())
+	text.WriteString(" ")
+	text.WriteString(logger.StyleReset)
+	logger.InfoOpts(l.backendLoggerOptions(backend), text.String())
+}
+
+func (l loggerProvider) PrintEndpointWarnf(ctx *api.Context, format string, msg ...any) {
+	logger.WarnOptsf(format, l.endpointLoggerOptions(ctx), msg...)
+}
+
+func (l loggerProvider) PrintEndpointErrorf(ctx *api.Context, format string, msg ...any) {
+	logger.ErrorOptsf(format, l.endpointLoggerOptions(ctx), msg...)
+}
+
+func (l loggerProvider) PrintEndpointResponseInfo(ctx *api.Context) {
+	var text strings.Builder
+	text.WriteString(statusCodeText(ctx.HttpResponse().StatusCode()))
+	text.WriteString(" - ")
 	text.WriteString(ctx.Latency().String())
 	text.WriteString(" ")
 	text.WriteString(logger.StyleReset)
-	if helper.IsNotNil(ctx.HttpResponse().Body()) {
-		text.WriteString(" ")
-		text.WriteString(ctx.HttpResponse().Body().CompactString())
-	}
-
-	logger.Info("Finish!", text.String())
+	logger.InfoOpts(l.endpointLoggerOptions(ctx), text.String())
 }
 
-// InitializeLoggerOptions initializes the logger options for the current request.
-// It obtains the values to be printed in the request logs such as traceId, IP address, URL, and method.
-// Then, it sets the global log options with the values obtained.
-func (h httpLoggerProvider) initializeLoggerOptions(ctx *api.Context) {
+func (l loggerProvider) PrintHttpResponseInfo(ctx *api.Context) {
+	var text strings.Builder
+	text.WriteString(statusCodeText(ctx.HttpResponse().StatusCode()))
+	text.WriteString(" - ")
+	text.WriteString(ctx.Latency().String())
+	text.WriteString(" ")
+	text.WriteString(logger.StyleReset)
+	logger.InfoOpts(l.httpResponseLoggerOptions(ctx), text.String())
+}
+
+func (l loggerProvider) backendLoggerOptions(backend *vo.Backend) logger.Options {
+	path := backend.Path()
+	prefix := fmt.Sprint("BKD (", uriText(path), ")")
+	return logger.Options{
+		CustomAfterPrefixText: prefix,
+		HideAllArgs:           true,
+	}
+}
+
+func (l loggerProvider) endpointLoggerOptions(ctx *api.Context) logger.Options {
+	traceId := ctx.TraceId()
+	ip := ctx.Header().Get(consts.XForwardedFor)
+	path := ctx.Endpoint().Path()
+	prefix := fmt.Sprint("END (", traceIdText(traceId), " | ", ip, "| ", uriText(path), ")")
+	return logger.Options{
+		CustomAfterPrefixText: prefix,
+		HideAllArgs:           true,
+	}
+}
+
+func (l loggerProvider) httpResponseLoggerOptions(ctx *api.Context) logger.Options {
 	traceId := ctx.TraceId()
 	ip := ctx.Header().Get(consts.XForwardedFor)
 	url := ctx.Url()
 	method := ctx.Method()
-	logger.SetOptions(&logger.Options{
-		CustomAfterPrefixText: h.afterPrefixText(traceId, ip, url, method),
-		HideArgCaller:         true,
-		HideArgDatetime:       true,
-	})
-}
-
-// afterPrefixText returns a formatted string that represents the portion of the logger message
-// that comes after the log prefix. It includes the `trace` ID, IP address, HTTP method, and URI.
-//
-// Parameters:
-// - traceId: the traceProvider ID value
-// - ip: the IP address value
-// - uri: the URI value
-// - method: the HTTP method value
-//
-// Returns:
-// - The formatted string with the `trace` ID, IP address, HTTP method, and URI enclosed in parentheses.
-func (h httpLoggerProvider) afterPrefixText(traceId, ip, uri, method string) string {
-	return fmt.Sprint("(", h.traceIdText(traceId), " | ", ip, " |", h.methodText(method), "| ", h.uriText(uri), ")")
+	prefix := fmt.Sprint("API (", traceIdText(traceId), " | ", ip, " |", methodText(method), "| ", uriText(url), ")")
+	return logger.Options{
+		CustomAfterPrefixText: prefix,
+		HideAllArgs:           true,
+	}
 }
 
 // traceIdText returns the formatted traceId with bold style and resets the style afterward.
-func (h httpLoggerProvider) traceIdText(traceId string) string {
+func traceIdText(traceId string) string {
 	return fmt.Sprint(logger.StyleBold, traceId, logger.StyleReset)
 }
 
@@ -128,20 +120,20 @@ func (h httpLoggerProvider) traceIdText(traceId string) string {
 // - method: The method name to be included in the logger text.
 // Returns:
 // - The formatted logger text for the method.
-func (h httpLoggerProvider) methodText(method string) string {
-	return fmt.Sprint(h.methodTextStyle(method), " ", method, " ", logger.StyleReset)
+func methodText(method string) string {
+	return fmt.Sprint(methodTextStyle(method), " ", method, " ", logger.StyleReset)
 }
 
 // uriText returns the URI enclosed in double quotes.
-func (h httpLoggerProvider) uriText(uri string) string {
+func uriText(uri string) string {
 	return fmt.Sprint("\"", uri, "\"")
 }
 
 // statusCodeText returns the status code text to be logged.
 // It calls the statusCodeTextStyle method to get the colorized text and concatenates it with the status code.
 // Example: "200" or "200" (in color)
-func (h httpLoggerProvider) statusCodeText(statusCode vo.StatusCode) string {
-	return fmt.Sprint(h.statusCodeTextStyle(statusCode), " ", statusCode)
+func statusCodeText(statusCode vo.StatusCode) string {
+	return fmt.Sprint(statusCodeTextStyle(statusCode), " ", statusCode)
 }
 
 // statusCodeTextStyle returns the color style to be applied to the status code text.
@@ -158,7 +150,7 @@ func (h httpLoggerProvider) statusCodeText(statusCode vo.StatusCode) string {
 //
 // Returns:
 // - The style as a string which can be used to format the log message.
-func (h httpLoggerProvider) statusCodeTextStyle(statusCode vo.StatusCode) string {
+func statusCodeTextStyle(statusCode vo.StatusCode) string {
 	if helper.IsGreaterThanOrEqual(statusCode, 200) && helper.IsLessThan(statusCode, 299) {
 		return fmt.Sprint(logger.StyleBold, logger.BackgroundGreen)
 	} else if helper.IsGreaterThanOrEqual(statusCode, 300) && helper.IsLessThan(statusCode, 400) {
@@ -181,7 +173,7 @@ func (h httpLoggerProvider) statusCodeTextStyle(statusCode vo.StatusCode) string
 // - For PUT method, the color is bold magenta.
 // - For PATCH method, the color is bold cyan.
 // - For any other method, the color is bold black.
-func (h httpLoggerProvider) methodTextStyle(method string) string {
+func methodTextStyle(method string) string {
 	switch method {
 	case http.MethodPost:
 		return fmt.Sprint(logger.StyleBold, logger.BackgroundYellow)

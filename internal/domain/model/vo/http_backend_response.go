@@ -23,6 +23,7 @@ import (
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/enum"
 	"io"
 	"net/http"
+	"time"
 )
 
 // HttpBackendResponse represents the structure of a backend HTTP response.
@@ -31,7 +32,8 @@ type HttpBackendResponse struct {
 	written bool
 	// config is a pointer to the BackendResponse struct that holds configuration settings for the
 	// HttpBackendResponse instance.
-	config *BackendResponse
+	config  *BackendResponse
+	latency time.Duration
 	// statusCode represents HTTP statusCode of a backend httpResponse.
 	statusCode StatusCode
 	// header represents the body fields of a backend httpResponse.
@@ -44,7 +46,7 @@ type HttpBackendResponse struct {
 // It constructs the header from the netHttpResponse, parses the response bytes into a body interface,
 // and builds the backend httpResponse value object.
 // It then calls the ApplyConfig method with the enum.BackendResponseApplyEarly flag and returns the result.
-func NewHttpBackendResponse(backend *Backend, netHttpResponse *http.Response) *HttpBackendResponse {
+func NewHttpBackendResponse(backend *Backend, netHttpResponse *http.Response, latency time.Duration) *HttpBackendResponse {
 	contentType := netHttpResponse.Header.Get("Content-Type")
 	contentEncoding := netHttpResponse.Header.Get("Content-Encoding")
 
@@ -54,6 +56,7 @@ func NewHttpBackendResponse(backend *Backend, netHttpResponse *http.Response) *H
 
 	return &HttpBackendResponse{
 		config:     backend.Response(),
+		latency:    latency,
 		statusCode: NewStatusCode(netHttpResponse.StatusCode),
 		header:     header,
 		body:       body,
@@ -107,6 +110,10 @@ func (h *HttpBackendResponse) Config() *BackendResponse {
 	return h.config
 }
 
+func (h *HttpBackendResponse) Latency() time.Duration {
+	return h.latency
+}
+
 // GroupByType returns a boolean indicating if the body of the HttpBackendResponse instance
 // is either a text or a slice of bytes. It checks whether the body is not nil and it's either
 // a text or a slice of bytes.
@@ -146,6 +153,7 @@ func (h *HttpBackendResponse) ApplyConfig(momentToApply enum.BackendResponseAppl
 
 	body := h.buildBodyByConfig(backendResponse, httpRequest, httpResponse)
 	return &HttpBackendResponse{
+		latency:    h.latency,
 		statusCode: h.statusCode,
 		header:     h.buildHeaderByConfig(backendResponse, body, httpRequest, httpResponse),
 		body:       body,

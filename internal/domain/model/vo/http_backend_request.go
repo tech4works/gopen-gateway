@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/GabrielHCataldo/go-helper/helper"
-	"github.com/GabrielHCataldo/go-logger/logger"
 	"github.com/opentracing/opentracing-go"
 	"io"
 	"net/http"
@@ -247,9 +246,8 @@ func (h *HttpBackendRequest) NetHttp(ctx context.Context) (*http.Request, error)
 	span := opentracing.SpanFromContext(ctx)
 	if helper.IsNotNil(span) {
 		tracer := opentracing.GlobalTracer()
-		err = tracer.Inject(span.Context(), opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(netHttpRequest.Header))
-		if helper.IsNotNil(err) {
-			logger.Warningf("Error injecting tracer context: %v", err)
+		if helper.IsNotNil(tracer) {
+			_ = tracer.Inject(span.Context(), opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(netHttpRequest.Header))
 		}
 	}
 

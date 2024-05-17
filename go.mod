@@ -18,7 +18,7 @@ go 1.22
 require (
 	github.com/GabrielHCataldo/go-errors v1.2.0
 	github.com/GabrielHCataldo/go-helper v1.7.9
-	github.com/GabrielHCataldo/go-logger v1.3.0
+	github.com/GabrielHCataldo/go-logger v1.3.4
 	github.com/GabrielHCataldo/go-redis-template v1.1.5
 	github.com/basgys/goxml2json v1.1.0
 	github.com/clbanning/mxj/v2 v2.7.0

@@ -20,7 +20,7 @@ import (
 	"context"
 	"github.com/GabrielHCataldo/go-errors/errors"
 	"github.com/GabrielHCataldo/go-helper/helper"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/interfaces"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/domain"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/mapper"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
 )
@@ -28,7 +28,7 @@ import (
 // cacheService represents a cache service that interacts with a cache store.
 type cacheService struct {
 	// cacheStore represents an interface for interacting with a cache store.
-	cacheStore interfaces.CacheStore
+	cacheStore domain.CacheStore
 }
 
 // Cache defines an interface for managing cache operations.
@@ -45,7 +45,7 @@ type Cache interface {
 
 // NewCache creates a new cache service instance. It takes a cacheStore object that implements the
 // CacheStore interface as input parameter. It returns a Cache object.
-func NewCache(cacheStore interfaces.CacheStore) Cache {
+func NewCache(cacheStore domain.CacheStore) Cache {
 	return cacheService{
 		cacheStore: cacheStore,
 	}

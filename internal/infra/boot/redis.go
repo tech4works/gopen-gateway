@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package infra
+package boot
 
 import (
 	"context"
@@ -22,7 +22,7 @@ import (
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/go-redis-template/redis"
 	"github.com/GabrielHCataldo/go-redis-template/redis/option"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/interfaces"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/domain"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/mapper"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
 )
@@ -34,7 +34,7 @@ type redisStore struct {
 
 // NewRedisStore creates a new Redis cache store with the given address and password.
 // It returns a CacheStore interface that can be used to interact with the Redis cache.
-func NewRedisStore(address, password string) interfaces.CacheStore {
+func NewRedisStore(address, password string) domain.CacheStore {
 	return &redisStore{
 		redisTemplate: redis.NewTemplate(option.Client{
 			Addr:     address,

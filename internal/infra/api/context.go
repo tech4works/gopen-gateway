@@ -18,6 +18,7 @@ package api
 
 import (
 	"github.com/GabrielHCataldo/go-helper/helper"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/consts"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
 	"github.com/gin-gonic/gin"
 	"github.com/opentracing/opentracing-go"
@@ -64,6 +65,33 @@ type Context struct {
 	// It contains the status code, content type, and response body.
 	// It is used to write the HTTP response to the client.
 	httpResponse *vo.HttpResponse
+}
+
+func newContext(gin *gin.Context, gopen *vo.Gopen, endpoint *vo.Endpoint) *Context {
+	httpRequest := vo.NewHttpRequest(gin)
+
+	urlTag := opentracing.Tag{Key: "request.url", Value: httpRequest.Url()}
+	methodTag := opentracing.Tag{Key: "request.method", Value: httpRequest.Method()}
+	paramsTag := opentracing.Tag{Key: "request.params", Value: httpRequest.Params().String()}
+	queryTag := opentracing.Tag{Key: "request.query", Value: httpRequest.Query().String()}
+	headerTag := opentracing.Tag{Key: "request.header", Value: httpRequest.Header().String()}
+	bodyTag := opentracing.Tag{Key: "request.body", Value: ""}
+	if helper.IsNotNil(httpRequest.Body()) {
+		bodyTag.Value = httpRequest.Body().CompactString()
+	}
+	span := opentracing.StartSpan(httpRequest.Path().RawString(), urlTag, methodTag, paramsTag, queryTag, headerTag,
+		bodyTag)
+	gin.Request = gin.Request.WithContext(opentracing.ContextWithSpan(gin.Request.Context(), span))
+
+	return &Context{
+		startTime:   time.Now(),
+		span:        span,
+		mutex:       &sync.RWMutex{},
+		framework:   gin,
+		gopen:       gopen,
+		endpoint:    endpoint,
+		httpRequest: httpRequest,
+	}
 }
 
 // Latency returns the duration between the current time and the start time of the Context.
@@ -166,6 +194,10 @@ func (c *Context) RemoteAddr() string {
 	return c.framework.ClientIP()
 }
 
+func (c *Context) XForwardedFor() string {
+	return c.Header().Get(consts.XForwardedFor)
+}
+
 // Method returns the HTTP method of the HttpRequest object associated with the Context.
 func (c *Context) Method() string {
 	return c.HttpRequest().Method()
@@ -223,18 +255,6 @@ func (c *Context) Write(httpRequest *vo.HttpRequest, httpResponse *vo.HttpRespon
 	c.WriteHttpResponse(httpResponse)
 }
 
-// WriteHttpResponse writes the HTTP response to the underlying writer.
-// The response is written based on the specified HttpResponse object.
-// The method first acquires a lock on the context's mutex to ensure
-// thread-safety. If the framework is aborted, the method returns immediately without writing the response.
-// The method calls the Write method on the HttpResponse object, passing in the endpoint, HTTP request, and HttpResponse
-// object itself to  write the response. The returned HttpResponse object is assigned to httpResponseWritten variable.
-// The status code, content type, and raw body bytes are then retrieved from the httpResponseWritten object.
-// The method writes the response header using the writeHeader method.
-// If the raw body bytes is not empty, the method writes the response body along with the status code and content type
-// using the writeBody method.
-// If the raw body bytes is empty, the method writes only the status code using the writeStatusCode method.
-// Finally, the method aborts the framework and assigns the httpResponseWritten object to c.httpResponse.
 func (c *Context) WriteHttpResponse(httpResponse *vo.HttpResponse) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
@@ -255,11 +275,8 @@ func (c *Context) WriteHttpResponse(httpResponse *vo.HttpResponse) {
 	} else {
 		c.writeStatusCode(statusCode)
 	}
-	c.framework.Abort()
 
-	c.httpResponse = httpResponseWritten
-
-	c.finishSpan()
+	c.transformContextToWritten(httpResponseWritten)
 }
 
 // WriteStatusCode writes the given status code to the HTTP response.
@@ -325,7 +342,10 @@ func (c *Context) writeBody(code vo.StatusCode, contentType string, body []byte)
 	c.framework.Data(code.AsInt(), contentType, body)
 }
 
-func (c *Context) finishSpan() {
+func (c *Context) transformContextToWritten(httpResponseWritten *vo.HttpResponse) {
+	c.framework.Abort()
+	c.httpResponse = httpResponseWritten
+
 	c.span.SetTag("response.status", c.HttpResponse().Status())
 	c.span.SetTag("response.header", c.HttpResponse().Header().String())
 	if helper.IsNotNil(c.HttpResponse().Body()) {

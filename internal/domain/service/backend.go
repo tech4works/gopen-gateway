@@ -19,7 +19,7 @@ package service
 import (
 	"context"
 	"github.com/GabrielHCataldo/go-helper/helper"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/interfaces"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/domain"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/enum"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
 )
@@ -29,7 +29,7 @@ import (
 // The type contains a restTemplate object of type interfaces.RestTemplate, which is used to send HTTP requests.
 type backendService struct {
 	// restTemplate represents an interface for making HTTP requests.
-	restTemplate interfaces.RestTemplate
+	restTemplate domain.RestTemplate
 }
 
 // Backend is an interface representing a backend service in the application.
@@ -55,7 +55,7 @@ type Backend interface {
 // NewBackend is a function that creates and returns a new instance of the Backend interface.
 // It takes a parameter restTemplate of type interfaces.RestTemplate, which represents a template for making HTTP
 // requests. The function returns a backendService object that implements the Backend interface.
-func NewBackend(restTemplate interfaces.RestTemplate) Backend {
+func NewBackend(restTemplate domain.RestTemplate) Backend {
 	return backendService{
 		restTemplate: restTemplate,
 	}

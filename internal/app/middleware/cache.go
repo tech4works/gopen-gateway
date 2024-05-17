@@ -18,7 +18,7 @@ package middleware
 
 import (
 	"github.com/GabrielHCataldo/go-helper/helper"
-	"github.com/GabrielHCataldo/go-logger/logger"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/app/interfaces"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/service"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/infra/api"
 )
@@ -26,6 +26,7 @@ import (
 // cacheMiddleware represents a middleware that handles caching for an API endpoint.
 type cacheMiddleware struct {
 	cacheService service.Cache
+	logger       interfaces.LoggerProvider
 }
 
 // Cache represents an interface for caching operations. Implementations of this interface
@@ -43,9 +44,10 @@ type Cache interface {
 // NewCache initializes a new cacheMiddleware struct based on the provided cacheService.
 // The cacheMiddleware struct implements the Cache interface, and is responsible for handling
 // caching operations for an API endpoint. The NewCache function returns a Cache interface.
-func NewCache(cacheService service.Cache) Cache {
+func NewCache(cacheService service.Cache, loggerProvider interfaces.LoggerProvider) Cache {
 	return cacheMiddleware{
 		cacheService: cacheService,
+		logger:       loggerProvider,
 	}
 }
 
@@ -70,7 +72,7 @@ func (c cacheMiddleware) Do(ctx *api.Context) {
 
 	cacheResponse, err := c.cacheService.Read(ctx.Context(), cache, httpRequest)
 	if helper.IsNotNil(err) {
-		logger.Warning("Error read cache key:", strategyKey, "err:", err)
+		c.logger.PrintEndpointWarnf(ctx, "Error read cache key: %s err: %s", strategyKey, err)
 	} else if helper.IsNotNil(cacheResponse) {
 		ctx.WriteCacheResponse(cacheResponse)
 		return
@@ -80,6 +82,6 @@ func (c cacheMiddleware) Do(ctx *api.Context) {
 
 	err = c.cacheService.Write(ctx.Context(), cache, httpRequest, ctx.HttpResponse())
 	if helper.IsNotNil(err) {
-		logger.Warning("Error write cache key:", strategyKey, "err:", err)
+		c.logger.PrintEndpointWarnf(ctx, "Error write cache key: %s err: %s", strategyKey, err)
 	}
 }

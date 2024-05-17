@@ -1,4 +1,4 @@
-package infra
+package boot
 
 import (
 	"github.com/opentracing/opentracing-go"
@@ -7,8 +7,14 @@ import (
 	"io"
 )
 
-func InitJaeger() (opentracing.Tracer, io.Closer, error) {
-	cfg := &jaegercfg.Configuration{
+type noopLogger struct{}
+
+func (l *noopLogger) Error(_ string) {}
+
+func (l *noopLogger) Infof(_ string, _ ...interface{}) {}
+
+func InitJaeger(host string) (opentracing.Tracer, io.Closer, error) {
+	jaegerConfig := &jaegercfg.Configuration{
 		ServiceName: "gopen-gateway",
 		Sampler: &jaegercfg.SamplerConfig{
 			Type:  jaeger.SamplerTypeConst,
@@ -16,8 +22,8 @@ func InitJaeger() (opentracing.Tracer, io.Closer, error) {
 		},
 		Reporter: &jaegercfg.ReporterConfig{
 			LogSpans:           false,
-			LocalAgentHostPort: "jaeger:6831",
+			LocalAgentHostPort: host,
 		},
 	}
-	return cfg.NewTracer(jaegercfg.Logger(jaeger.StdLogger))
+	return jaegerConfig.NewTracer(jaegercfg.Logger(&noopLogger{}))
 }
