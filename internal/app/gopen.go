@@ -37,19 +37,19 @@ import (
 // The http.Server struct represents an HTTP server that listens for incoming connections and handles them
 // using the specified Handler. It is used to configure and start an HTTP server.
 // The httpServer variable is used to register the Gin engine as the handler for the HTTP server in the
-// ListerAndServer method of the app type.
+// ListerAndServer method of the gopenApp type.
 // It can be used to access properties and methods of the HTTP server, such as Shutdown, which gracefully shuts down
 // the server without interrupting active connections.
 // If the HTTP server is nil, the Shutdown method will return nil.
 // Otherwise, it will return an error resulting from the http.Server's Shutdown method.
 var httpServer *http.Server
 
-// app is a struct that holds various components and controllers required for running a Gopen server.
-// It contains a app field that represents the configuration and settings for the Gopen server.
+// gopenApp is a struct that holds various components and controllers required for running a Gopen server.
+// It contains a gopenApp field that represents the configuration and settings for the Gopen server.
 // It also includes middleware implementations such as panicRecoveryMiddleware, traceMiddleware, logMiddleware,
 // securityCorsMiddleware, timeoutMiddleware, limiterMiddleware, cacheMiddleware, as well as static and endpoint
 // controllers to handle requests.
-type app struct {
+type gopenApp struct {
 	gopen                   *vo.Gopen
 	panicRecoveryMiddleware middleware.PanicRecovery
 	logMiddleware           middleware.Log
@@ -105,7 +105,7 @@ func NewGopen(gopenJson *vo.GopenJson, cacheStore domain.CacheStore) Gopen {
 	staticController := controller.NewStatic(gopenJson.Version, mapper.BuildSettingViewDTO(gopenJson, gopen))
 	endpointController := controller.NewEndpoint(endpointService)
 
-	return app{
+	return gopenApp{
 		gopen:                   gopen,
 		panicRecoveryMiddleware: panicRecoveryMiddleware,
 		logMiddleware:           logMiddleware,
@@ -126,7 +126,7 @@ func NewGopen(gopenJson *vo.GopenJson, cacheStore domain.CacheStore) Gopen {
 // and starts an HTTP server listening on the constructed address.
 // The server uses the Gin engine as its handler.
 // This method doesn't accept parameters or return values.
-func (g app) ListerAndServer() {
+func (g gopenApp) ListerAndServer() {
 	boot.PrintInfo("Starting lister and server...")
 
 	gin.SetMode(gin.ReleaseMode)
@@ -160,19 +160,19 @@ func (g app) ListerAndServer() {
 //
 // Returns an error if any occurred during the server shutdown. Returns nil if the server was already nil or shutdown
 // executed without errors.
-func (g app) Shutdown(ctx context.Context) error {
+func (g gopenApp) Shutdown(ctx context.Context) error {
 	if helper.IsNil(httpServer) {
 		return nil
 	}
 	return httpServer.Shutdown(ctx)
 }
 
-// buildStaticRoutes is a method of the app type that configures static routes for the Gin engine.
+// buildStaticRoutes is a method of the gopenApp type that configures static routes for the Gin engine.
 // It takes an engine parameter of type *gin.Engine and configures the following routes:
 // - "/ping" with the HTTP method "GET" that maps to gopen.staticController.Ping
 // - "/version" with the HTTP method "GET" that maps to gopen.staticController.Version
 // - "/settings" with the HTTP method "GET" that maps to gopen.staticController.Settings
-func (g app) buildStaticRoutes(engine *gin.Engine) {
+func (g gopenApp) buildStaticRoutes(engine *gin.Engine) {
 	boot.PrintInfo("Configuring static routes...")
 	formatLog := "Registered route with 5 handles: %s --> \"%s\""
 
@@ -186,42 +186,42 @@ func (g app) buildStaticRoutes(engine *gin.Engine) {
 	boot.PrintInfof(formatLog, settingsEndpoint.Method(), settingsEndpoint.Path())
 }
 
-// registerStaticPingRoute is a method of the app type that registers a static route for the "/ping" path with the
+// registerStaticPingRoute is a method of the gopenApp type that registers a static route for the "/ping" path with the
 // HTTP method "GET".
 // It takes an engine parameter of type *gin.Engine and registers the "/ping" route with the gopen.staticController.Ping
 // handler function. It returns a vo.Endpoint pointer representing the registered route.
-func (g app) registerStaticPingRoute(engine *gin.Engine) *vo.Endpoint {
+func (g gopenApp) registerStaticPingRoute(engine *gin.Engine) *vo.Endpoint {
 	endpoint := vo.NewEndpointStatic("/ping", http.MethodGet)
 	g.registerStaticRoute(engine, &endpoint, g.staticController.Ping)
 	return &endpoint
 }
 
-// registerStaticVersionRoute is a method of the app type that registers a static route for the "/version" path
+// registerStaticVersionRoute is a method of the gopenApp type that registers a static route for the "/version" path
 // with the HTTP method "GET".
 // It takes an engine parameter of type *gin.Engine and registers the "/version" route with the
 // gopen.staticController.Version handler function. It returns a vo.Endpoint pointer representing the registered route.
-func (g app) registerStaticVersionRoute(engine *gin.Engine) *vo.Endpoint {
+func (g gopenApp) registerStaticVersionRoute(engine *gin.Engine) *vo.Endpoint {
 	endpoint := vo.NewEndpointStatic("/version", http.MethodGet)
 	g.registerStaticRoute(engine, &endpoint, g.staticController.Version)
 	return &endpoint
 }
 
-// registerStaticSettingsRoute is a method of the app type that registers a static route for the "/settings" path
+// registerStaticSettingsRoute is a method of the gopenApp type that registers a static route for the "/settings" path
 // with the HTTP method "GET". It takes an engine parameter of type *gin.Engine and registers the "/settings" route with
 // the gopen.staticController.Settings handler function. It returns a vo.Endpoint pointer representing the registered route.
-func (g app) registerStaticSettingsRoute(engine *gin.Engine) *vo.Endpoint {
+func (g gopenApp) registerStaticSettingsRoute(engine *gin.Engine) *vo.Endpoint {
 	endpoint := vo.NewEndpointStatic("/settings", http.MethodGet)
 	g.registerStaticRoute(engine, &endpoint, g.staticController.Settings)
 	return &endpoint
 }
 
-// registerStaticRoute is a method of the app type that registers a static route for a given endpoint with the
+// registerStaticRoute is a method of the gopenApp type that registers a static route for a given endpoint with the
 // provided handler function. It takes an engine parameter of type *gin.Engine, an endpointStatic parameter of type
 // *vo.Endpoint, and a handler parameter of type api.HandlerFunc. The method sets up middleware functions including
 // timeoutHandler, panicHandler, logHandler, limiterHandler, and the provided handler function.
 // Finally, it calls the api.Handle function passing the engine, g.gopen, endpointStatic, and the middleware functions
 // and handler as arguments. This method doesn't return any values.
-func (g app) registerStaticRoute(engine *gin.Engine, endpointStatic *vo.Endpoint, handler api.HandlerFunc) {
+func (g gopenApp) registerStaticRoute(engine *gin.Engine, endpointStatic *vo.Endpoint, handler api.HandlerFunc) {
 	timeoutHandler := g.timeoutMiddleware.Do
 	panicHandler := g.panicRecoveryMiddleware.Do
 	logHandler := g.logMiddleware.Do
@@ -229,13 +229,13 @@ func (g app) registerStaticRoute(engine *gin.Engine, endpointStatic *vo.Endpoint
 	api.Handle(engine, g.gopen, endpointStatic, timeoutHandler, panicHandler, logHandler, limiterHandler, handler)
 }
 
-// buildEndpointHandles is a method of the app type that returns a slice of api.HandlerFunc.
+// buildEndpointHandles is a method of the gopenApp type that returns a slice of api.HandlerFunc.
 // It constructs the slice by assigning each middleware function, as well as the endpointHandler function,
 // to a corresponding api.HandlerFunc variable. The slice is then returned.
 //
 // Returns a slice of api.HandlerFunc, representing the ordered sequence of middleware functions
 // and the endpointHandler function.
-func (g app) buildEndpointHandles() []api.HandlerFunc {
+func (g gopenApp) buildEndpointHandles() []api.HandlerFunc {
 	timeoutHandler := g.timeoutMiddleware.Do
 	panicHandler := g.panicRecoveryMiddleware.Do
 	logHandler := g.logMiddleware.Do
