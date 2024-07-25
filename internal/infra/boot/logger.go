@@ -21,14 +21,11 @@ import (
 	"github.com/GabrielHCataldo/go-logger/logger"
 )
 
-// cmdLoggerOptions is the configuration options for the logger package.
-// It specifies the custom text to be displayed after the log prefix.
-var cmdLoggerOptions = logger.Options{
-	CustomAfterPrefixText: "CMD",
+var loggerOptions = logger.Options{
+	CustomAfterPrefixText: fmt.Sprintf("[%s%s%s]", logger.StyleBold, "GOPEN", logger.StyleReset),
 	HideAllArgs:           true,
 }
 
-// PrintLogo prints the API Gateway logo along with the provided version string.
 func PrintLogo(version string) {
 	fmt.Printf(`
  ######    #######  ########  ######## ##    ##
@@ -46,32 +43,26 @@ Best open source API Gateway!            %s
 `, version)
 }
 
-// PrintTitle prints the provided title with a decorated format using the cmdLoggerProvider's PrintInfof method.
 func PrintTitle(title string) {
-	PrintInfof("-----------------------< %s%s%s >-----------------------", logger.StyleBold, title,
-		logger.StyleReset)
+	PrintInfof("-----------------------< %s%s%s >-----------------------", logger.StyleBold, title, logger.StyleReset)
 }
 
-// PrintInfo prints an informational log message using the logger package.
 func PrintInfo(msg ...any) {
-	logger.InfoOpts(cmdLoggerOptions, msg...)
+	logger.InfoOpts(loggerOptions, msg...)
 }
 
-// PrintInfof is a function that prints an information log message with formatting capabilities.
 func PrintInfof(format string, msg ...any) {
-	logger.InfoOptsf(format, cmdLoggerOptions, msg...)
+	logger.InfoOptsf(format, loggerOptions, msg...)
 }
 
-// PrintWarn prints a warning log message using the logger package.
 func PrintWarn(msg ...any) {
-	logger.WarnOpts(cmdLoggerOptions, msg...)
+	logger.WarnOpts(loggerOptions, msg...)
 }
 
-// PrintWarnf logs a warning message with the given format and arguments using the logger package.
 func PrintWarnf(format string, msg ...any) {
-	logger.WarnOptsf(format, cmdLoggerOptions, msg...)
+	logger.WarnOptsf(format, loggerOptions, msg...)
 }
 
 func PrintError(msg ...any) {
-	logger.ErrorOpts(cmdLoggerOptions, msg...)
+	logger.ErrorOpts(loggerOptions, msg...)
 }

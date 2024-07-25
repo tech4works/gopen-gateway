@@ -22,30 +22,20 @@ import (
 	"time"
 )
 
-// Duration represents a duration of time. It is a type wrapper around the time.Duration type,
-// providing additional methods and functionality specific to durations.
 type Duration time.Duration
 
 func NewDuration(timeDuration time.Duration) Duration {
 	return Duration(timeDuration)
 }
 
-// Time converts the Duration object to a time.Duration object.
 func (d *Duration) Time() time.Duration {
 	return time.Duration(*d)
 }
 
-// String returns the string representation of the Duration object's time.Duration value.
 func (d *Duration) String() string {
 	return d.Time().String()
 }
 
-// UnmarshalJSON decodes a JSON value into the Duration object.
-// It removes the quotes around the value using the Unquote function.
-// Then it uses ParseDuration to convert the string into a time.Duration.
-// The resulting duration value is assigned to the receiver of the method.
-// If the input value is empty, it returns nil.
-// If there is an error during the conversion, it returns the error.
 func (d *Duration) UnmarshalJSON(b []byte) error {
 	str, err := strconv.Unquote(string(b))
 	if helper.IsNotNil(err) {
@@ -63,13 +53,6 @@ func (d *Duration) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-// MarshalJSON converts the Duration object to its JSON representation.
-// If the Duration object is nil or empty, it returns nil, nil.
-// Otherwise, it returns the byte slice representation of the Duration object's string value
-// enclosed in quotes using the strconv.Quote function.
-// The resulting byte slice and nil error are returned.
-//
-// See UnmarshalJSON for the reverse operation.
 func (d *Duration) MarshalJSON() ([]byte, error) {
 	if helper.IsNil(d) || helper.IsEmpty(d) {
 		return nil, nil

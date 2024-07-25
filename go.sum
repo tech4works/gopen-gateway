@@ -2,8 +2,14 @@ dmitri.shuralyov.com/gpu/mtl v0.0.0-20190408044501-666a987793e9/go.mod h1:H6x//7
 github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym/WlBOVXweHU+Q+/VP0lqqI8lqeDx9IjBqo=
 github.com/GabrielHCataldo/go-errors v1.2.0 h1:T/NgsUBsJXtnG4iX0IJ6hUOolDYaxsyenz5zYe0W4to=
 github.com/GabrielHCataldo/go-errors v1.2.0/go.mod h1:baoCS+CM2zjhQeN5Gy23tS1/zukN3+ZXlEOYy5st3uI=
+github.com/GabrielHCataldo/go-errors v1.2.1 h1:gtng/lIjjlmdcevpXz/OAjw4OTrvU/HkpsU0tZeEu9E=
+github.com/GabrielHCataldo/go-errors v1.2.1/go.mod h1:baoCS+CM2zjhQeN5Gy23tS1/zukN3+ZXlEOYy5st3uI=
 github.com/GabrielHCataldo/go-helper v1.7.9 h1:qxGG8xJ4ZCooctMYnFFdoOolq13+KnqDzj7A1MxBt7o=
 github.com/GabrielHCataldo/go-helper v1.7.9/go.mod h1:0lWjHErv57Qkk+w25kbYKTmZYrNe0/0q0wUlt00OmRg=
+github.com/GabrielHCataldo/go-helper v1.8.0 h1:IFiRgzp324bdkotd7HFOZLZWSoH7tit2A0ca9OmSXLs=
+github.com/GabrielHCataldo/go-helper v1.8.0/go.mod h1:0lWjHErv57Qkk+w25kbYKTmZYrNe0/0q0wUlt00OmRg=
+github.com/GabrielHCataldo/go-helper v1.8.1 h1:eV7pch9TH4o4ref/yczE4e9UECYauEYd8b6B6KrLudY=
+github.com/GabrielHCataldo/go-helper v1.8.1/go.mod h1:0lWjHErv57Qkk+w25kbYKTmZYrNe0/0q0wUlt00OmRg=
 github.com/GabrielHCataldo/go-logger v1.3.0 h1:fKjEXOYJ0Tk3DrFTOVdFXNhp+szlTUFfZEnByQdInxY=
 github.com/GabrielHCataldo/go-logger v1.3.0/go.mod h1:d68a0zmUQJZCnqMIG8fze8fkBhjCb0A9QpeN7f32vnA=
 github.com/GabrielHCataldo/go-logger v1.3.2 h1:ldgqDBzKjle7/hN+fQmfAuhZ1EZ5k9ANeKtbLJ/advk=

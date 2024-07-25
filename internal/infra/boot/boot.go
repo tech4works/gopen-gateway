@@ -1,72 +1,124 @@
-/*
- * Copyright 2024 Gabriel Cataldo
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package boot
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/GabrielHCataldo/go-errors/errors"
 	"github.com/GabrielHCataldo/go-helper/helper"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/app"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/app/model/dto"
 	"github.com/joho/godotenv"
 	"github.com/xeipuuv/gojsonschema"
 	"os"
 	"regexp"
 	"strings"
+	"time"
 )
 
-// runtimeFolder is a constant string representing the filepath of the runtime folder for the Gopen application.
 const runtimeFolder = "./runtime"
-
-// jsonRuntimeUri is a constant string representing the filepath of the Gopen JSON result file.
 const jsonRuntimeUri = runtimeFolder + "/.json"
+const jsonSchemaUri = "./json-schema.json"
 
-// jsonSchemaUri is a constant string representing the URI of the JSON schema file.
-const jsonSchemaUri = "https://raw.githubusercontent.com/GabrielHCataldo/gopen-gateway/main/json-schema.json"
-
-func LoadDefaultEnvs() (err error) {
-	if err = godotenv.Load("./.env"); helper.IsNotNil(err) {
-		err = errors.New("Error load Gopen envs default:", err)
+func Start(env string) {
+	PrintInfo("Loading Gopen envs...")
+	err := loadEnvs(env)
+	if helper.IsNotNil(err) {
+		PrintWarn(err)
 	}
-	return err
+
+	PrintInfo("Loading Gopen json...")
+	gopenDTO, err := loadJson(env)
+	if helper.IsNotNil(err) {
+		panic(err)
+	}
+
+	PrintInfo("Configuring cache store...")
+	store := NewMemoryStore()
+	if helper.IsNotNil(gopenDTO.Store) {
+		store = NewRedisStore(gopenDTO.Store.Redis.Address, gopenDTO.Store.Redis.Password)
+	}
+	defer store.Close()
+
+	err = writeRuntimeJson(gopenDTO)
+	if helper.IsNotNil(err) {
+		PrintWarn(err)
+	}
+
+	PrintInfo("Building application...")
+	gopenAPP := app.NewGopen(gopenDTO, store)
+
+	if gopenDTO.HotReload {
+		PrintInfo("Configuring watcher...")
+		watcher, err := NewWatcher(env, restart(env, gopenAPP))
+		if helper.IsNotNil(err) {
+			PrintWarn("Error configure watcher:", err)
+		} else {
+			defer watcher.Close()
+		}
+	}
+
+	PrintInfo("Starting application...")
+	gopenAPP.ListerAndServer()
 }
 
-func LoadEnvs(env string) (err error) {
-	gopenEnvUri := getEnvUri(env)
+func Stop() {
+	fmt.Println()
+	err := removeRuntimeJson()
+	if helper.IsNotNil(err) {
+		PrintWarn("Error to remove runtime json!")
+	}
+	PrintTitle("STOPPED")
+}
 
-	if err = godotenv.Load(gopenEnvUri); helper.IsNotNil(err) {
+func restart(env string, oldGopenAPP app.Gopen) func() {
+	return func() {
+		defer func() {
+			if r := recover(); helper.IsNotNil(r) {
+				errorDetails := errors.Details(r.(error))
+				PrintError("Error restart server:", errorDetails.GetCause())
+
+				recovery(oldGopenAPP)
+			}
+		}()
+
+		fmt.Println()
+		fmt.Println()
+		PrintTitle("RESTART")
+
+		ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
+		defer cancel()
+
+		PrintInfo("Shutting down current server...")
+		err := oldGopenAPP.Shutdown(ctx)
+		if helper.IsNotNil(err) {
+			PrintWarnf("Error shutdown current server: %s!", err)
+			return
+		}
+
+		go Start(env)
+	}
+}
+
+func recovery(oldGopenAPP app.Gopen) {
+	fmt.Println()
+	PrintTitle("RECOVERY")
+
+	go oldGopenAPP.ListerAndServer()
+}
+
+func loadEnvs(env string) (err error) {
+	gopenEnvUri := buildEnvUri(env)
+
+	if err = godotenv.Overload(gopenEnvUri); helper.IsNotNil(err) {
 		err = errors.New("Error load Gopen envs from uri:", gopenEnvUri, "err:", err)
 	}
 
 	return err
 }
 
-func ReloadEnvs(env string) (err error) {
-	gopenEnvUri := getEnvUri(env)
-
-	if err = godotenv.Overload(gopenEnvUri); helper.IsNotNil(err) {
-		err = errors.New("Error reload envs from uri:", gopenEnvUri, "err:", err)
-	}
-
-	return err
-}
-
-func LoadJson(env string) (*vo.GopenJson, error) {
-	gopenJsonUri := getJsonUri(env)
+func loadJson(env string) (*dto.Gopen, error) {
+	gopenJsonUri := buildJsonUri(env)
 
 	gopenJsonBytes, err := os.ReadFile(gopenJsonUri)
 	if helper.IsNotNil(err) {
@@ -78,31 +130,13 @@ func LoadJson(env string) (*vo.GopenJson, error) {
 		return nil, err
 	}
 
-	return vo.NewGopenJson(gopenJsonBytes)
-}
-
-func WriteRuntimeJson(gopenJson *vo.GopenJson) error {
-	if _, err := os.Stat(runtimeFolder); os.IsNotExist(err) {
-		err = os.MkdirAll(runtimeFolder, 0755)
-		if helper.IsNotNil(err) {
-			return err
-		}
+	var gopenDTO dto.Gopen
+	err = helper.ConvertToDest(gopenJsonBytes, &gopenDTO)
+	if helper.IsNotNil(err) {
+		return nil, err
 	}
 
-	gopenJsonBytes, err := json.MarshalIndent(gopenJson, "", "\t")
-	if helper.IsNil(err) {
-		err = os.WriteFile(jsonRuntimeUri, gopenJsonBytes, 0644)
-	}
-
-	return err
-}
-
-func RemoveRuntimeJson() error {
-	err := os.Remove(runtimeFolder)
-	if errors.IsNot(err, os.ErrNotExist) {
-		err = nil
-	}
-	return err
+	return &gopenDTO, nil
 }
 
 func fillEnvValues(gopenJsonBytes []byte) []byte {
@@ -145,10 +179,34 @@ func validateJsonBySchema(jsonSchemaUri string, jsonBytes []byte) error {
 	return err
 }
 
-func getEnvUri(env string) string {
+func writeRuntimeJson(gopenDTO *dto.Gopen) error {
+	if _, err := os.Stat(runtimeFolder); os.IsNotExist(err) {
+		err = os.MkdirAll(runtimeFolder, 0755)
+		if helper.IsNotNil(err) {
+			return err
+		}
+	}
+
+	gopenJsonBytes, err := json.MarshalIndent(gopenDTO, "", "\t")
+	if helper.IsNil(err) {
+		err = os.WriteFile(jsonRuntimeUri, gopenJsonBytes, 0644)
+	}
+
+	return err
+}
+
+func removeRuntimeJson() error {
+	err := os.Remove(runtimeFolder)
+	if errors.IsNot(err, os.ErrNotExist) {
+		err = nil
+	}
+	return err
+}
+
+func buildEnvUri(env string) string {
 	return fmt.Sprintf("./gopen/%s/.env", env)
 }
 
-func getJsonUri(env string) string {
+func buildJsonUri(env string) string {
 	return fmt.Sprintf("./gopen/%s/.json", env)
 }

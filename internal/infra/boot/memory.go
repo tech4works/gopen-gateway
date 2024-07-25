@@ -33,7 +33,7 @@ type memoryStore struct {
 
 // NewMemoryStore returns a new instance of the MemoryStore structure that implements the CacheStore interface.
 // This implementation uses an in-memory cache with a time-to-live (TTL)
-func NewMemoryStore() domain.CacheStore {
+func NewMemoryStore() domain.Store {
 	ttlCache := ttlcache.NewCache()
 	ttlCache.SkipTTLExtensionOnHit(true)
 	return &memoryStore{

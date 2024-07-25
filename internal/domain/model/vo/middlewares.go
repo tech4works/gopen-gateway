@@ -16,17 +16,8 @@
 
 package vo
 
-// Middlewares is a type that represents a map of string keys to Backend values.
-// It is used to configure and store middleware settings in the Gopen server.
-// Each key in the map represents the name of the middleware, and the corresponding Backend
-// value defines the properties and behavior of that middleware.
 type Middlewares map[string]Backend
 
-// newMiddlewares creates a new instance of Middlewares based on the provided MiddlewaresJson parameter.
-// It iterates over the keys and values of the MiddlewaresJson map and creates a new Backend instance for each value,
-// using the newBackend function.
-// The newly created Backends are assigned to the corresponding keys in the Middlewares map.
-// The Middlewares map is then returned.
 func newMiddlewares(middlewaresJson MiddlewaresJson) (m Middlewares) {
 	m = Middlewares{}
 	for k, v := range middlewaresJson {
@@ -35,9 +26,6 @@ func newMiddlewares(middlewaresJson MiddlewaresJson) (m Middlewares) {
 	return m
 }
 
-// Get retrieves a backend from the Middlewares map based on the given key and returns it with a boolean
-// indicating whether it exists or not. The returned backend is wrapped in a new middleware backend
-// using the newMiddlewareBackend function.
 func (m Middlewares) Get(key string) (*Backend, bool) {
 	backend, ok := m[key]
 	if !ok {

@@ -7,11 +7,11 @@ import (
 	"io"
 )
 
-type noopLogger struct{}
+type noopJaegerLogger struct{}
 
-func (l *noopLogger) Error(_ string) {}
+func (l *noopJaegerLogger) Error(_ string) {}
 
-func (l *noopLogger) Infof(_ string, _ ...interface{}) {}
+func (l *noopJaegerLogger) Infof(_ string, _ ...interface{}) {}
 
 func InitJaeger(host string) (opentracing.Tracer, io.Closer, error) {
 	jaegerConfig := &jaegercfg.Configuration{
@@ -25,5 +25,5 @@ func InitJaeger(host string) (opentracing.Tracer, io.Closer, error) {
 			LocalAgentHostPort: host,
 		},
 	}
-	return jaegerConfig.NewTracer(jaegercfg.Logger(&noopLogger{}))
+	return jaegerConfig.NewTracer(jaegercfg.Logger(&noopJaegerLogger{}))
 }

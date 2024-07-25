@@ -19,49 +19,34 @@ package middleware
 import (
 	"github.com/GabrielHCataldo/go-errors/errors"
 	"github.com/GabrielHCataldo/go-helper/helper"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/app"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/mapper"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/consts"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/infra/api"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/service"
 	"net/http"
 )
 
-// limiterMiddleware is a type that represents a middleware that handles requests by checking if they are within the
-// allowed rate limit and size limit. It implements the Limiter interface.
 type limiterMiddleware struct {
+	service service.Limiter
 }
 
-// Limiter is an interface that defines the behavior of a limiter.
-// Implementations of this interface must have a Do method that takes a context as input.
 type Limiter interface {
-	// Do execute the logic of the limiter.
-	//
-	// It takes a context as input to allow cancellation or passing of values between participating entities.
-	Do(ctx *api.Context)
+	Do(ctx app.Context)
 }
 
-// NewLimiter creates a new instance of a Limiter and returns it. The Limiter is implemented by the limiterMiddleware
-// struct.
 func NewLimiter() Limiter {
 	return limiterMiddleware{}
 }
 
-// Do handle the request by checking if it is within the allowed rate limit and size limit.
-// It first gets the limiter from the endpoint, then checks if the request is within the rate limit.
-// If the rate limit is exceeded, it writes an error response with status code 429 (Too Many Requests).
-// Next, it checks if the request is within the size limit.
-// If the payload size limit is exceeded, it writes an error response with status code 413 (Request Entity Too Large).
-// If the header size limit is exceeded, it writes an error response with status code 431 (Request Header Fields Too Large).
-// If all checks pass, it proceeds to the next handler.
-func (l limiterMiddleware) Do(ctx *api.Context) {
-	limiter := ctx.Endpoint().Limiter()
+func (l limiterMiddleware) Do(ctx app.Context) {
+	endpointLimiter := ctx.Endpoint().Limiter()
 
-	err := limiter.Rate().Allow(ctx.HttpRequest().Header().Get(consts.XForwardedFor))
+	err := l.service.AllowRate(ctx.Request(), endpointLimiter.Rate())
 	if helper.IsNotNil(err) {
 		ctx.WriteError(http.StatusTooManyRequests, err)
 		return
 	}
 
-	err = limiter.Allow(ctx.HttpRequest())
+	err = l.service.AllowSize(ctx.Request(), endpointLimiter)
 	if errors.Contains(err, mapper.ErrPayloadTooLarge) {
 		ctx.WriteError(http.StatusRequestEntityTooLarge, err)
 		return

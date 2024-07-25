@@ -5,7 +5,7 @@ go 1.22
 // Copyright (c) 2024 Gabriel Cataldo
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
+// You may obtain a Copy of the License at
 //
 //     http://www.apache.org/licenses/LICENSE-2.0
 //
@@ -16,8 +16,8 @@ go 1.22
 // limitations under the License.
 
 require (
-	github.com/GabrielHCataldo/go-errors v1.2.0
-	github.com/GabrielHCataldo/go-helper v1.7.9
+	github.com/GabrielHCataldo/go-errors v1.2.1
+	github.com/GabrielHCataldo/go-helper v1.8.1
 	github.com/GabrielHCataldo/go-logger v1.3.4
 	github.com/GabrielHCataldo/go-redis-template v1.1.5
 	github.com/basgys/goxml2json v1.1.0

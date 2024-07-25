@@ -18,46 +18,37 @@ package service
 
 import (
 	"context"
-	"github.com/GabrielHCataldo/go-errors/errors"
+	goerros "github.com/GabrielHCataldo/go-errors/errors"
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/mapper"
+	mapper2 "github.com/GabrielHCataldo/gopen-gateway/internal/domain/mapper"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
 )
 
-// cacheService represents a cache service that interacts with a cache store.
 type cacheService struct {
-	// cacheStore represents an interface for interacting with a cache store.
-	cacheStore domain.CacheStore
+	store domain.Store
 }
 
-// Cache defines an interface for managing cache operations.
 type Cache interface {
-	// Read retrieves the cached response for a given HTTP request. It takes a context.Context object,
-	// a vo.Cache pointer, and a vo.HttpRequest pointer as input parameters. It returns a pointer to
-	// vo.CacheResponse and an error if an error occurred during the cache operation.
-	Read(ctx context.Context, cache *vo.Cache, httpRequest *vo.HttpRequest) (*vo.CacheResponse, error)
-	// Write stores the response of an HTTP request in the cache. It takes a context.Context object,
-	// a vo.Cache pointer, a vo.HttpRequest pointer, and a vo.HttpResponse pointer as input parameters.
-	// It returns an error if an error occurred during the cache operation.
-	Write(ctx context.Context, cache *vo.Cache, httpRequest *vo.HttpRequest, httpResponse *vo.HttpResponse) error
+	Read(ctx context.Context, cache *vo.Cache, request *vo.HTTPRequest) (*vo.CacheResponse, error)
+	Write(ctx context.Context, cache *vo.Cache, request *vo.HTTPRequest, response *vo.HTTPResponse) error
 }
 
-// NewCache creates a new cache service instance. It takes a cacheStore object that implements the
-// CacheStore interface as input parameter. It returns a Cache object.
-func NewCache(cacheStore domain.CacheStore) Cache {
+func NewCache(store domain.Store) Cache {
 	return cacheService{
-		cacheStore: cacheStore,
+		store: store,
 	}
 }
 
-func (c cacheService) Read(ctx context.Context, cache *vo.Cache, httpRequest *vo.HttpRequest) (*vo.CacheResponse, error) {
-	if cache.CantRead(httpRequest) {
+func (c cacheService) Read(ctx context.Context, cacheConfig *vo.Cache, request *vo.HTTPRequest) (
+	*vo.CacheResponse, error) {
+	if cacheConfig.CantRead(request) {
 		return nil, nil
 	}
 
-	cacheResponse, err := c.cacheStore.Get(ctx, cache.StrategyKey(httpRequest))
-	if errors.Is(err, mapper.ErrCacheNotFound) {
+	key := cacheConfig.StrategyKey(request)
+	cacheResponse, err := c.store.Get(ctx, key)
+	if goerros.Is(err, mapper2.ErrCacheNotFound) {
 		return nil, nil
 	} else if helper.IsNotNil(err) {
 		return nil, err
@@ -66,12 +57,13 @@ func (c cacheService) Read(ctx context.Context, cache *vo.Cache, httpRequest *vo
 	return cacheResponse, nil
 }
 
-func (c cacheService) Write(ctx context.Context, cache *vo.Cache, httpRequest *vo.HttpRequest,
-	httpResponse *vo.HttpResponse) error {
-	if cache.CantWrite(httpRequest, httpResponse) {
+func (c cacheService) Write(ctx context.Context, cacheConfig *vo.Cache, request *vo.HTTPRequest,
+	response *vo.HTTPResponse) error {
+	if cacheConfig.CantWrite(request, response) {
 		return nil
 	}
 
-	cacheResponse := vo.NewCacheResponse(httpResponse, cache.Duration())
-	return c.cacheStore.Set(ctx, cache.StrategyKey(httpRequest), cacheResponse)
+	key := cacheConfig.StrategyKey(request)
+	cacheResponse := vo.NewCacheResponse(cacheConfig, response)
+	return c.store.Set(ctx, key, cacheResponse)
 }

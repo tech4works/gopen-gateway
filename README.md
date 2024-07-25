@@ -1396,7 +1396,7 @@ following syntax in the process of the third backend:
 In these examples mentioned we see that we can get the value of the request that is being made or has already been made
 by a configured backend, and that they are stored in a type of temporary history.
 
-### Response
+### CacheResponse
 
 When mentioning the syntax `#response...` you will be retrieving the values of the API Gateway response prepared based
 on the [response logic](#response-logic), if you mention the field `#response.history...` you will be retrieving the
@@ -1458,7 +1458,7 @@ The API Gateway, upon receiving a request, will add the client's IP to the `X-Fo
 requests, and also adds, if it does not exist, a unique generated value to the header called `X-Trace-Id` for better
 observability of the received request in both the API Gateway logs and the underlying microservices.
 
-## Response logic
+## CacheResponse logic
 
 When using an API Gateway, we often wonder, how will the response of this configured endpoint be returned to my client?
 
@@ -2020,7 +2020,7 @@ It's important to understand these two points:
 We recommend using this configuration only when something unexpected occurs, such as an error response
 like `500 (Internal Server Error)`.
 
-### Response header
+### CacheResponse header
 
 In the response, the API Gateway aggregates all header values responded by the configured backends in the endpoint,
 regardless of the number of backends, which also includes the [middlewares](#middlewares), except for

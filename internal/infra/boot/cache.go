@@ -22,7 +22,7 @@ import (
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
 )
 
-func NewCacheStore(storeJson *vo.StoreJson) domain.CacheStore {
+func NewCacheStore(storeJson *vo.StoreJson) domain.Store {
 	if helper.IsNotNil(storeJson) {
 		return NewRedisStore(storeJson.Redis.Address, storeJson.Redis.Password)
 	}

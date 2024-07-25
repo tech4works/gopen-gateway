@@ -1,6 +1,9 @@
 package vo
 
-import "strings"
+import (
+	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/enum"
+	"strings"
+)
 
 type ContentType string
 
@@ -24,18 +27,41 @@ func (c ContentType) String() string {
 	return string(c)
 }
 
-func (c ContentType) IsJson() bool {
+func (c ContentType) IsJSON() bool {
 	return strings.HasPrefix(string(c), "application/json")
 }
 
-func (c ContentType) IsNotJson() bool {
-	return !c.IsJson()
+func (c ContentType) IsNotJSON() bool {
+	return !c.IsJSON()
 }
 
-func (c ContentType) IsXml() bool {
+func (c ContentType) IsXML() bool {
 	return strings.HasPrefix(string(c), "application/xml")
+}
+
+func (c ContentType) IsNotXML() bool {
+	return !c.IsXML()
 }
 
 func (c ContentType) IsText() bool {
 	return strings.HasPrefix(string(c), "text/plain")
+}
+
+func (c ContentType) IsNotText() bool {
+	return !c.IsText()
+}
+
+func (c ContentType) IsUnknown() bool {
+	return c.IsNotJSON() && c.IsNotXML() && c.IsNotText()
+}
+
+func (c ContentType) ToEnum() enum.ContentType {
+	if c.IsText() {
+		return enum.ContentTypePlainText
+	} else if c.IsJSON() {
+		return enum.ContentTypeJson
+	} else if c.IsXML() {
+		return enum.ContentTypeXml
+	}
+	return ""
 }

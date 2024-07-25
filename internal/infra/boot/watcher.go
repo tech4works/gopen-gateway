@@ -18,7 +18,7 @@ func NewWatcher(env string, callback func()) (*fsnotify.Watcher, error) {
 
 	go watchEvents(watcher, callback)
 
-	for _, path := range []string{getEnvUri(env), getJsonUri(env)} {
+	for _, path := range []string{buildEnvUri(env), buildJsonUri(env)} {
 		err = watcher.Add(path)
 		if helper.IsNotNil(err) {
 			return nil, err
