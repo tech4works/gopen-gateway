@@ -19,15 +19,31 @@ package boot
 import (
 	"fmt"
 	"github.com/GabrielHCataldo/go-logger/logger"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/app"
+	"os"
 )
 
-var loggerOptions = logger.Options{
-	CustomAfterPrefixText: fmt.Sprintf("[%s%s%s]", logger.StyleBold, "GOPEN", logger.StyleReset),
-	HideAllArgs:           true,
+type noop struct{}
+
+func (l *noop) Error(_ string) {}
+
+func (l *noop) Infof(_ string, _ ...interface{}) {}
+
+type log struct {
+	options logger.Options
 }
 
-func PrintLogo(version string) {
-	fmt.Printf(`
+func newLogger() app.Logger {
+	return log{
+		options: logger.Options{
+			CustomAfterPrefixText: fmt.Sprintf("[%s%s%s]", logger.StyleBold, "GOPEN", logger.StyleReset),
+			HideAllArgs:           true,
+		},
+	}
+}
+
+func (l log) PrintLogo() {
+	fmt.Printf(` 
  ######    #######  ########  ######## ##    ##
 ##    ##  ##     ## ##     ## ##       ###   ##
 ##        ##     ## ##     ## ##       ####  ##
@@ -40,29 +56,29 @@ Best open source API Gateway!            %s
 -----------------------------------------------
 2024 • Gabriel Cataldo.
 
-`, version)
+`, os.Getenv("VERSION"))
 }
 
-func PrintTitle(title string) {
-	PrintInfof("-----------------------< %s%s%s >-----------------------", logger.StyleBold, title, logger.StyleReset)
+func (l log) PrintTitle(title string) {
+	l.PrintInfof("-----------------------< %s%s%s >-----------------------", logger.StyleBold, title, logger.StyleReset)
 }
 
-func PrintInfo(msg ...any) {
-	logger.InfoOpts(loggerOptions, msg...)
+func (l log) PrintInfo(msg ...any) {
+	logger.InfoOpts(l.options, msg...)
 }
 
-func PrintInfof(format string, msg ...any) {
-	logger.InfoOptsf(format, loggerOptions, msg...)
+func (l log) PrintInfof(format string, msg ...any) {
+	logger.InfoOptsf(format, l.options, msg...)
 }
 
-func PrintWarn(msg ...any) {
-	logger.WarnOpts(loggerOptions, msg...)
+func (l log) PrintWarn(msg ...any) {
+	logger.WarnOpts(l.options, msg...)
 }
 
-func PrintWarnf(format string, msg ...any) {
-	logger.WarnOptsf(format, loggerOptions, msg...)
+func (l log) PrintWarnf(format string, msg ...any) {
+	logger.WarnOptsf(format, l.options, msg...)
 }
 
-func PrintError(msg ...any) {
-	logger.ErrorOpts(loggerOptions, msg...)
+func (l log) PrintError(msg ...any) {
+	logger.ErrorOpts(l.options, msg...)
 }

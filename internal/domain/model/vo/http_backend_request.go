@@ -64,8 +64,8 @@ func (b *HTTPBackendRequest) Method() string {
 	return b.method
 }
 
-func (b *HTTPBackendRequest) Header() Header {
-	return b.header
+func (b *HTTPBackendRequest) Header() *Header {
+	return &b.header
 }
 
 func (b *HTTPBackendRequest) Query() Query {

@@ -7,22 +7,22 @@ import (
 	"github.com/tidwall/sjson"
 )
 
-type core struct {
+type provider struct {
 }
 
 func New() domain.JSONPath {
-	return core{}
+	return provider{}
 }
 
-func (c core) Parse(raw string) domain.JSONValue {
+func (p provider) Parse(raw string) domain.JSONValue {
 	return newValue(gjson.Parse(raw))
 }
 
-func (c core) ForEach(raw string, iterator func(key string, value domain.JSONValue) bool) {
-	c.Parse(raw).ForEach(iterator)
+func (p provider) ForEach(raw string, iterator func(key string, value domain.JSONValue) bool) {
+	p.Parse(raw).ForEach(iterator)
 }
 
-func (c core) Add(raw, path, value string) (string, error) {
+func (p provider) Add(raw, path, value string) (string, error) {
 	if helper.IsEmpty(path) {
 		return raw, nil
 	}
@@ -35,18 +35,18 @@ func (c core) Add(raw, path, value string) (string, error) {
 	return sjson.SetRaw(raw, path, parseStringValueToRaw(value))
 }
 
-func (c core) AppendOnArray(raw, value string) (string, error) {
+func (p provider) AppendOnArray(raw, value string) (string, error) {
 	return sjson.SetRaw(raw, "-1", value)
 }
 
-func (c core) Set(raw, path, value string) (string, error) {
+func (p provider) Set(raw, path, value string) (string, error) {
 	if helper.IsEmpty(path) {
 		return raw, nil
 	}
 	return sjson.SetRaw(raw, path, parseStringValueToRaw(value))
 }
 
-func (c core) Replace(raw, path, value string) (string, error) {
+func (p provider) Replace(raw, path, value string) (string, error) {
 	if helper.IsEmpty(path) {
 		return raw, nil
 	}
@@ -59,14 +59,14 @@ func (c core) Replace(raw, path, value string) (string, error) {
 	return sjson.SetRaw(raw, path, parseStringValueToRaw(value))
 }
 
-func (c core) Delete(raw, path string) (string, error) {
+func (p provider) Delete(raw, path string) (string, error) {
 	if helper.IsEmpty(path) {
 		return raw, nil
 	}
 	return sjson.Delete(raw, path)
 }
 
-func (c core) Get(raw, path string) domain.JSONValue {
+func (p provider) Get(raw, path string) domain.JSONValue {
 	return newValue(gjson.Get(raw, path))
 }
 

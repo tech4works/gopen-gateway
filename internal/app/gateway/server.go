@@ -14,12 +14,13 @@
  * limitations under the License.
  */
 
-package app
+package gateway
 
 import (
 	"context"
 	"fmt"
 	"github.com/GabrielHCataldo/go-helper/helper"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/app"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/app/controller"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/app/middleware"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/app/model/dto"
@@ -28,14 +29,14 @@ import (
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/factory"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/service"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/infra/api"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/infra/boot"
-	"github.com/gin-gonic/gin"
 	"net/http"
 )
 
-type gopenAPP struct {
+type server struct {
+	*http.Server
 	gopen                   *vo.Gopen
+	logger                  app.Logger
+	router                  app.Router
 	panicRecoveryMiddleware middleware.PanicRecovery
 	securityCorsMiddleware  middleware.SecurityCors
 	timeoutMiddleware       middleware.Timeout
@@ -43,20 +44,26 @@ type gopenAPP struct {
 	cacheMiddleware         middleware.Cache
 	staticController        controller.Static
 	endpointController      controller.Endpoint
-	httpServer              *http.Server
 }
 
-type Gopen interface {
-	ListerAndServer()
+type Server interface {
+	Start()
 	Shutdown(ctx context.Context) error
 }
 
-func NewGopen(gopenDTO *dto.Gopen, httpClient HTTPClient, jsonPath domain.JSONPath, converter domain.Converter,
-	store domain.Store) Gopen {
-	boot.PrintInfo("Building value objects...")
+func NewServer(
+	gopenDTO *dto.Gopen,
+	logger app.Logger,
+	router app.Router,
+	httpClient app.HTTPClient,
+	jsonPath domain.JSONPath,
+	converter domain.Converter,
+	store domain.Store,
+) Server {
+	logger.PrintInfo("Building value objects...")
 	gopen := vo.NewGopen(gopenDTO)
 
-	boot.PrintInfo("Building domain...")
+	logger.PrintInfo("Building domain...")
 	mapperService := service.NewMapper(jsonPath)
 	projectorService := service.NewProjector(jsonPath)
 	dynamicValueService := service.NewDynamicValue(jsonPath)
@@ -65,30 +72,33 @@ func NewGopen(gopenDTO *dto.Gopen, httpClient HTTPClient, jsonPath domain.JSONPa
 	nomenclatureService := service.NewNomenclature(jsonPath)
 	contentService := service.NewContent(converter)
 	aggregatorService := service.NewAggregator(jsonPath)
+	securityCorsService := service.NewSecurityCors()
 	cacheService := service.NewCache(store)
 
-	boot.PrintInfo("Building factories...")
+	logger.PrintInfo("Building factories...")
 	httpBackendFactory := factory.NewHTTPBackend(mapperService, projectorService, dynamicValueService, modifierService,
 		omitterService, nomenclatureService, contentService, aggregatorService)
 	httpResponseFactory := factory.NewHTTPResponse(aggregatorService, omitterService, nomenclatureService, contentService,
 		httpBackendFactory)
 
-	boot.PrintInfo("Building use cases...")
+	logger.PrintInfo("Building use cases...")
 	endpointUseCase := usecase.NewEndpoint(httpBackendFactory, httpResponseFactory, httpClient)
 
-	boot.PrintInfo("Building middlewares...")
-	panicRecoveryMiddleware := middleware.NewPanicRecovery(logProvider)
-	securityCorsMiddleware := middleware.NewSecurityCors(gopen.SecurityCors())
+	logger.PrintInfo("Building middlewares...")
+	panicRecoveryMiddleware := middleware.NewPanicRecovery()
+	securityCorsMiddleware := middleware.NewSecurityCors(securityCorsService)
 	timeoutMiddleware := middleware.NewTimeout()
 	limiterMiddleware := middleware.NewLimiter()
-	cacheMiddleware := middleware.NewCache(cacheService, logProvider)
+	cacheMiddleware := middleware.NewCache(cacheService)
 
-	boot.PrintInfo("Building controllers...")
-	staticController := controller.NewStatic(gopenDTO.Version, factory.BuildSettingViewDTO(gopenDTO, gopen))
+	logger.PrintInfo("Building controllers...")
+	staticController := controller.NewStatic(gopenDTO)
 	endpointController := controller.NewEndpoint(endpointUseCase)
 
-	return gopenAPP{
+	return server{
 		gopen:                   gopen,
+		logger:                  logger,
+		router:                  router,
 		panicRecoveryMiddleware: panicRecoveryMiddleware,
 		timeoutMiddleware:       timeoutMiddleware,
 		limiterMiddleware:       limiterMiddleware,
@@ -99,92 +109,89 @@ func NewGopen(gopenDTO *dto.Gopen, httpClient HTTPClient, jsonPath domain.JSONPa
 	}
 }
 
-func (g gopenAPP) ListerAndServer() {
-	boot.PrintInfo("Starting lister and server...")
+func (s server) Start() {
+	s.logger.PrintInfo("Starting lister and server...")
 
-	gin.SetMode(gin.ReleaseMode)
-	engine := gin.New()
+	s.buildStaticRoutes()
 
-	g.buildStaticRoutes(engine)
-
-	boot.PrintInfo("Starting to read endpoints to register routes...")
-	for _, endpoint := range g.gopen.Endpoints() {
-		handles := g.buildEndpointHandles()
-		api.Handle(engine, g.gopen, &endpoint, handles...)
+	s.logger.PrintInfo("Starting to read endpoints to register routes...")
+	for _, endpoint := range s.gopen.Endpoints() {
+		handles := s.buildEndpointHandles()
+		s.router.Handle(s.gopen, &endpoint, handles...)
 
 		lenString := helper.SimpleConvertToString(len(handles))
-		boot.PrintInfof("Registered route with %s handles: %s", lenString, endpoint.Resume())
+		s.logger.PrintInfof("Registered route with %s handles: %s", lenString, endpoint.Resume())
 	}
 
-	address := fmt.Sprint(":", g.gopen.Port())
-	boot.PrintInfof("Listening and serving HTTP on %s!", address)
+	address := fmt.Sprint(":", s.gopen.Port())
+	s.logger.PrintInfof("Listening and serving HTTP on %s!", address)
 
-	g.httpServer = &http.Server{
+	s.Server = &http.Server{
 		Addr:    address,
-		Handler: engine,
+		Handler: s.router.Engine(),
 	}
 
 	fmt.Println()
 	fmt.Println()
-	boot.PrintTitle("LISTEN AND SERVER")
+	s.logger.PrintTitle("LISTEN AND SERVER")
 
-	g.httpServer.ListenAndServe()
+	s.ListenAndServe()
 }
 
-func (g gopenAPP) Shutdown(ctx context.Context) error {
-	if helper.IsNil(g.httpServer) {
+func (s server) Shutdown(ctx context.Context) error {
+	if helper.IsNil(s.Server) {
 		return nil
 	}
-	return g.httpServer.Shutdown(ctx)
+	return s.Server.Shutdown(ctx)
 }
 
-func (g gopenAPP) buildStaticRoutes(engine *gin.Engine) {
-	boot.PrintInfo("Configuring static routes...")
+func (s server) buildStaticRoutes() {
+	s.logger.PrintInfo("Configuring static routes...")
 	formatLog := "Registered route with 5 handles: %s --> \"%s\""
 
-	pingEndpoint := g.registerStaticPingRoute(engine)
-	boot.PrintInfof(formatLog, pingEndpoint.Method(), pingEndpoint.Path())
+	pingEndpoint := s.buildStaticPingRoute()
+	s.logger.PrintInfof(formatLog, pingEndpoint.Method(), pingEndpoint.Path())
 
-	versionEndpoint := g.registerStaticVersionRoute(engine)
-	boot.PrintInfof(formatLog, versionEndpoint.Method(), versionEndpoint.Path())
+	versionEndpoint := s.buildStaticVersionRoute()
+	s.logger.PrintInfof(formatLog, versionEndpoint.Method(), versionEndpoint.Path())
 
-	settingsEndpoint := g.registerStaticSettingsRoute(engine)
-	boot.PrintInfof(formatLog, settingsEndpoint.Method(), settingsEndpoint.Path())
+	settingsEndpoint := s.buildStaticSettingsRoute()
+	s.logger.PrintInfof(formatLog, settingsEndpoint.Method(), settingsEndpoint.Path())
 }
 
-func (g gopenAPP) registerStaticPingRoute(engine *gin.Engine) *vo.Endpoint {
+func (s server) buildStaticPingRoute() *vo.Endpoint {
 	endpoint := vo.NewEndpointStatic("/ping", http.MethodGet)
-	g.registerStaticRoute(engine, &endpoint, g.staticController.Ping)
+	s.buildStaticRoute(&endpoint, s.staticController.Ping)
 	return &endpoint
 }
 
-func (g gopenAPP) registerStaticVersionRoute(engine *gin.Engine) *vo.Endpoint {
+func (s server) buildStaticVersionRoute() *vo.Endpoint {
 	endpoint := vo.NewEndpointStatic("/version", http.MethodGet)
-	g.registerStaticRoute(engine, &endpoint, g.staticController.Version)
+	s.buildStaticRoute(&endpoint, s.staticController.Version)
 	return &endpoint
 }
 
-func (g gopenAPP) registerStaticSettingsRoute(engine *gin.Engine) *vo.Endpoint {
+func (s server) buildStaticSettingsRoute() *vo.Endpoint {
 	endpoint := vo.NewEndpointStatic("/settings", http.MethodGet)
-	g.registerStaticRoute(engine, &endpoint, g.staticController.Settings)
+	s.buildStaticRoute(&endpoint, s.staticController.Settings)
 	return &endpoint
 }
 
-func (g gopenAPP) registerStaticRoute(engine *gin.Engine, endpointStatic *vo.Endpoint, handler api.HandlerFunc) {
-	timeoutHandler := g.timeoutMiddleware.Do
-	panicHandler := g.panicRecoveryMiddleware.Do
-	limiterHandler := g.limiterMiddleware.Do
-	api.Handle(engine, g.gopen, endpointStatic, timeoutHandler, panicHandler, limiterHandler, handler)
+func (s server) buildStaticRoute(endpointStatic *vo.Endpoint, handler app.HandlerFunc) {
+	timeoutHandler := s.timeoutMiddleware.Do
+	panicHandler := s.panicRecoveryMiddleware.Do
+	limiterHandler := s.limiterMiddleware.Do
+	s.router.Handle(s.gopen, endpointStatic, timeoutHandler, panicHandler, limiterHandler, handler)
 }
 
-func (g gopenAPP) buildEndpointHandles() []api.HandlerFunc {
-	timeoutHandler := g.timeoutMiddleware.Do
-	panicHandler := g.panicRecoveryMiddleware.Do
-	securityCorsHandler := g.securityCorsMiddleware.Do
-	limiterHandler := g.limiterMiddleware.Do
-	cacheHandler := g.cacheMiddleware.Do
-	endpointHandler := g.endpointController.Execute
-	return []api.HandlerFunc{
+func (s server) buildEndpointHandles() []app.HandlerFunc {
+	timeoutHandler := s.timeoutMiddleware.Do
+	panicHandler := s.panicRecoveryMiddleware.Do
+	securityCorsHandler := s.securityCorsMiddleware.Do
+	limiterHandler := s.limiterMiddleware.Do
+	cacheHandler := s.cacheMiddleware.Do
+	endpointHandler := s.endpointController.Execute
+	return []app.HandlerFunc{
 		timeoutHandler,
 		panicHandler,
 		securityCorsHandler,

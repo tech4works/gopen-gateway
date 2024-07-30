@@ -23,13 +23,15 @@ import (
 )
 
 func main() {
-	env := boot.Init()
-	go boot.Start(env)
+	cmd := boot.New()
+
+	env := cmd.Init()
+	go cmd.Start(env)
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 	select {
 	case <-c:
-		boot.Stop()
+		cmd.Stop()
 	}
 }

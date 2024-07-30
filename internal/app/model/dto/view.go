@@ -16,16 +16,14 @@
 
 package dto
 
-import "github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
-
 type SettingView struct {
-	Version         string        `json:"version,omitempty"`
-	VersionDate     string        `json:"version-date,omitempty"`
-	Founder         string        `json:"founder,omitempty"`
-	Contributors    int           `json:"contributors,omitempty"`
-	Endpoints       int           `json:"endpoints"`
-	Middlewares     int           `json:"middlewares"`
-	Backends        int           `json:"backends"`
-	Transformations int           `json:"transformations"`
-	Setting         *vo.GopenJson `json:"setting"`
+	Version         string `json:"version,omitempty"`
+	VersionDate     string `json:"version-date,omitempty"`
+	Founder         string `json:"founder,omitempty"`
+	Contributors    int    `json:"contributors,omitempty"`
+	Endpoints       int    `json:"endpoints"`
+	Middlewares     int    `json:"middlewares"`
+	Backends        int    `json:"backends"`
+	Transformations int    `json:"transformations"`
+	Setting         *Gopen `json:"setting"`
 }

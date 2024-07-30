@@ -55,6 +55,10 @@ func (h *Header) Http() http.Header {
 	return h.values
 }
 
+func (h *Header) String() string {
+	return helper.SimpleCompactString(h.values)
+}
+
 func (h *Header) GetAll(key string) []string {
 	return h.values[key]
 }

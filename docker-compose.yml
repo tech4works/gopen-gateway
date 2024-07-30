@@ -11,7 +11,7 @@ services:
       - ./gopen/${ENV}:/root/gopen/${ENV}
     environment:
       - ENV=${ENV}
-      - JAEGER_HOST=${JAEGER_HOST}
+      - TRACER_HOST=${TRACER_HOST}
     restart: no
     logging:
       driver: gelf

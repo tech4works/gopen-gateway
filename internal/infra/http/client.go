@@ -28,7 +28,7 @@ import (
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
 	"github.com/opentracing/opentracing-go"
 	"io"
-	netHTTP "net/http"
+	net "net/http"
 	"net/url"
 	"time"
 )
@@ -49,7 +49,7 @@ func (c client) MakeRequest(ctx context.Context, endpoint *vo.Endpoint, request 
 
 	span := c.startSpan(ctx, request)
 
-	httpResponse, err := netHTTP.DefaultClient.Do(httpRequest)
+	httpResponse, err := net.DefaultClient.Do(httpRequest)
 
 	var httpBackendResponse *vo.HTTPBackendResponse
 	if err = c.treatHTTPClientErr(err); helper.IsNotNil(err) {
@@ -65,17 +65,17 @@ func (c client) MakeRequest(ctx context.Context, endpoint *vo.Endpoint, request 
 	return httpBackendResponse
 }
 
-func (c client) buildNetHTTPRequest(ctx context.Context, request *vo.HTTPBackendRequest) (*netHTTP.Request, error) {
+func (c client) buildNetHTTPRequest(ctx context.Context, request *vo.HTTPBackendRequest) (*net.Request, error) {
 	var body io.ReadCloser
 	if request.HasBody() {
 		body = io.NopCloser(request.Body().Buffer())
 	}
-	netHttpReq, err := netHTTP.NewRequestWithContext(ctx, request.Method(), request.Url(), body)
+	netHttpReq, err := net.NewRequestWithContext(ctx, request.Method(), request.Url(), body)
 	if helper.IsNotNil(err) {
 		return nil, err
 	}
 
-	header := request.Header()
+	header := *request.Header()
 	query := request.Query()
 
 	netHttpReq.Header = header.Http()
@@ -100,7 +100,7 @@ func (c client) startSpan(ctx context.Context, request *vo.HTTPBackendRequest) o
 
 	urlTag := opentracing.Tag{Key: "request.url", Value: request.Url()}
 	methodTag := opentracing.Tag{Key: "request.method", Value: request.Method()}
-	headerTag := opentracing.Tag{Key: "request.header", Value: helper.SimpleConvertToString(request.Header())}
+	headerTag := opentracing.Tag{Key: "request.header", Value: request.Header().String()}
 	bodyTag := opentracing.Tag{Key: "request.body", Value: ""}
 	if request.HasBody() {
 		bodyTag.Value = request.Body().Resume()
@@ -141,11 +141,11 @@ func (c client) treatHTTPClientErr(err error) error {
 }
 
 func (c client) buildHTTPBackendResponseByErr(endpoint *vo.Endpoint, err error) *vo.HTTPBackendResponse {
-	code := netHTTP.StatusInternalServerError
+	code := net.StatusInternalServerError
 	if errors.Is(err, mapper.ErrGatewayTimeout) {
-		code = netHTTP.StatusGatewayTimeout
+		code = net.StatusGatewayTimeout
 	} else if errors.Is(err, mapper.ErrBadGateway) {
-		code = netHTTP.StatusBadGateway
+		code = net.StatusBadGateway
 	}
 	statusCode := vo.NewStatusCode(code)
 
@@ -163,7 +163,7 @@ func (c client) buildHTTPBackendResponseByErr(endpoint *vo.Endpoint, err error) 
 	return vo.NewHTTPBackendResponse(statusCode, header, body)
 }
 
-func (c client) buildHTTPBackendResponse(httpResponse *netHTTP.Response) (*vo.HTTPBackendResponse, error) {
+func (c client) buildHTTPBackendResponse(httpResponse *net.Response) (*vo.HTTPBackendResponse, error) {
 	statusCode := vo.NewStatusCode(httpResponse.StatusCode)
 	header := vo.NewHeader(httpResponse.Header)
 

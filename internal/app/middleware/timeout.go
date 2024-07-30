@@ -19,7 +19,7 @@ package middleware
 import (
 	"context"
 	"github.com/GabrielHCataldo/go-errors/errors"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/infra/api"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/app"
 	"net/http"
 )
 
@@ -27,14 +27,14 @@ type timeoutMiddleware struct {
 }
 
 type Timeout interface {
-	Do(ctx *api.Context)
+	Do(ctx app.Context)
 }
 
 func NewTimeout() Timeout {
 	return timeoutMiddleware{}
 }
 
-func (t timeoutMiddleware) Do(ctx *api.Context) {
+func (t timeoutMiddleware) Do(ctx app.Context) {
 	timeout := ctx.Endpoint().Timeout()
 
 	timeoutCtx, cancel := context.WithTimeout(ctx.Context(), timeout.Time())

@@ -36,7 +36,7 @@ type Context struct {
 	startTime time.Time
 	span      opentracing.Span
 	mutex     *sync.RWMutex
-	framework *gin.Context
+	engine    *gin.Context
 	gopen     *vo.Gopen
 	endpoint  *vo.Endpoint
 	request   *vo.HTTPRequest
@@ -73,7 +73,7 @@ func newContext(gin *gin.Context, gopen *vo.Gopen, endpoint *vo.Endpoint) app.Co
 		startTime: time.Now(),
 		span:      span,
 		mutex:     &sync.RWMutex{},
-		framework: gin,
+		engine:    gin,
 		gopen:     gopen,
 		endpoint:  endpoint,
 		request:   request,
@@ -81,7 +81,7 @@ func newContext(gin *gin.Context, gopen *vo.Gopen, endpoint *vo.Endpoint) app.Co
 }
 
 func (c *Context) Context() context.Context {
-	return c.framework.Request.Context()
+	return c.engine.Request.Context()
 }
 
 func (c *Context) Done() <-chan struct{} {
@@ -89,11 +89,11 @@ func (c *Context) Done() <-chan struct{} {
 }
 
 func (c *Context) WithContext(ctx context.Context) {
-	c.framework.Request = c.framework.Request.WithContext(ctx)
+	c.engine.Request = c.engine.Request.WithContext(ctx)
 }
 
 func (c *Context) Next() {
-	c.framework.Next()
+	c.engine.Next()
 }
 
 func (c *Context) Latency() time.Duration {
@@ -136,7 +136,7 @@ func (c *Context) Write(response *vo.HTTPResponse) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
-	if c.framework.IsAborted() {
+	if c.engine.IsAborted() {
 		return
 	}
 
@@ -222,27 +222,27 @@ func (c *Context) buildCacheHeader(cacheResponse *vo.CacheResponse) vo.Header {
 }
 
 func (c *Context) writeStatusCode(statusCode vo.StatusCode) {
-	if c.framework.IsAborted() {
+	if c.engine.IsAborted() {
 		return
 	}
-	c.framework.Status(statusCode.Code())
+	c.engine.Status(statusCode.Code())
 }
 
 func (c *Context) writeHeader(header vo.Header) {
 	for _, key := range header.Keys() {
-		c.framework.Header(key, header.Get(key))
+		c.engine.Header(key, header.Get(key))
 	}
 }
 
 func (c *Context) writeBody(statusCode vo.StatusCode, contentType string, body []byte) {
-	if c.framework.IsAborted() {
+	if c.engine.IsAborted() {
 		return
 	}
-	c.framework.Data(statusCode.Code(), contentType, body)
+	c.engine.Data(statusCode.Code(), contentType, body)
 }
 
 func (c *Context) transformToWritten(response *vo.HTTPResponse) {
-	c.framework.Abort()
+	c.engine.Abort()
 	c.response = response
 
 	statusCode := response.StatusCode()
@@ -260,10 +260,10 @@ func (c *Context) transformToWritten(response *vo.HTTPResponse) {
 	}
 	span.Finish()
 
-	c.printResponseInfo()
+	c.printResponse()
 }
 
-func (c *Context) printResponseInfo() {
+func (c *Context) printResponse() {
 	// todo: transferir essa responsabilidade para o endpointConsole?
 	//tag := fmt.Sprint(logger.StyleBold, "ENDPOINT", logger.StyleReset)
 	//path := c.Endpoint().Path()

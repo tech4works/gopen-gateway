@@ -17,25 +17,42 @@
 package api
 
 import (
+	"github.com/GabrielHCataldo/gopen-gateway/internal/app"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
 	"github.com/gin-gonic/gin"
+	"net/http"
 )
 
-type HandlerFunc func(ctx *Context)
-
-func Handle(engine *gin.Engine, gopen *vo.Gopen, endpoint *vo.Endpoint, handles ...HandlerFunc) {
-	engine.Handle(endpoint.Method(), endpoint.Path(), parseHandles(gopen, endpoint, handles)...)
+type router struct {
+	engine *gin.Engine
 }
 
-func parseHandles(gopen *vo.Gopen, endpoint *vo.Endpoint, handles []HandlerFunc) []gin.HandlerFunc {
+func NewRouter() app.Router {
+	gin.SetMode(gin.ReleaseMode)
+	engine := gin.New()
+
+	return router{
+		engine: engine,
+	}
+}
+
+func (r router) Engine() http.Handler {
+	return r.engine
+}
+
+func (r router) Handle(gopen *vo.Gopen, endpoint *vo.Endpoint, handles ...app.HandlerFunc) {
+	r.engine.Handle(endpoint.Method(), endpoint.Path(), r.buildEngineHandles(gopen, endpoint, handles)...)
+}
+
+func (r router) buildEngineHandles(gopen *vo.Gopen, endpoint *vo.Endpoint, handles []app.HandlerFunc) []gin.HandlerFunc {
 	var ginHandler []gin.HandlerFunc
-	for _, apiHandler := range handles {
-		ginHandler = append(ginHandler, handle(gopen, endpoint, apiHandler))
+	for _, handler := range handles {
+		ginHandler = append(ginHandler, r.buildEngineHandle(gopen, endpoint, handler))
 	}
 	return ginHandler
 }
 
-func handle(gopen *vo.Gopen, endpoint *vo.Endpoint, handle HandlerFunc) gin.HandlerFunc {
+func (r router) buildEngineHandle(gopen *vo.Gopen, endpoint *vo.Endpoint, handle app.HandlerFunc) gin.HandlerFunc {
 	return func(gin *gin.Context) {
 		ctx, ok := gin.Get("context")
 		if !ok {

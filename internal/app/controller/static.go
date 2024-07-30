@@ -18,41 +18,41 @@ package controller
 
 import (
 	"github.com/GabrielHCataldo/go-helper/helper"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/app"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/app/model/dto"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/infra/api"
 	"net/http"
 )
 
 type staticController struct {
-	version        string
-	settingViewDTO dto.SettingView
+	gopenDTO *dto.Gopen
 }
 
 type Static interface {
-	Ping(ctx *api.Context)
-	Version(ctx *api.Context)
-	Settings(ctx *api.Context)
+	Ping(ctx app.Context)
+	Version(ctx app.Context)
+	Settings(ctx app.Context)
 }
 
-func NewStatic(version string, settingView dto.SettingView) Static {
+func NewStatic(gopenDTO *dto.Gopen) Static {
 	return staticController{
-		version:        version,
-		settingViewDTO: settingView,
+		gopenDTO: gopenDTO,
 	}
 }
 
-func (s staticController) Ping(ctx *api.Context) {
+func (s staticController) Ping(ctx app.Context) {
 	ctx.WriteString(http.StatusOK, "Pong!")
 }
 
-func (s staticController) Version(ctx *api.Context) {
-	if helper.IsNotEmpty(s.version) {
-		ctx.WriteString(http.StatusOK, s.version)
+func (s staticController) Version(ctx app.Context) {
+	if helper.IsNotEmpty(s.gopenDTO.Version) {
+		ctx.WriteString(http.StatusOK, s.gopenDTO.Version)
 		return
 	}
 	ctx.WriteStatusCode(http.StatusNotFound)
 }
 
-func (s staticController) Settings(ctx *api.Context) {
-	ctx.WriteJson(http.StatusOK, s.settingViewDTO)
+func (s staticController) Settings(ctx app.Context) {
+	// todo: aq fazer o build SettingView a partir do DTO
+	//		ctx.WriteJson(http.StatusOK, s.settingViewDTO)
+	ctx.WriteStatusCode(http.StatusNotImplemented)
 }

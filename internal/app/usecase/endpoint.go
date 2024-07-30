@@ -19,7 +19,8 @@ type Endpoint interface {
 	Execute(ctx context.Context, executeData dto.ExecuteEndpoint) *vo.HTTPResponse
 }
 
-func NewEndpoint(backendFactory factory.HTTPBackend, responseFactory factory.HTTPResponse, httpClient app.HTTPClient) Endpoint {
+func NewEndpoint(backendFactory factory.HTTPBackend, responseFactory factory.HTTPResponse, httpClient app.HTTPClient,
+) Endpoint {
 	return endpointUseCase{
 		httpBackendFactory:  backendFactory,
 		httpResponseFactory: responseFactory,
