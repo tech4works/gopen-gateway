@@ -27,12 +27,12 @@ type Modifier struct {
 	value     string
 }
 
-func newModifier(modifierJson ModifierJson) Modifier {
+func NewModifier(action enum.ModifierAction, propagate bool, key, value string) Modifier {
 	return Modifier{
-		action:    modifierJson.Action,
-		propagate: modifierJson.Propagate,
-		key:       modifierJson.Key,
-		value:     modifierJson.Value,
+		action:    action,
+		propagate: propagate,
+		key:       key,
+		value:     value,
 	}
 }
 

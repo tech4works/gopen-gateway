@@ -70,7 +70,7 @@ func (c client) buildNetHTTPRequest(ctx context.Context, request *vo.HTTPBackend
 	if request.HasBody() {
 		body = io.NopCloser(request.Body().Buffer())
 	}
-	netHttpReq, err := net.NewRequestWithContext(ctx, request.Method(), request.Url(), body)
+	netReq, err := net.NewRequestWithContext(ctx, request.Method(), request.Url(), body)
 	if helper.IsNotNil(err) {
 		return nil, err
 	}
@@ -78,18 +78,18 @@ func (c client) buildNetHTTPRequest(ctx context.Context, request *vo.HTTPBackend
 	header := *request.Header()
 	query := request.Query()
 
-	netHttpReq.Header = header.Http()
-	netHttpReq.URL.RawQuery = query.Encode()
+	netReq.Header = header.Http()
+	netReq.URL.RawQuery = query.Encode()
 
 	span := opentracing.SpanFromContext(ctx)
 	if helper.IsNotNil(span) {
-		err = span.Tracer().Inject(span.Context(), opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(netHttpReq.Header))
+		err = span.Tracer().Inject(span.Context(), opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(netReq.Header))
 		if helper.IsNotNil(err) {
 			return nil, err
 		}
 	}
 
-	return netHttpReq, nil
+	return netReq, nil
 }
 
 func (c client) startSpan(ctx context.Context, request *vo.HTTPBackendRequest) opentracing.Span {

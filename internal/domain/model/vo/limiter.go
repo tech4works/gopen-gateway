@@ -36,63 +36,26 @@ type Rate struct {
 	every    Duration
 }
 
-func newLimiter(limiterJson *LimiterJson, endpointLimiterJson *EndpointLimiterJson) Limiter {
-	var maxHeaderSize Bytes
-	var maxBodySize Bytes
-	var maxMultipartForm Bytes
-
-	var limiterRateJson *RateJson
-	var endpointLimiterRateJson *RateJson
-
-	if helper.IsNotNil(endpointLimiterJson) {
-		if endpointLimiterJson.HasMaxHeaderSize() {
-			maxHeaderSize = endpointLimiterJson.MaxHeaderSize
-		}
-		if endpointLimiterJson.HasMaxBodySize() {
-			maxBodySize = endpointLimiterJson.MaxBodySize
-		}
-		if endpointLimiterJson.HasMaxMultipartMemorySize() {
-			maxMultipartForm = endpointLimiterJson.MaxMultipartMemorySize
-		}
-		endpointLimiterRateJson = endpointLimiterJson.Rate
-	} else if helper.IsNotNil(limiterJson) {
-		maxHeaderSize = limiterJson.MaxHeaderSize
-		maxBodySize = limiterJson.MaxBodySize
-		maxMultipartForm = limiterJson.MaxMultipartMemorySize
-		limiterRateJson = limiterJson.Rate
-	}
-
+func NewLimiter(maxHeaderSize, maxBodySize, maxMultipartForm Bytes, rate Rate) Limiter {
 	return Limiter{
 		maxHeaderSize:          maxHeaderSize,
 		maxBodySize:            maxBodySize,
 		maxMultipartMemorySize: maxMultipartForm,
-		rate:                   newRate(limiterRateJson, endpointLimiterRateJson),
+		rate:                   rate,
 	}
 }
 
-func newLimiterDefault() Limiter {
-	return Limiter{}
-}
-
-func newRate(rateJson *RateJson, endpointRateJson *RateJson) Rate {
-	var every Duration
-	var capacity int
-
-	if helper.IsNotNil(endpointRateJson) {
-		if endpointRateJson.HasEvery() {
-			every = endpointRateJson.Every
-		}
-		if endpointRateJson.HasCapacity() {
-			capacity = endpointRateJson.Capacity
-		}
-	} else if helper.IsNotNil(rateJson) {
-		every = rateJson.Every
-		capacity = rateJson.Capacity
-	}
-
+func NewRate(every Duration, capacity int) Rate {
 	return Rate{
 		capacity: capacity,
 		every:    every,
+	}
+}
+
+func NewRateDefault() Rate {
+	return Rate{
+		capacity: 0,
+		every:    0,
 	}
 }
 

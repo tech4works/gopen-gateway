@@ -3,7 +3,6 @@ package mapper
 import (
 	"github.com/GabrielHCataldo/go-errors/errors"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/enum"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
 	"time"
 )
 
@@ -82,7 +81,7 @@ func NewErrEmptyValue() error {
 	return ErrEmptyValue
 }
 
-func NewErrIncompatibleBodyType(contentType vo.ContentType) error {
+func NewErrIncompatibleBodyType(contentType string) error {
 	ErrIncompatibleBodyType = errors.NewSkipCallerf(2, msgErrIncompatibleBodyType, contentType)
 	return ErrIncompatibleBodyType
 }

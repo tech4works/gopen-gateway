@@ -63,15 +63,15 @@ type EndpointCache struct {
 }
 
 type Limiter struct {
-	MaxHeaderSize          vo.Bytes `json:"max-header-size,omitempty"`
-	MaxBodySize            vo.Bytes `json:"max-body-size,omitempty"`
-	MaxMultipartMemorySize vo.Bytes `json:"max-multipart-memory-size,omitempty"`
-	Rate                   *Rate    `json:"rate,omitempty"`
+	MaxHeaderSize          *vo.Bytes `json:"max-header-size,omitempty"`
+	MaxBodySize            *vo.Bytes `json:"max-body-size,omitempty"`
+	MaxMultipartMemorySize *vo.Bytes `json:"max-multipart-memory-size,omitempty"`
+	Rate                   *Rate     `json:"rate,omitempty"`
 }
 
 type Rate struct {
-	Capacity int         `json:"capacity,omitempty"`
-	Every    vo.Duration `json:"every,omitempty"`
+	Capacity *int         `json:"capacity,omitempty"`
+	Every    *vo.Duration `json:"every,omitempty"`
 }
 
 type EndpointLimiter struct {

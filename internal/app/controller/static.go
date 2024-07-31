@@ -24,7 +24,7 @@ import (
 )
 
 type staticController struct {
-	gopenDTO *dto.Gopen
+	gopen *dto.Gopen
 }
 
 type Static interface {
@@ -33,9 +33,9 @@ type Static interface {
 	Settings(ctx app.Context)
 }
 
-func NewStatic(gopenDTO *dto.Gopen) Static {
+func NewStatic(gopen *dto.Gopen) Static {
 	return staticController{
-		gopenDTO: gopenDTO,
+		gopen: gopen,
 	}
 }
 
@@ -44,8 +44,8 @@ func (s staticController) Ping(ctx app.Context) {
 }
 
 func (s staticController) Version(ctx app.Context) {
-	if helper.IsNotEmpty(s.gopenDTO.Version) {
-		ctx.WriteString(http.StatusOK, s.gopenDTO.Version)
+	if helper.IsNotEmpty(s.gopen.Version) {
+		ctx.WriteString(http.StatusOK, s.gopen.Version)
 		return
 	}
 	ctx.WriteStatusCode(http.StatusNotFound)

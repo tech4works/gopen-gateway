@@ -7,8 +7,8 @@ import (
 	"github.com/GabrielHCataldo/go-errors/errors"
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/app"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/app/gateway"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/app/model/dto"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/app/server"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/infra/api"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/infra/cache"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/infra/converter"
@@ -76,19 +76,19 @@ func (p provider) Start(env string) {
 	}
 
 	p.logger.PrintInfo("Loading Gopen json...")
-	gopenDTO, err := p.loadJson(env)
+	gopen, err := p.loadJson(env)
 	if helper.IsNotNil(err) {
 		panic(err)
 	}
 
 	p.logger.PrintInfo("Configuring cache store...")
 	store := cache.NewMemoryStore()
-	if helper.IsNotNil(gopenDTO.Store) {
-		store = cache.NewRedisStore(gopenDTO.Store.Redis.Address, gopenDTO.Store.Redis.Password)
+	if helper.IsNotNil(gopen.Store) {
+		store = cache.NewRedisStore(gopen.Store.Redis.Address, gopen.Store.Redis.Password)
 	}
 	defer store.Close()
 
-	err = p.writeRuntimeJson(gopenDTO)
+	err = p.writeRuntimeJson(gopen)
 	if helper.IsNotNil(err) {
 		p.logger.PrintWarn(err)
 	}
@@ -99,11 +99,11 @@ func (p provider) Start(env string) {
 	jsonPath := jsonpath.New()
 	nConverter := converter.New()
 
-	server := gateway.NewServer(gopenDTO, p.logger, router, httpClient, jsonPath, nConverter, store)
+	httpServer := server.New(gopen, p.logger, router, httpClient, jsonPath, nConverter, store)
 
-	if gopenDTO.HotReload {
+	if gopen.HotReload {
 		p.logger.PrintInfo("Configuring watcher...")
-		watcher, err := p.initWatcher(env, p.restart(env, server))
+		watcher, err := p.initWatcher(env, p.restart(env, httpServer))
 		if helper.IsNotNil(err) {
 			p.logger.PrintWarn("Error configure watcher:", err)
 		} else {
@@ -112,7 +112,7 @@ func (p provider) Start(env string) {
 	}
 
 	p.logger.PrintInfo("Starting application...")
-	server.Start()
+	httpServer.ListerAndServe()
 }
 
 func (p provider) Stop() {
@@ -124,7 +124,7 @@ func (p provider) Stop() {
 	p.logger.PrintTitle("STOPPED")
 }
 
-func (p provider) restart(env string, oldServer gateway.Server) func() {
+func (p provider) restart(env string, oldServer server.HTTP) func() {
 	return func() {
 		defer func() {
 			if r := recover(); helper.IsNotNil(r) {
@@ -153,11 +153,11 @@ func (p provider) restart(env string, oldServer gateway.Server) func() {
 	}
 }
 
-func (p provider) recovery(oldServer gateway.Server) {
+func (p provider) recovery(oldServer server.HTTP) {
 	fmt.Println()
 	p.logger.PrintTitle("RECOVERY")
 
-	go oldServer.Start()
+	go oldServer.ListerAndServe()
 }
 
 func (p provider) initTracer(host string) (opentracing.Tracer, io.Closer, error) {
@@ -238,13 +238,13 @@ func (p provider) loadJson(env string) (*dto.Gopen, error) {
 		return nil, err
 	}
 
-	var gopenDTO dto.Gopen
-	err = helper.ConvertToDest(gopenJsonBytes, &gopenDTO)
+	var gopen dto.Gopen
+	err = helper.ConvertToDest(gopenJsonBytes, &gopen)
 	if helper.IsNotNil(err) {
 		return nil, err
 	}
 
-	return &gopenDTO, nil
+	return &gopen, nil
 }
 
 func (p provider) fillEnvValues(gopenJsonBytes []byte) []byte {
@@ -287,7 +287,7 @@ func (p provider) validateJsonBySchema(jsonSchemaUri string, jsonBytes []byte) e
 	return err
 }
 
-func (p provider) writeRuntimeJson(gopenDTO *dto.Gopen) error {
+func (p provider) writeRuntimeJson(gopen *dto.Gopen) error {
 	if _, err := os.Stat(runtimeFolder); os.IsNotExist(err) {
 		err = os.MkdirAll(runtimeFolder, 0755)
 		if helper.IsNotNil(err) {
@@ -295,7 +295,7 @@ func (p provider) writeRuntimeJson(gopenDTO *dto.Gopen) error {
 		}
 	}
 
-	gopenJsonBytes, err := json.MarshalIndent(gopenDTO, "", "\t")
+	gopenJsonBytes, err := json.MarshalIndent(gopen, "", "\t")
 	if helper.IsNil(err) {
 		err = os.WriteFile(jsonRuntimeUri, gopenJsonBytes, 0644)
 	}

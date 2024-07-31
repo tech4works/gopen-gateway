@@ -34,44 +34,15 @@ type Cache struct {
 	allowCacheControl *bool
 }
 
-func newCache(cacheJson *CacheJson, endpointCacheJson *EndpointCacheJson) *Cache {
-	if helper.IsNil(cacheJson) && helper.IsNil(endpointCacheJson) {
-		return nil
-	}
-
-	var enabled bool
-	var ignoreQuery bool
-	var duration Duration
-	var strategyHeaders []string
-	var onlyIfStatusCodes []int
-	var onlyIfMethods []string
-	var allowCacheControl *bool
-
-	if helper.IsNotNil(cacheJson) {
-		duration = cacheJson.Duration
-		strategyHeaders = cacheJson.StrategyHeaders
-		onlyIfStatusCodes = cacheJson.OnlyIfStatusCodes
-		onlyIfMethods = cacheJson.OnlyIfMethods
-		allowCacheControl = cacheJson.AllowCacheControl
-	}
-
-	if helper.IsNotNil(endpointCacheJson) {
-		enabled = endpointCacheJson.Enabled
-		ignoreQuery = endpointCacheJson.IgnoreQuery
-		if endpointCacheJson.HasDuration() {
-			duration = endpointCacheJson.Duration
-		}
-		if endpointCacheJson.HasStrategyHeaders() {
-			strategyHeaders = endpointCacheJson.StrategyHeaders
-		}
-		if endpointCacheJson.HasAllowCacheControl() {
-			allowCacheControl = endpointCacheJson.AllowCacheControl
-		}
-		if endpointCacheJson.HasOnlyIfStatusCodes() {
-			onlyIfStatusCodes = endpointCacheJson.OnlyIfStatusCodes
-		}
-	}
-
+func NewCache(
+	enabled,
+	ignoreQuery bool,
+	duration Duration,
+	strategyHeaders []string,
+	onlyIfStatusCodes []int,
+	onlyIfMethods []string,
+	allowCacheControl *bool,
+) *Cache {
 	return &Cache{
 		enabled:           enabled,
 		duration:          duration,

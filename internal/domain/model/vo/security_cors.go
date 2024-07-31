@@ -26,16 +26,14 @@ type SecurityCors struct {
 	allowHeaders []string
 }
 
-func newSecurityCors(securityCorsJson *SecurityCorsJson) *SecurityCors {
-	if helper.IsNil(securityCorsJson) {
-		return nil
-	}
+func NewSecurityCors(allowsOrigins, allowMethods, allowHeaders []string) *SecurityCors {
 	return &SecurityCors{
-		allowOrigins: securityCorsJson.AllowOrigins,
-		allowMethods: securityCorsJson.AllowMethods,
-		allowHeaders: securityCorsJson.AllowHeaders,
+		allowOrigins: allowsOrigins,
+		allowMethods: allowMethods,
+		allowHeaders: allowHeaders,
 	}
 }
+
 func (s SecurityCors) IsValidOrigin(origin string) bool {
 	return helper.IsEmpty(s.allowOrigins) || helper.Contains(s.allowOrigins, origin)
 }

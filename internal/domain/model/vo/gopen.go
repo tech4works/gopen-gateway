@@ -27,15 +27,11 @@ type Gopen struct {
 	endpoints    []Endpoint
 }
 
-func NewGopen(gopenJson *GopenJson) *Gopen {
-	var endpoints []Endpoint
-	for _, endpointJson := range gopenJson.Endpoints {
-		endpoints = append(endpoints, newEndpoint(gopenJson, &endpointJson))
-	}
+func NewGopen(port int, securityCors *SecurityCors, middlewares Middlewares, endpoints []Endpoint) *Gopen {
 	return &Gopen{
-		port:         gopenJson.Port,
-		securityCors: newSecurityCors(gopenJson.SecurityCors),
-		middlewares:  newMiddlewares(gopenJson.Middlewares),
+		port:         port,
+		securityCors: securityCors,
+		middlewares:  middlewares,
 		endpoints:    endpoints,
 	}
 }

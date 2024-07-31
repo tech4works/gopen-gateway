@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package gateway
+package server
 
 import (
 	"context"
@@ -22,18 +22,19 @@ import (
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/app"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/app/controller"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/app/factory"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/app/middleware"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/app/model/dto"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/app/usecase"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/factory"
+	domainFactory "github.com/GabrielHCataldo/gopen-gateway/internal/domain/factory"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/service"
-	"net/http"
+	net "net/http"
 )
 
-type server struct {
-	*http.Server
+type http struct {
+	*net.Server
 	gopen                   *vo.Gopen
 	logger                  app.Logger
 	router                  app.Router
@@ -46,23 +47,20 @@ type server struct {
 	endpointController      controller.Endpoint
 }
 
-type Server interface {
-	Start()
+type HTTP interface {
+	ListerAndServe()
 	Shutdown(ctx context.Context) error
 }
 
-func NewServer(
-	gopenDTO *dto.Gopen,
+func New(
+	gopen *dto.Gopen,
 	logger app.Logger,
 	router app.Router,
 	httpClient app.HTTPClient,
 	jsonPath domain.JSONPath,
 	converter domain.Converter,
 	store domain.Store,
-) Server {
-	logger.PrintInfo("Building value objects...")
-	gopen := vo.NewGopen(gopenDTO)
-
+) HTTP {
 	logger.PrintInfo("Building domain...")
 	mapperService := service.NewMapper(jsonPath)
 	projectorService := service.NewProjector(jsonPath)
@@ -76,10 +74,10 @@ func NewServer(
 	cacheService := service.NewCache(store)
 
 	logger.PrintInfo("Building factories...")
-	httpBackendFactory := factory.NewHTTPBackend(mapperService, projectorService, dynamicValueService, modifierService,
-		omitterService, nomenclatureService, contentService, aggregatorService)
-	httpResponseFactory := factory.NewHTTPResponse(aggregatorService, omitterService, nomenclatureService, contentService,
-		httpBackendFactory)
+	httpBackendFactory := domainFactory.NewHTTPBackend(mapperService, projectorService, dynamicValueService,
+		modifierService, omitterService, nomenclatureService, contentService, aggregatorService)
+	httpResponseFactory := domainFactory.NewHTTPResponse(aggregatorService, omitterService, nomenclatureService,
+		contentService, httpBackendFactory)
 
 	logger.PrintInfo("Building use cases...")
 	endpointUseCase := usecase.NewEndpoint(httpBackendFactory, httpResponseFactory, httpClient)
@@ -92,11 +90,12 @@ func NewServer(
 	cacheMiddleware := middleware.NewCache(cacheService)
 
 	logger.PrintInfo("Building controllers...")
-	staticController := controller.NewStatic(gopenDTO)
+	staticController := controller.NewStatic(gopen)
 	endpointController := controller.NewEndpoint(endpointUseCase)
 
-	return server{
-		gopen:                   gopen,
+	logger.PrintInfo("Building value objects...")
+	return http{
+		gopen:                   factory.BuildGopen(gopen),
 		logger:                  logger,
 		router:                  router,
 		panicRecoveryMiddleware: panicRecoveryMiddleware,
@@ -109,88 +108,88 @@ func NewServer(
 	}
 }
 
-func (s server) Start() {
-	s.logger.PrintInfo("Starting lister and server...")
+func (h http) ListerAndServe() {
+	h.logger.PrintInfo("Starting lister and server...")
 
-	s.buildStaticRoutes()
+	h.buildStaticRoutes()
 
-	s.logger.PrintInfo("Starting to read endpoints to register routes...")
-	for _, endpoint := range s.gopen.Endpoints() {
-		handles := s.buildEndpointHandles()
-		s.router.Handle(s.gopen, &endpoint, handles...)
+	h.logger.PrintInfo("Starting to read endpoints to register routes...")
+	for _, endpoint := range h.gopen.Endpoints() {
+		handles := h.buildEndpointHandles()
+		h.router.Handle(h.gopen, &endpoint, handles...)
 
 		lenString := helper.SimpleConvertToString(len(handles))
-		s.logger.PrintInfof("Registered route with %s handles: %s", lenString, endpoint.Resume())
+		h.logger.PrintInfof("Registered route with %s handles: %s", lenString, endpoint.Resume())
 	}
 
-	address := fmt.Sprint(":", s.gopen.Port())
-	s.logger.PrintInfof("Listening and serving HTTP on %s!", address)
+	address := fmt.Sprint(":", h.gopen.Port())
+	h.logger.PrintInfof("Listening and serving HTTP on %s!", address)
 
-	s.Server = &http.Server{
+	h.Server = &net.Server{
 		Addr:    address,
-		Handler: s.router.Engine(),
+		Handler: h.router.Engine(),
 	}
 
 	fmt.Println()
 	fmt.Println()
-	s.logger.PrintTitle("LISTEN AND SERVER")
+	h.logger.PrintTitle("LISTEN AND SERVER")
 
-	s.ListenAndServe()
+	h.Server.ListenAndServe()
 }
 
-func (s server) Shutdown(ctx context.Context) error {
-	if helper.IsNil(s.Server) {
+func (h http) Shutdown(ctx context.Context) error {
+	if helper.IsNil(h.Server) {
 		return nil
 	}
-	return s.Server.Shutdown(ctx)
+	return h.Server.Shutdown(ctx)
 }
 
-func (s server) buildStaticRoutes() {
-	s.logger.PrintInfo("Configuring static routes...")
+func (h http) buildStaticRoutes() {
+	h.logger.PrintInfo("Configuring static routes...")
 	formatLog := "Registered route with 5 handles: %s --> \"%s\""
 
-	pingEndpoint := s.buildStaticPingRoute()
-	s.logger.PrintInfof(formatLog, pingEndpoint.Method(), pingEndpoint.Path())
+	pingEndpoint := h.buildStaticPingRoute()
+	h.logger.PrintInfof(formatLog, pingEndpoint.Method(), pingEndpoint.Path())
 
-	versionEndpoint := s.buildStaticVersionRoute()
-	s.logger.PrintInfof(formatLog, versionEndpoint.Method(), versionEndpoint.Path())
+	versionEndpoint := h.buildStaticVersionRoute()
+	h.logger.PrintInfof(formatLog, versionEndpoint.Method(), versionEndpoint.Path())
 
-	settingsEndpoint := s.buildStaticSettingsRoute()
-	s.logger.PrintInfof(formatLog, settingsEndpoint.Method(), settingsEndpoint.Path())
+	settingsEndpoint := h.buildStaticSettingsRoute()
+	h.logger.PrintInfof(formatLog, settingsEndpoint.Method(), settingsEndpoint.Path())
 }
 
-func (s server) buildStaticPingRoute() *vo.Endpoint {
-	endpoint := vo.NewEndpointStatic("/ping", http.MethodGet)
-	s.buildStaticRoute(&endpoint, s.staticController.Ping)
+func (h http) buildStaticPingRoute() *vo.Endpoint {
+	endpoint := vo.NewEndpointStatic("/ping", net.MethodGet)
+	h.buildStaticRoute(&endpoint, h.staticController.Ping)
 	return &endpoint
 }
 
-func (s server) buildStaticVersionRoute() *vo.Endpoint {
-	endpoint := vo.NewEndpointStatic("/version", http.MethodGet)
-	s.buildStaticRoute(&endpoint, s.staticController.Version)
+func (h http) buildStaticVersionRoute() *vo.Endpoint {
+	endpoint := vo.NewEndpointStatic("/version", net.MethodGet)
+	h.buildStaticRoute(&endpoint, h.staticController.Version)
 	return &endpoint
 }
 
-func (s server) buildStaticSettingsRoute() *vo.Endpoint {
-	endpoint := vo.NewEndpointStatic("/settings", http.MethodGet)
-	s.buildStaticRoute(&endpoint, s.staticController.Settings)
+func (h http) buildStaticSettingsRoute() *vo.Endpoint {
+	endpoint := vo.NewEndpointStatic("/settings", net.MethodGet)
+	h.buildStaticRoute(&endpoint, h.staticController.Settings)
 	return &endpoint
 }
 
-func (s server) buildStaticRoute(endpointStatic *vo.Endpoint, handler app.HandlerFunc) {
-	timeoutHandler := s.timeoutMiddleware.Do
-	panicHandler := s.panicRecoveryMiddleware.Do
-	limiterHandler := s.limiterMiddleware.Do
-	s.router.Handle(s.gopen, endpointStatic, timeoutHandler, panicHandler, limiterHandler, handler)
+func (h http) buildStaticRoute(endpointStatic *vo.Endpoint, handler app.HandlerFunc) {
+	timeoutHandler := h.timeoutMiddleware.Do
+	panicHandler := h.panicRecoveryMiddleware.Do
+	limiterHandler := h.limiterMiddleware.Do
+	h.router.Handle(h.gopen, endpointStatic, timeoutHandler, panicHandler, limiterHandler, handler)
 }
 
-func (s server) buildEndpointHandles() []app.HandlerFunc {
-	timeoutHandler := s.timeoutMiddleware.Do
-	panicHandler := s.panicRecoveryMiddleware.Do
-	securityCorsHandler := s.securityCorsMiddleware.Do
-	limiterHandler := s.limiterMiddleware.Do
-	cacheHandler := s.cacheMiddleware.Do
-	endpointHandler := s.endpointController.Execute
+func (h http) buildEndpointHandles() []app.HandlerFunc {
+	timeoutHandler := h.timeoutMiddleware.Do
+	panicHandler := h.panicRecoveryMiddleware.Do
+	securityCorsHandler := h.securityCorsMiddleware.Do
+	limiterHandler := h.limiterMiddleware.Do
+	cacheHandler := h.cacheMiddleware.Do
+	endpointHandler := h.endpointController.Execute
 	return []app.HandlerFunc{
 		timeoutHandler,
 		panicHandler,

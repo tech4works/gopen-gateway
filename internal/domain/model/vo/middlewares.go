@@ -18,12 +18,8 @@ package vo
 
 type Middlewares map[string]Backend
 
-func newMiddlewares(middlewaresJson MiddlewaresJson) (m Middlewares) {
-	m = Middlewares{}
-	for k, v := range middlewaresJson {
-		m[k] = newBackend(&v)
-	}
-	return m
+func NewMiddlewares(mapp map[string]Backend) (m Middlewares) {
+	return mapp
 }
 
 func (m Middlewares) Get(key string) (*Backend, bool) {
@@ -31,5 +27,5 @@ func (m Middlewares) Get(key string) (*Backend, bool) {
 	if !ok {
 		return nil, false
 	}
-	return newMiddlewareBackend(&backend), true
+	return &backend, true
 }

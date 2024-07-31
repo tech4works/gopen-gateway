@@ -1,6 +1,13 @@
 package converter
 
-import "github.com/GabrielHCataldo/gopen-gateway/internal/domain"
+import (
+	"bytes"
+	"fmt"
+	"github.com/GabrielHCataldo/go-helper/helper"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/domain"
+	xj "github.com/basgys/goxml2json"
+	"github.com/clbanning/mxj/v2"
+)
 
 type provider struct {
 }
@@ -10,21 +17,25 @@ func New() domain.Converter {
 }
 
 func (p provider) ConvertJSONToXML(bs []byte) ([]byte, error) {
-	//TODO implement me
-	panic("implement me")
+	mapJson, err := mxj.NewMapJson(bs)
+	if helper.IsNotNil(err) {
+		return nil, err
+	}
+	return mapJson.Xml("root")
 }
 
 func (p provider) ConvertTextToXML(bs []byte) ([]byte, error) {
-	//TODO implement me
-	panic("implement me")
+	return helper.ConvertToBytes(fmt.Sprintf("<root>%s</root>", string(bs)))
 }
 
 func (p provider) ConvertXMLToJSON(bs []byte) ([]byte, error) {
-	//TODO implement me
-	panic("implement me")
+	jsonData, err := xj.Convert(bytes.NewBuffer(bs))
+	if helper.IsNotNil(err) {
+		return nil, err
+	}
+	return jsonData.Bytes(), nil
 }
 
 func (p provider) ConvertTextToJSON(bs []byte) ([]byte, error) {
-	//TODO implement me
-	panic("implement me")
+	return helper.ConvertToBytes(fmt.Sprintf("{\"text\": \"%v\"}", string(bs)))
 }

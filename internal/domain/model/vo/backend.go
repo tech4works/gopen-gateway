@@ -62,68 +62,55 @@ type BackendResponse struct {
 	bodyModifiers    []Modifier
 }
 
-func newBackend(backendJson *BackendJson) Backend {
+func NewBackend(
+	hosts []string,
+	path,
+	method string,
+	request *BackendRequest,
+	response *BackendResponse,
+) Backend {
 	return Backend{
-		hosts:    backendJson.Hosts,
-		path:     backendJson.Path,
-		method:   backendJson.Method,
-		request:  newBackendRequest(backendJson.Request),
-		response: newBackendResponse(backendJson.Response),
+		hosts:    hosts,
+		path:     path,
+		method:   method,
+		request:  request,
+		response: response,
 	}
 }
 
-func newMiddlewareBackend(backend *Backend) *Backend {
-	return &Backend{
-		hosts:    backend.hosts,
-		path:     backend.path,
-		method:   backend.method,
-		request:  backend.request,
-		response: newBackendResponseForMiddleware(),
-	}
-}
-
-func newBackendResponseForMiddleware() *BackendResponse {
-	return &BackendResponse{
-		omit: true,
-	}
-}
-
-func newBackendRequest(backendRequestJson *BackendRequestJson) *BackendRequest {
-	if helper.IsNil(backendRequestJson) {
-		return nil
-	}
-
-	var headerModifiers []Modifier
-	for _, modifierJson := range backendRequestJson.HeaderModifiers {
-		headerModifiers = append(headerModifiers, newModifier(modifierJson))
-	}
-	var paramModifiers []Modifier
-	for _, modifierJson := range backendRequestJson.ParamModifiers {
-		paramModifiers = append(paramModifiers, newModifier(modifierJson))
-	}
-	var queryModifiers []Modifier
-	for _, modifierJson := range backendRequestJson.QueryModifiers {
-		queryModifiers = append(queryModifiers, newModifier(modifierJson))
-	}
-	var bodyModifiers []Modifier
-	for _, modifierJson := range backendRequestJson.BodyModifiers {
-		bodyModifiers = append(bodyModifiers, newModifier(modifierJson))
-	}
-
+func NewBackendRequest(
+	omitHeader,
+	omitQuery,
+	omitBody bool,
+	contentType enum.ContentType,
+	contentEncoding enum.ContentEncoding,
+	nomenclature enum.Nomenclature,
+	omitEmpty bool,
+	headerMapper,
+	queryMapper,
+	bodyMapper *Mapper,
+	headerProjection,
+	queryProjection,
+	bodyProjection *Projection,
+	headerModifiers,
+	paramModifiers,
+	queryModifiers,
+	bodyModifiers []Modifier,
+) *BackendRequest {
 	return &BackendRequest{
-		omitHeader:       backendRequestJson.OmitHeader,
-		omitQuery:        backendRequestJson.OmitQuery,
-		omitBody:         backendRequestJson.OmitBody,
-		contentType:      backendRequestJson.ContentType,
-		contentEncoding:  backendRequestJson.ContentEncoding,
-		nomenclature:     backendRequestJson.Nomenclature,
-		omitEmpty:        backendRequestJson.OmitEmpty,
-		headerMapper:     backendRequestJson.HeaderMapper,
-		queryMapper:      backendRequestJson.QueryMapper,
-		bodyMapper:       backendRequestJson.BodyMapper,
-		headerProjection: backendRequestJson.HeaderProjection,
-		queryProjection:  backendRequestJson.QueryProjection,
-		bodyProjection:   backendRequestJson.BodyProjection,
+		omitHeader:       omitHeader,
+		omitQuery:        omitQuery,
+		omitBody:         omitBody,
+		contentType:      contentType,
+		contentEncoding:  contentEncoding,
+		nomenclature:     nomenclature,
+		omitEmpty:        omitEmpty,
+		headerMapper:     headerMapper,
+		queryMapper:      queryMapper,
+		bodyMapper:       bodyMapper,
+		headerProjection: headerProjection,
+		queryProjection:  queryProjection,
+		bodyProjection:   bodyProjection,
 		headerModifiers:  headerModifiers,
 		paramModifiers:   paramModifiers,
 		queryModifiers:   queryModifiers,
@@ -131,31 +118,35 @@ func newBackendRequest(backendRequestJson *BackendRequestJson) *BackendRequest {
 	}
 }
 
-func newBackendResponse(backendResponseJson *BackendResponseJson) *BackendResponse {
-	if helper.IsNil(backendResponseJson) {
-		return nil
-	}
-
-	var headerModifiers []Modifier
-	for _, headerModifierJson := range backendResponseJson.HeaderModifiers {
-		headerModifiers = append(headerModifiers, newModifier(headerModifierJson))
-	}
-	var bodyModifiers []Modifier
-	for _, bodyModifierJson := range backendResponseJson.BodyModifiers {
-		bodyModifiers = append(bodyModifiers, newModifier(bodyModifierJson))
-	}
-
+func NewBackendResponse(
+	omit,
+	omitHeader,
+	omitBody bool,
+	group string,
+	headerMapper,
+	bodyMapper *Mapper,
+	headerProjection,
+	bodyProjection *Projection,
+	headerModifiers,
+	bodyModifiers []Modifier,
+) *BackendResponse {
 	return &BackendResponse{
-		omit:             backendResponseJson.Omit,
-		omitHeader:       backendResponseJson.OmitHeader,
-		omitBody:         backendResponseJson.OmitBody,
-		group:            backendResponseJson.Group,
-		headerMapper:     backendResponseJson.HeaderMapper,
-		bodyMapper:       backendResponseJson.BodyMapper,
-		headerProjection: backendResponseJson.HeaderProjection,
-		bodyProjection:   backendResponseJson.BodyProjection,
+		omit:             omit,
+		omitHeader:       omitHeader,
+		omitBody:         omitBody,
+		group:            group,
+		headerMapper:     headerMapper,
+		bodyMapper:       bodyMapper,
+		headerProjection: headerProjection,
+		bodyProjection:   bodyProjection,
 		headerModifiers:  headerModifiers,
 		bodyModifiers:    bodyModifiers,
+	}
+}
+
+func NewBackendResponseForMiddleware() *BackendResponse {
+	return &BackendResponse{
+		omit: true,
 	}
 }
 

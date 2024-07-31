@@ -44,6 +44,32 @@ type EndpointResponse struct {
 	omitEmpty       bool
 }
 
+func NewEndpoint(
+	path,
+	method string,
+	timeout Duration,
+	limiter Limiter,
+	cache *Cache,
+	abortIfStatusCodes *[]int,
+	response *EndpointResponse,
+	beforewares []string,
+	afterwares []string,
+	backends []Backend,
+) Endpoint {
+	return Endpoint{
+		path:               path,
+		method:             method,
+		timeout:            timeout,
+		limiter:            limiter,
+		cache:              cache,
+		abortIfStatusCodes: abortIfStatusCodes,
+		response:           response,
+		beforewares:        beforewares,
+		afterwares:         afterwares,
+		backends:           backends,
+	}
+}
+
 func NewEndpointStatic(path, method string) Endpoint {
 	return Endpoint{
 		path:    path,
@@ -53,42 +79,19 @@ func NewEndpointStatic(path, method string) Endpoint {
 	}
 }
 
-func newEndpoint(gopenJson *GopenJson, endpointJson *EndpointJson) Endpoint {
-	timeout := gopenJson.Timeout
-	if helper.IsGreaterThan(endpointJson.Timeout, 0) {
-		timeout = endpointJson.Timeout
-	}
-	limiter := newLimiter(gopenJson.Limiter, endpointJson.Limiter)
-	cache := newCache(gopenJson.Cache, endpointJson.Cache)
-
-	var backends []Backend
-	for _, backendJson := range endpointJson.Backends {
-		backends = append(backends, newBackend(&backendJson))
-	}
-
-	return Endpoint{
-		path:               endpointJson.Path,
-		method:             endpointJson.Method,
-		timeout:            timeout,
-		limiter:            limiter,
-		cache:              cache,
-		abortIfStatusCodes: endpointJson.AbortIfStatusCodes,
-		response:           newEndpointResponse(endpointJson.Response),
-		beforewares:        endpointJson.Beforewares,
-		afterwares:         endpointJson.Afterwares,
-		backends:           backends,
-	}
-}
-
-func newEndpointResponse(endpointResponseJson *EndpointResponseJson) *EndpointResponse {
-	if helper.IsNil(endpointResponseJson) {
-		return nil
-	}
+func NewEndpointResponse(
+	aggregate bool,
+	contentType enum.ContentType,
+	contentEncoding enum.ContentEncoding,
+	nomenclature enum.Nomenclature,
+	omitEmpty bool,
+) *EndpointResponse {
 	return &EndpointResponse{
-		aggregate:    endpointResponseJson.Aggregate,
-		contentType:  endpointResponseJson.ContentType,
-		nomenclature: endpointResponseJson.Nomenclature,
-		omitEmpty:    endpointResponseJson.OmitEmpty,
+		aggregate:       aggregate,
+		contentType:     contentType,
+		contentEncoding: contentEncoding,
+		nomenclature:    nomenclature,
+		omitEmpty:       omitEmpty,
 	}
 }
 
