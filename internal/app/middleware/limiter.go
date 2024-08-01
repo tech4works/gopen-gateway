@@ -33,27 +33,25 @@ type Limiter interface {
 	Do(ctx app.Context)
 }
 
-func NewLimiter() Limiter {
-	return limiterMiddleware{}
+func NewLimiter(service service.Limiter) Limiter {
+	return limiterMiddleware{
+		service: service,
+	}
 }
 
 func (l limiterMiddleware) Do(ctx app.Context) {
-	endpointLimiter := ctx.Endpoint().Limiter()
-
-	err := l.service.AllowRate(ctx.Request(), endpointLimiter.Rate())
+	err := l.service.AllowRate(ctx.Request(), ctx.Endpoint().Limiter().Rate())
 	if helper.IsNotNil(err) {
 		ctx.WriteError(http.StatusTooManyRequests, err)
 		return
 	}
 
-	err = l.service.AllowSize(ctx.Request(), endpointLimiter)
+	err = l.service.AllowSize(ctx.Request(), ctx.Endpoint().Limiter())
 	if errors.Contains(err, mapper.ErrPayloadTooLarge) {
 		ctx.WriteError(http.StatusRequestEntityTooLarge, err)
-		return
 	} else if errors.Contains(err, mapper.ErrHeaderTooLarge) {
 		ctx.WriteError(http.StatusRequestHeaderFieldsTooLarge, err)
-		return
+	} else {
+		ctx.Next()
 	}
-
-	ctx.Next()
 }

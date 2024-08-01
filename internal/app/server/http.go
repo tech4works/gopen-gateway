@@ -70,6 +70,7 @@ func New(
 	nomenclatureService := service.NewNomenclature(jsonPath)
 	contentService := service.NewContent(converter)
 	aggregatorService := service.NewAggregator(jsonPath)
+	limiterService := service.NewLimiter()
 	securityCorsService := service.NewSecurityCors()
 	cacheService := service.NewCache(store)
 
@@ -86,7 +87,7 @@ func New(
 	panicRecoveryMiddleware := middleware.NewPanicRecovery()
 	securityCorsMiddleware := middleware.NewSecurityCors(securityCorsService)
 	timeoutMiddleware := middleware.NewTimeout()
-	limiterMiddleware := middleware.NewLimiter()
+	limiterMiddleware := middleware.NewLimiter(limiterService)
 	cacheMiddleware := middleware.NewCache(cacheService)
 
 	logger.PrintInfo("Building controllers...")

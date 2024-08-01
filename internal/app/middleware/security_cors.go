@@ -38,22 +38,16 @@ func NewSecurityCors(service service.SecurityCors) SecurityCors {
 }
 
 func (s securityCorsMiddleware) Do(ctx app.Context) {
-	if ctx.Gopen().NoSecurityCors() {
+	if !ctx.Gopen().HasSecurityCors() {
 		ctx.Next()
-		return
-	}
-	securityCorsConfig := ctx.Gopen().SecurityCors()
-
-	if err := s.service.ValidateOrigin(securityCorsConfig, ctx.Request()); helper.IsNotNil(err) {
+	} else if err := s.service.ValidateOrigin(ctx.Gopen().SecurityCors(), ctx.Request()); helper.IsNotNil(err) {
 		ctx.WriteError(http.StatusForbidden, err)
-		return
-	} else if err = s.service.ValidateMethod(securityCorsConfig, ctx.Request()); helper.IsNotNil(err) {
+	} else if err = s.service.ValidateMethod(ctx.Gopen().SecurityCors(), ctx.Request()); helper.IsNotNil(err) {
 		ctx.WriteError(http.StatusForbidden, err)
-		return
-	} else if err = s.service.ValidateHeaders(securityCorsConfig, ctx.Request()); helper.IsNotNil(err) {
+	} else if err = s.service.ValidateHeaders(ctx.Gopen().SecurityCors(), ctx.Request()); helper.IsNotNil(err) {
 		ctx.WriteError(http.StatusForbidden, err)
-		return
+	} else {
+		ctx.Next()
 	}
 
-	ctx.Next()
 }

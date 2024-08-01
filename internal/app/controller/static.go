@@ -19,6 +19,7 @@ package controller
 import (
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/app"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/app/factory"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/app/model/dto"
 	"net/http"
 )
@@ -52,7 +53,5 @@ func (s staticController) Version(ctx app.Context) {
 }
 
 func (s staticController) Settings(ctx app.Context) {
-	// todo: aq fazer o build SettingView a partir do DTO
-	//		ctx.WriteJson(http.StatusOK, s.settingViewDTO)
-	ctx.WriteStatusCode(http.StatusNotImplemented)
+	ctx.WriteJson(http.StatusOK, factory.BuildSettingView(*s.gopen))
 }

@@ -18,11 +18,15 @@ package service
 
 import (
 	"context"
-	goerros "github.com/GabrielHCataldo/go-errors/errors"
+	"fmt"
+	"github.com/GabrielHCataldo/go-errors/errors"
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain"
-	mapper2 "github.com/GabrielHCataldo/gopen-gateway/internal/domain/mapper"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/mapper"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/enum"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
+	"net/http"
+	"strings"
 )
 
 type cacheService struct {
@@ -40,15 +44,13 @@ func NewCache(store domain.Store) Cache {
 	}
 }
 
-func (c cacheService) Read(ctx context.Context, cacheConfig *vo.Cache, request *vo.HTTPRequest) (
-	*vo.CacheResponse, error) {
-	if cacheConfig.CantRead(request) {
+func (c cacheService) Read(ctx context.Context, cache *vo.Cache, request *vo.HTTPRequest) (*vo.CacheResponse, error) {
+	if !c.canRead(cache, request) {
 		return nil, nil
 	}
 
-	key := cacheConfig.StrategyKey(request)
-	cacheResponse, err := c.store.Get(ctx, key)
-	if goerros.Is(err, mapper2.ErrCacheNotFound) {
+	cacheResponse, err := c.store.Get(ctx, c.buildKey(cache, request))
+	if errors.Is(err, mapper.ErrCacheNotFound) {
 		return nil, nil
 	} else if helper.IsNotNil(err) {
 		return nil, err
@@ -57,13 +59,68 @@ func (c cacheService) Read(ctx context.Context, cacheConfig *vo.Cache, request *
 	return cacheResponse, nil
 }
 
-func (c cacheService) Write(ctx context.Context, cacheConfig *vo.Cache, request *vo.HTTPRequest,
-	response *vo.HTTPResponse) error {
-	if cacheConfig.CantWrite(request, response) {
+func (c cacheService) Write(ctx context.Context, cache *vo.Cache, request *vo.HTTPRequest, response *vo.HTTPResponse) error {
+	if !c.canWrite(cache, request, response) {
 		return nil
 	}
 
-	key := cacheConfig.StrategyKey(request)
-	cacheResponse := vo.NewCacheResponse(cacheConfig, response)
-	return c.store.Set(ctx, key, cacheResponse)
+	return c.store.Set(ctx, c.buildKey(cache, request), vo.NewCacheResponse(cache, response))
+}
+
+func (c cacheService) canRead(cache *vo.Cache, request *vo.HTTPRequest) bool {
+	if cache.Disabled() {
+		return false
+	}
+
+	return helper.IsNotEqualTo(enum.CacheControlNoCache, c.extractCacheControl(cache, request)) &&
+		c.allowMethod(cache, request)
+}
+
+func (c cacheService) canWrite(cache *vo.Cache, request *vo.HTTPRequest, response *vo.HTTPResponse) bool {
+	if cache.Disabled() {
+		return false
+	}
+
+	return helper.IsNotEqualTo(enum.CacheControlNoStore, c.extractCacheControl(cache, request)) &&
+		c.allowMethod(cache, request) && c.allowStatusCode(cache, response)
+}
+
+func (c cacheService) buildKey(cache *vo.Cache, request *vo.HTTPRequest) string {
+	url := request.Url()
+	if cache.IgnoreQuery() {
+		url = request.Path().String()
+	}
+	strategyKey := fmt.Sprintf("%s:%s", request.Method(), url)
+
+	var strategyHeaderValues []string
+	for _, strategyHeaderKey := range cache.StrategyHeaders() {
+		valueByStrategyKey := request.Header().Get(strategyHeaderKey)
+		if helper.IsNotEmpty(valueByStrategyKey) {
+			strategyHeaderValues = append(strategyHeaderValues, valueByStrategyKey)
+		}
+	}
+	if helper.IsNotEmpty(strategyHeaderValues) {
+		strategyKey = fmt.Sprintf("%s:%s", strategyKey, strings.Join(strategyHeaderValues, ":"))
+	}
+
+	return strategyKey
+}
+
+func (c cacheService) allowMethod(cache *vo.Cache, request *vo.HTTPRequest) bool {
+	return !cache.HasOnlyIfMethods() || (!cache.HasAnyOnlyIfMethods() && helper.Equals(request.Method(), http.MethodGet)) ||
+		helper.Contains(cache.OnlyIfMethods(), request.Method())
+}
+
+func (c cacheService) allowStatusCode(cache *vo.Cache, response *vo.HTTPResponse) bool {
+	statusCode := response.StatusCode()
+	return !cache.HasOnlyIfStatusCodes() || (!cache.HasAnyOnlyIfStatusCodes() && statusCode.OK()) ||
+		helper.Contains(cache.OnlyIfStatusCodes(), statusCode)
+}
+
+func (c cacheService) extractCacheControl(cache *vo.Cache, request *vo.HTTPRequest) enum.CacheControl {
+	var cacheControl enum.CacheControl
+	if cache.AllowCacheControlNonNil() {
+		cacheControl = enum.CacheControl(request.Header().GetFirst("Cache-Control"))
+	}
+	return cacheControl
 }

@@ -22,14 +22,14 @@ func NewSecurityCors() SecurityCors {
 }
 
 func (s securityCorsService) ValidateOrigin(securityCors *vo.SecurityCors, request *vo.HTTPRequest) error {
-	if !securityCors.IsValidOrigin(request.ClientIP()) {
+	if !securityCors.AllowOrigin(request.ClientIP()) {
 		return errors.New("Origin not mapped on security-cors.allow-origins")
 	}
 	return nil
 }
 
 func (s securityCorsService) ValidateMethod(securityCors *vo.SecurityCors, request *vo.HTTPRequest) error {
-	if !securityCors.IsValidMethod(request.Method()) {
+	if !securityCors.AllowMethod(request.Method()) {
 		return errors.New("Method not mapped on security-cors.allow-methods")
 	}
 	return nil
@@ -38,7 +38,7 @@ func (s securityCorsService) ValidateMethod(securityCors *vo.SecurityCors, reque
 func (s securityCorsService) ValidateHeaders(securityCors *vo.SecurityCors, request *vo.HTTPRequest) error {
 	var headersNotAllowed []string
 	for _, key := range request.Header().Keys() {
-		if helper.IsNotEqualTo(key, mapper.XForwardedFor) && !securityCors.IsValidHeader(key) {
+		if helper.IsNotEqualTo(key, mapper.XForwardedFor) && !securityCors.AllowHeader(key) {
 			headersNotAllowed = append(headersNotAllowed, key)
 		}
 	}

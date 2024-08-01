@@ -44,8 +44,8 @@ func (g Gopen) SecurityCors() *SecurityCors {
 	return g.securityCors
 }
 
-func (g Gopen) NoSecurityCors() bool {
-	return helper.IsNil(g.securityCors)
+func (g Gopen) HasSecurityCors() bool {
+	return helper.IsNotNil(g.securityCors)
 }
 
 func (g Gopen) Middleware(key string) (*Backend, bool) {
@@ -54,31 +54,4 @@ func (g Gopen) Middleware(key string) (*Backend, bool) {
 
 func (g Gopen) Endpoints() []Endpoint {
 	return g.endpoints
-}
-
-func (g Gopen) CountEndpoints() int {
-	return len(g.endpoints)
-}
-
-func (g Gopen) CountMiddlewares() int {
-	if helper.IsNotNil(g.middlewares) {
-		return len(g.middlewares)
-	}
-	return 0
-}
-
-func (g Gopen) CountBackends() (count int) {
-	for _, endpoint := range g.Endpoints() {
-		count += endpoint.CountBeforewares()
-		count += endpoint.CountBackends()
-		count += endpoint.CountAfterwares()
-	}
-	return count
-}
-
-func (g Gopen) CountAllDataTransforms() (count int) {
-	for _, endpoint := range g.Endpoints() {
-		count += endpoint.CountAllDataTransforms()
-	}
-	return count
 }

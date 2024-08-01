@@ -18,9 +18,6 @@ package vo
 
 import (
 	"github.com/GabrielHCataldo/go-helper/helper"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/app/mapper"
-	"io"
-	"net/http"
 	"time"
 )
 
@@ -45,17 +42,14 @@ func NewLimiter(maxHeaderSize, maxBodySize, maxMultipartForm Bytes, rate Rate) L
 	}
 }
 
+func NewLimiterDefault() Limiter {
+	return Limiter{}
+}
+
 func NewRate(every Duration, capacity int) Rate {
 	return Rate{
 		capacity: capacity,
 		every:    every,
-	}
-}
-
-func NewRateDefault() Rate {
-	return Rate{
-		capacity: 0,
-		every:    0,
 	}
 }
 
@@ -84,20 +78,8 @@ func (l Limiter) Rate() Rate {
 	return l.rate
 }
 
-func (l Limiter) Allow(request *HTTPRequest) (err error) {
-	err = l.allowHeader(request)
-	if helper.IsNil(err) && helper.IsNotNil(request.Body()) {
-		err = l.allowBody(request)
-	}
-	return err
-}
-
 func (r Rate) HasData() bool {
 	return helper.IsGreaterThan(r.Capacity(), 0) && helper.IsGreaterThan(r.Every(), 0)
-}
-
-func (r Rate) NoData() bool {
-	return !r.HasData()
 }
 
 func (r Rate) Capacity() int {
@@ -110,29 +92,4 @@ func (r Rate) Every() Duration {
 
 func (r Rate) EveryTime() time.Duration {
 	return r.every.Time()
-}
-
-func (l Limiter) allowHeader(request *HTTPRequest) (err error) {
-	maxSizeAllowed := l.MaxHeaderSize()
-	if helper.IsGreaterThan(request.Header().Size(), maxSizeAllowed) {
-		err = mapper.NewErrHeaderTooLarge(maxSizeAllowed.String())
-	}
-	return err
-}
-
-func (l Limiter) allowBody(request *HTTPRequest) (err error) {
-	maxSizeAllowed := l.MaxBodySize()
-	if helper.ContainsIgnoreCase(request.Header().Get("Content-Type"), "multipart/form-data") {
-		maxSizeAllowed = l.MaxMultipartMemorySize()
-	}
-
-	bodyBuffer := request.Body().Buffer()
-	readCloser := http.MaxBytesReader(nil, io.NopCloser(bodyBuffer), int64(maxSizeAllowed))
-
-	_, err = io.ReadAll(readCloser)
-	if helper.IsNotNil(err) {
-		err = mapper.NewErrPayloadTooLarge(maxSizeAllowed.String())
-	}
-
-	return err
 }

@@ -4,31 +4,31 @@ import (
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/mapper"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
-	"golang.org/x/time/rate"
+	timerate "golang.org/x/time/rate"
 	"io"
 	"net/http"
 	"sync"
 )
 
 type limiterService struct {
-	keys  map[string]*rate.Limiter
+	keys  map[string]*timerate.Limiter
 	mutex *sync.RWMutex
 }
 
 type Limiter interface {
-	AllowRate(request *vo.HTTPRequest, rateConfig vo.Rate) error
-	AllowSize(request *vo.HTTPRequest, limiterConfig vo.Limiter) error
+	AllowRate(request *vo.HTTPRequest, rate vo.Rate) error
+	AllowSize(request *vo.HTTPRequest, limiter vo.Limiter) error
 }
 
 func NewLimiter() Limiter {
 	return &limiterService{
-		keys:  map[string]*rate.Limiter{},
+		keys:  map[string]*timerate.Limiter{},
 		mutex: &sync.RWMutex{},
 	}
 }
 
-func (s *limiterService) AllowRate(request *vo.HTTPRequest, rateConfig vo.Rate) (err error) {
-	if rateConfig.NoData() {
+func (s *limiterService) AllowRate(request *vo.HTTPRequest, rate vo.Rate) (err error) {
+	if !rate.HasData() {
 		return nil
 	}
 
@@ -39,26 +39,26 @@ func (s *limiterService) AllowRate(request *vo.HTTPRequest, rateConfig vo.Rate) 
 
 	rateLimiter, exists := s.keys[clientIP]
 	if !exists {
-		rateLimiter = rate.NewLimiter(rate.Every(rateConfig.EveryTime()), rateConfig.Capacity())
+		rateLimiter = timerate.NewLimiter(timerate.Every(rate.EveryTime()), rate.Capacity())
 		s.keys[clientIP] = rateLimiter
 	}
 
 	if !rateLimiter.Allow() {
-		err = mapper.NewErrTooManyRequests(rateConfig.Capacity(), rateConfig.EveryTime())
+		err = mapper.NewErrTooManyRequests(rate.Capacity(), rate.EveryTime())
 	}
 
 	return err
 }
 
-func (s *limiterService) AllowSize(request *vo.HTTPRequest, limiterConfig vo.Limiter) error {
-	maxHeaderSize := limiterConfig.MaxHeaderSize()
+func (s *limiterService) AllowSize(request *vo.HTTPRequest, limiter vo.Limiter) error {
+	maxHeaderSize := limiter.MaxHeaderSize()
 	if helper.IsGreaterThan(request.Header().Size(), maxHeaderSize) {
 		return mapper.NewErrHeaderTooLarge(maxHeaderSize.String())
 	}
 
-	maxBodySize := limiterConfig.MaxBodySize()
+	maxBodySize := limiter.MaxBodySize()
 	if helper.ContainsIgnoreCase(request.Header().Get(mapper.ContentType), "multipart/form-data") {
-		maxBodySize = limiterConfig.MaxMultipartMemorySize()
+		maxBodySize = limiter.MaxMultipartMemorySize()
 	}
 
 	bodyBuffer := request.Body().Buffer()

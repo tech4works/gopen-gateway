@@ -34,14 +34,14 @@ func NewSecurityCors(allowsOrigins, allowMethods, allowHeaders []string) *Securi
 	}
 }
 
-func (s SecurityCors) IsValidOrigin(origin string) bool {
+func (s SecurityCors) AllowOrigin(origin string) bool {
 	return helper.IsEmpty(s.allowOrigins) || helper.Contains(s.allowOrigins, origin)
 }
 
-func (s SecurityCors) IsValidMethod(method string) bool {
+func (s SecurityCors) AllowMethod(method string) bool {
 	return helper.IsEmpty(s.allowMethods) || helper.Contains(s.allowMethods, method)
 }
 
-func (s SecurityCors) IsValidHeader(header string) bool {
-	return helper.IsEmpty(s.allowHeaders) || helper.Contains(s.allowHeaders, header)
+func (s SecurityCors) AllowHeader(headerKey string) bool {
+	return helper.IsEmpty(s.allowHeaders) || helper.Contains(s.allowHeaders, headerKey)
 }

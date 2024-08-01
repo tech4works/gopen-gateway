@@ -18,7 +18,7 @@ package controller
 
 import (
 	"github.com/GabrielHCataldo/gopen-gateway/internal/app"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/app/model/dto"
+	"github.com/GabrielHCataldo/gopen-gateway/internal/app/factory"
 	"github.com/GabrielHCataldo/gopen-gateway/internal/app/usecase"
 )
 
@@ -37,10 +37,5 @@ func NewEndpoint(endpointUseCase usecase.Endpoint) Endpoint {
 }
 
 func (e endpointController) Execute(ctx app.Context) {
-	response := e.endpointUseCase.Execute(ctx.Context(), dto.ExecuteEndpoint{
-		Gopen:    ctx.Gopen(),
-		Endpoint: ctx.Endpoint(),
-		Request:  ctx.Request(),
-	})
-	ctx.Write(response)
+	ctx.Write(e.endpointUseCase.Execute(ctx.Context(), factory.BuildExecuteEndpoint(ctx)))
 }

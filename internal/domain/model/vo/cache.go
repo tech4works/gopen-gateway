@@ -16,13 +16,7 @@
 
 package vo
 
-import (
-	"fmt"
-	"github.com/GabrielHCataldo/go-helper/helper"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/enum"
-	"net/http"
-	"strings"
-)
+import "github.com/GabrielHCataldo/go-helper/helper"
 
 type Cache struct {
 	enabled           bool
@@ -82,72 +76,22 @@ func (c Cache) StrategyHeaders() []string {
 	return c.strategyHeaders
 }
 
-// todo: realocar daq pra baixo tudo para o servico de dominio
-
-func (c Cache) CanRead(request *HTTPRequest) bool {
-	if c.Disabled() {
-		return false
-	}
-	control := c.GetCacheControl(request)
-	return helper.IsNotEqualTo(enum.CacheControlNoCache, control) && c.AllowMethod(request.Method())
-}
-
-func (c Cache) CantRead(request *HTTPRequest) bool {
-	return !c.CanRead(request)
-}
-
-func (c Cache) CanWrite(request *HTTPRequest, response *HTTPResponse) bool {
-	if c.Disabled() {
-		return false
-	}
-	control := c.GetCacheControl(request)
-	return helper.IsNotEqualTo(enum.CacheControlNoStore, control) && c.AllowMethod(request.Method()) &&
-		c.AllowStatusCode(response.StatusCode())
-}
-
-func (c Cache) CantWrite(request *HTTPRequest, response *HTTPResponse) bool {
-	return !c.CanWrite(request, response)
-}
-
-func (c Cache) StrategyKey(request *HTTPRequest) string {
-	url := request.Url()
-	if c.IgnoreQuery() {
-		url = request.Path().String()
-	}
-	strategyKey := fmt.Sprintf("%s:%s", request.Method(), url)
-
-	var strategyHeaderValues []string
-	for _, strategyHeaderKey := range c.strategyHeaders {
-		valueByStrategyKey := request.Header().Get(strategyHeaderKey)
-		if helper.IsNotEmpty(valueByStrategyKey) {
-			strategyHeaderValues = append(strategyHeaderValues, valueByStrategyKey)
-		}
-	}
-	if helper.IsNotEmpty(strategyHeaderValues) {
-		strategyKey = fmt.Sprintf("%s:%s", strategyKey, strings.Join(strategyHeaderValues, ":"))
-	}
-
-	return strategyKey
-}
-
-func (c Cache) AllowMethod(method string) bool {
-	return helper.IsNil(c.onlyIfMethods) || (helper.IsEmpty(c.onlyIfMethods) && helper.Equals(method, http.MethodGet)) ||
-		helper.Contains(c.onlyIfMethods, method)
-}
-
-func (c Cache) AllowStatusCode(statusCode StatusCode) bool {
-	return helper.IsNil(c.onlyIfStatusCodes) || (helper.IsEmpty(c.onlyIfStatusCodes) && statusCode.OK()) ||
-		helper.Contains(c.onlyIfStatusCodes, statusCode)
-}
-
-func (c Cache) AllowCacheControl() bool {
+func (c Cache) AllowCacheControlNonNil() bool {
 	return helper.IfNilReturns(c.allowCacheControl, false)
 }
 
-func (c Cache) GetCacheControl(request *HTTPRequest) enum.CacheControl {
-	var cacheControl enum.CacheControl
-	if c.AllowCacheControl() {
-		cacheControl = enum.CacheControl(request.Header().GetFirst("Cache-Control"))
-	}
-	return cacheControl
+func (c Cache) HasOnlyIfMethods() bool {
+	return helper.IsNotNil(c.onlyIfMethods)
+}
+
+func (c Cache) HasAnyOnlyIfMethods() bool {
+	return helper.IsNotEmpty(c.onlyIfMethods)
+}
+
+func (c Cache) HasOnlyIfStatusCodes() bool {
+	return helper.IsNotNil(c.onlyIfStatusCodes)
+}
+
+func (c Cache) HasAnyOnlyIfStatusCodes() bool {
+	return helper.IsNotEmpty(c.onlyIfStatusCodes)
 }

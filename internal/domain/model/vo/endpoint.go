@@ -75,7 +75,7 @@ func NewEndpointStatic(path, method string) Endpoint {
 		path:    path,
 		method:  method,
 		timeout: NewDuration(10 * time.Second),
-		limiter: newLimiterDefault(),
+		limiter: NewLimiterDefault(),
 	}
 }
 
