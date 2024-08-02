@@ -17,12 +17,8 @@
 package vo
 
 import (
-	"bytes"
-	"fmt"
 	"github.com/GabrielHCataldo/go-helper/helper"
-	"github.com/gin-gonic/gin"
 	"github.com/tech4works/gopen-gateway/internal/domain/mapper"
-	"io"
 )
 
 type HTTPRequest struct {
@@ -34,29 +30,11 @@ type HTTPRequest struct {
 	body   *Body
 }
 
-func NewHTTPRequest(gin *gin.Context) *HTTPRequest {
-	gin.Request.Header.Add(mapper.XForwardedFor, gin.ClientIP())
-	header := NewHeader(gin.Request.Header)
-
-	query := NewQuery(gin.Request.URL.Query())
-	url := gin.Request.URL.Path
-	if helper.IsNotEmpty(query) {
-		url = fmt.Sprint(url, "?", query.Encode())
-	}
-
-	ginParams := map[string]string{}
-	for _, param := range gin.Params {
-		ginParams[param.Key] = param.Value
-	}
-	path := NewURLPath(gin.FullPath(), ginParams)
-
-	bodyBytes, _ := io.ReadAll(gin.Request.Body)
-	body := NewBody(gin.GetHeader(mapper.ContentType), gin.GetHeader(mapper.ContentEncoding), bytes.NewBuffer(bodyBytes))
-
+func NewHTTPRequest(path URLPath, url, method string, header Header, query Query, body *Body) *HTTPRequest {
 	return &HTTPRequest{
 		path:   path,
 		url:    url,
-		method: gin.Request.Method,
+		method: method,
 		header: header,
 		query:  query,
 		body:   body,

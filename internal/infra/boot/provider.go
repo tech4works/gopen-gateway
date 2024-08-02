@@ -17,6 +17,7 @@ import (
 	"github.com/tech4works/gopen-gateway/internal/infra/converter"
 	"github.com/tech4works/gopen-gateway/internal/infra/http"
 	"github.com/tech4works/gopen-gateway/internal/infra/jsonpath"
+	"github.com/tech4works/gopen-gateway/internal/infra/log"
 	"github.com/uber/jaeger-client-go"
 	jaegercfg "github.com/uber/jaeger-client-go/config"
 	"github.com/xeipuuv/gojsonschema"
@@ -32,12 +33,12 @@ const jsonRuntimeUri = runtimeFolder + "/.json"
 const jsonSchemaUri = "./json-schema.json"
 
 type provider struct {
-	logger app.Logger
+	log app.BootLog
 }
 
 func New() app.Boot {
 	return provider{
-		logger: newLogger(),
+		log: log.NewBoot(),
 	}
 }
 
@@ -53,35 +54,35 @@ func (p provider) Init() string {
 
 	tracerHost := os.Getenv("TRACER_HOST")
 	if helper.IsNotEmpty(tracerHost) {
-		p.logger.PrintInfo("Booting Tracer...")
+		p.log.PrintInfo("Booting Tracer...")
 		tracer, closer, err := p.initTracer(tracerHost)
 		if helper.IsNotNil(err) {
-			p.logger.PrintWarn(err)
+			p.log.PrintWarn(err)
 		} else {
 			defer closer.Close()
 			opentracing.SetGlobalTracer(tracer)
 		}
 	}
 
-	p.logger.PrintLogo()
+	p.log.PrintLogo()
 
 	return os.Args[1]
 }
 
 func (p provider) Start(env string) {
-	p.logger.PrintInfo("Loading Gopen envs...")
+	p.log.PrintInfo("Loading Gopen envs...")
 	err := p.loadEnvs(env)
 	if helper.IsNotNil(err) {
-		p.logger.PrintWarn(err)
+		p.log.PrintWarn(err)
 	}
 
-	p.logger.PrintInfo("Loading Gopen json...")
+	p.log.PrintInfo("Loading Gopen json...")
 	gopen, err := p.loadJson(env)
 	if helper.IsNotNil(err) {
 		panic(err)
 	}
 
-	p.logger.PrintInfo("Configuring cache store...")
+	p.log.PrintInfo("Configuring cache store...")
 	store := cache.NewMemoryStore()
 	if helper.IsNotNil(gopen.Store) {
 		store = cache.NewRedisStore(gopen.Store.Redis.Address, gopen.Store.Redis.Password)
@@ -90,38 +91,42 @@ func (p provider) Start(env string) {
 
 	err = p.writeRuntimeJson(gopen)
 	if helper.IsNotNil(err) {
-		p.logger.PrintWarn(err)
+		p.log.PrintWarn(err)
 	}
 
-	p.logger.PrintInfo("Building application...")
+	p.log.PrintInfo("Building log providers...")
+	endpointLog := log.NewEndpoint()
+	backendLog := log.NewBackend()
+
+	p.log.PrintInfo("Building server...")
 	router := api.NewRouter()
 	httpClient := http.NewClient()
 	jsonPath := jsonpath.New()
 	nConverter := converter.New()
 
-	httpServer := server.New(gopen, p.logger, router, httpClient, jsonPath, nConverter, store)
+	httpServer := server.New(gopen, p.log, router, httpClient, endpointLog, backendLog, jsonPath, nConverter, store)
 
 	if gopen.HotReload {
-		p.logger.PrintInfo("Configuring watcher...")
+		p.log.PrintInfo("Configuring watcher...")
 		watcher, err := p.initWatcher(env, p.restart(env, httpServer))
 		if helper.IsNotNil(err) {
-			p.logger.PrintWarn("Error configure watcher:", err)
+			p.log.PrintWarn("Error configure watcher:", err)
 		} else {
 			defer watcher.Close()
 		}
 	}
 
-	p.logger.PrintInfo("Starting application...")
-	httpServer.ListerAndServe()
+	p.log.PrintInfo("Starting server...")
+	httpServer.ListenAndServe()
 }
 
 func (p provider) Stop() {
 	fmt.Println()
 	err := p.removeRuntimeJson()
 	if helper.IsNotNil(err) {
-		p.logger.PrintWarn("Error to remove runtime json!")
+		p.log.PrintWarn("Error to remove runtime json!")
 	}
-	p.logger.PrintTitle("STOPPED")
+	p.log.PrintTitle("STOPPED")
 }
 
 func (p provider) restart(env string, oldServer server.HTTP) func() {
@@ -129,7 +134,7 @@ func (p provider) restart(env string, oldServer server.HTTP) func() {
 		defer func() {
 			if r := recover(); helper.IsNotNil(r) {
 				errorDetails := errors.Details(r.(error))
-				p.logger.PrintError("Error restart server:", errorDetails.GetCause())
+				p.log.PrintError("Error restart server:", errorDetails.GetCause())
 
 				p.recovery(oldServer)
 			}
@@ -137,15 +142,15 @@ func (p provider) restart(env string, oldServer server.HTTP) func() {
 
 		fmt.Println()
 		fmt.Println()
-		p.logger.PrintTitle("RESTART")
+		p.log.PrintTitle("RESTART")
 
 		ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
 		defer cancel()
 
-		p.logger.PrintInfo("Shutting down current server...")
+		p.log.PrintInfo("Shutting down current server...")
 		err := oldServer.Shutdown(ctx)
 		if helper.IsNotNil(err) {
-			p.logger.PrintWarnf("Error shutdown current server: %s!", err)
+			p.log.PrintWarnf("Error shutdown current server: %s!", err)
 			return
 		}
 
@@ -155,9 +160,9 @@ func (p provider) restart(env string, oldServer server.HTTP) func() {
 
 func (p provider) recovery(oldServer server.HTTP) {
 	fmt.Println()
-	p.logger.PrintTitle("RECOVERY")
+	p.log.PrintTitle("RECOVERY")
 
-	go oldServer.ListerAndServe()
+	go oldServer.ListenAndServe()
 }
 
 func (p provider) initTracer(host string) (opentracing.Tracer, io.Closer, error) {
@@ -172,7 +177,7 @@ func (p provider) initTracer(host string) (opentracing.Tracer, io.Closer, error)
 			LocalAgentHostPort: host,
 		},
 	}
-	return jaegerConfig.NewTracer(jaegercfg.Logger(&noop{}))
+	return jaegerConfig.NewTracer(jaegercfg.Logger(log.NewNoop()))
 }
 
 func (p provider) initWatcher(env string, callback func()) (*fsnotify.Watcher, error) {

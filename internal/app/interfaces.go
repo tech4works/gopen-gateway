@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"github.com/opentracing/opentracing-go"
+	"github.com/tech4works/gopen-gateway/internal/app/model/dto"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
 	"net/http"
 	"time"
@@ -14,7 +15,7 @@ type Boot interface {
 	Stop()
 }
 
-type Logger interface {
+type BootLog interface {
 	PrintLogo()
 	PrintTitle(title string)
 	PrintInfo(msg ...any)
@@ -54,4 +55,22 @@ type Context interface {
 
 type HTTPClient interface {
 	MakeRequest(ctx context.Context, endpoint *vo.Endpoint, request *vo.HTTPBackendRequest) *vo.HTTPBackendResponse
+}
+
+type EndpointLog interface {
+	PrintInfof(endpoint *vo.Endpoint, traceID, clientIP, format string, msg ...any)
+	PrintInfo(endpoint *vo.Endpoint, traceID, clientIP string, msg ...any)
+	PrintWarnf(endpoint *vo.Endpoint, traceID, clientIP, format string, msg ...any)
+	PrintWarn(endpoint *vo.Endpoint, traceID, clientIP string, msg ...any)
+	PrintErrorf(endpoint *vo.Endpoint, traceID, clientIP, format string, msg ...any)
+	PrintError(endpoint *vo.Endpoint, traceID, clientIP string, msg ...any)
+}
+
+type BackendLog interface {
+	PrintInfof(executeData dto.ExecuteEndpoint, backend *vo.Backend, format string, msg ...any)
+	PrintInfo(executeData dto.ExecuteEndpoint, backend *vo.Backend, msg ...any)
+	PrintWarnf(executeData dto.ExecuteEndpoint, backend *vo.Backend, format string, msg ...any)
+	PrintWarn(executeData dto.ExecuteEndpoint, backend *vo.Backend, msg ...any)
+	PrintErrorf(executeData dto.ExecuteEndpoint, backend *vo.Backend, format string, msg ...any)
+	PrintError(executeData dto.ExecuteEndpoint, backend *vo.Backend, msg ...any)
 }

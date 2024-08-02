@@ -5,6 +5,8 @@ import (
 )
 
 type ExecuteEndpoint struct {
+	TraceID  string
+	ClientIP string
 	Gopen    *vo.Gopen
 	Endpoint *vo.Endpoint
 	Request  *vo.HTTPRequest

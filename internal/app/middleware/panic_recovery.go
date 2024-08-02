@@ -21,25 +21,28 @@ import (
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/tech4works/gopen-gateway/internal/app"
 	"net/http"
+	"runtime/debug"
 )
 
 type panicRecoveryMiddleware struct {
+	log app.EndpointLog
 }
 
 type PanicRecovery interface {
 	Do(ctx app.Context)
 }
 
-func NewPanicRecovery() PanicRecovery {
-	return panicRecoveryMiddleware{}
+func NewPanicRecovery(log app.EndpointLog) PanicRecovery {
+	return panicRecoveryMiddleware{
+		log: log,
+	}
 }
 
 func (p panicRecoveryMiddleware) Do(ctx app.Context) {
 	defer func() {
 		if r := recover(); helper.IsNotNil(r) {
-			//todo
-			// p.logger.PrintEndpointErrorf(ctx, "%s:%s", r, string(debug.Stack()))
-			ctx.WriteError(http.StatusInternalServerError, errors.New("gateway panic error occurred! detail:", r))
+			p.log.PrintErrorf(ctx.Endpoint(), ctx.TraceID(), ctx.ClientIP(), "%s:%s", r, string(debug.Stack()))
+			ctx.WriteError(http.StatusInternalServerError, errors.New("Gateway panic error occurred! detail:", r))
 		}
 	}()
 	ctx.Next()

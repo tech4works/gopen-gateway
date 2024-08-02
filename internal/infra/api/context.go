@@ -17,6 +17,8 @@
 package api
 
 import (
+	"bytes"
+	"fmt"
 	"github.com/GabrielHCataldo/go-errors/errors"
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/gin-gonic/gin"
@@ -26,8 +28,10 @@ import (
 	"github.com/tech4works/gopen-gateway/internal/app/model/dto"
 	"github.com/tech4works/gopen-gateway/internal/domain/mapper"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
+	"github.com/tech4works/gopen-gateway/internal/infra/log"
 	"github.com/uber/jaeger-client-go"
 	"golang.org/x/net/context"
+	"io"
 	"sync"
 	"time"
 )
@@ -44,6 +48,19 @@ type Context struct {
 }
 
 func newContext(gin *gin.Context, gopen *vo.Gopen, endpoint *vo.Endpoint) app.Context {
+	request := buildHTTPRequest(gin)
+	return &Context{
+		startTime: time.Now(),
+		span:      buildSpan(gin, request),
+		mutex:     &sync.RWMutex{},
+		engine:    gin,
+		gopen:     gopen,
+		endpoint:  endpoint,
+		request:   request,
+	}
+}
+
+func buildSpan(gin *gin.Context, request *vo.HTTPRequest) opentracing.Span {
 	var span opentracing.Span
 
 	tracer := opentracing.GlobalTracer()
@@ -54,8 +71,6 @@ func newContext(gin *gin.Context, gopen *vo.Gopen, endpoint *vo.Endpoint) app.Co
 		span = opentracing.StartSpan(gin.FullPath(), ext.RPCServerOption(wireContext))
 	}
 	gin.Request = gin.Request.WithContext(opentracing.ContextWithSpan(gin.Request.Context(), span))
-
-	request := vo.NewHTTPRequest(gin)
 
 	span.SetTag("request.url", request.Url())
 	span.SetTag("request.method", request.Method())
@@ -69,15 +84,29 @@ func newContext(gin *gin.Context, gopen *vo.Gopen, endpoint *vo.Endpoint) app.Co
 		span.SetTag("request.body", "")
 	}
 
-	return &Context{
-		startTime: time.Now(),
-		span:      span,
-		mutex:     &sync.RWMutex{},
-		engine:    gin,
-		gopen:     gopen,
-		endpoint:  endpoint,
-		request:   request,
+	return span
+}
+
+func buildHTTPRequest(gin *gin.Context) *vo.HTTPRequest {
+	gin.Request.Header.Add(mapper.XForwardedFor, gin.ClientIP())
+	header := vo.NewHeader(gin.Request.Header)
+
+	query := vo.NewQuery(gin.Request.URL.Query())
+	url := gin.Request.URL.Path
+	if helper.IsNotEmpty(query) {
+		url = fmt.Sprint(url, "?", query.Encode())
 	}
+
+	ginParams := map[string]string{}
+	for _, param := range gin.Params {
+		ginParams[param.Key] = param.Value
+	}
+	path := vo.NewURLPath(gin.FullPath(), ginParams)
+
+	bodyBytes, _ := io.ReadAll(gin.Request.Body)
+	body := vo.NewBody(gin.GetHeader(mapper.ContentType), gin.GetHeader(mapper.ContentEncoding), bytes.NewBuffer(bodyBytes))
+
+	return vo.NewHTTPRequest(path, url, gin.Request.Method, header, query, body)
 }
 
 func (c *Context) Context() context.Context {
@@ -260,21 +289,5 @@ func (c *Context) transformToWritten(response *vo.HTTPResponse) {
 	}
 	span.Finish()
 
-	c.printResponse()
-}
-
-func (c *Context) printResponse() {
-	// todo: transferir essa responsabilidade para o endpointConsole?
-	//tag := fmt.Sprint(logger.StyleBold, "ENDPOINT", logger.StyleReset)
-	//path := c.Endpoint().Path()
-	//
-	//traceID := log.BuildTraceIDText(c.TraceID())
-	//ip := c.ClientIP()
-	//statusCode := log.BuildStatusCodeText(c.HttpResponse().StatusCode())
-	//latency := c.Latency().String()
-	//method := log.BuildMethodText(c.Request().Method())
-	//url := log.BuildUriText(c.Request().Url())
-	//
-	//m := fmt.Sprintf("[%s] %s | %s | %s |%s| %s |%s| %s", tag, path, traceID, ip, statusCode, latency, method, url)
-	//logger.InfoOpts(logger.Options{HideAllArgs: true}, m)
+	log.PrintResponse(c)
 }

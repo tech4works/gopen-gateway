@@ -24,15 +24,17 @@ import (
 
 type cacheMiddleware struct {
 	service service.Cache
+	log     app.EndpointLog
 }
 
 type Cache interface {
 	Do(ctx app.Context)
 }
 
-func NewCache(service service.Cache) Cache {
+func NewCache(service service.Cache, log app.EndpointLog) Cache {
 	return cacheMiddleware{
 		service: service,
+		log:     log,
 	}
 }
 
@@ -44,8 +46,7 @@ func (c cacheMiddleware) Do(ctx app.Context) {
 
 	response, err := c.service.Read(ctx.Context(), ctx.Endpoint().Cache(), ctx.Request())
 	if helper.IsNotNil(err) {
-		//todo
-		// c.console.Warnf("Error read cache key: %s err: %s", strategyKey, err)
+		c.log.PrintWarnf(ctx.Endpoint(), ctx.TraceID(), ctx.ClientIP(), "Error read cache err: %s", err)
 	} else if helper.IsNotNil(response) {
 		ctx.WriteCacheResponse(response)
 		return
@@ -55,7 +56,6 @@ func (c cacheMiddleware) Do(ctx app.Context) {
 
 	err = c.service.Write(ctx.Context(), ctx.Endpoint().Cache(), ctx.Request(), ctx.Response())
 	if helper.IsNotNil(err) {
-		//todo
-		// c.console.Warnf("Error write cache key: %s err: %s", strategyKey, err)
+		c.log.PrintWarnf(ctx.Endpoint(), ctx.TraceID(), ctx.ClientIP(), "Error write cache err: %s", err)
 	}
 }

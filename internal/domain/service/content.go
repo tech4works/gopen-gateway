@@ -30,14 +30,44 @@ func (c contentService) ModifyBodyContentType(body *vo.Body, contentType enum.Co
 		return body, nil
 	}
 
-	rawBytes, err := body.Bytes()
+	bodyBytes, httpContentType, err := c.modifyBodyContentType(body, contentType)
 	if helper.IsNotNil(err) {
 		return body, err
 	}
 
-	// todo: separar em metodos auxiliares
-	var bodyBytes []byte
-	var httpContentType vo.ContentType
+	buffer, err := helper.ConvertToBuffer(bodyBytes)
+	if helper.IsNotNil(err) {
+		return body, err
+	}
+
+	return vo.NewBodyWithContentType(httpContentType, buffer), nil
+}
+
+func (c contentService) ModifyBodyContentEncoding(body *vo.Body, contentEncoding enum.ContentEncoding) (*vo.Body,
+	error) {
+	if !contentEncoding.IsEnumValid() || helper.EqualsIgnoreCase(body.ContentEncoding(), contentEncoding) {
+		return body, nil
+	}
+
+	bodyBytes, httpContentEncoding, err := c.modifyBodyContentEncoding(body, contentEncoding)
+	if helper.IsNotNil(err) {
+		return body, err
+	}
+
+	buffer, err := helper.ConvertToBuffer(bodyBytes)
+	if helper.IsNotNil(err) {
+		return body, err
+	}
+
+	return vo.NewBody(body.ContentType().String(), httpContentEncoding.String(), buffer), nil
+}
+
+func (c contentService) modifyBodyContentType(body *vo.Body, contentType enum.ContentType) (
+	bodyBytes []byte, httpContentType vo.ContentType, err error) {
+	rawBytes, err := body.Bytes()
+	if helper.IsNotNil(err) {
+		return
+	}
 
 	switch contentType {
 	case enum.ContentTypePlainText:
@@ -58,32 +88,16 @@ func (c contentService) ModifyBodyContentType(body *vo.Body, contentType enum.Co
 			bodyBytes, err = c.converter.ConvertTextToXML(rawBytes)
 		}
 	}
-	if helper.IsNotNil(err) {
-		return body, err
-	}
 
-	buffer, err := helper.ConvertToBuffer(bodyBytes)
-	if helper.IsNotNil(err) {
-		return body, err
-	}
-
-	return vo.NewBodyWithContentType(httpContentType, buffer), nil
+	return
 }
 
-func (c contentService) ModifyBodyContentEncoding(body *vo.Body, contentEncoding enum.ContentEncoding) (*vo.Body,
-	error) {
-	if !contentEncoding.IsEnumValid() || helper.EqualsIgnoreCase(body.ContentEncoding(), contentEncoding) {
-		return body, nil
-	}
-
+func (c contentService) modifyBodyContentEncoding(body *vo.Body, contentEncoding enum.ContentEncoding) (
+	bodyBytes []byte, httpContentEncoding vo.ContentEncoding, err error) {
 	rawBytes, err := body.Bytes()
 	if helper.IsNotNil(err) {
-		return body, err
+		return
 	}
-
-	// todo: separar em metodos auxiliares
-	var bodyBytes []byte
-	var httpContentEncoding vo.ContentEncoding
 
 	switch contentEncoding {
 	case enum.ContentEncodingGzip:
@@ -95,14 +109,6 @@ func (c contentService) ModifyBodyContentEncoding(body *vo.Body, contentEncoding
 	default:
 		bodyBytes = rawBytes
 	}
-	if helper.IsNotNil(err) {
-		return body, err
-	}
 
-	buffer, err := helper.ConvertToBuffer(bodyBytes)
-	if helper.IsNotNil(err) {
-		return body, err
-	}
-
-	return vo.NewBody(body.ContentType().String(), httpContentEncoding.String(), buffer), nil
+	return
 }

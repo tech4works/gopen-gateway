@@ -2,53 +2,51 @@ package log
 
 import (
 	"fmt"
-	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/go-logger/logger"
+	"github.com/tech4works/gopen-gateway/internal/app"
+	"github.com/tech4works/gopen-gateway/internal/app/model/dto"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
-	"github.com/tech4works/gopen-gateway/internal/domain/todo/interfaces/log"
 )
 
-type backendConsole struct {
-	backend     *vo.Backend
-	httpRequest *vo.HttpRequest
+type backendLog struct {
 }
 
-func newBackendConsole(backend *vo.Backend, httpRequest *vo.HttpRequest) log.Console {
-	return backendConsole{
-		backend:     backend,
-		httpRequest: httpRequest,
-	}
+func NewBackend() app.BackendLog {
+	return backendLog{}
 }
 
-func (b backendConsole) Infof(format string, msg ...any) {
-	logger.Info(b.buildDefaultMsg(fmt.Sprintf(format, msg...)))
+func (b backendLog) PrintInfof(executeData dto.ExecuteEndpoint, backend *vo.Backend, format string, msg ...any) {
+	logger.InfoOptsf(format, b.buildLoggerOptions(executeData, backend), msg...)
 }
 
-func (b backendConsole) Info(msg ...any) {
-	logger.Info(b.buildDefaultMsg(helper.Sprintln(msg...)))
+func (b backendLog) PrintInfo(executeData dto.ExecuteEndpoint, backend *vo.Backend, msg ...any) {
+	logger.InfoOpts(b.buildLoggerOptions(executeData, backend), msg...)
 }
 
-func (b backendConsole) Warnf(format string, msg ...any) {
-	logger.Warn(b.buildDefaultMsg(fmt.Sprintf(format, msg...)))
+func (b backendLog) PrintWarnf(executeData dto.ExecuteEndpoint, backend *vo.Backend, format string, msg ...any) {
+	logger.WarnOptsf(format, b.buildLoggerOptions(executeData, backend), msg...)
 }
 
-func (b backendConsole) Warn(msg ...any) {
-	logger.Warn(b.buildDefaultMsg(helper.Sprintln(msg...)))
+func (b backendLog) PrintWarn(executeData dto.ExecuteEndpoint, backend *vo.Backend, msg ...any) {
+	logger.WarnOpts(b.buildLoggerOptions(executeData, backend), msg...)
 }
 
-func (b backendConsole) Errorf(format string, msg ...any) {
-	logger.Error(b.buildDefaultMsg(fmt.Sprintf(format, msg...)))
+func (b backendLog) PrintErrorf(executeData dto.ExecuteEndpoint, backend *vo.Backend, format string, msg ...any) {
+	logger.ErrorOptsf(format, b.buildLoggerOptions(executeData, backend), msg...)
 }
 
-func (b backendConsole) Error(msg ...any) {
-	logger.Error(b.buildDefaultMsg(helper.Sprintln(msg...)))
+func (b backendLog) PrintError(executeData dto.ExecuteEndpoint, backend *vo.Backend, msg ...any) {
+	logger.ErrorOpts(b.buildLoggerOptions(executeData, backend), msg...)
 }
 
-func (b backendConsole) buildDefaultMsg(msg string) string {
+func (b backendLog) buildLoggerOptions(executeData dto.ExecuteEndpoint, backend *vo.Backend) logger.Options {
 	tag := fmt.Sprint(logger.StyleBold, "BACKEND", logger.StyleReset)
-	path := b.backend.Path()
-	traceID := BuildTraceIDText(b.httpRequest.TraceID())
-	ip := b.httpRequest.ClientIP()
+	path := backend.Path()
+	traceID := BuildTraceIDText(executeData.TraceID)
+	ip := executeData.ClientIP
 
-	return fmt.Sprintf("[%s] %s | %s | %s | %s", tag, path, traceID, ip, msg)
+	return logger.Options{
+		HideAllArgs:           true,
+		CustomAfterPrefixText: fmt.Sprintf("[%s] %s | %s | %s", tag, path, traceID, ip),
+	}
 }

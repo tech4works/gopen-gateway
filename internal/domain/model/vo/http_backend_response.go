@@ -50,12 +50,6 @@ func (h *HTTPBackendResponse) Body() *Body {
 	return h.body
 }
 
-func (h *HTTPBackendResponse) GroupByType() bool {
-	//todo realocar para servico de dominio aonde iremos agrupar as respostas
-	// return helper.IsNotNil(h.body) && h.body.ContentType().IsText() || helper.IsSlice(h.body.Bytes())
-	return false
-}
-
 func (h *HTTPBackendResponse) Map() (any, error) {
 	var body any
 	if helper.IsNotNil(h.body) {

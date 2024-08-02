@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package boot
+package log
 
 import (
 	"fmt"
@@ -23,26 +23,20 @@ import (
 	"os"
 )
 
-type noop struct{}
-
-func (l *noop) Error(_ string) {}
-
-func (l *noop) Infof(_ string, _ ...interface{}) {}
-
-type log struct {
+type bootLog struct {
 	options logger.Options
 }
 
-func newLogger() app.Logger {
-	return log{
+func NewBoot() app.BootLog {
+	return bootLog{
 		options: logger.Options{
-			CustomAfterPrefixText: fmt.Sprintf("[%s%s%s]", logger.StyleBold, "GOPEN", logger.StyleReset),
 			HideAllArgs:           true,
+			CustomAfterPrefixText: fmt.Sprintf("[%s%s%s]", logger.StyleBold, "BOOT", logger.StyleReset),
 		},
 	}
 }
 
-func (l log) PrintLogo() {
+func (l bootLog) PrintLogo() {
 	fmt.Printf(` 
  ######    #######  ########  ######## ##    ##
 ##    ##  ##     ## ##     ## ##       ###   ##
@@ -59,26 +53,26 @@ Best open source API Gateway!            %s
 `, os.Getenv("VERSION"))
 }
 
-func (l log) PrintTitle(title string) {
+func (l bootLog) PrintTitle(title string) {
 	l.PrintInfof("-----------------------< %s%s%s >-----------------------", logger.StyleBold, title, logger.StyleReset)
 }
 
-func (l log) PrintInfo(msg ...any) {
+func (l bootLog) PrintInfo(msg ...any) {
 	logger.InfoOpts(l.options, msg...)
 }
 
-func (l log) PrintInfof(format string, msg ...any) {
+func (l bootLog) PrintInfof(format string, msg ...any) {
 	logger.InfoOptsf(format, l.options, msg...)
 }
 
-func (l log) PrintWarn(msg ...any) {
+func (l bootLog) PrintWarn(msg ...any) {
 	logger.WarnOpts(l.options, msg...)
 }
 
-func (l log) PrintWarnf(format string, msg ...any) {
+func (l bootLog) PrintWarnf(format string, msg ...any) {
 	logger.WarnOptsf(format, l.options, msg...)
 }
 
-func (l log) PrintError(msg ...any) {
+func (l bootLog) PrintError(msg ...any) {
 	logger.ErrorOpts(l.options, msg...)
 }

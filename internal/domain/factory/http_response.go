@@ -19,7 +19,7 @@ type httpResponseFactory struct {
 
 type HTTPResponse interface {
 	BuildAbortedResponse(endpoint *vo.Endpoint, history *vo.History) *vo.HTTPResponse
-	BuildResponse(endpoint *vo.Endpoint, request *vo.HTTPRequest, history *vo.History) (*vo.HTTPResponse, []error)
+	BuildResponse(endpoint *vo.Endpoint, history *vo.History) (*vo.HTTPResponse, []error)
 }
 
 func NewHTTPResponse(aggregatorService service.Aggregator, omitterService service.Omitter,
@@ -49,44 +49,16 @@ func (h httpResponseFactory) BuildAbortedResponse(endpoint *vo.Endpoint, history
 	return vo.NewHTTPResponse(lastStatusCode, header, lastBody)
 }
 
-func (h httpResponseFactory) BuildResponse(endpoint *vo.Endpoint, request *vo.HTTPRequest, history *vo.History,
-) (*vo.HTTPResponse, []error) {
+func (h httpResponseFactory) BuildResponse(endpoint *vo.Endpoint, history *vo.History) (*vo.HTTPResponse, []error) {
 	var allErrs []error
 
-	filteredHistory, filterErrs := h.filterHistory(request, history)
+	statusCode := h.buildStatusCodeByHistory(history)
+	body, bodyErrs := h.buildBodyByHistory(endpoint, history)
+	header := h.buildHeaderByHistory(endpoint, body, history)
 
-	statusCode := h.buildStatusCodeByHistory(filteredHistory)
-	body, bodyErrs := h.buildBodyByHistory(endpoint, filteredHistory)
-	header := h.buildHeaderByHistory(endpoint, body, filteredHistory)
-
-	allErrs = append(allErrs, filterErrs...)
 	allErrs = append(allErrs, bodyErrs...)
 
 	return vo.NewHTTPResponse(statusCode, header, body), allErrs
-}
-
-func (h httpResponseFactory) filterHistory(request *vo.HTTPRequest, history *vo.History) (*vo.History, []error) {
-	var backends []*vo.Backend
-	var responses []*vo.HTTPBackendResponse
-
-	var allErrs []error
-	for i := 0; i < history.Size(); i++ {
-		backend, httpBackendTemporaryResponse := history.Get(i)
-		if !backend.HasResponse() {
-			continue
-		}
-
-		httpBackendResponse, errors := h.httpBackendFactory.BuildResponse(backend, httpBackendTemporaryResponse, request, history)
-
-		allErrs = append(allErrs, errors...)
-
-		if helper.IsNotNil(httpBackendResponse) {
-			backends = append(backends, backend)
-			responses = append(responses, httpBackendResponse)
-		}
-	}
-
-	return vo.NewHistory(backends, responses), allErrs
 }
 
 func (h httpResponseFactory) buildStatusCodeByHistory(history *vo.History) vo.StatusCode {

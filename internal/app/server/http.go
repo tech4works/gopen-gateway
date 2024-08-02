@@ -36,7 +36,7 @@ import (
 type http struct {
 	*net.Server
 	gopen                   *vo.Gopen
-	logger                  app.Logger
+	log                     app.BootLog
 	router                  app.Router
 	panicRecoveryMiddleware middleware.PanicRecovery
 	securityCorsMiddleware  middleware.SecurityCors
@@ -48,20 +48,22 @@ type http struct {
 }
 
 type HTTP interface {
-	ListerAndServe()
+	ListenAndServe()
 	Shutdown(ctx context.Context) error
 }
 
 func New(
 	gopen *dto.Gopen,
-	logger app.Logger,
+	log app.BootLog,
 	router app.Router,
 	httpClient app.HTTPClient,
+	endpointLog app.EndpointLog,
+	backendLog app.BackendLog,
 	jsonPath domain.JSONPath,
 	converter domain.Converter,
 	store domain.Store,
 ) HTTP {
-	logger.PrintInfo("Building domain...")
+	log.PrintInfo("Building domain...")
 	mapperService := service.NewMapper(jsonPath)
 	projectorService := service.NewProjector(jsonPath)
 	dynamicValueService := service.NewDynamicValue(jsonPath)
@@ -74,30 +76,30 @@ func New(
 	securityCorsService := service.NewSecurityCors()
 	cacheService := service.NewCache(store)
 
-	logger.PrintInfo("Building factories...")
+	log.PrintInfo("Building factories...")
 	httpBackendFactory := domainFactory.NewHTTPBackend(mapperService, projectorService, dynamicValueService,
 		modifierService, omitterService, nomenclatureService, contentService, aggregatorService)
 	httpResponseFactory := domainFactory.NewHTTPResponse(aggregatorService, omitterService, nomenclatureService,
 		contentService, httpBackendFactory)
 
-	logger.PrintInfo("Building use cases...")
-	endpointUseCase := usecase.NewEndpoint(httpBackendFactory, httpResponseFactory, httpClient)
+	log.PrintInfo("Building use cases...")
+	endpointUseCase := usecase.NewEndpoint(httpBackendFactory, httpResponseFactory, httpClient, endpointLog, backendLog)
 
-	logger.PrintInfo("Building middlewares...")
-	panicRecoveryMiddleware := middleware.NewPanicRecovery()
+	log.PrintInfo("Building middlewares...")
+	panicRecoveryMiddleware := middleware.NewPanicRecovery(endpointLog)
 	securityCorsMiddleware := middleware.NewSecurityCors(securityCorsService)
 	timeoutMiddleware := middleware.NewTimeout()
 	limiterMiddleware := middleware.NewLimiter(limiterService)
-	cacheMiddleware := middleware.NewCache(cacheService)
+	cacheMiddleware := middleware.NewCache(cacheService, endpointLog)
 
-	logger.PrintInfo("Building controllers...")
+	log.PrintInfo("Building controllers...")
 	staticController := controller.NewStatic(gopen)
 	endpointController := controller.NewEndpoint(endpointUseCase)
 
-	logger.PrintInfo("Building value objects...")
+	log.PrintInfo("Building value objects...")
 	return http{
 		gopen:                   factory.BuildGopen(gopen),
-		logger:                  logger,
+		log:                     log,
 		router:                  router,
 		panicRecoveryMiddleware: panicRecoveryMiddleware,
 		timeoutMiddleware:       timeoutMiddleware,
@@ -109,22 +111,22 @@ func New(
 	}
 }
 
-func (h http) ListerAndServe() {
-	h.logger.PrintInfo("Starting lister and server...")
+func (h http) ListenAndServe() {
+	h.log.PrintInfo("Starting lister and server...")
 
 	h.buildStaticRoutes()
 
-	h.logger.PrintInfo("Starting to read endpoints to register routes...")
+	h.log.PrintInfo("Starting to read endpoints to register routes...")
 	for _, endpoint := range h.gopen.Endpoints() {
 		handles := h.buildEndpointHandles()
 		h.router.Handle(h.gopen, &endpoint, handles...)
 
 		lenString := helper.SimpleConvertToString(len(handles))
-		h.logger.PrintInfof("Registered route with %s handles: %s", lenString, endpoint.Resume())
+		h.log.PrintInfof("Registered route with %s handles: %s", lenString, endpoint.Resume())
 	}
 
 	address := fmt.Sprint(":", h.gopen.Port())
-	h.logger.PrintInfof("Listening and serving HTTP on %s!", address)
+	h.log.PrintInfof("Listening and serving HTTP on %s!", address)
 
 	h.Server = &net.Server{
 		Addr:    address,
@@ -133,7 +135,7 @@ func (h http) ListerAndServe() {
 
 	fmt.Println()
 	fmt.Println()
-	h.logger.PrintTitle("LISTEN AND SERVER")
+	h.log.PrintTitle("LISTEN AND SERVER")
 
 	h.Server.ListenAndServe()
 }
@@ -146,17 +148,17 @@ func (h http) Shutdown(ctx context.Context) error {
 }
 
 func (h http) buildStaticRoutes() {
-	h.logger.PrintInfo("Configuring static routes...")
+	h.log.PrintInfo("Configuring static routes...")
 	formatLog := "Registered route with 5 handles: %s --> \"%s\""
 
 	pingEndpoint := h.buildStaticPingRoute()
-	h.logger.PrintInfof(formatLog, pingEndpoint.Method(), pingEndpoint.Path())
+	h.log.PrintInfof(formatLog, pingEndpoint.Method(), pingEndpoint.Path())
 
 	versionEndpoint := h.buildStaticVersionRoute()
-	h.logger.PrintInfof(formatLog, versionEndpoint.Method(), versionEndpoint.Path())
+	h.log.PrintInfof(formatLog, versionEndpoint.Method(), versionEndpoint.Path())
 
 	settingsEndpoint := h.buildStaticSettingsRoute()
-	h.logger.PrintInfof(formatLog, settingsEndpoint.Method(), settingsEndpoint.Path())
+	h.log.PrintInfof(formatLog, settingsEndpoint.Method(), settingsEndpoint.Path())
 }
 
 func (h http) buildStaticPingRoute() *vo.Endpoint {

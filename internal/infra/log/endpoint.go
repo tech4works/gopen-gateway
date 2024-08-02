@@ -2,55 +2,48 @@ package log
 
 import (
 	"fmt"
-	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/go-logger/logger"
+	"github.com/tech4works/gopen-gateway/internal/app"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
-	"github.com/tech4works/gopen-gateway/internal/domain/todo/interfaces/log"
 )
 
-type endpointConsole struct {
-	endpoint *vo.Endpoint
-	traceID  string
-	clientIP string
+type endpointLog struct {
 }
 
-func newEndpointConsole(endpoint *vo.Endpoint, traceID, clientIP string) log.Console {
-	return endpointConsole{
-		endpoint: endpoint,
-		traceID:  traceID,
-		clientIP: clientIP,
-	}
+func NewEndpoint() app.EndpointLog {
+	return endpointLog{}
 }
 
-func (e endpointConsole) Infof(format string, msg ...any) {
-	logger.Info(e.buildDefaultMsg(fmt.Sprintf(format, msg...)))
+func (e endpointLog) PrintInfof(endpoint *vo.Endpoint, traceID, clientIP, format string, msg ...any) {
+	logger.InfoOptsf(format, e.buildLoggerOptions(endpoint, traceID, clientIP), msg...)
 }
 
-func (e endpointConsole) Info(msg ...any) {
-	logger.Info(e.buildDefaultMsg(helper.Sprintln(msg...)))
+func (e endpointLog) PrintInfo(endpoint *vo.Endpoint, traceID, clientIP string, msg ...any) {
+	logger.InfoOpts(e.buildLoggerOptions(endpoint, traceID, clientIP), msg...)
 }
 
-func (e endpointConsole) Warnf(format string, msg ...any) {
-	logger.Warn(e.buildDefaultMsg(fmt.Sprintf(format, msg...)))
+func (e endpointLog) PrintWarnf(endpoint *vo.Endpoint, traceID, clientIP, format string, msg ...any) {
+	logger.WarnOptsf(format, e.buildLoggerOptions(endpoint, traceID, clientIP), msg...)
 }
 
-func (e endpointConsole) Warn(msg ...any) {
-	logger.Warn(e.buildDefaultMsg(helper.Sprintln(msg...)))
+func (e endpointLog) PrintWarn(endpoint *vo.Endpoint, traceID, clientIP string, msg ...any) {
+	logger.WarnOpts(e.buildLoggerOptions(endpoint, traceID, clientIP), msg...)
 }
 
-func (e endpointConsole) Errorf(format string, msg ...any) {
-	logger.Error(e.buildDefaultMsg(fmt.Sprintf(format, msg...)))
+func (e endpointLog) PrintErrorf(endpoint *vo.Endpoint, traceID, clientIP, format string, msg ...any) {
+	logger.ErrorOptsf(format, e.buildLoggerOptions(endpoint, traceID, clientIP), msg...)
 }
 
-func (e endpointConsole) Error(msg ...any) {
-	logger.Error(e.buildDefaultMsg(helper.Sprintln(msg...)))
+func (e endpointLog) PrintError(endpoint *vo.Endpoint, traceID, clientIP string, msg ...any) {
+	logger.ErrorOpts(e.buildLoggerOptions(endpoint, traceID, clientIP), msg...)
 }
 
-func (e endpointConsole) buildDefaultMsg(msg string) string {
+func (e endpointLog) buildLoggerOptions(endpoint *vo.Endpoint, traceID, clientIP string) logger.Options {
 	tag := fmt.Sprint(logger.StyleBold, "ENDPOINT", logger.StyleReset)
-	path := e.endpoint.Path()
-	traceID := BuildTraceIDText(e.httpRequest.TraceID())
-	ip := e.httpRequest.ClientIP()
+	path := endpoint.Path()
 
-	return fmt.Sprintf("[%s] %s | %s | %s | %s", tag, path, traceID, ip, msg)
+	return logger.Options{
+		HideAllArgs:           true,
+		CustomAfterPrefixText: fmt.Sprintf("[%s] %s | %s | %s |", tag, path, traceID, clientIP),
+	}
 }
