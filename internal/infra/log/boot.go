@@ -30,7 +30,8 @@ type bootLog struct {
 func NewBoot() app.BootLog {
 	return bootLog{
 		options: logger.Options{
-			HideAllArgs:           true,
+			HideArgDatetime:       true,
+			HideArgCaller:         true,
 			CustomAfterPrefixText: fmt.Sprintf("[%s%s%s]", logger.StyleBold, "BOOT", logger.StyleReset),
 		},
 	}

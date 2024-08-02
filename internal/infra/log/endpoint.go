@@ -14,36 +14,46 @@ func NewEndpoint() app.EndpointLog {
 	return endpointLog{}
 }
 
-func (e endpointLog) PrintInfof(endpoint *vo.Endpoint, traceID, clientIP, format string, msg ...any) {
-	logger.InfoOptsf(format, e.buildLoggerOptions(endpoint, traceID, clientIP), msg...)
+func (e endpointLog) PrintInfof(endpoint *vo.Endpoint, request *vo.HTTPRequest, traceID, clientIP, format string,
+	msg ...any) {
+	logger.InfoOptsf(format, e.buildLoggerOptions(endpoint, request, traceID, clientIP), msg...)
 }
 
-func (e endpointLog) PrintInfo(endpoint *vo.Endpoint, traceID, clientIP string, msg ...any) {
-	logger.InfoOpts(e.buildLoggerOptions(endpoint, traceID, clientIP), msg...)
+func (e endpointLog) PrintInfo(endpoint *vo.Endpoint, request *vo.HTTPRequest, traceID, clientIP string, msg ...any) {
+	logger.InfoOpts(e.buildLoggerOptions(endpoint, request, traceID, clientIP), msg...)
 }
 
-func (e endpointLog) PrintWarnf(endpoint *vo.Endpoint, traceID, clientIP, format string, msg ...any) {
-	logger.WarnOptsf(format, e.buildLoggerOptions(endpoint, traceID, clientIP), msg...)
+func (e endpointLog) PrintWarnf(endpoint *vo.Endpoint, request *vo.HTTPRequest, traceID, clientIP, format string,
+	msg ...any) {
+	logger.WarnOptsf(format, e.buildLoggerOptions(endpoint, request, traceID, clientIP), msg...)
 }
 
-func (e endpointLog) PrintWarn(endpoint *vo.Endpoint, traceID, clientIP string, msg ...any) {
-	logger.WarnOpts(e.buildLoggerOptions(endpoint, traceID, clientIP), msg...)
+func (e endpointLog) PrintWarn(endpoint *vo.Endpoint, request *vo.HTTPRequest, traceID, clientIP string, msg ...any) {
+	logger.WarnOpts(e.buildLoggerOptions(endpoint, request, traceID, clientIP), msg...)
 }
 
-func (e endpointLog) PrintErrorf(endpoint *vo.Endpoint, traceID, clientIP, format string, msg ...any) {
-	logger.ErrorOptsf(format, e.buildLoggerOptions(endpoint, traceID, clientIP), msg...)
+func (e endpointLog) PrintErrorf(endpoint *vo.Endpoint, request *vo.HTTPRequest, traceID, clientIP, format string,
+	msg ...any) {
+	logger.ErrorOptsf(format, e.buildLoggerOptions(endpoint, request, traceID, clientIP), msg...)
 }
 
-func (e endpointLog) PrintError(endpoint *vo.Endpoint, traceID, clientIP string, msg ...any) {
-	logger.ErrorOpts(e.buildLoggerOptions(endpoint, traceID, clientIP), msg...)
+func (e endpointLog) PrintError(endpoint *vo.Endpoint, request *vo.HTTPRequest, traceID, clientIP string, msg ...any) {
+	logger.ErrorOpts(e.buildLoggerOptions(endpoint, request, traceID, clientIP), msg...)
 }
 
-func (e endpointLog) buildLoggerOptions(endpoint *vo.Endpoint, traceID, clientIP string) logger.Options {
-	tag := fmt.Sprint(logger.StyleBold, "ENDPOINT", logger.StyleReset)
+func (e endpointLog) buildLoggerOptions(endpoint *vo.Endpoint, request *vo.HTTPRequest, traceID, clientIP string,
+) logger.Options {
+	tag := BuildTagText("ENDPOINT")
 	path := endpoint.Path()
+	traceIDText := BuildTraceIDText(traceID)
 
+	method := BuildMethodText(request.Method())
+	url := BuildUriText(request.Url())
+
+	prefix := fmt.Sprintf("[%s] (%s | %s | %s |%s| %s)", tag, path, clientIP, traceIDText, method, url)
 	return logger.Options{
-		HideAllArgs:           true,
-		CustomAfterPrefixText: fmt.Sprintf("[%s] %s | %s | %s |", tag, path, traceID, clientIP),
+		HideArgDatetime:       true,
+		HideArgCaller:         true,
+		CustomAfterPrefixText: prefix,
 	}
 }

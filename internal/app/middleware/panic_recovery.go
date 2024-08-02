@@ -41,9 +41,13 @@ func NewPanicRecovery(log app.EndpointLog) PanicRecovery {
 func (p panicRecoveryMiddleware) Do(ctx app.Context) {
 	defer func() {
 		if r := recover(); helper.IsNotNil(r) {
-			p.log.PrintErrorf(ctx.Endpoint(), ctx.TraceID(), ctx.ClientIP(), "%s:%s", r, string(debug.Stack()))
+			p.printErrorf(ctx, "%s:%s", r, string(debug.Stack()))
 			ctx.WriteError(http.StatusInternalServerError, errors.New("Gateway panic error occurred! detail:", r))
 		}
 	}()
 	ctx.Next()
+}
+
+func (p panicRecoveryMiddleware) printErrorf(ctx app.Context, format string, msg ...any) {
+	p.log.PrintErrorf(ctx.Endpoint(), ctx.Request(), ctx.ClientIP(), ctx.TraceID(), format, msg...)
 }

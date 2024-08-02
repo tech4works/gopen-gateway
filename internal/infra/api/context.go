@@ -28,7 +28,6 @@ import (
 	"github.com/tech4works/gopen-gateway/internal/app/model/dto"
 	"github.com/tech4works/gopen-gateway/internal/domain/mapper"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
-	"github.com/tech4works/gopen-gateway/internal/infra/log"
 	"github.com/uber/jaeger-client-go"
 	"golang.org/x/net/context"
 	"io"
@@ -288,6 +287,4 @@ func (c *Context) transformToWritten(response *vo.HTTPResponse) {
 		span.SetTag("response.body", "")
 	}
 	span.Finish()
-
-	log.PrintResponse(c)
 }

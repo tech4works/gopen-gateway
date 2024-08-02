@@ -41,51 +41,55 @@ func NewHTTPRequest(path URLPath, url, method string, header Header, query Query
 	}
 }
 
-func (r *HTTPRequest) Url() string {
-	return r.url
+func (h *HTTPRequest) Url() string {
+	return h.url
 }
 
-func (r *HTTPRequest) Path() URLPath {
-	return r.path
+func (h *HTTPRequest) Path() URLPath {
+	return h.path
 }
 
-func (r *HTTPRequest) Method() string {
-	return r.method
+func (h *HTTPRequest) Method() string {
+	return h.method
 }
 
-func (r *HTTPRequest) Header() *Header {
-	return &r.header
+func (h *HTTPRequest) Header() *Header {
+	return &h.header
 }
 
-func (r *HTTPRequest) Params() Params {
-	return r.Path().Params()
+func (h *HTTPRequest) Params() Params {
+	return h.Path().Params()
 }
 
-func (r *HTTPRequest) Query() Query {
-	return r.query
+func (h *HTTPRequest) Query() Query {
+	return h.query
 }
 
-func (r *HTTPRequest) Body() *Body {
-	return r.body
+func (h *HTTPRequest) Body() *Body {
+	return h.body
 }
 
-func (r *HTTPRequest) Map() (string, error) {
+func (h *HTTPRequest) Map() (string, error) {
 	var body any
-	if helper.IsNotNil(r.Body()) {
-		bodyMap, err := r.Body().Map()
+	if helper.IsNotNil(h.Body()) {
+		bodyMap, err := h.Body().Map()
 		if helper.IsNotNil(err) {
 			return "", err
 		}
 		body = bodyMap
 	}
 	return helper.ConvertToString(map[string]any{
-		"header": r.Header().Map(),
-		"params": r.Params().Map(),
-		"query":  r.Query().Map(),
+		"header": h.Header().Map(),
+		"params": h.Params().Map(),
+		"query":  h.Query().Map(),
 		"body":   body,
 	})
 }
 
-func (r *HTTPRequest) ClientIP() string {
-	return r.Header().GetFirst(mapper.XForwardedFor)
+func (h *HTTPRequest) ClientIP() string {
+	return h.Header().GetFirst(mapper.XForwardedFor)
+}
+
+func (h *HTTPRequest) HasBody() bool {
+	return helper.IsNotNil(h.body)
 }

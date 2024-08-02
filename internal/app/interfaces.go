@@ -57,20 +57,25 @@ type HTTPClient interface {
 	MakeRequest(ctx context.Context, endpoint *vo.Endpoint, request *vo.HTTPBackendRequest) *vo.HTTPBackendResponse
 }
 
+type HTTPLog interface {
+	PrintRequest(ctx Context)
+	PrintResponse(ctx Context)
+}
+
 type EndpointLog interface {
-	PrintInfof(endpoint *vo.Endpoint, traceID, clientIP, format string, msg ...any)
-	PrintInfo(endpoint *vo.Endpoint, traceID, clientIP string, msg ...any)
-	PrintWarnf(endpoint *vo.Endpoint, traceID, clientIP, format string, msg ...any)
-	PrintWarn(endpoint *vo.Endpoint, traceID, clientIP string, msg ...any)
-	PrintErrorf(endpoint *vo.Endpoint, traceID, clientIP, format string, msg ...any)
-	PrintError(endpoint *vo.Endpoint, traceID, clientIP string, msg ...any)
+	PrintInfof(endpoint *vo.Endpoint, request *vo.HTTPRequest, clientIP, traceID, format string, msg ...any)
+	PrintInfo(endpoint *vo.Endpoint, request *vo.HTTPRequest, clientIP, traceID string, msg ...any)
+	PrintWarnf(endpoint *vo.Endpoint, request *vo.HTTPRequest, clientIP, traceID, format string, msg ...any)
+	PrintWarn(endpoint *vo.Endpoint, request *vo.HTTPRequest, clientIP, traceID string, msg ...any)
+	PrintErrorf(endpoint *vo.Endpoint, request *vo.HTTPRequest, clientIP, traceID, format string, msg ...any)
+	PrintError(endpoint *vo.Endpoint, request *vo.HTTPRequest, clientIP, traceID string, msg ...any)
 }
 
 type BackendLog interface {
-	PrintInfof(executeData dto.ExecuteEndpoint, backend *vo.Backend, format string, msg ...any)
-	PrintInfo(executeData dto.ExecuteEndpoint, backend *vo.Backend, msg ...any)
-	PrintWarnf(executeData dto.ExecuteEndpoint, backend *vo.Backend, format string, msg ...any)
-	PrintWarn(executeData dto.ExecuteEndpoint, backend *vo.Backend, msg ...any)
-	PrintErrorf(executeData dto.ExecuteEndpoint, backend *vo.Backend, format string, msg ...any)
-	PrintError(executeData dto.ExecuteEndpoint, backend *vo.Backend, msg ...any)
+	PrintInfof(executeData dto.ExecuteEndpoint, backend *vo.Backend, request *vo.HTTPBackendRequest, format string, msg ...any)
+	PrintInfo(executeData dto.ExecuteEndpoint, backend *vo.Backend, request *vo.HTTPBackendRequest, msg ...any)
+	PrintWarnf(executeData dto.ExecuteEndpoint, backend *vo.Backend, request *vo.HTTPBackendRequest, format string, msg ...any)
+	PrintWarn(executeData dto.ExecuteEndpoint, backend *vo.Backend, request *vo.HTTPBackendRequest, msg ...any)
+	PrintErrorf(executeData dto.ExecuteEndpoint, backend *vo.Backend, request *vo.HTTPBackendRequest, format string, msg ...any)
+	PrintError(executeData dto.ExecuteEndpoint, backend *vo.Backend, request *vo.HTTPBackendRequest, msg ...any)
 }

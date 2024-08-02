@@ -46,7 +46,7 @@ func (c cacheMiddleware) Do(ctx app.Context) {
 
 	response, err := c.service.Read(ctx.Context(), ctx.Endpoint().Cache(), ctx.Request())
 	if helper.IsNotNil(err) {
-		c.log.PrintWarnf(ctx.Endpoint(), ctx.TraceID(), ctx.ClientIP(), "Error read cache err: %s", err)
+		c.printWarnf(ctx, "Error read cache err: %s", err)
 	} else if helper.IsNotNil(response) {
 		ctx.WriteCacheResponse(response)
 		return
@@ -56,6 +56,10 @@ func (c cacheMiddleware) Do(ctx app.Context) {
 
 	err = c.service.Write(ctx.Context(), ctx.Endpoint().Cache(), ctx.Request(), ctx.Response())
 	if helper.IsNotNil(err) {
-		c.log.PrintWarnf(ctx.Endpoint(), ctx.TraceID(), ctx.ClientIP(), "Error write cache err: %s", err)
+		c.printWarnf(ctx, "Error write cache err: %s", err)
 	}
+}
+
+func (c cacheMiddleware) printWarnf(ctx app.Context, format string, msg ...any) {
+	c.log.PrintWarnf(ctx.Endpoint(), ctx.Request(), ctx.ClientIP(), ctx.TraceID(), format, msg...)
 }
