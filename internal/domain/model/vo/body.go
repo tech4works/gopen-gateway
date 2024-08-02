@@ -112,7 +112,7 @@ func (b *Body) Raw() (string, error) {
 func (b *Body) Resume() string {
 	if b.contentType.IsJSON() || b.contentType.IsXML() || b.contentType.IsText() {
 		s, _ := b.String()
-		return helper.SimpleCompactString(s)
+		return helper.CompactString(s)
 	}
 	return fmt.Sprintf("contentType=%s contentLenght=%s contentEncoding=%s", b.contentType.String(),
 		b.contentEncoding.String(), b.LenStr())

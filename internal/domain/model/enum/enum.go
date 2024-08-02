@@ -144,3 +144,19 @@ func (m ModifierAction) IsEnumValid() bool {
 	}
 	return false
 }
+
+func (b BackendType) String() string {
+	return string(b)
+}
+
+func (b BackendType) Abbreviation() string {
+	switch b {
+	case BackendTypeNormal:
+		return "BKD"
+	case BackendTypeBeforeware:
+		return "BFW"
+	case BackendTypeAfterware:
+		return "AFW"
+	}
+	return ""
+}

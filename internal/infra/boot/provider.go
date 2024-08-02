@@ -30,7 +30,7 @@ import (
 
 const runtimeFolder = "./runtime"
 const jsonRuntimeUri = runtimeFolder + "/.json"
-const jsonSchemaUri = "./json-schema.json"
+const jsonSchemaUri = "file://./json-schema.json"
 
 type provider struct {
 	log app.BootLog
@@ -117,16 +117,17 @@ func (p provider) Start(env string) {
 		}
 	}
 
-	p.log.PrintInfo("Starting server...")
 	httpServer.ListenAndServe()
 }
 
 func (p provider) Stop() {
-	fmt.Println()
+	p.log.SkipLine()
+
 	err := p.removeRuntimeJson()
 	if helper.IsNotNil(err) {
 		p.log.PrintWarn("Error to remove runtime json!")
 	}
+
 	p.log.PrintTitle("STOPPED")
 }
 
@@ -141,8 +142,8 @@ func (p provider) restart(env string, oldServer server.HTTP) func() {
 			}
 		}()
 
-		fmt.Println()
-		fmt.Println()
+		p.log.SkipLine()
+		p.log.SkipLine()
 		p.log.PrintTitle("RESTART")
 
 		ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
@@ -160,7 +161,7 @@ func (p provider) restart(env string, oldServer server.HTTP) func() {
 }
 
 func (p provider) recovery(oldServer server.HTTP) {
-	fmt.Println()
+	p.log.SkipLine()
 	p.log.PrintTitle("RECOVERY")
 
 	go oldServer.ListenAndServe()
@@ -240,7 +241,7 @@ func (p provider) loadJson(env string) (*dto.Gopen, error) {
 	}
 	gopenJsonBytes = p.fillEnvValues(gopenJsonBytes)
 
-	if err = p.validateJsonBySchema(jsonSchemaUri, gopenJsonBytes); helper.IsNotNil(err) {
+	if err = p.validateJsonBySchema(gopenJsonBytes); helper.IsNotNil(err) {
 		return nil, err
 	}
 
@@ -275,7 +276,7 @@ func (p provider) fillEnvValues(gopenJsonBytes []byte) []byte {
 	return helper.SimpleConvertToBytes(gopenJsonStr)
 }
 
-func (p provider) validateJsonBySchema(jsonSchemaUri string, jsonBytes []byte) error {
+func (p provider) validateJsonBySchema(jsonBytes []byte) error {
 	schemaLoader := gojsonschema.NewReferenceLoader(jsonSchemaUri)
 	documentLoader := gojsonschema.NewBytesLoader(jsonBytes)
 

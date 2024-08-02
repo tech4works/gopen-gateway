@@ -2,9 +2,7 @@ package log
 
 import (
 	"fmt"
-	"github.com/GabrielHCataldo/go-logger/logger"
 	"github.com/tech4works/gopen-gateway/internal/app"
-	"github.com/tech4works/gopen-gateway/internal/domain/mapper"
 )
 
 type httpLog struct {
@@ -15,8 +13,6 @@ func NewHTTPLog() app.HTTPLog {
 }
 
 func (a httpLog) PrintRequest(ctx app.Context) {
-	contentType := ctx.Request().Header().Get(mapper.ContentType)
-	contentEncoding := ctx.Request().Header().Get(mapper.ContentEncoding)
 	headerSize := ctx.Request().Header().Size()
 	params := ctx.Request().Params().Len()
 	queries := ctx.Request().Query().Len()
@@ -25,23 +21,22 @@ func (a httpLog) PrintRequest(ctx app.Context) {
 		body = ctx.Request().Body().Len()
 	}
 
-	opts := buildLoggerOptions(ctx, "REQUEST")
+	prefix := a.prefix(ctx)
+	format := "header: %v | params: %v | query: %v | body: %v"
 
-	logger.InfoOptsf("content-type: %s | content-encoding: %s | header: %v | params: %v | query: %v | body: %s",
-		opts, contentType, contentEncoding, headerSize, params, queries, body)
+	Printf(InfoLevel, "REQ", prefix, format, headerSize, params, queries, body)
 }
 
 func (a httpLog) PrintResponse(ctx app.Context) {
 	statusCode := BuildStatusCodeText(ctx.Response().StatusCode())
 	latency := ctx.Latency().String()
 
-	opts := buildLoggerOptions(ctx, "RESPONSE")
+	prefix := a.prefix(ctx)
 
-	logger.InfoOptsf("status-code:%s| latency: %s", opts, statusCode, latency)
+	Printf(InfoLevel, "RES", prefix, "status-code:%s| latency: %s", statusCode, latency)
 }
 
-func buildLoggerOptions(ctx app.Context, nameTag string) logger.Options {
-	tag := BuildTagText(nameTag)
+func (a httpLog) prefix(ctx app.Context) string {
 	path := ctx.Endpoint().Path()
 	traceID := BuildTraceIDText(ctx.TraceID())
 	ip := ctx.ClientIP()
@@ -49,10 +44,5 @@ func buildLoggerOptions(ctx app.Context, nameTag string) logger.Options {
 	method := BuildMethodText(ctx.Request().Method())
 	url := BuildUriText(ctx.Request().Url())
 
-	prefix := fmt.Sprintf("[%s] (%s | %s | %s |%s| %s)", tag, path, ip, traceID, method, url)
-	return logger.Options{
-		HideArgDatetime:       true,
-		HideArgCaller:         true,
-		CustomAfterPrefixText: prefix,
-	}
+	return fmt.Sprintf("%s (%s | %s |%s| %s)", path, ip, traceID, method, url)
 }

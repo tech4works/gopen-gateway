@@ -305,7 +305,9 @@ func buildAndPropagateModifiers(modifiers []dto.Modifier, propagateModifiers *[]
 }
 
 func buildBackendResponse(backend dto.Backend, backendType enum.BackendType) *vo.BackendResponse {
-	if helper.Equals(backendType, enum.BackendTypeBeforeware) || helper.Equals(backendType, enum.BackendTypeAfterware) {
+	if helper.IsNil(backend.Response) {
+		return nil
+	} else if helper.Equals(backendType, enum.BackendTypeBeforeware) || helper.Equals(backendType, enum.BackendTypeAfterware) {
 		return vo.NewBackendResponseForMiddleware()
 	}
 

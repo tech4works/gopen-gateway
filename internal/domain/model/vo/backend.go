@@ -217,8 +217,8 @@ func (b *Backend) IsAfterware() bool {
 	return helper.Equals(b.kind, enum.BackendTypeAfterware)
 }
 
-func (b *Backend) Type() string {
-	return string(b.kind)
+func (b *Backend) Type() enum.BackendType {
+	return b.kind
 }
 
 func (b BackendRequest) OmitHeader() bool {

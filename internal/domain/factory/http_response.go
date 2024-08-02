@@ -114,7 +114,7 @@ func (h httpResponseFactory) buildHeaderByHistory(endpoint *vo.Endpoint, body *v
 	header := vo.NewHeader(mapHeader)
 
 	for i := 0; i < history.Size(); i++ {
-		_, httpBackendResponse := history.Get(i)
+		_, _, httpBackendResponse := history.Get(i)
 		header = h.aggregatorService.AggregateHeaders(header, httpBackendResponse.Header())
 	}
 
@@ -131,7 +131,7 @@ func (h httpResponseFactory) buildBodyFromMultipleResponses(endpoint *vo.Endpoin
 func (h httpResponseFactory) buildStatusCodeFromMultipleResponses(history *vo.History) vo.StatusCode {
 	statusCodes := make(map[vo.StatusCode]int)
 	for i := 0; i < history.Size(); i++ {
-		_, httpBackendResponse := history.Get(i)
+		_, _, httpBackendResponse := history.Get(i)
 		statusCodes[httpBackendResponse.StatusCode()]++
 	}
 

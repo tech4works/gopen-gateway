@@ -23,6 +23,7 @@ type BootLog interface {
 	PrintWarn(msg ...any)
 	PrintWarnf(format string, msg ...any)
 	PrintError(msg ...any)
+	SkipLine()
 }
 
 type HandlerFunc func(ctx Context)

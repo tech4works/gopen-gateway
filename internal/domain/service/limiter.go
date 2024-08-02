@@ -61,6 +61,10 @@ func (s *limiterService) AllowSize(request *vo.HTTPRequest, limiter vo.Limiter) 
 		maxBodySize = limiter.MaxMultipartMemorySize()
 	}
 
+	if !request.HasBody() {
+		return nil
+	}
+
 	bodyBuffer := request.Body().Buffer()
 	readCloser := http.MaxBytesReader(nil, io.NopCloser(bodyBuffer), int64(maxBodySize))
 

@@ -24,16 +24,12 @@ import (
 )
 
 type bootLog struct {
-	options logger.Options
+	tag string
 }
 
 func NewBoot() app.BootLog {
 	return bootLog{
-		options: logger.Options{
-			HideArgDatetime:       true,
-			HideArgCaller:         true,
-			CustomAfterPrefixText: fmt.Sprintf("[%s%s%s]", logger.StyleBold, "BOOT", logger.StyleReset),
-		},
+		tag: "APP",
 	}
 }
 
@@ -59,21 +55,25 @@ func (l bootLog) PrintTitle(title string) {
 }
 
 func (l bootLog) PrintInfo(msg ...any) {
-	logger.InfoOpts(l.options, msg...)
+	Print(InfoLevel, l.tag, "", msg...)
 }
 
 func (l bootLog) PrintInfof(format string, msg ...any) {
-	logger.InfoOptsf(format, l.options, msg...)
+	Printf(InfoLevel, l.tag, "", format, msg...)
 }
 
 func (l bootLog) PrintWarn(msg ...any) {
-	logger.WarnOpts(l.options, msg...)
+	Print(WarnLevel, l.tag, "", msg...)
 }
 
 func (l bootLog) PrintWarnf(format string, msg ...any) {
-	logger.WarnOptsf(format, l.options, msg...)
+	Printf(WarnLevel, l.tag, "", format, msg...)
 }
 
 func (l bootLog) PrintError(msg ...any) {
-	logger.ErrorOpts(l.options, msg...)
+	Print(ErrorLevel, l.tag, "", msg...)
+}
+
+func (l bootLog) SkipLine() {
+	fmt.Println()
 }

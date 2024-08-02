@@ -78,7 +78,7 @@ func buildSpan(gin *gin.Context, request *vo.HTTPRequest) opentracing.Span {
 	span.SetTag("request.query", request.Query().String())
 	if helper.IsNotNil(request.Body()) {
 		s, _ := request.Body().String()
-		span.SetTag("request.body", helper.SimpleCompactString(s))
+		span.SetTag("request.body", helper.CompactString(s))
 	} else {
 		span.SetTag("request.body", "")
 	}
@@ -92,7 +92,7 @@ func buildHTTPRequest(gin *gin.Context) *vo.HTTPRequest {
 
 	query := vo.NewQuery(gin.Request.URL.Query())
 	url := gin.Request.URL.Path
-	if helper.IsNotEmpty(query) {
+	if !query.IsEmpty() {
 		url = fmt.Sprint(url, "?", query.Encode())
 	}
 
@@ -282,7 +282,7 @@ func (c *Context) transformToWritten(response *vo.HTTPResponse) {
 	span.SetTag("response.header", header.String())
 	if helper.IsNotNil(body) {
 		s, _ := body.String()
-		span.SetTag("response.body", helper.SimpleCompactString(s))
+		span.SetTag("response.body", helper.CompactString(s))
 	} else {
 		span.SetTag("response.body", "")
 	}

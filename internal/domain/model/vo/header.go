@@ -56,7 +56,7 @@ func (h *Header) Http() http.Header {
 }
 
 func (h *Header) String() string {
-	return helper.SimpleCompactString(h.values)
+	return helper.CompactString(h.values)
 }
 
 func (h *Header) GetAll(key string) []string {

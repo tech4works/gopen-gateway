@@ -63,7 +63,7 @@ func (a aggregatorService) AggregateBodiesIntoSlice(history *vo.History) (*vo.Bo
 
 	var errs []error
 	for i := 0; i < history.Size(); i++ {
-		_, httpBackendResponse := history.Get(i)
+		_, _, httpBackendResponse := history.Get(i)
 
 		newJsonStr := a.buildBodyDefaultForSlice(httpBackendResponse)
 
@@ -95,7 +95,7 @@ func (a aggregatorService) AggregateBodies(history *vo.History) (*vo.Body, []err
 
 	var errs []error
 	for i := 0; i < history.Size(); i++ {
-		_, httpBackendResponse := history.Get(i)
+		_, _, httpBackendResponse := history.Get(i)
 		if !httpBackendResponse.HasBody() {
 			continue
 		}

@@ -116,11 +116,10 @@ func New(
 }
 
 func (h http) ListenAndServe() {
-	h.log.PrintInfo("Starting lister and server...")
+	h.log.PrintInfo("Configuring routes...")
 
 	h.buildStaticRoutes()
 
-	h.log.PrintInfo("Starting to read endpoints to register routes...")
 	for _, endpoint := range h.gopen.Endpoints() {
 		handles := h.buildEndpointHandles()
 		h.router.Handle(h.gopen, &endpoint, handles...)
@@ -137,8 +136,8 @@ func (h http) ListenAndServe() {
 		Handler: h.router.Engine(),
 	}
 
-	fmt.Println()
-	fmt.Println()
+	h.log.SkipLine()
+	h.log.SkipLine()
 	h.log.PrintTitle("LISTEN AND SERVER")
 
 	h.Server.ListenAndServe()
@@ -152,7 +151,6 @@ func (h http) Shutdown(ctx context.Context) error {
 }
 
 func (h http) buildStaticRoutes() {
-	h.log.PrintInfo("Configuring static routes...")
 	formatLog := "Registered route with 5 handles: %s --> \"%s\""
 
 	pingEndpoint := h.buildStaticPingRoute()
