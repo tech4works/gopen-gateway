@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/go-logger/logger"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/todo/interfaces/log"
+	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
+	"github.com/tech4works/gopen-gateway/internal/domain/todo/interfaces/log"
 )
 
 type backendConsole struct {

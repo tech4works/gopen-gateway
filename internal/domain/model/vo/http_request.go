@@ -20,8 +20,8 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/GabrielHCataldo/go-helper/helper"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/mapper"
 	"github.com/gin-gonic/gin"
+	"github.com/tech4works/gopen-gateway/internal/domain/mapper"
 	"io"
 )
 

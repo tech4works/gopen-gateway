@@ -2,8 +2,8 @@ package service
 
 import (
 	"github.com/GabrielHCataldo/go-helper/helper"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/mapper"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
+	"github.com/tech4works/gopen-gateway/internal/domain/mapper"
+	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
 	timerate "golang.org/x/time/rate"
 	"io"
 	"net/http"

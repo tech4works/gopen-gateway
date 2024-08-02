@@ -1,8 +1,8 @@
 package log
 
 import (
-	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/todo/interfaces/log"
+	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
+	"github.com/tech4works/gopen-gateway/internal/domain/todo/interfaces/log"
 )
 
 type provider struct {

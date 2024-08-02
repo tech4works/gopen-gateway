@@ -1,20 +1,20 @@
 <img src="assets/logo.png" alt="">
 
-[![Project status](https://img.shields.io/badge/version-v1.0.0-orange.svg)](https://github.com/GabrielHCataldo/gopen-gateway/releases/tag/v1.0.0)
-[![Playground](https://img.shields.io/badge/%F0%9F%8F%90-playground-9900cc.svg)](https://github.com/GabrielHCataldo/gopen-gateway)
+[![Project status](https://img.shields.io/badge/version-v1.0.0-orange.svg)](https://github.com/tech4works/gopen-gateway/releases/tag/v1.0.0)
+[![Playground](https://img.shields.io/badge/%F0%9F%8F%90-playground-9900cc.svg)](https://github.com/tech4works/gopen-gateway)
 [![Docker](https://badgen.net/badge/icon/docker?icon=docker&label)](https://hub.docker.com/r/gabrielhcataldo/gopen-gateway)
 [![Open Source Helpers](https://www.codetriage.com/gabrielhcataldo/gopen-gateway/badges/users.svg)](https://www.codetriage.com/gabrielhcataldo/gopen-gateway)
-[![TODOs](https://img.shields.io/badge/TODOs-13-red.svg?style=flat)](https://github.com/GabrielHCataldo/gopen-gateway)
-[![Go Report Card](https://goreportcard.com/badge/github.com/GabrielHCataldo/gopen-gateway)](https://goreportcard.com/report/github.com/GabrielHCataldo/gopen-gateway)
-[![GoDoc](https://godoc.org/github/GabrielHCataldo/gopen-gateway?status.svg)](https://pkg.go.dev/github.com/GabrielHCataldo/gopen-gateway/helper)
-[![GitHub go.mod Go version of a Go module](https://img.shields.io/github/go-mod/go-version/GabrielHCataldo/gopen-gateway)](https://github.com/GabrielHCataldo/gopen-gateway/blob/main/go.mod)
+[![TODOs](https://img.shields.io/badge/TODOs-13-red.svg?style=flat)](https://github.com/tech4works/gopen-gateway)
+[![Go Report Card](https://goreportcard.com/badge/github.com/tech4works/gopen-gateway)](https://goreportcard.com/report/github.com/tech4works/gopen-gateway)
+[![GoDoc](https://godoc.org/github/GabrielHCataldo/gopen-gateway?status.svg)](https://pkg.go.dev/github.com/tech4works/gopen-gateway/helper)
+[![GitHub go.mod Go version of a Go module](https://img.shields.io/github/go-mod/go-version/GabrielHCataldo/gopen-gateway)](https://github.com/tech4works/gopen-gateway/blob/main/go.mod)
 [![HitCount](https://hits.dwyl.com/GabrielHCataldo/gopen-gateway.svg)](http://hits.dwyl.com/GabrielHCataldo/gopen-gateway)
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FGabrielHCataldo%2Fgopen-gateway.svg?type=small)](https://app.fossa.com/projects/git%2Bgithub.com%2FGabrielHCataldo%2Fgopen-gateway?ref=badge_small)
 
 ![United States](https://raw.githubusercontent.com/stevenrskelton/flag-icon/master/png/16/country-4x3/us.png)
-[Inglês](https://github.com/GabrielHCataldo/gopen-gateway/blob/main/README.md) |
+[Inglês](https://github.com/tech4works/gopen-gateway/blob/main/README.md) |
 ![Spain](https://raw.githubusercontent.com/stevenrskelton/flag-icon/master/png/16/country-4x3/es.png)
-[Espanhol](https://github.com/GabrielHCataldo/gopen-gateway/blob/main/README.es.md)
+[Espanhol](https://github.com/tech4works/gopen-gateway/blob/main/README.es.md)
 
 O projeto GOPEN foi criado no intuito de ajudar os desenvolvedores a terem uma API Gateway robusta e de fácil manuseio,
 com a oportunidade de atuar em melhorias agregando a comunidade, e o mais importante, sem gastar nada. Foi
@@ -535,7 +535,7 @@ do id do body de resposta do próprio backend, podendo ser utilizado nos outros 
 Para saber mais sobre os `modifiers` [veja](#backendmodifiers).
 
 Para entender melhor essa ferramenta poderosa, na prática, veja os exemplos de middlewares usados como `beforewares`
-e `afterwares` feitos no projeto de [playground](https://github.com/GabrielHCataldo/gopen-gateway-playground).
+e `afterwares` feitos no projeto de [playground](https://github.com/tech4works/gopen-gateway-playground).
 
 ### endpoints
 
@@ -1458,7 +1458,7 @@ valores, apenas se lembre que, os objetos header, query são mapas de lista de s
 - Configuração de modificadores de backend [clicando aqui](#backendmodifiers).
 
 - Aprenda na prática como utilizar os valores dinâmicos para modificação usando o
-  projeto [playground](https://github.com/GabrielHCataldo/gopen-gateway-playground) que já vem com alguns exemplos de
+  projeto [playground](https://github.com/tech4works/gopen-gateway-playground) que já vem com alguns exemplos de
   modificadores com valores dinâmicos.
 
 ## Observabilidade
@@ -2221,7 +2221,7 @@ Corpo
 #### 500 (Internal server error)
 
 Esse cenário é específico quando algum erro inesperado ocorreu com a API Gateway, caso isso aconteça relate
-o problema [aqui](https://github.com/GabrielHCataldo/gopen-gateway/issues) mostrando a resposta e o log impresso no
+o problema [aqui](https://github.com/tech4works/gopen-gateway/issues) mostrando a resposta e o log impresso no
 terminal de execução.
 
 Cabeçalho
@@ -2304,7 +2304,7 @@ Corpo
 
 # Usabilidade
 
-Use o projeto [playground](https://github.com/GabrielHCataldo/gopen-gateway-playground) para começar a explorar e
+Use o projeto [playground](https://github.com/tech4works/gopen-gateway-playground) para começar a explorar e
 utilizar na prática o GOPEN API Gateway!
 
 # Como contríbuir?
@@ -2320,7 +2320,7 @@ versão 1.22 ou superior na sua máquina.
 Com o Go instalado na sua máquina, faça o pull do projeto
 
 ```text
-git pull https://github.com/GabrielHCataldo/gopen-gateway.git
+git pull https://github.com/tech4works/gopen-gateway.git
 ```
 
 Depois abra o mesmo usando o próprio terminal com a IDE de sua preferência

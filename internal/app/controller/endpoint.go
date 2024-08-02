@@ -17,9 +17,9 @@
 package controller
 
 import (
-	"github.com/GabrielHCataldo/gopen-gateway/internal/app"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/app/factory"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/app/usecase"
+	"github.com/tech4works/gopen-gateway/internal/app"
+	"github.com/tech4works/gopen-gateway/internal/app/factory"
+	"github.com/tech4works/gopen-gateway/internal/app/usecase"
 )
 
 type endpointController struct {

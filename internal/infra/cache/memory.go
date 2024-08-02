@@ -20,10 +20,10 @@ import (
 	"context"
 	"github.com/GabrielHCataldo/go-errors/errors"
 	"github.com/GabrielHCataldo/go-helper/helper"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/domain"
-	domainmapper "github.com/GabrielHCataldo/gopen-gateway/internal/domain/mapper"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
 	"github.com/jellydator/ttlcache/v2"
+	"github.com/tech4works/gopen-gateway/internal/domain"
+	domainmapper "github.com/tech4works/gopen-gateway/internal/domain/mapper"
+	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
 )
 
 // memoryStore represents an in-memory cache store that implements the CacheStore interface.

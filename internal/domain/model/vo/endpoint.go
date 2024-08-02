@@ -19,7 +19,7 @@ package vo
 import (
 	"fmt"
 	"github.com/GabrielHCataldo/go-helper/helper"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/enum"
+	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
 	"time"
 )
 

@@ -17,7 +17,7 @@
 package main
 
 import (
-	"github.com/GabrielHCataldo/gopen-gateway/internal/infra/boot"
+	"github.com/tech4works/gopen-gateway/internal/infra/boot"
 	"os"
 	"os/signal"
 )

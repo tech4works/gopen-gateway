@@ -22,9 +22,9 @@ import (
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/go-redis-template/redis"
 	"github.com/GabrielHCataldo/go-redis-template/redis/option"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/domain"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/mapper"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
+	"github.com/tech4works/gopen-gateway/internal/domain"
+	"github.com/tech4works/gopen-gateway/internal/domain/mapper"
+	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
 )
 
 // redisStore represents a Redis cache store that implements the CacheStore interface.

@@ -19,7 +19,7 @@ package middleware
 import (
 	"github.com/GabrielHCataldo/go-errors/errors"
 	"github.com/GabrielHCataldo/go-helper/helper"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/app"
+	"github.com/tech4works/gopen-gateway/internal/app"
 	"net/http"
 )
 

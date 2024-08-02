@@ -18,8 +18,8 @@ package middleware
 
 import (
 	"github.com/GabrielHCataldo/go-helper/helper"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/app"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/service"
+	"github.com/tech4works/gopen-gateway/internal/app"
+	"github.com/tech4works/gopen-gateway/internal/domain/service"
 )
 
 type cacheMiddleware struct {

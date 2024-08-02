@@ -2,9 +2,9 @@ package factory
 
 import (
 	"github.com/GabrielHCataldo/go-helper/helper"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/enum"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/service"
+	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
+	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
+	"github.com/tech4works/gopen-gateway/internal/domain/service"
 )
 
 type httpBackendFactory struct {

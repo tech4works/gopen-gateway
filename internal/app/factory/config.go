@@ -3,8 +3,8 @@ package factory
 import (
 	"fmt"
 	"github.com/GabrielHCataldo/go-helper/helper"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/app/model/dto"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
+	"github.com/tech4works/gopen-gateway/internal/app/model/dto"
+	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
 	"strings"
 )
 

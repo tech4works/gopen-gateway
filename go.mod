@@ -1,4 +1,4 @@
-module github.com/GabrielHCataldo/gopen-gateway
+module github.com/tech4works/gopen-gateway
 
 go 1.22
 

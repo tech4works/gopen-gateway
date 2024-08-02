@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/GabrielHCataldo/go-helper/helper"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/domain"
 	xj "github.com/basgys/goxml2json"
 	"github.com/clbanning/mxj/v2"
+	"github.com/tech4works/gopen-gateway/internal/domain"
 )
 
 type provider struct {

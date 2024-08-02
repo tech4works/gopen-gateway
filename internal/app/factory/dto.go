@@ -1,8 +1,8 @@
 package factory
 
 import (
-	"github.com/GabrielHCataldo/gopen-gateway/internal/app"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/app/model/dto"
+	"github.com/tech4works/gopen-gateway/internal/app"
+	"github.com/tech4works/gopen-gateway/internal/app/model/dto"
 )
 
 func BuildExecuteEndpoint(ctx app.Context) dto.ExecuteEndpoint {

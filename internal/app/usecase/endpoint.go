@@ -3,10 +3,10 @@ package usecase
 import (
 	"context"
 	"github.com/GabrielHCataldo/go-helper/helper"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/app"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/app/model/dto"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/factory"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/model/vo"
+	"github.com/tech4works/gopen-gateway/internal/app"
+	"github.com/tech4works/gopen-gateway/internal/app/model/dto"
+	"github.com/tech4works/gopen-gateway/internal/domain/factory"
+	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
 )
 
 type endpointUseCase struct {

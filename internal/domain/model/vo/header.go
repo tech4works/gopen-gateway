@@ -18,7 +18,7 @@ package vo
 
 import (
 	"github.com/GabrielHCataldo/go-helper/helper"
-	"github.com/GabrielHCataldo/gopen-gateway/internal/domain/mapper"
+	"github.com/tech4works/gopen-gateway/internal/domain/mapper"
 	"net/http"
 	"strings"
 )
