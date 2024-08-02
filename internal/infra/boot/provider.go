@@ -97,6 +97,7 @@ func (p provider) Start(env string) {
 	p.log.PrintInfo("Building log providers...")
 	endpointLog := log.NewEndpoint()
 	backendLog := log.NewBackend()
+	httpLog := log.NewHTTPLog()
 
 	p.log.PrintInfo("Building server...")
 	router := api.NewRouter()
@@ -104,7 +105,7 @@ func (p provider) Start(env string) {
 	jsonPath := jsonpath.New()
 	nConverter := converter.New()
 
-	httpServer := server.New(gopen, p.log, router, httpClient, endpointLog, backendLog, jsonPath, nConverter, store)
+	httpServer := server.New(gopen, p.log, router, httpClient, endpointLog, backendLog, httpLog, jsonPath, nConverter, store)
 
 	if gopen.HotReload {
 		p.log.PrintInfo("Configuring watcher...")

@@ -39,6 +39,7 @@ type http struct {
 	log                     app.BootLog
 	router                  app.Router
 	panicRecoveryMiddleware middleware.PanicRecovery
+	logMiddleware           middleware.Log
 	securityCorsMiddleware  middleware.SecurityCors
 	timeoutMiddleware       middleware.Timeout
 	limiterMiddleware       middleware.Limiter
@@ -59,6 +60,7 @@ func New(
 	httpClient app.HTTPClient,
 	endpointLog app.EndpointLog,
 	backendLog app.BackendLog,
+	httpLog app.HTTPLog,
 	jsonPath domain.JSONPath,
 	converter domain.Converter,
 	store domain.Store,
@@ -87,6 +89,7 @@ func New(
 
 	log.PrintInfo("Building middlewares...")
 	panicRecoveryMiddleware := middleware.NewPanicRecovery(endpointLog)
+	logMiddleware := middleware.NewLog(httpLog)
 	securityCorsMiddleware := middleware.NewSecurityCors(securityCorsService)
 	timeoutMiddleware := middleware.NewTimeout()
 	limiterMiddleware := middleware.NewLimiter(limiterService)
@@ -102,6 +105,7 @@ func New(
 		log:                     log,
 		router:                  router,
 		panicRecoveryMiddleware: panicRecoveryMiddleware,
+		logMiddleware:           logMiddleware,
 		timeoutMiddleware:       timeoutMiddleware,
 		limiterMiddleware:       limiterMiddleware,
 		cacheMiddleware:         cacheMiddleware,
@@ -182,13 +186,15 @@ func (h http) buildStaticSettingsRoute() *vo.Endpoint {
 func (h http) buildStaticRoute(endpointStatic *vo.Endpoint, handler app.HandlerFunc) {
 	timeoutHandler := h.timeoutMiddleware.Do
 	panicHandler := h.panicRecoveryMiddleware.Do
+	logHandler := h.logMiddleware.Do
 	limiterHandler := h.limiterMiddleware.Do
-	h.router.Handle(h.gopen, endpointStatic, timeoutHandler, panicHandler, limiterHandler, handler)
+	h.router.Handle(h.gopen, endpointStatic, timeoutHandler, panicHandler, logHandler, limiterHandler, handler)
 }
 
 func (h http) buildEndpointHandles() []app.HandlerFunc {
 	timeoutHandler := h.timeoutMiddleware.Do
 	panicHandler := h.panicRecoveryMiddleware.Do
+	logHandler := h.logMiddleware.Do
 	securityCorsHandler := h.securityCorsMiddleware.Do
 	limiterHandler := h.limiterMiddleware.Do
 	cacheHandler := h.cacheMiddleware.Do
@@ -196,6 +202,7 @@ func (h http) buildEndpointHandles() []app.HandlerFunc {
 	return []app.HandlerFunc{
 		timeoutHandler,
 		panicHandler,
+		logHandler,
 		securityCorsHandler,
 		limiterHandler,
 		cacheHandler,
