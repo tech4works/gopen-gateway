@@ -40,7 +40,7 @@ func (b backendLog) PrintError(executeData dto.ExecuteEndpoint, backend *vo.Back
 }
 
 func (b backendLog) buildLoggerOptions(executeData dto.ExecuteEndpoint, backend *vo.Backend) logger.Options {
-	tag := fmt.Sprint(logger.StyleBold, "BACKEND", logger.StyleReset)
+	tag := fmt.Sprint(logger.StyleBold, backend.Type(), logger.StyleReset)
 	path := backend.Path()
 	traceID := BuildTraceIDText(executeData.TraceID)
 	ip := executeData.ClientIP

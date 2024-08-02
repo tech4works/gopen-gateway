@@ -35,56 +35,16 @@ func NewEndpoint(backendFactory factory.HTTPBackend, responseFactory factory.HTT
 func (e endpointUseCase) Execute(ctx context.Context, executeData dto.ExecuteEndpoint) *vo.HTTPResponse {
 	history := vo.NewEmptyHistory()
 
-	abort := e.processMiddlewares(ctx, executeData, executeData.Endpoint.Beforewares(), history)
-	if abort {
-		return e.buildAbortedHTTPResponse(executeData, history)
-	}
+	for _, backend := range executeData.Endpoint.Backends() {
+		httpBackendResponse := e.makeBackendRequest(ctx, executeData, &backend, history)
 
-	abort = e.processBackends(ctx, executeData, history)
-	if abort {
-		return e.buildAbortedHTTPResponse(executeData, history)
-	}
-
-	abort = e.processMiddlewares(ctx, executeData, executeData.Endpoint.Afterwares(), history)
-	if abort {
-		return e.buildAbortedHTTPResponse(executeData, history)
+		history = history.Add(&backend, httpBackendResponse)
+		if e.checkAbortBackendResponse(executeData.Endpoint, httpBackendResponse) {
+			return e.buildAbortedHTTPResponse(executeData, history)
+		}
 	}
 
 	return e.buildHTTPResponse(executeData, history)
-}
-
-func (e endpointUseCase) processMiddlewares(ctx context.Context, executeData dto.ExecuteEndpoint, middlewareKeys []string,
-	history *vo.History) bool {
-
-	for _, middlewareKey := range middlewareKeys {
-		middleware, ok := executeData.Gopen.Middleware(middlewareKey)
-		if !ok {
-			e.endpointLog.PrintWarnf(executeData.Endpoint, executeData.TraceID, executeData.ClientIP,
-				"Middleware \"%s\" not configured on middlewares field!", middlewareKey)
-			continue
-		}
-
-		httpBackendResponse := e.makeBackendRequest(ctx, executeData, middleware, history)
-
-		history = history.Add(middleware, httpBackendResponse)
-		if e.checkAbortBackendResponse(executeData.Endpoint, httpBackendResponse) {
-			return true
-		}
-	}
-
-	return false
-}
-
-func (e endpointUseCase) processBackends(ctx context.Context, executeData dto.ExecuteEndpoint, history *vo.History) bool {
-	for _, backendElem := range executeData.Endpoint.Backends() {
-		httpBackendResponse := e.makeBackendRequest(ctx, executeData, &backendElem, history)
-
-		history = history.Add(&backendElem, httpBackendResponse)
-		if e.checkAbortBackendResponse(executeData.Endpoint, httpBackendResponse) {
-			return true
-		}
-	}
-	return false
 }
 
 func (e endpointUseCase) makeBackendRequest(ctx context.Context, executeData dto.ExecuteEndpoint, backend *vo.Backend,

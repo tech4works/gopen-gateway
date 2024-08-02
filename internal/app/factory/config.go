@@ -2,8 +2,10 @@ package factory
 
 import (
 	"fmt"
+	"github.com/GabrielHCataldo/go-errors/errors"
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/tech4works/gopen-gateway/internal/app/model/dto"
+	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
 	"strings"
 )
@@ -12,7 +14,6 @@ func BuildGopen(gopen *dto.Gopen) *vo.Gopen {
 	return vo.NewGopen(
 		gopen.Port,
 		buildSecurityCors(gopen.SecurityCors),
-		buildMiddlewares(gopen.Middlewares),
 		buildEndpoints(gopen),
 	)
 }
@@ -22,14 +23,6 @@ func buildSecurityCors(securityCors *dto.SecurityCors) *vo.SecurityCors {
 		return nil
 	}
 	return vo.NewSecurityCors(securityCors.AllowOrigins, securityCors.AllowMethods, securityCors.AllowHeaders)
-}
-
-func buildMiddlewares(middlewares map[string]dto.Backend) vo.Middlewares {
-	var mapp map[string]vo.Backend
-	for k, v := range middlewares {
-		mapp[k] = buildMiddlewareBackend(v)
-	}
-	return vo.NewMiddlewares(mapp)
 }
 
 func buildEndpoints(gopen *dto.Gopen) []vo.Endpoint {
@@ -67,9 +60,7 @@ func buildEndpoint(gopen *dto.Gopen, endpoint dto.Endpoint) vo.Endpoint {
 		buildCache(gopen.Cache, endpoint.Cache),
 		endpoint.AbortIfStatusCodes,
 		buildEndpointResponse(endpoint.Response),
-		endpoint.Beforewares,
-		endpoint.Afterwares,
-		buildBackends(endpoint.Backends),
+		buildBackends(gopen.Middlewares, endpoint),
 	)
 }
 
@@ -195,76 +186,140 @@ func buildEndpointResponse(endpointResponse *dto.EndpointResponse) *vo.EndpointR
 	)
 }
 
-func buildBackends(backends []dto.Backend) []vo.Backend {
+func buildBackends(middlewares map[string]dto.Backend, endpoint dto.Endpoint) []vo.Backend {
+	var result []vo.Backend
+
+	propagateHeaderModifiers := helper.ConvertToPointer([]vo.Modifier{})
+	propagateParamModifiers := helper.ConvertToPointer([]vo.Modifier{})
+	propagateQueryModifiers := helper.ConvertToPointer([]vo.Modifier{})
+	propagateBodyModifiers := helper.ConvertToPointer([]vo.Modifier{})
+
+	result = append(result, buildMiddlewareBackend(endpoint.Beforewares, middlewares, enum.BackendTypeBeforeware,
+		propagateHeaderModifiers, propagateParamModifiers, propagateBodyModifiers, propagateQueryModifiers)...)
+
+	result = append(result, buildNormalBackend(endpoint.Backends, propagateHeaderModifiers, propagateParamModifiers,
+		propagateBodyModifiers, propagateQueryModifiers)...)
+
+	result = append(result, buildMiddlewareBackend(endpoint.Afterwares, middlewares, enum.BackendTypeAfterware,
+		propagateHeaderModifiers, propagateParamModifiers, propagateBodyModifiers, propagateQueryModifiers)...)
+
+	return result
+}
+
+func buildNormalBackend(backends []dto.Backend, propagateHeaderModifiers, propagateParamModifiers,
+	propagateBodyModifiers, propagateQueryModifiers *[]vo.Modifier) []vo.Backend {
 	var result []vo.Backend
 	for _, backend := range backends {
-		result = append(result, buildBackend(backend))
+		result = append(result, buildBackend(backend, enum.BackendTypeNormal, propagateHeaderModifiers,
+			propagateParamModifiers, propagateBodyModifiers, propagateQueryModifiers))
 	}
 	return result
 }
 
-func buildBackend(backend dto.Backend) vo.Backend {
+func buildMiddlewareBackend(middlewareKeys []string, middlewares map[string]dto.Backend, backendType enum.BackendType,
+	propagateHeaderModifiers, propagateParamModifiers, propagateBodyModifiers, propagateQueryModifiers *[]vo.Modifier,
+) []vo.Backend {
+	var result []vo.Backend
+	for _, middlewareKey := range middlewareKeys {
+		middleware, ok := middlewares[middlewareKey]
+		if !ok {
+			panic(errors.Newf("Middleware \"%s\" not configured on middlewares field!", middlewareKey))
+		}
+		result = append(result, buildBackend(middleware, backendType, propagateHeaderModifiers, propagateParamModifiers,
+			propagateBodyModifiers, propagateQueryModifiers))
+	}
+	return result
+}
+
+func buildBackend(
+	backend dto.Backend,
+	backendType enum.BackendType,
+	propagateHeaderModifiers,
+	propagateParamModifiers,
+	propagateQueryModifiers,
+	propagateBodyModifiers *[]vo.Modifier,
+) vo.Backend {
 	return vo.NewBackend(
+		backendType,
 		backend.Hosts,
 		backend.Path,
 		backend.Method,
-		buildBackendRequest(backend.Request),
-		buildBackendResponse(backend.Response),
+		buildBackendRequest(backend, propagateHeaderModifiers, propagateParamModifiers, propagateQueryModifiers, propagateBodyModifiers),
+		buildBackendResponse(backend, backendType),
 	)
 }
 
-func buildMiddlewareBackend(backend dto.Backend) vo.Backend {
-	return vo.NewBackend(
-		backend.Hosts,
-		backend.Path,
-		backend.Method,
-		buildBackendRequest(backend.Request),
-		vo.NewBackendResponseForMiddleware(),
-	)
-}
+func buildBackendRequest(
+	backend dto.Backend,
+	propagateHeaderModifiers,
+	propagateParamModifiers,
+	propagateQueryModifiers,
+	propagateBodyModifiers *[]vo.Modifier,
+) *vo.BackendRequest {
+	if helper.IsNotNil(backend.Request) {
+		buildAndPropagateModifiers(backend.Request.HeaderModifiers, propagateHeaderModifiers)
+		buildAndPropagateModifiers(backend.Request.ParamModifiers, propagateParamModifiers)
+		buildAndPropagateModifiers(backend.Request.QueryModifiers, propagateQueryModifiers)
+		buildAndPropagateModifiers(backend.Request.BodyModifiers, propagateBodyModifiers)
 
-func buildBackendRequest(backendRequest *dto.BackendRequest) *vo.BackendRequest {
-	if helper.IsNil(backendRequest) {
+		return vo.NewBackendRequest(
+			backend.Request.OmitHeader,
+			backend.Request.OmitQuery,
+			backend.Request.OmitBody,
+			backend.Request.ContentType,
+			backend.Request.ContentEncoding,
+			backend.Request.Nomenclature,
+			backend.Request.OmitEmpty,
+			backend.Request.HeaderMapper,
+			backend.Request.QueryMapper,
+			backend.Request.BodyMapper,
+			backend.Request.HeaderProjection,
+			backend.Request.QueryProjection,
+			backend.Request.BodyProjection,
+			*propagateHeaderModifiers,
+			*propagateParamModifiers,
+			*propagateQueryModifiers,
+			*propagateBodyModifiers,
+		)
+	} else if helper.IsNotEmpty(propagateHeaderModifiers) || helper.IsNotEmpty(propagateParamModifiers) ||
+		helper.IsNotEmpty(propagateQueryModifiers) || helper.IsNotEmpty(propagateBodyModifiers) {
+		return vo.NewBackendRequestOnlyModifiers(
+			*propagateHeaderModifiers,
+			*propagateParamModifiers,
+			*propagateQueryModifiers,
+			*propagateBodyModifiers,
+		)
+	} else {
 		return nil
 	}
-
-	return vo.NewBackendRequest(
-		backendRequest.OmitHeader,
-		backendRequest.OmitQuery,
-		backendRequest.OmitBody,
-		backendRequest.ContentType,
-		backendRequest.ContentEncoding,
-		backendRequest.Nomenclature,
-		backendRequest.OmitEmpty,
-		backendRequest.HeaderMapper,
-		backendRequest.QueryMapper,
-		backendRequest.BodyMapper,
-		backendRequest.HeaderProjection,
-		backendRequest.QueryProjection,
-		backendRequest.BodyProjection,
-		buildModifiers(backendRequest.HeaderModifiers),
-		buildModifiers(backendRequest.ParamModifiers),
-		buildModifiers(backendRequest.QueryModifiers),
-		buildModifiers(backendRequest.BodyModifiers),
-	)
 }
 
-func buildBackendResponse(backendResponse *dto.BackendResponse) *vo.BackendResponse {
-	if helper.IsNil(backendResponse) {
-		return nil
+func buildAndPropagateModifiers(modifiers []dto.Modifier, propagateModifiers *[]vo.Modifier) {
+	newModifiers := buildModifiers(modifiers)
+	*propagateModifiers = append(*propagateModifiers, newModifiers...)
+	for _, newModifier := range newModifiers {
+		if newModifier.Propagate() {
+			*propagateModifiers = append(*propagateModifiers, newModifier)
+		}
+	}
+}
+
+func buildBackendResponse(backend dto.Backend, backendType enum.BackendType) *vo.BackendResponse {
+	if helper.Equals(backendType, enum.BackendTypeBeforeware) || helper.Equals(backendType, enum.BackendTypeAfterware) {
+		return vo.NewBackendResponseForMiddleware()
 	}
 
 	return vo.NewBackendResponse(
-		backendResponse.Omit,
-		backendResponse.OmitHeader,
-		backendResponse.OmitBody,
-		backendResponse.Group,
-		backendResponse.HeaderMapper,
-		backendResponse.BodyMapper,
-		backendResponse.HeaderProjection,
-		backendResponse.BodyProjection,
-		buildModifiers(backendResponse.HeaderModifiers),
-		buildModifiers(backendResponse.BodyModifiers),
+		backend.Response.Omit,
+		backend.Response.OmitHeader,
+		backend.Response.OmitBody,
+		backend.Response.Group,
+		backend.Response.HeaderMapper,
+		backend.Response.BodyMapper,
+		backend.Response.HeaderProjection,
+		backend.Response.BodyProjection,
+		buildModifiers(backend.Response.HeaderModifiers),
+		buildModifiers(backend.Response.BodyModifiers),
 	)
 }
 

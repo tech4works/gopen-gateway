@@ -123,8 +123,8 @@ func (f httpBackendFactory) buildRequestURLPath(backend *vo.Backend, request *vo
 	return f.modifyURLPath(backend, urlPath, request, history)
 }
 
-func (f httpBackendFactory) buildRequestHeader(backend *vo.Backend, body *vo.Body, request *vo.HTTPRequest, history *vo.History) (
-	vo.Header, []error) {
+func (f httpBackendFactory) buildRequestHeader(backend *vo.Backend, body *vo.Body, request *vo.HTTPRequest,
+	history *vo.History) (vo.Header, []error) {
 	header := vo.NewHeaderByBody(body)
 	if !backend.HasRequest() || backend.Request().OmitHeader() {
 		return header, nil
@@ -175,8 +175,8 @@ func (f httpBackendFactory) buildResponseBody(backend *vo.Backend, temporaryResp
 	return body, allErrors
 }
 
-func (f httpBackendFactory) buildResponseHeader(backend *vo.Backend, temporaryResponse *vo.HTTPBackendResponse, body *vo.Body,
-	request *vo.HTTPRequest, history *vo.History) (vo.Header, []error) {
+func (f httpBackendFactory) buildResponseHeader(backend *vo.Backend, temporaryResponse *vo.HTTPBackendResponse,
+	body *vo.Body, request *vo.HTTPRequest, history *vo.History) (vo.Header, []error) {
 	header := vo.NewHeaderByBody(body)
 
 	if backend.Response().OmitHeader() {
@@ -298,8 +298,8 @@ func (f httpBackendFactory) modifyHeader(modifiers []vo.Modifier, header vo.Head
 	return header, errs
 }
 
-func (f httpBackendFactory) modifyQuery(backend *vo.Backend, query vo.Query, request *vo.HTTPRequest,
-	history *vo.History) (vo.Query, []error) {
+func (f httpBackendFactory) modifyQuery(backend *vo.Backend, query vo.Query, request *vo.HTTPRequest, history *vo.History,
+) (vo.Query, []error) {
 	var errs []error
 
 	for _, queryModifier := range backend.Request().QueryModifiers() {

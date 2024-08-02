@@ -295,7 +295,7 @@ func (s modifierService) addBody(body *vo.Body, key, value string) (*vo.Body, er
 	} else if body.ContentType().IsJSON() {
 		return s.addBodyJson(body, key, value)
 	}
-	return body, mapper.NewErrIncompatibleBodyType(body.ContentType())
+	return body, mapper.NewErrIncompatibleBodyType(body.ContentType().String())
 }
 
 func (s modifierService) addBodyText(body *vo.Body, value string) (*vo.Body, error) {
@@ -338,7 +338,7 @@ func (s modifierService) appendBody(body *vo.Body, key, value string) (*vo.Body,
 	} else if body.ContentType().IsJSON() {
 		return s.appendBodyJson(body, key, value)
 	}
-	return body, mapper.NewErrIncompatibleBodyType(body.ContentType())
+	return body, mapper.NewErrIncompatibleBodyType(body.ContentType().String())
 }
 
 func (s modifierService) appendBodyText(body *vo.Body, value string) (*vo.Body, error) {
@@ -385,7 +385,7 @@ func (s modifierService) setBody(body *vo.Body, key, value string) (*vo.Body, er
 	} else if body.ContentType().IsJSON() {
 		return s.setBodyJson(body, key, value)
 	}
-	return body, mapper.NewErrIncompatibleBodyType(body.ContentType())
+	return body, mapper.NewErrIncompatibleBodyType(body.ContentType().String())
 }
 
 func (s modifierService) setBodyText(body *vo.Body, value string) (*vo.Body, error) {
@@ -422,7 +422,7 @@ func (s modifierService) replaceBody(body *vo.Body, key, value string) (*vo.Body
 	} else if body.ContentType().IsJSON() {
 		return s.replaceBodyJson(body, key, value)
 	}
-	return body, mapper.NewErrIncompatibleBodyType(body.ContentType())
+	return body, mapper.NewErrIncompatibleBodyType(body.ContentType().String())
 }
 
 func (s modifierService) replaceBodyText(body *vo.Body, key, value string) (*vo.Body, error) {
@@ -471,7 +471,7 @@ func (s modifierService) deleteBody(body *vo.Body, key string) (*vo.Body, error)
 	} else if body.ContentType().IsJSON() {
 		return s.deleteBodyJson(body, key)
 	}
-	return body, mapper.NewErrIncompatibleBodyType(body.ContentType())
+	return body, mapper.NewErrIncompatibleBodyType(body.ContentType().String())
 }
 
 func (s modifierService) deleteBodyText(body *vo.Body, key string) (*vo.Body, error) {

@@ -22,6 +22,7 @@ import (
 )
 
 type Backend struct {
+	kind     enum.BackendType
 	hosts    []string
 	path     string
 	method   string
@@ -63,6 +64,7 @@ type BackendResponse struct {
 }
 
 func NewBackend(
+	kind enum.BackendType,
 	hosts []string,
 	path,
 	method string,
@@ -70,6 +72,7 @@ func NewBackend(
 	response *BackendResponse,
 ) Backend {
 	return Backend{
+		kind:     kind,
 		hosts:    hosts,
 		path:     path,
 		method:   method,
@@ -115,6 +118,20 @@ func NewBackendRequest(
 		paramModifiers:   paramModifiers,
 		queryModifiers:   queryModifiers,
 		bodyModifiers:    bodyModifiers,
+	}
+}
+
+func NewBackendRequestOnlyModifiers(
+	headerModifiers,
+	paramModifiers,
+	queryModifiers,
+	bodyModifiers []Modifier,
+) *BackendRequest {
+	return &BackendRequest{
+		headerModifiers: headerModifiers,
+		paramModifiers:  paramModifiers,
+		queryModifiers:  queryModifiers,
+		bodyModifiers:   bodyModifiers,
 	}
 }
 
@@ -186,6 +203,22 @@ func (b *Backend) CountAllDataTransforms() (count int) {
 		count += b.Response().CountAllDataTransforms()
 	}
 	return count
+}
+
+func (b *Backend) IsBeforeware() bool {
+	return helper.Equals(b.kind, enum.BackendTypeBeforeware)
+}
+
+func (b *Backend) IsNormal() bool {
+	return helper.Equals(b.kind, enum.BackendTypeNormal)
+}
+
+func (b *Backend) IsAfterware() bool {
+	return helper.Equals(b.kind, enum.BackendTypeAfterware)
+}
+
+func (b *Backend) Type() string {
+	return string(b.kind)
 }
 
 func (b BackendRequest) OmitHeader() bool {

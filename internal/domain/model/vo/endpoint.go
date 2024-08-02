@@ -31,8 +31,6 @@ type Endpoint struct {
 	cache              *Cache
 	abortIfStatusCodes *[]int
 	response           *EndpointResponse
-	beforewares        []string
-	afterwares         []string
 	backends           []Backend
 }
 
@@ -52,8 +50,6 @@ func NewEndpoint(
 	cache *Cache,
 	abortIfStatusCodes *[]int,
 	response *EndpointResponse,
-	beforewares []string,
-	afterwares []string,
 	backends []Backend,
 ) Endpoint {
 	return Endpoint{
@@ -64,8 +60,6 @@ func NewEndpoint(
 		cache:              cache,
 		abortIfStatusCodes: abortIfStatusCodes,
 		response:           response,
-		beforewares:        beforewares,
-		afterwares:         afterwares,
 		backends:           backends,
 	}
 }
@@ -118,34 +112,35 @@ func (e *Endpoint) Cache() *Cache {
 	return e.cache
 }
 
-func (e *Endpoint) Beforewares() []string {
-	return e.beforewares
-}
-
-func (e *Endpoint) Afterwares() []string {
-	return e.afterwares
-}
-
 func (e *Endpoint) Backends() []Backend {
 	return e.backends
 }
 
-func (e *Endpoint) CountBeforewares() int {
-	if helper.IsNil(e.Beforewares()) {
-		return 0
+func (e *Endpoint) CountBeforewares() (count int) {
+	for _, backend := range e.backends {
+		if backend.IsBeforeware() {
+			count++
+		}
 	}
-	return len(e.Beforewares())
+	return count
 }
 
-func (e *Endpoint) CountAfterwares() int {
-	if helper.IsNil(e.Afterwares()) {
-		return 0
+func (e *Endpoint) CountAfterwares() (count int) {
+	for _, backend := range e.backends {
+		if backend.IsAfterware() {
+			count++
+		}
 	}
-	return len(e.Afterwares())
+	return count
 }
 
-func (e *Endpoint) CountBackends() int {
-	return len(e.Backends())
+func (e *Endpoint) CountBackends() (count int) {
+	for _, backend := range e.backends {
+		if backend.IsNormal() {
+			count++
+		}
+	}
+	return count
 }
 
 func (e *Endpoint) CountBackendsNonOmit() int {

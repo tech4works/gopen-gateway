@@ -23,15 +23,13 @@ import (
 type Gopen struct {
 	port         int
 	securityCors *SecurityCors
-	middlewares  Middlewares
 	endpoints    []Endpoint
 }
 
-func NewGopen(port int, securityCors *SecurityCors, middlewares Middlewares, endpoints []Endpoint) *Gopen {
+func NewGopen(port int, securityCors *SecurityCors, endpoints []Endpoint) *Gopen {
 	return &Gopen{
 		port:         port,
 		securityCors: securityCors,
-		middlewares:  middlewares,
 		endpoints:    endpoints,
 	}
 }
@@ -46,10 +44,6 @@ func (g Gopen) SecurityCors() *SecurityCors {
 
 func (g Gopen) HasSecurityCors() bool {
 	return helper.IsNotNil(g.securityCors)
-}
-
-func (g Gopen) Middleware(key string) (*Backend, bool) {
-	return g.middlewares.Get(key)
 }
 
 func (g Gopen) Endpoints() []Endpoint {

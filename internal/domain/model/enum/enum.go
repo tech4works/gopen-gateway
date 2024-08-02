@@ -22,7 +22,7 @@ type ModifierAction string
 
 type Nomenclature string
 
-type MiddlewareType string
+type BackendType string
 
 type BackendResponseApply string
 
@@ -57,8 +57,9 @@ const (
 	ProjectionValueRejection ProjectionValue = 0
 )
 const (
-	Beforewares MiddlewareType = "beforewares"
-	Afterwares  MiddlewareType = "afterwares"
+	BackendTypeNormal     BackendType = "BACKEND"
+	BackendTypeBeforeware BackendType = "BEFOREWARE"
+	BackendTypeAfterware  BackendType = "AFTERWARE"
 )
 const (
 	NomenclatureCamel          Nomenclature = "CAMEL"
