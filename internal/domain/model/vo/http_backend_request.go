@@ -52,6 +52,14 @@ func (b *HTTPBackendRequest) Path() URLPath {
 	return b.path
 }
 
+func (b *HTTPBackendRequest) FullPath() (r string) {
+	r = b.path.String()
+	if !b.Query().IsEmpty() {
+		r += "?" + b.Query().Encode()
+	}
+	return
+}
+
 func (b *HTTPBackendRequest) Url() string {
 	return fmt.Sprint(b.host, b.path.String())
 }

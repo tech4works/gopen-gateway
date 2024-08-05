@@ -27,6 +27,10 @@ func NewBytes(bytesUnit string) Bytes {
 	return Bytes(helper.SimpleConvertByteUnitStrToFloat(bytesUnit))
 }
 
+func NewBytesByInt(i int) Bytes {
+	return Bytes(i)
+}
+
 func (b *Bytes) UnmarshalJSON(v []byte) error {
 	str, err := strconv.Unquote(string(v))
 	if helper.IsNotNil(err) {

@@ -16,9 +16,10 @@ type Nomenclature interface {
 	ToCase(body *vo.Body, nomenclature enum.Nomenclature) (*vo.Body, []error)
 }
 
-func NewNomenclature(jsonPath domain.JSONPath) Nomenclature {
+func NewNomenclature(jsonPath domain.JSONPath, nomenclature domain.Nomenclature) Nomenclature {
 	return nomenclatureService{
-		jsonPath: jsonPath,
+		jsonPath:     jsonPath,
+		nomenclature: nomenclature,
 	}
 }
 

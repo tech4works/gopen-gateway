@@ -64,6 +64,7 @@ func New(
 	jsonPath domain.JSONPath,
 	converter domain.Converter,
 	store domain.Store,
+	nomenclature domain.Nomenclature,
 ) HTTP {
 	log.PrintInfo("Building domain...")
 	mapperService := service.NewMapper(jsonPath)
@@ -71,7 +72,7 @@ func New(
 	dynamicValueService := service.NewDynamicValue(jsonPath)
 	modifierService := service.NewModifier(jsonPath)
 	omitterService := service.NewOmitter(jsonPath)
-	nomenclatureService := service.NewNomenclature(jsonPath)
+	nomenclatureService := service.NewNomenclature(jsonPath, nomenclature)
 	contentService := service.NewContent(converter)
 	aggregatorService := service.NewAggregator(jsonPath)
 	limiterService := service.NewLimiter()
@@ -136,7 +137,6 @@ func (h http) ListenAndServe() {
 		Handler: h.router.Engine(),
 	}
 
-	h.log.SkipLine()
 	h.log.SkipLine()
 	h.log.PrintTitle("LISTEN AND SERVER")
 

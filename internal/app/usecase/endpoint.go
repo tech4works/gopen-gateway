@@ -52,12 +52,14 @@ func (e endpointUseCase) Execute(ctx context.Context, executeData dto.ExecuteEnd
 
 func (e endpointUseCase) makeBackendRequest(ctx context.Context, executeData dto.ExecuteEndpoint, backend *vo.Backend,
 	httpBackendRequest *vo.HTTPBackendRequest) *vo.HTTPBackendResponse {
+
+	e.backendLog.PrintRequest(executeData, backend, httpBackendRequest)
+
 	startTime := time.Now()
 	httpBackendResponse := e.httpClient.MakeRequest(ctx, executeData.Endpoint, httpBackendRequest)
 	latency := time.Since(startTime)
 
-	statusCode := httpBackendResponse.StatusCode()
-	e.backendLog.PrintInfof(executeData, backend, httpBackendRequest, "status-code: %v | latency: %s", statusCode, latency)
+	e.backendLog.PrintResponse(executeData, backend, httpBackendRequest, httpBackendResponse, latency)
 
 	return httpBackendResponse
 }
@@ -101,7 +103,7 @@ func (e endpointUseCase) buildHTTPResponse(executeData dto.ExecuteEndpoint, hist
 	httpResponse, errs := e.httpResponseFactory.BuildResponse(executeData.Endpoint, filteredHistory)
 
 	for _, err := range errs {
-		e.endpointLog.PrintWarn(executeData.Endpoint, executeData.Request, executeData.ClientIP, executeData.TraceID, err)
+		e.printEndpointWarn(executeData, err)
 	}
 
 	return httpResponse
@@ -115,11 +117,11 @@ func (e endpointUseCase) filterHistory(executeData dto.ExecuteEndpoint, history 
 	for i := 0; i < history.Size(); i++ {
 		backend, httpBackendRequest, httpBackendTemporaryResponse := history.Get(i)
 
-		httpBackendResponse := e.buildHTTPBackendResponse(executeData, backend, httpBackendRequest,
-			httpBackendTemporaryResponse, history)
+		httpBackendResponse := e.buildHTTPBackendResponse(executeData, backend, httpBackendRequest, httpBackendTemporaryResponse, history)
 
 		if helper.IsNotNil(httpBackendResponse) {
 			backends = append(backends, backend)
+			requests = append(requests, httpBackendRequest)
 			responses = append(responses, httpBackendResponse)
 		}
 	}
@@ -127,6 +129,6 @@ func (e endpointUseCase) filterHistory(executeData dto.ExecuteEndpoint, history 
 	return vo.NewHistory(backends, requests, responses)
 }
 
-func (e endpointUseCase) printWar() {
-
+func (e endpointUseCase) printEndpointWarn(executeData dto.ExecuteEndpoint, err error) {
+	e.endpointLog.PrintWarn(executeData.Endpoint, executeData.Request, executeData.ClientIP, executeData.TraceID, err)
 }

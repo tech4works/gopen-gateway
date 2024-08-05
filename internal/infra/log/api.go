@@ -13,18 +13,15 @@ func NewHTTPLog() app.HTTPLog {
 }
 
 func (a httpLog) PrintRequest(ctx app.Context) {
-	headerSize := ctx.Request().Header().Size()
-	params := ctx.Request().Params().Len()
-	queries := ctx.Request().Query().Len()
-	body := 0
+	header := ctx.Request().Header()
+
+	text := fmt.Sprintf("header.user-agent: %s | header.size: %s", header.Get("User-Agent"), header.SizeStr())
 	if ctx.Request().HasBody() {
-		body = ctx.Request().Body().Len()
+		body := ctx.Request().Body()
+		text += fmt.Sprintf(" | body.content-type: %s | body.size: %s", body.ContentType().String(), body.SizeInByteUnit())
 	}
 
-	prefix := a.prefix(ctx)
-	format := "header: %v | params: %v | query: %v | body: %v"
-
-	Printf(InfoLevel, "REQ", prefix, format, headerSize, params, queries, body)
+	Print(InfoLevel, "REQ", a.prefix(ctx), text)
 }
 
 func (a httpLog) PrintResponse(ctx app.Context) {
@@ -44,5 +41,5 @@ func (a httpLog) prefix(ctx app.Context) string {
 	method := BuildMethodText(ctx.Request().Method())
 	url := BuildUriText(ctx.Request().Url())
 
-	return fmt.Sprintf("%s (%s | %s |%s| %s)", path, ip, traceID, method, url)
+	return fmt.Sprintf("[%s | %s | %s |%s| %s]", path, ip, traceID, method, url)
 }

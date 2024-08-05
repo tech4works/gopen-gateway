@@ -18,6 +18,7 @@ import (
 	"github.com/tech4works/gopen-gateway/internal/infra/http"
 	"github.com/tech4works/gopen-gateway/internal/infra/jsonpath"
 	"github.com/tech4works/gopen-gateway/internal/infra/log"
+	"github.com/tech4works/gopen-gateway/internal/infra/nomenclature"
 	"github.com/uber/jaeger-client-go"
 	jaegercfg "github.com/uber/jaeger-client-go/config"
 	"github.com/xeipuuv/gojsonschema"
@@ -104,12 +105,14 @@ func (p provider) Start(env string) {
 	httpClient := http.NewClient()
 	jsonPath := jsonpath.New()
 	nConverter := converter.New()
+	nNomenclature := nomenclature.New()
 
-	httpServer := server.New(gopen, p.log, router, httpClient, endpointLog, backendLog, httpLog, jsonPath, nConverter, store)
+	httpServer := server.New(gopen, p.log, router, httpClient, endpointLog, backendLog, httpLog, jsonPath, nConverter,
+		store, nNomenclature)
 
 	if gopen.HotReload {
 		p.log.PrintInfo("Configuring watcher...")
-		watcher, err := p.initWatcher(env, p.restart(env, httpServer))
+		watcher, err := p.initWatcher(env, httpServer)
 		if helper.IsNotNil(err) {
 			p.log.PrintWarn("Error configure watcher:", err)
 		} else {
@@ -123,6 +126,8 @@ func (p provider) Start(env string) {
 func (p provider) Stop() {
 	p.log.SkipLine()
 
+	p.log.PrintInfo("Removing runtime json...")
+
 	err := p.removeRuntimeJson()
 	if helper.IsNotNil(err) {
 		p.log.PrintWarn("Error to remove runtime json!")
@@ -131,33 +136,30 @@ func (p provider) Stop() {
 	p.log.PrintTitle("STOPPED")
 }
 
-func (p provider) restart(env string, oldServer server.HTTP) func() {
-	return func() {
-		defer func() {
-			if r := recover(); helper.IsNotNil(r) {
-				errorDetails := errors.Details(r.(error))
-				p.log.PrintError("Error restart server:", errorDetails.GetCause())
+func (p provider) restart(env string, oldServer server.HTTP) {
+	defer func() {
+		if r := recover(); helper.IsNotNil(r) {
+			errorDetails := errors.Details(r.(error))
+			p.log.PrintError("Error restart server:", errorDetails.GetCause())
 
-				p.recovery(oldServer)
-			}
-		}()
-
-		p.log.SkipLine()
-		p.log.SkipLine()
-		p.log.PrintTitle("RESTART")
-
-		ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
-		defer cancel()
-
-		p.log.PrintInfo("Shutting down current server...")
-		err := oldServer.Shutdown(ctx)
-		if helper.IsNotNil(err) {
-			p.log.PrintWarnf("Error shutdown current server: %s!", err)
-			return
+			p.recovery(oldServer)
 		}
+	}()
 
-		go p.Start(env)
+	p.log.SkipLine()
+	p.log.PrintTitle("RESTART")
+
+	ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
+	defer cancel()
+
+	p.log.PrintInfo("Shutting down current server...")
+	err := oldServer.Shutdown(ctx)
+	if helper.IsNotNil(err) {
+		p.log.PrintWarnf("Error shutdown current server: %s!", err)
+		return
 	}
+
+	go p.Start(env)
 }
 
 func (p provider) recovery(oldServer server.HTTP) {
@@ -182,7 +184,7 @@ func (p provider) initTracer(host string) (opentracing.Tracer, io.Closer, error)
 	return jaegerConfig.NewTracer(jaegercfg.Logger(log.NewNoop()))
 }
 
-func (p provider) initWatcher(env string, callback func()) (*fsnotify.Watcher, error) {
+func (p provider) initWatcher(env string, oldServer server.HTTP) (*fsnotify.Watcher, error) {
 	watcher, err := fsnotify.NewWatcher()
 	if helper.IsNotNil(err) {
 		return nil, err
@@ -196,11 +198,11 @@ func (p provider) initWatcher(env string, callback func()) (*fsnotify.Watcher, e
 	go func() {
 		for {
 			select {
-			case _, ok := <-watcher.Events:
-				if !ok {
+			case ev, ok := <-watcher.Events:
+				if !ok || helper.IsNotEqualTo(ev.Op, fsnotify.Chmod) {
 					return
 				}
-				callback()
+				p.restart(env, oldServer)
 			}
 		}
 	}()

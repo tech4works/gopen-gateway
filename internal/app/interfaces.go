@@ -73,6 +73,8 @@ type EndpointLog interface {
 }
 
 type BackendLog interface {
+	PrintRequest(executeData dto.ExecuteEndpoint, backend *vo.Backend, request *vo.HTTPBackendRequest)
+	PrintResponse(executeData dto.ExecuteEndpoint, backend *vo.Backend, request *vo.HTTPBackendRequest, response *vo.HTTPBackendResponse, latency time.Duration)
 	PrintInfof(executeData dto.ExecuteEndpoint, backend *vo.Backend, request *vo.HTTPBackendRequest, format string, msg ...any)
 	PrintInfo(executeData dto.ExecuteEndpoint, backend *vo.Backend, request *vo.HTTPBackendRequest, msg ...any)
 	PrintWarnf(executeData dto.ExecuteEndpoint, backend *vo.Backend, request *vo.HTTPBackendRequest, format string, msg ...any)

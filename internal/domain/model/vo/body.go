@@ -114,16 +114,20 @@ func (b *Body) Resume() string {
 		s, _ := b.String()
 		return helper.CompactString(s)
 	}
-	return fmt.Sprintf("contentType=%s contentLenght=%s contentEncoding=%s", b.contentType.String(),
-		b.contentEncoding.String(), b.LenStr())
+	return fmt.Sprintf("type=%s encoding=%s contentLength=%s", b.contentType, b.contentEncoding, b.SizeInByteUnit())
 }
 
-func (b *Body) Len() int {
+func (b *Body) Size() int {
 	return len(b.RawBytes())
 }
 
-func (b *Body) LenStr() string {
-	return helper.SimpleConvertToString(b.Len())
+func (b *Body) SizeInString() string {
+	return helper.SimpleConvertToString(b.Size())
+}
+
+func (b *Body) SizeInByteUnit() string {
+	bs := NewBytesByInt(b.Size())
+	return bs.String()
 }
 
 func (b *Body) Map() (any, error) {

@@ -22,7 +22,7 @@ import (
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/jellydator/ttlcache/v2"
 	"github.com/tech4works/gopen-gateway/internal/domain"
-	domainmapper "github.com/tech4works/gopen-gateway/internal/domain/mapper"
+	"github.com/tech4works/gopen-gateway/internal/domain/mapper"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
 )
 
@@ -46,6 +46,7 @@ func (m memoryStore) Set(_ context.Context, key string, cacheResponse *vo.CacheR
 	if helper.IsNotNil(err) {
 		return err
 	}
+
 	return m.ttlCache.SetWithTTL(key, gzipBase64, cacheResponse.Duration.Time())
 }
 
@@ -61,15 +62,17 @@ func (m memoryStore) Del(_ context.Context, key string) error {
 func (m memoryStore) Get(_ context.Context, key string) (*vo.CacheResponse, error) {
 	value, err := m.ttlCache.Get(key)
 	if errors.Is(err, ttlcache.ErrNotFound) {
-		return nil, domainmapper.NewErrCacheNotFound()
+		return nil, mapper.NewErrCacheNotFound()
 	} else if helper.IsNotNil(err) {
 		return nil, err
 	}
+
 	var cacheResponse vo.CacheResponse
 	err = helper.DecompressFromBase64WithGzipToDest(value, &cacheResponse)
 	if helper.IsNotNil(err) {
 		return nil, err
 	}
+
 	return &cacheResponse, nil
 }
 

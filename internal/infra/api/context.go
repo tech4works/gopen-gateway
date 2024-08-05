@@ -237,7 +237,7 @@ func (c *Context) buildHeader(complete bool, statusCode vo.StatusCode, body *vo.
 	}
 	if helper.IsNotNil(body) {
 		mapHeader[mapper.ContentType] = []string{body.ContentType().String()}
-		mapHeader[mapper.ContentLength] = []string{body.LenStr()}
+		mapHeader[mapper.ContentLength] = []string{body.SizeInString()}
 	}
 	return vo.NewHeader(mapHeader)
 }

@@ -50,5 +50,5 @@ func (e endpointLog) prefix(endpoint *vo.Endpoint, request *vo.HTTPRequest, clie
 	method := BuildMethodText(request.Method())
 	url := BuildUriText(request.Url())
 
-	return fmt.Sprintf("%s (%s | %s |%s| %s)", path, clientIP, traceIDText, method, url)
+	return fmt.Sprintf("[%s | %s | %s |%s| %s]", path, clientIP, traceIDText, method, url)
 }

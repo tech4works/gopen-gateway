@@ -44,7 +44,7 @@ func NewHeaderByBody(body *Body) Header {
 
 	values := map[string][]string{}
 	values[mapper.ContentType] = []string{body.ContentType().String()}
-	values[mapper.ContentLength] = []string{body.LenStr()}
+	values[mapper.ContentLength] = []string{body.SizeInString()}
 	if body.HasContentEncoding() {
 		values[mapper.ContentEncoding] = []string{body.ContentEncoding().String()}
 	}
@@ -113,6 +113,11 @@ func (h *Header) Size() int {
 	}
 	size += 2
 	return size
+}
+
+func (h *Header) SizeStr() string {
+	bs := NewBytesByInt(h.Size())
+	return helper.CompactString(bs.String())
 }
 
 func (h *Header) Keys() (ss []string) {

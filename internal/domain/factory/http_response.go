@@ -105,7 +105,7 @@ func (h httpResponseFactory) buildHeaderByHistory(endpoint *vo.Endpoint, body *v
 	}
 	if helper.IsNotNil(body) {
 		mapHeader[mapper.ContentType] = []string{body.ContentType().String()}
-		mapHeader[mapper.ContentLength] = []string{body.LenStr()}
+		mapHeader[mapper.ContentLength] = []string{body.SizeInString()}
 		if body.HasContentEncoding() {
 			mapHeader[mapper.ContentEncoding] = []string{body.ContentEncoding().String()}
 		}

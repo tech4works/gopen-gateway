@@ -48,6 +48,7 @@ func (r redisStore) Set(ctx context.Context, key string, cacheResponse *vo.Cache
 	if helper.IsNotNil(err) {
 		return err
 	}
+
 	return r.redisTemplate.Set(ctx, key, gzipBase64, option.NewSet().SetTTL(cacheResponse.Duration.Time()))
 }
 
@@ -68,11 +69,13 @@ func (r redisStore) Get(ctx context.Context, key string) (*vo.CacheResponse, err
 	} else if helper.IsNotNil(err) {
 		return nil, err
 	}
+
 	var cacheResponse vo.CacheResponse
 	err = helper.DecompressFromBase64WithGzipToDest(cacheGzipBase64, &cacheResponse)
 	if helper.IsNotNil(err) {
 		return nil, err
 	}
+
 	return &cacheResponse, nil
 }
 
