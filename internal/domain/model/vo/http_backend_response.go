@@ -17,7 +17,7 @@
 package vo
 
 import (
-	"github.com/GabrielHCataldo/go-helper/helper"
+	"github.com/tech4works/checker"
 )
 
 type HTTPBackendResponse struct {
@@ -52,9 +52,9 @@ func (h *HTTPBackendResponse) Body() *Body {
 
 func (h *HTTPBackendResponse) Map() (any, error) {
 	var body any
-	if helper.IsNotNil(h.body) {
+	if checker.NonNil(h.body) {
 		bodyMap, err := h.body.Map()
-		if helper.IsNotNil(err) {
+		if checker.NonNil(err) {
 			return nil, err
 		}
 		body = bodyMap
@@ -67,5 +67,5 @@ func (h *HTTPBackendResponse) Map() (any, error) {
 }
 
 func (h *HTTPBackendResponse) HasBody() bool {
-	return helper.IsNotNil(h.body)
+	return checker.NonNil(h.body)
 }

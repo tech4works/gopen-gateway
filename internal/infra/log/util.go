@@ -2,7 +2,7 @@ package log
 
 import (
 	"fmt"
-	"github.com/GabrielHCataldo/go-helper/helper"
+	"github.com/tech4works/checker"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
 	"net/http"
 	"strconv"
@@ -33,13 +33,13 @@ func BuildStatusCodeText(statusCode vo.StatusCode) string {
 }
 
 func statusCodeTextStyle(code int) string {
-	if helper.IsGreaterThanOrEqual(code, 200) && helper.IsLessThan(code, 299) {
+	if checker.IsGreaterThanOrEqual(code, 200) && checker.IsLessThan(code, 299) {
 		return BackgroundGreen
-	} else if helper.IsGreaterThanOrEqual(code, 300) && helper.IsLessThan(code, 400) {
+	} else if checker.IsGreaterThanOrEqual(code, 300) && checker.IsLessThan(code, 400) {
 		return BackgroundCyan
-	} else if helper.IsGreaterThanOrEqual(code, 400) && helper.IsLessThan(code, 500) {
+	} else if checker.IsGreaterThanOrEqual(code, 400) && checker.IsLessThan(code, 500) {
 		return BackgroundYellow
-	} else if helper.IsGreaterThanOrEqual(code, 500) {
+	} else if checker.IsGreaterThanOrEqual(code, 500) {
 		return BackgroundRed
 	}
 	return StyleBold

@@ -17,7 +17,7 @@
 package vo
 
 import (
-	"github.com/GabrielHCataldo/go-helper/helper"
+	"github.com/tech4works/checker"
 	"strconv"
 	"time"
 )
@@ -38,14 +38,14 @@ func (d *Duration) String() string {
 
 func (d *Duration) UnmarshalJSON(b []byte) error {
 	str, err := strconv.Unquote(string(b))
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		return err
-	} else if helper.IsEmpty(str) {
+	} else if checker.IsEmpty(str) {
 		return nil
 	}
 
 	duration, err := time.ParseDuration(str)
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		return err
 	}
 
@@ -54,7 +54,7 @@ func (d *Duration) UnmarshalJSON(b []byte) error {
 }
 
 func (d *Duration) MarshalJSON() ([]byte, error) {
-	if helper.IsNil(d) || helper.IsEmpty(d) {
+	if checker.IsNil(d) || checker.IsEmpty(d) {
 		return nil, nil
 	}
 	return []byte(strconv.Quote(d.String())), nil

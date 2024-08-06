@@ -20,7 +20,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/GabrielHCataldo/go-errors/errors"
-	"github.com/GabrielHCataldo/go-helper/helper"
+	"github.com/tech4works/checker"
 	"github.com/tech4works/gopen-gateway/internal/domain"
 	"github.com/tech4works/gopen-gateway/internal/domain/mapper"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
@@ -52,7 +52,7 @@ func (c cacheService) Read(ctx context.Context, cache *vo.Cache, request *vo.HTT
 	cacheResponse, err := c.store.Get(ctx, c.buildKey(cache, request))
 	if errors.Is(err, mapper.ErrCacheNotFound) {
 		return nil, nil
-	} else if helper.IsNotNil(err) {
+	} else if checker.NonNil(err) {
 		return nil, err
 	}
 
@@ -72,7 +72,7 @@ func (c cacheService) canRead(cache *vo.Cache, request *vo.HTTPRequest) bool {
 		return false
 	}
 
-	return helper.IsNotEqualTo(enum.CacheControlNoCache, c.extractCacheControl(cache, request)) &&
+	return checker.NotEquals(enum.CacheControlNoCache, c.extractCacheControl(cache, request)) &&
 		c.allowMethod(cache, request)
 }
 
@@ -81,7 +81,7 @@ func (c cacheService) canWrite(cache *vo.Cache, request *vo.HTTPRequest, respons
 		return false
 	}
 
-	return helper.IsNotEqualTo(enum.CacheControlNoStore, c.extractCacheControl(cache, request)) &&
+	return checker.NotEquals(enum.CacheControlNoStore, c.extractCacheControl(cache, request)) &&
 		c.allowMethod(cache, request) && c.allowStatusCode(cache, response)
 }
 
@@ -95,11 +95,11 @@ func (c cacheService) buildKey(cache *vo.Cache, request *vo.HTTPRequest) string 
 	var strategyHeaderValues []string
 	for _, strategyHeaderKey := range cache.StrategyHeaders() {
 		valueByStrategyKey := request.Header().Get(strategyHeaderKey)
-		if helper.IsNotEmpty(valueByStrategyKey) {
+		if checker.IsNotEmpty(valueByStrategyKey) {
 			strategyHeaderValues = append(strategyHeaderValues, valueByStrategyKey)
 		}
 	}
-	if helper.IsNotEmpty(strategyHeaderValues) {
+	if checker.IsNotEmpty(strategyHeaderValues) {
 		strategyKey = fmt.Sprintf("%s:%s", strategyKey, strings.Join(strategyHeaderValues, ":"))
 	}
 
@@ -107,14 +107,14 @@ func (c cacheService) buildKey(cache *vo.Cache, request *vo.HTTPRequest) string 
 }
 
 func (c cacheService) allowMethod(cache *vo.Cache, request *vo.HTTPRequest) bool {
-	return !cache.HasOnlyIfMethods() || (!cache.HasAnyOnlyIfMethods() && helper.Equals(request.Method(), http.MethodGet)) ||
-		helper.Contains(cache.OnlyIfMethods(), request.Method())
+	return !cache.HasOnlyIfMethods() || (!cache.HasAnyOnlyIfMethods() && checker.Equals(request.Method(), http.MethodGet)) ||
+		checker.Contains(cache.OnlyIfMethods(), request.Method())
 }
 
 func (c cacheService) allowStatusCode(cache *vo.Cache, response *vo.HTTPResponse) bool {
 	statusCode := response.StatusCode()
 	return !cache.HasOnlyIfStatusCodes() || (!cache.HasAnyOnlyIfStatusCodes() && statusCode.OK()) ||
-		helper.Contains(cache.OnlyIfStatusCodes(), statusCode.Code())
+		checker.Contains(cache.OnlyIfStatusCodes(), statusCode.Code())
 }
 
 func (c cacheService) extractCacheControl(cache *vo.Cache, request *vo.HTTPRequest) enum.CacheControl {

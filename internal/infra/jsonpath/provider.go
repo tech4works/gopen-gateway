@@ -1,7 +1,7 @@
 package jsonpath
 
 import (
-	"github.com/GabrielHCataldo/go-helper/helper"
+	"github.com/tech4works/checker"
 	"github.com/tech4works/gopen-gateway/internal/domain"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
@@ -23,12 +23,12 @@ func (p provider) ForEach(raw string, iterator func(key string, value domain.JSO
 }
 
 func (p provider) Add(raw, path, value string) (string, error) {
-	if helper.IsEmpty(path) {
+	if checker.IsEmpty(path) {
 		return raw, nil
 	}
 
 	jsonValue := gjson.Get(raw, path)
-	if jsonValue.Exists() && helper.IsNotEqualTo(jsonValue.Type, gjson.Null) {
+	if jsonValue.Exists() && checker.NotEquals(jsonValue.Type, gjson.Null) {
 		return sjson.SetRaw(raw, path, aggregateValue(jsonValue, value))
 	}
 
@@ -40,14 +40,14 @@ func (p provider) AppendOnArray(raw, value string) (string, error) {
 }
 
 func (p provider) Set(raw, path, value string) (string, error) {
-	if helper.IsEmpty(path) {
+	if checker.IsEmpty(path) {
 		return raw, nil
 	}
 	return sjson.SetRaw(raw, path, parseStringValueToRaw(value))
 }
 
 func (p provider) Replace(raw, path, value string) (string, error) {
-	if helper.IsEmpty(path) {
+	if checker.IsEmpty(path) {
 		return raw, nil
 	}
 
@@ -60,7 +60,7 @@ func (p provider) Replace(raw, path, value string) (string, error) {
 }
 
 func (p provider) Delete(raw, path string) (string, error) {
-	if helper.IsEmpty(path) {
+	if checker.IsEmpty(path) {
 		return raw, nil
 	}
 	return sjson.Delete(raw, path)
@@ -88,10 +88,10 @@ func aggregateValue(jsonValue gjson.Result, newValue string) string {
 
 	newArrayJson := "["
 	for i, v := range newArray {
-		if helper.Equals(v.Type, gjson.Null) || helper.IsEmpty(v.String()) {
+		if checker.Equals(v.Type, gjson.Null) || checker.IsEmpty(v.String()) {
 			continue
 		}
-		if helper.IsNotEqualTo(i, 0) {
+		if checker.NotEquals(i, 0) {
 			newArrayJson += ","
 		}
 		newArrayJson += parseValueToRaw(v)
@@ -103,14 +103,14 @@ func aggregateValue(jsonValue gjson.Result, newValue string) string {
 
 func parseStringValueToRaw(value string) string {
 	parse := gjson.Parse(value)
-	if helper.Equals(parse.Type, gjson.Null) {
+	if checker.Equals(parse.Type, gjson.Null) {
 		return "null"
 	}
 	return parse.Raw
 }
 
 func parseValueToRaw(value gjson.Result) string {
-	if helper.Equals(value.Type, gjson.Null) {
+	if checker.Equals(value.Type, gjson.Null) {
 		return "null"
 	}
 	return value.Raw

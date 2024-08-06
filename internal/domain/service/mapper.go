@@ -2,6 +2,7 @@ package service
 
 import (
 	"github.com/GabrielHCataldo/go-helper/helper"
+	"github.com/tech4works/checker"
 	"github.com/tech4works/gopen-gateway/internal/domain"
 	mapper2 "github.com/tech4works/gopen-gateway/internal/domain/mapper"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
@@ -25,9 +26,10 @@ func NewMapper(jsonPath domain.JSONPath) Mapper {
 }
 
 func (m mapperService) MapHeader(header vo.Header, mapper *vo.Mapper) vo.Header {
-	if helper.IsNil(mapper) || mapper.IsEmpty() {
+	if checker.IsNil(mapper) || mapper.IsEmpty() {
 		return header
 	}
+
 	mappedHeader := map[string][]string{}
 	for _, key := range header.Keys() {
 		if mapper2.IsNotHeaderMandatoryKey(key) && mapper.Exists(key) {
@@ -36,11 +38,12 @@ func (m mapperService) MapHeader(header vo.Header, mapper *vo.Mapper) vo.Header 
 			mappedHeader[key] = header.GetAll(key)
 		}
 	}
+
 	return vo.NewHeader(mappedHeader)
 }
 
 func (m mapperService) MapQuery(query vo.Query, mapper *vo.Mapper) vo.Query {
-	if helper.IsNil(mapper) || mapper.IsEmpty() {
+	if checker.IsNil(mapper) || mapper.IsEmpty() {
 		return query
 	}
 
@@ -56,7 +59,7 @@ func (m mapperService) MapQuery(query vo.Query, mapper *vo.Mapper) vo.Query {
 }
 
 func (m mapperService) MapBody(body *vo.Body, mapper *vo.Mapper) (*vo.Body, []error) {
-	if helper.IsNil(mapper) || mapper.IsNotEmpty() || helper.IsNil(body) {
+	if checker.IsNil(mapper) || mapper.IsNotEmpty() || checker.IsNil(body) {
 		return body, nil
 	}
 
@@ -71,19 +74,19 @@ func (m mapperService) MapBody(body *vo.Body, mapper *vo.Mapper) (*vo.Body, []er
 
 func (m mapperService) mapBodyText(body *vo.Body, mapper *vo.Mapper) (*vo.Body, []error) {
 	mappedBody, err := body.String()
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		return body, []error{err}
 	}
 
 	for _, key := range mapper.Keys() {
 		newKey := mapper.Get(key)
-		if helper.IsNotEqualTo(key, newKey) {
+		if checker.NotEquals(key, newKey) {
 			mappedBody = strings.ReplaceAll(mappedBody, key, newKey)
 		}
 	}
 
 	buffer, err := helper.ConvertToBuffer(mappedBody)
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		return body, []error{err}
 	}
 
@@ -92,7 +95,7 @@ func (m mapperService) mapBodyText(body *vo.Body, mapper *vo.Mapper) (*vo.Body, 
 
 func (m mapperService) mapBodyJson(body *vo.Body, mapper *vo.Mapper) (*vo.Body, []error) {
 	bodyStr, err := body.String()
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		return body, []error{err}
 	}
 
@@ -105,12 +108,12 @@ func (m mapperService) mapBodyJson(body *vo.Body, mapper *vo.Mapper) (*vo.Body, 
 	} else {
 		mappedBodyStr, errs = m.mapBodyJsonObject(parsedJson, mapper)
 	}
-	if helper.IsNotEmpty(errs) {
+	if checker.IsNotEmpty(errs) {
 		return body, errs
 	}
 
 	buffer, err := helper.ConvertToBuffer(mappedBodyStr)
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		return body, []error{err}
 	}
 
@@ -126,14 +129,14 @@ func (m mapperService) mapBodyJsonArray(jsonArray domain.JSONValue, mapper *vo.M
 		var err error
 		if value.IsObject() {
 			childObject, childErrs := m.mapBodyJsonObject(value, mapper)
-			if helper.IsNotEmpty(childErrs) {
+			if checker.IsNotEmpty(childErrs) {
 				errs = append(errs, childErrs...)
 				return true
 			}
 			newMappedArray, err = m.jsonPath.AppendOnArray(mappedArray, childObject)
 		} else if value.IsArray() {
 			childArray, childErrs := m.mapBodyJsonArray(value, mapper)
-			if helper.IsNotEmpty(childErrs) {
+			if checker.IsNotEmpty(childErrs) {
 				errs = append(errs, childErrs...)
 				return true
 			}
@@ -142,7 +145,7 @@ func (m mapperService) mapBodyJsonArray(jsonArray domain.JSONValue, mapper *vo.M
 			newMappedArray, err = m.jsonPath.AppendOnArray(mappedArray, value.Raw())
 		}
 
-		if helper.IsNotNil(err) {
+		if checker.NonNil(err) {
 			errs = append(errs, err)
 			return true
 		}
@@ -160,7 +163,7 @@ func (m mapperService) mapBodyJsonObject(jsonObject domain.JSONValue, mapper *vo
 
 	for _, key := range mapper.Keys() {
 		newKey := mapper.Get(key)
-		if helper.Equals(key, newKey) {
+		if checker.Equals(key, newKey) {
 			continue
 		}
 		jsonValue := jsonObject.Get(key)
@@ -169,13 +172,13 @@ func (m mapperService) mapBodyJsonObject(jsonObject domain.JSONValue, mapper *vo
 		}
 
 		newMappedJson, err := m.jsonPath.Set(mappedJson, newKey, jsonValue.Raw())
-		if helper.IsNotNil(err) {
+		if checker.NonNil(err) {
 			errs = append(errs, err)
 			continue
 		}
 
 		newMappedJson, err = m.jsonPath.Delete(newMappedJson, key)
-		if helper.IsNotNil(err) {
+		if checker.NonNil(err) {
 			errs = append(errs, err)
 			continue
 		}

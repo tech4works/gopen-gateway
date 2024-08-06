@@ -2,6 +2,7 @@ package service
 
 import (
 	"github.com/GabrielHCataldo/go-helper/helper"
+	"github.com/tech4works/checker"
 	"github.com/tech4works/gopen-gateway/internal/domain"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
@@ -26,17 +27,17 @@ func NewContent(converter domain.Converter) Content {
 func (c contentService) ModifyBodyContentType(body *vo.Body, contentType enum.ContentType) (*vo.Body, error) {
 	if !contentType.IsEnumValid() ||
 		body.ContentType().IsUnknown() ||
-		helper.Equals(body.ContentType().ToEnum(), contentType) {
+		checker.Equals(body.ContentType().ToEnum(), contentType) {
 		return body, nil
 	}
 
 	bodyBytes, httpContentType, err := c.modifyBodyContentType(body, contentType)
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		return body, err
 	}
 
 	buffer, err := helper.ConvertToBuffer(bodyBytes)
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		return body, err
 	}
 
@@ -45,17 +46,17 @@ func (c contentService) ModifyBodyContentType(body *vo.Body, contentType enum.Co
 
 func (c contentService) ModifyBodyContentEncoding(body *vo.Body, contentEncoding enum.ContentEncoding) (*vo.Body,
 	error) {
-	if !contentEncoding.IsEnumValid() || helper.EqualsIgnoreCase(body.ContentEncoding(), contentEncoding) {
+	if !contentEncoding.IsEnumValid() || checker.EqualsIgnoreCase(body.ContentEncoding(), contentEncoding) {
 		return body, nil
 	}
 
 	bodyBytes, httpContentEncoding, err := c.modifyBodyContentEncoding(body, contentEncoding)
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		return body, err
 	}
 
 	buffer, err := helper.ConvertToBuffer(bodyBytes)
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		return body, err
 	}
 
@@ -65,7 +66,7 @@ func (c contentService) ModifyBodyContentEncoding(body *vo.Body, contentEncoding
 func (c contentService) modifyBodyContentType(body *vo.Body, contentType enum.ContentType) (
 	bodyBytes []byte, httpContentType vo.ContentType, err error) {
 	rawBytes, err := body.Bytes()
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		return
 	}
 
@@ -95,7 +96,7 @@ func (c contentService) modifyBodyContentType(body *vo.Body, contentType enum.Co
 func (c contentService) modifyBodyContentEncoding(body *vo.Body, contentEncoding enum.ContentEncoding) (
 	bodyBytes []byte, httpContentEncoding vo.ContentEncoding, err error) {
 	rawBytes, err := body.Bytes()
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		return
 	}
 

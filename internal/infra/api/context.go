@@ -24,6 +24,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
+	"github.com/tech4works/checker"
 	"github.com/tech4works/gopen-gateway/internal/app"
 	"github.com/tech4works/gopen-gateway/internal/app/model/dto"
 	"github.com/tech4works/gopen-gateway/internal/domain/mapper"
@@ -64,7 +65,7 @@ func buildSpan(gin *gin.Context, request *vo.HTTPRequest) opentracing.Span {
 
 	tracer := opentracing.GlobalTracer()
 	wireContext, err := tracer.Extract(opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(gin.Request.Header))
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		span = opentracing.StartSpan(gin.FullPath())
 	} else {
 		span = opentracing.StartSpan(gin.FullPath(), ext.RPCServerOption(wireContext))
@@ -76,7 +77,7 @@ func buildSpan(gin *gin.Context, request *vo.HTTPRequest) opentracing.Span {
 	span.SetTag("request.params", request.Params().String())
 	span.SetTag("request.header", request.Header().String())
 	span.SetTag("request.query", request.Query().String())
-	if helper.IsNotNil(request.Body()) {
+	if checker.NonNil(request.Body()) {
 		s, _ := request.Body().String()
 		span.SetTag("request.body", helper.CompactString(s))
 	} else {
@@ -176,7 +177,7 @@ func (c *Context) Write(response *vo.HTTPResponse) {
 	}
 
 	c.writeHeader(response.Header())
-	if helper.IsNotEmpty(rawBodyBytes) {
+	if checker.IsNotEmpty(rawBodyBytes) {
 		c.writeBody(response.StatusCode(), contentType.String(), rawBodyBytes)
 	} else {
 		c.writeStatusCode(response.StatusCode())
@@ -235,7 +236,7 @@ func (c *Context) buildHeader(complete bool, statusCode vo.StatusCode, body *vo.
 		mapper.XGopenComplete: {helper.SimpleConvertToString(complete)},
 		mapper.XGopenSuccess:  {helper.SimpleConvertToString(statusCode.OK())},
 	}
-	if helper.IsNotNil(body) {
+	if checker.NonNil(body) {
 		mapHeader[mapper.ContentType] = []string{body.ContentType().String()}
 		mapHeader[mapper.ContentLength] = []string{body.SizeInString()}
 	}
@@ -280,7 +281,7 @@ func (c *Context) transformToWritten(response *vo.HTTPResponse) {
 	span := c.Span()
 	span.SetTag("response.status", statusCode.String())
 	span.SetTag("response.header", header.String())
-	if helper.IsNotNil(body) {
+	if checker.NonNil(body) {
 		s, _ := body.String()
 		span.SetTag("response.body", helper.CompactString(s))
 	} else {

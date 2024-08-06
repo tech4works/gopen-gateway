@@ -18,7 +18,7 @@ package middleware
 
 import (
 	"github.com/GabrielHCataldo/go-errors/errors"
-	"github.com/GabrielHCataldo/go-helper/helper"
+	"github.com/tech4works/checker"
 	"github.com/tech4works/gopen-gateway/internal/app"
 	"net/http"
 	"runtime/debug"
@@ -40,7 +40,7 @@ func NewPanicRecovery(log app.EndpointLog) PanicRecovery {
 
 func (p panicRecoveryMiddleware) Do(ctx app.Context) {
 	defer func() {
-		if r := recover(); helper.IsNotNil(r) {
+		if r := recover(); checker.NonNil(r) {
 			p.printErrorf(ctx, "%s:%s", r, string(debug.Stack()))
 			ctx.WriteError(http.StatusInternalServerError, errors.New("Gateway panic error occurred! detail:", r))
 		}

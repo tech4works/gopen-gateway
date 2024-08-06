@@ -2,6 +2,7 @@ package factory
 
 import (
 	"github.com/GabrielHCataldo/go-helper/helper"
+	"github.com/tech4works/checker"
 	"github.com/tech4works/gopen-gateway/internal/domain/mapper"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
@@ -42,7 +43,7 @@ func (h httpResponseFactory) BuildAbortedResponse(endpoint *vo.Endpoint, history
 	header := vo.NewHeader(map[string][]string{
 		mapper.XGopenCache:    {"false"},
 		mapper.XGopenSuccess:  {helper.SimpleConvertToString(lastStatusCode.OK())},
-		mapper.XGopenComplete: {helper.SimpleConvertToString(helper.Equals(history.Size(), endpoint.CountBackendsNonOmit()))},
+		mapper.XGopenComplete: {helper.SimpleConvertToString(checker.Equals(history.Size(), endpoint.CountBackendsNonOmit()))},
 	})
 	header = h.aggregatorService.AggregateHeaders(header, lastHeader)
 
@@ -101,9 +102,9 @@ func (h httpResponseFactory) buildHeaderByHistory(endpoint *vo.Endpoint, body *v
 	mapHeader := map[string][]string{
 		mapper.XGopenCache:    {"false"},
 		mapper.XGopenSuccess:  {helper.SimpleConvertToString(history.AllOK())},
-		mapper.XGopenComplete: {helper.SimpleConvertToString(helper.Equals(history.Size(), endpoint.CountBackendsNonOmit()))},
+		mapper.XGopenComplete: {helper.SimpleConvertToString(checker.Equals(history.Size(), endpoint.CountBackendsNonOmit()))},
 	}
-	if helper.IsNotNil(body) {
+	if checker.NonNil(body) {
 		mapHeader[mapper.ContentType] = []string{body.ContentType().String()}
 		mapHeader[mapper.ContentLength] = []string{body.SizeInString()}
 		if body.HasContentEncoding() {
@@ -170,7 +171,7 @@ func (h httpResponseFactory) modifyBodyContentType(contentTypeConfig enum.Conten
 	}
 
 	newBody, err := h.contentService.ModifyBodyContentType(body, contentType)
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		return body, []error{err}
 	}
 
@@ -191,7 +192,7 @@ func (h httpResponseFactory) modifyBodyContentEncoding(contentEncodingConfig enu
 	}
 
 	newBody, err := h.contentService.ModifyBodyContentEncoding(body, contentEncoding)
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		return body, []error{err}
 	}
 

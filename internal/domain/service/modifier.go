@@ -3,6 +3,7 @@ package service
 import (
 	"fmt"
 	"github.com/GabrielHCataldo/go-helper/helper"
+	"github.com/tech4works/checker"
 	"github.com/tech4works/gopen-gateway/internal/domain"
 	"github.com/tech4works/gopen-gateway/internal/domain/mapper"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
@@ -78,7 +79,7 @@ func (s modifierService) ModifyQuery(query vo.Query, action enum.ModifierAction,
 }
 
 func (s modifierService) ModifyBody(body *vo.Body, action enum.ModifierAction, key string, value string) (*vo.Body, error) {
-	if helper.IsNil(body) {
+	if checker.IsNil(body) {
 		return nil, nil
 	}
 
@@ -99,23 +100,23 @@ func (s modifierService) ModifyBody(body *vo.Body, action enum.ModifierAction, k
 }
 
 func (s modifierService) validateKey(key string) error {
-	if helper.IsEmpty(key) {
+	if checker.IsEmpty(key) {
 		return mapper.NewErrEmptyKey()
 	}
 	return nil
 }
 
 func (s modifierService) validateValue(value any) error {
-	if helper.IsEmpty(value) {
+	if checker.IsEmpty(value) {
 		return mapper.NewErrEmptyValue()
 	}
 	return nil
 }
 
 func (s modifierService) setUrlPath(urlPath vo.URLPath, key, value string) (vo.URLPath, error) {
-	if err := s.validateKey(key); helper.IsNotNil(err) {
+	if err := s.validateKey(key); checker.NonNil(err) {
 		return urlPath, err
-	} else if err = s.validateValue(value); helper.IsNotNil(err) {
+	} else if err = s.validateValue(value); checker.NonNil(err) {
 		return urlPath, err
 	}
 
@@ -123,7 +124,7 @@ func (s modifierService) setUrlPath(urlPath vo.URLPath, key, value string) (vo.U
 	paramValues := urlPath.Params().Copy()
 
 	paramValues[key] = value
-	if helper.NotContains(path, fmt.Sprintf("/:%s", key)) {
+	if checker.NotContains(path, fmt.Sprintf("/:%s", key)) {
 		path = fmt.Sprintf("%s/:%s", path, key)
 	}
 
@@ -131,9 +132,9 @@ func (s modifierService) setUrlPath(urlPath vo.URLPath, key, value string) (vo.U
 }
 
 func (s modifierService) replaceUrlPath(urlPath vo.URLPath, key, value string) (vo.URLPath, error) {
-	if err := s.validateKey(key); helper.IsNotNil(err) {
+	if err := s.validateKey(key); checker.NonNil(err) {
 		return urlPath, err
-	} else if err = s.validateValue(value); helper.IsNotNil(err) {
+	} else if err = s.validateValue(value); checker.NonNil(err) {
 		return urlPath, err
 	} else if urlPath.NotExists(key) {
 		return urlPath, nil
@@ -143,7 +144,7 @@ func (s modifierService) replaceUrlPath(urlPath vo.URLPath, key, value string) (
 }
 
 func (s modifierService) deleteUrlPath(urlPath vo.URLPath, key string) (vo.URLPath, error) {
-	if err := s.validateKey(key); helper.IsNotNil(err) {
+	if err := s.validateKey(key); checker.NonNil(err) {
 		return urlPath, err
 	}
 
@@ -156,9 +157,9 @@ func (s modifierService) deleteUrlPath(urlPath vo.URLPath, key string) (vo.URLPa
 }
 
 func (s modifierService) addHeader(header vo.Header, key string, value []string) (vo.Header, error) {
-	if err := s.validateKey(key); helper.IsNotNil(err) {
+	if err := s.validateKey(key); checker.NonNil(err) {
 		return header, err
-	} else if err = s.validateValue(value); helper.IsNotNil(err) {
+	} else if err = s.validateValue(value); checker.NonNil(err) {
 		return header, err
 	} else if mapper.IsHeaderMandatoryKey(key) {
 		return header, nil
@@ -171,9 +172,9 @@ func (s modifierService) addHeader(header vo.Header, key string, value []string)
 }
 
 func (s modifierService) appendHeader(header vo.Header, key string, value []string) (vo.Header, error) {
-	if err := s.validateKey(key); helper.IsNotNil(err) {
+	if err := s.validateKey(key); checker.NonNil(err) {
 		return header, err
-	} else if err = s.validateValue(value); helper.IsNotNil(err) {
+	} else if err = s.validateValue(value); checker.NonNil(err) {
 		return header, err
 	} else if mapper.IsHeaderMandatoryKey(key) || header.NotExists(key) {
 		return header, nil
@@ -186,9 +187,9 @@ func (s modifierService) appendHeader(header vo.Header, key string, value []stri
 }
 
 func (s modifierService) setHeader(header vo.Header, key string, value []string) (vo.Header, error) {
-	if err := s.validateKey(key); helper.IsNotNil(err) {
+	if err := s.validateKey(key); checker.NonNil(err) {
 		return header, err
-	} else if err = s.validateValue(value); helper.IsNotNil(err) {
+	} else if err = s.validateValue(value); checker.NonNil(err) {
 		return header, err
 	} else if mapper.IsHeaderMandatoryKey(key) {
 		return header, nil
@@ -201,9 +202,9 @@ func (s modifierService) setHeader(header vo.Header, key string, value []string)
 }
 
 func (s modifierService) replaceHeader(header vo.Header, key string, value []string) (vo.Header, error) {
-	if err := s.validateKey(key); helper.IsNotNil(err) {
+	if err := s.validateKey(key); checker.NonNil(err) {
 		return header, err
-	} else if err = s.validateValue(value); helper.IsNotNil(err) {
+	} else if err = s.validateValue(value); checker.NonNil(err) {
 		return header, err
 	} else if mapper.IsHeaderMandatoryKey(key) || header.NotExists(key) {
 		return header, nil
@@ -213,7 +214,7 @@ func (s modifierService) replaceHeader(header vo.Header, key string, value []str
 }
 
 func (s modifierService) deleteHeader(header vo.Header, key string) (vo.Header, error) {
-	if err := s.validateKey(key); helper.IsNotNil(err) {
+	if err := s.validateKey(key); checker.NonNil(err) {
 		return header, err
 	} else if mapper.IsHeaderMandatoryKey(key) {
 		return header, nil
@@ -226,9 +227,9 @@ func (s modifierService) deleteHeader(header vo.Header, key string) (vo.Header, 
 }
 
 func (s modifierService) addQuery(query vo.Query, key string, value []string) (vo.Query, error) {
-	if err := s.validateKey(key); helper.IsNotNil(err) {
+	if err := s.validateKey(key); checker.NonNil(err) {
 		return query, err
-	} else if err = s.validateValue(value); helper.IsNotNil(err) {
+	} else if err = s.validateValue(value); checker.NonNil(err) {
 		return query, err
 	}
 
@@ -239,9 +240,9 @@ func (s modifierService) addQuery(query vo.Query, key string, value []string) (v
 }
 
 func (s modifierService) appendQuery(query vo.Query, key string, value []string) (vo.Query, error) {
-	if err := s.validateKey(key); helper.IsNotNil(err) {
+	if err := s.validateKey(key); checker.NonNil(err) {
 		return query, err
-	} else if err = s.validateValue(value); helper.IsNotNil(err) {
+	} else if err = s.validateValue(value); checker.NonNil(err) {
 		return query, err
 	} else if query.NotExists(key) {
 		return query, nil
@@ -254,9 +255,9 @@ func (s modifierService) appendQuery(query vo.Query, key string, value []string)
 }
 
 func (s modifierService) setQuery(query vo.Query, key string, value []string) (vo.Query, error) {
-	if err := s.validateKey(key); helper.IsNotNil(err) {
+	if err := s.validateKey(key); checker.NonNil(err) {
 		return query, err
-	} else if err = s.validateValue(value); helper.IsNotNil(err) {
+	} else if err = s.validateValue(value); checker.NonNil(err) {
 		return query, err
 	}
 
@@ -267,9 +268,9 @@ func (s modifierService) setQuery(query vo.Query, key string, value []string) (v
 }
 
 func (s modifierService) replaceQuery(query vo.Query, key string, value []string) (vo.Query, error) {
-	if err := s.validateKey(key); helper.IsNotNil(err) {
+	if err := s.validateKey(key); checker.NonNil(err) {
 		return query, err
-	} else if err = s.validateValue(value); helper.IsNotNil(err) {
+	} else if err = s.validateValue(value); checker.NonNil(err) {
 		return query, err
 	} else if query.NotExists(key) {
 		return query, nil
@@ -279,7 +280,7 @@ func (s modifierService) replaceQuery(query vo.Query, key string, value []string
 }
 
 func (s modifierService) deleteQuery(query vo.Query, key string) (vo.Query, error) {
-	if err := s.validateKey(key); helper.IsNotNil(err) {
+	if err := s.validateKey(key); checker.NonNil(err) {
 		return query, err
 	}
 
@@ -299,12 +300,12 @@ func (s modifierService) addBody(body *vo.Body, key, value string) (*vo.Body, er
 }
 
 func (s modifierService) addBodyText(body *vo.Body, value string) (*vo.Body, error) {
-	if err := s.validateValue(value); helper.IsNotNil(err) {
+	if err := s.validateValue(value); checker.NonNil(err) {
 		return body, err
 	}
 
 	bodyStr, err := body.String()
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		return body, err
 	}
 
@@ -313,19 +314,19 @@ func (s modifierService) addBodyText(body *vo.Body, value string) (*vo.Body, err
 }
 
 func (s modifierService) addBodyJson(body *vo.Body, key, value string) (*vo.Body, error) {
-	if err := s.validateKey(key); helper.IsNotNil(err) {
+	if err := s.validateKey(key); checker.NonNil(err) {
 		return body, err
-	} else if err = s.validateValue(value); helper.IsNotNil(err) {
+	} else if err = s.validateValue(value); checker.NonNil(err) {
 		return body, err
 	}
 
 	bodyRaw, err := body.Raw()
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		return body, err
 	}
 
 	modifiedBodyJson, err := s.jsonPath.Add(bodyRaw, key, value)
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		return body, err
 	}
 
@@ -342,12 +343,12 @@ func (s modifierService) appendBody(body *vo.Body, key, value string) (*vo.Body,
 }
 
 func (s modifierService) appendBodyText(body *vo.Body, value string) (*vo.Body, error) {
-	if err := s.validateValue(value); helper.IsNotNil(err) {
+	if err := s.validateValue(value); checker.NonNil(err) {
 		return body, err
 	}
 
 	bodyStr, err := body.String()
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		return body, err
 	}
 
@@ -356,14 +357,14 @@ func (s modifierService) appendBodyText(body *vo.Body, value string) (*vo.Body, 
 }
 
 func (s modifierService) appendBodyJson(body *vo.Body, key, value string) (*vo.Body, error) {
-	if err := s.validateKey(key); helper.IsNotNil(err) {
+	if err := s.validateKey(key); checker.NonNil(err) {
 		return body, err
-	} else if err = s.validateValue(value); helper.IsNotNil(err) {
+	} else if err = s.validateValue(value); checker.NonNil(err) {
 		return body, err
 	}
 
 	bodyRaw, err := body.Raw()
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		return body, err
 	}
 
@@ -372,7 +373,7 @@ func (s modifierService) appendBodyJson(body *vo.Body, key, value string) (*vo.B
 	}
 
 	modifiedBodyJson, err := s.jsonPath.Add(bodyRaw, key, value)
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		return body, err
 	}
 
@@ -389,7 +390,7 @@ func (s modifierService) setBody(body *vo.Body, key, value string) (*vo.Body, er
 }
 
 func (s modifierService) setBodyText(body *vo.Body, value string) (*vo.Body, error) {
-	if err := s.validateValue(value); helper.IsNotNil(err) {
+	if err := s.validateValue(value); checker.NonNil(err) {
 		return body, err
 	}
 
@@ -397,19 +398,19 @@ func (s modifierService) setBodyText(body *vo.Body, value string) (*vo.Body, err
 }
 
 func (s modifierService) setBodyJson(body *vo.Body, key, value string) (*vo.Body, error) {
-	if err := s.validateKey(key); helper.IsNotNil(err) {
+	if err := s.validateKey(key); checker.NonNil(err) {
 		return body, err
-	} else if err = s.validateValue(value); helper.IsNotNil(err) {
+	} else if err = s.validateValue(value); checker.NonNil(err) {
 		return body, err
 	}
 
 	bodyRaw, err := body.Raw()
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		return body, err
 	}
 
 	modifiedBodyJson, err := s.jsonPath.Set(bodyRaw, key, value)
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		return body, err
 	}
 
@@ -426,14 +427,14 @@ func (s modifierService) replaceBody(body *vo.Body, key, value string) (*vo.Body
 }
 
 func (s modifierService) replaceBodyText(body *vo.Body, key, value string) (*vo.Body, error) {
-	if err := s.validateKey(key); helper.IsNotNil(err) {
+	if err := s.validateKey(key); checker.NonNil(err) {
 		return body, err
-	} else if err = s.validateValue(value); helper.IsNotNil(err) {
+	} else if err = s.validateValue(value); checker.NonNil(err) {
 		return body, err
 	}
 
 	bodyStr, err := body.String()
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		return body, err
 	}
 
@@ -442,14 +443,14 @@ func (s modifierService) replaceBodyText(body *vo.Body, key, value string) (*vo.
 }
 
 func (s modifierService) replaceBodyJson(body *vo.Body, key, value string) (*vo.Body, error) {
-	if err := s.validateKey(key); helper.IsNotNil(err) {
+	if err := s.validateKey(key); checker.NonNil(err) {
 		return body, err
-	} else if err = s.validateValue(value); helper.IsNotNil(err) {
+	} else if err = s.validateValue(value); checker.NonNil(err) {
 		return body, err
 	}
 
 	bodyRaw, err := body.Raw()
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		return body, err
 	}
 
@@ -458,7 +459,7 @@ func (s modifierService) replaceBodyJson(body *vo.Body, key, value string) (*vo.
 	}
 
 	modifiedBodyJson, err := s.jsonPath.Set(bodyRaw, key, value)
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		return body, err
 	}
 
@@ -475,12 +476,12 @@ func (s modifierService) deleteBody(body *vo.Body, key string) (*vo.Body, error)
 }
 
 func (s modifierService) deleteBodyText(body *vo.Body, key string) (*vo.Body, error) {
-	if err := s.validateKey(key); helper.IsNotNil(err) {
+	if err := s.validateKey(key); checker.NonNil(err) {
 		return body, err
 	}
 
 	bodyStr, err := body.String()
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		return body, err
 	}
 
@@ -489,17 +490,17 @@ func (s modifierService) deleteBodyText(body *vo.Body, key string) (*vo.Body, er
 }
 
 func (s modifierService) deleteBodyJson(body *vo.Body, key string) (*vo.Body, error) {
-	if err := s.validateKey(key); helper.IsNotNil(err) {
+	if err := s.validateKey(key); checker.NonNil(err) {
 		return body, err
 	}
 
 	bodyRaw, err := body.Raw()
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		return body, err
 	}
 
 	modifiedBodyJson, err := s.jsonPath.Delete(bodyRaw, key)
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		return body, err
 	}
 
@@ -508,7 +509,7 @@ func (s modifierService) deleteBodyJson(body *vo.Body, key string) (*vo.Body, er
 
 func (s modifierService) newBodyByString(body *vo.Body, modifiedBodyJson string) (*vo.Body, error) {
 	buffer, err := helper.ConvertToBuffer(modifiedBodyJson)
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		return body, err
 	}
 

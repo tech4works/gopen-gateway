@@ -1,7 +1,7 @@
 package jsonpath
 
 import (
-	"github.com/GabrielHCataldo/go-helper/helper"
+	"github.com/tech4works/checker"
 	"github.com/tech4works/gopen-gateway/internal/domain"
 	"github.com/tidwall/gjson"
 )
@@ -43,7 +43,7 @@ func (v value) IsArray() bool {
 }
 
 func (v value) Raw() string {
-	if helper.Equals(v.result.Type, gjson.Null) {
+	if checker.Equals(v.result.Type, gjson.Null) {
 		return "null"
 	}
 	return v.result.Raw

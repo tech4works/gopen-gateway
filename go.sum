@@ -1,19 +1,9 @@
 dmitri.shuralyov.com/gpu/mtl v0.0.0-20190408044501-666a987793e9/go.mod h1:H6x//7gZCb22OMCxBHrMx7a5I7Hp++hsVxbQ4BYO7hU=
 github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym/WlBOVXweHU+Q+/VP0lqqI8lqeDx9IjBqo=
-github.com/GabrielHCataldo/go-errors v1.2.0 h1:T/NgsUBsJXtnG4iX0IJ6hUOolDYaxsyenz5zYe0W4to=
-github.com/GabrielHCataldo/go-errors v1.2.0/go.mod h1:baoCS+CM2zjhQeN5Gy23tS1/zukN3+ZXlEOYy5st3uI=
 github.com/GabrielHCataldo/go-errors v1.2.1 h1:gtng/lIjjlmdcevpXz/OAjw4OTrvU/HkpsU0tZeEu9E=
 github.com/GabrielHCataldo/go-errors v1.2.1/go.mod h1:baoCS+CM2zjhQeN5Gy23tS1/zukN3+ZXlEOYy5st3uI=
-github.com/GabrielHCataldo/go-helper v1.7.9 h1:qxGG8xJ4ZCooctMYnFFdoOolq13+KnqDzj7A1MxBt7o=
-github.com/GabrielHCataldo/go-helper v1.7.9/go.mod h1:0lWjHErv57Qkk+w25kbYKTmZYrNe0/0q0wUlt00OmRg=
 github.com/GabrielHCataldo/go-helper v1.8.0 h1:IFiRgzp324bdkotd7HFOZLZWSoH7tit2A0ca9OmSXLs=
 github.com/GabrielHCataldo/go-helper v1.8.0/go.mod h1:0lWjHErv57Qkk+w25kbYKTmZYrNe0/0q0wUlt00OmRg=
-github.com/GabrielHCataldo/go-helper v1.8.1 h1:eV7pch9TH4o4ref/yczE4e9UECYauEYd8b6B6KrLudY=
-github.com/GabrielHCataldo/go-helper v1.8.1/go.mod h1:0lWjHErv57Qkk+w25kbYKTmZYrNe0/0q0wUlt00OmRg=
-github.com/GabrielHCataldo/go-logger v1.3.0 h1:fKjEXOYJ0Tk3DrFTOVdFXNhp+szlTUFfZEnByQdInxY=
-github.com/GabrielHCataldo/go-logger v1.3.0/go.mod h1:d68a0zmUQJZCnqMIG8fze8fkBhjCb0A9QpeN7f32vnA=
-github.com/GabrielHCataldo/go-logger v1.3.2 h1:ldgqDBzKjle7/hN+fQmfAuhZ1EZ5k9ANeKtbLJ/advk=
-github.com/GabrielHCataldo/go-logger v1.3.2/go.mod h1:my8UX7xh+eVI8ruJhcUNw6Jfdp2H3IxWYSLMEuhm9PU=
 github.com/GabrielHCataldo/go-logger v1.3.4 h1:7pJS8YhF7SEdIXkthO1xLJK8kPbFI5wSweF8FLxIGwM=
 github.com/GabrielHCataldo/go-logger v1.3.4/go.mod h1:my8UX7xh+eVI8ruJhcUNw6Jfdp2H3IxWYSLMEuhm9PU=
 github.com/GabrielHCataldo/go-redis-template v1.1.5 h1:vb6/TPmszZhPUiB4337BCACQobBjtFtyjhskq6oQrW8=
@@ -77,8 +67,6 @@ github.com/google/go-cmp v0.5.4/go.mod h1:v8dTdLbMG2kIc/vJvl+f65V22dbkXbowE6jgT/
 github.com/google/go-cmp v0.5.5 h1:Khx7svrCpmxxtHBq5j2mp/xVjsi8hQMfNLvJFAlrGgU=
 github.com/google/go-cmp v0.5.5/go.mod h1:v8dTdLbMG2kIc/vJvl+f65V22dbkXbowE6jgT/gNBxE=
 github.com/google/gofuzz v1.0.0/go.mod h1:dBl0BpW6vV/+mYPU4Po3pmUjxk6FQPldtuIdl/M65Eg=
-github.com/google/uuid v1.6.0 h1:NIvaJDMOsjHA8n1jAhLSgzrAzy1Hgr+hNrb57e+94F0=
-github.com/google/uuid v1.6.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
 github.com/iancoleman/orderedmap v0.3.0 h1:5cbR2grmZR/DiVt+VJopEhtVs9YGInGIxAoMJn+Ichc=
 github.com/iancoleman/orderedmap v0.3.0/go.mod h1:XuLcCUkdL5owUCQeF2Ue9uuw1EptkJDkXXS7VoV7XGE=
 github.com/iancoleman/strcase v0.3.0 h1:nTXanmYxhfFAMjZL34Ov6gkzEsSJZ5DbhxWjvSASxEI=
@@ -152,6 +140,8 @@ github.com/stretchr/testify v1.8.1/go.mod h1:w2LPCIKwWwSfY2zedu0+kehJoqGctiVI29o
 github.com/stretchr/testify v1.8.4/go.mod h1:sz/lmYIOXD/1dqDmKjjqLyZ2RngseejIcXlSw2iwfAo=
 github.com/stretchr/testify v1.9.0 h1:HtqpIVDClZ4nwg75+f6Lvsy/wHu+3BoSGCbBAcpTsTg=
 github.com/stretchr/testify v1.9.0/go.mod h1:r2ic/lqez/lEtzL7wO/rwa5dbSLXVDPFyf8C91i36aY=
+github.com/tech4works/checker v0.0.0-20240806130137-539a8623a656 h1:zbh+Q7PghXbyR9T/yZwez8qvmqaeAlKXhy06XZDlyuk=
+github.com/tech4works/checker v0.0.0-20240806130137-539a8623a656/go.mod h1:5nre6qBAdD1TjzmsbOlu1BWCd4tnle0jcilI5TCkq7E=
 github.com/tidwall/gjson v1.14.2/go.mod h1:/wbyibRr2FHMks5tjHJ5F8dMZh3AcwJEMf5vlfC0lxk=
 github.com/tidwall/gjson v1.17.1 h1:wlYEnwqAHgzmhNUFfw7Xalt2JzQvsMx2Se4PcoFCT/U=
 github.com/tidwall/gjson v1.17.1/go.mod h1:/wbyibRr2FHMks5tjHJ5F8dMZh3AcwJEMf5vlfC0lxk=

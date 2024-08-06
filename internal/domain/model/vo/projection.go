@@ -18,8 +18,8 @@ package vo
 
 import (
 	"fmt"
-	"github.com/GabrielHCataldo/go-helper/helper"
 	jsoniter "github.com/json-iterator/go"
+	"github.com/tech4works/checker"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
 	"strconv"
 	"strings"
@@ -31,16 +31,16 @@ type Projection struct {
 }
 
 func (p *Projection) IsEmpty() bool {
-	return helper.IsEmpty(p.Keys())
+	return checker.IsEmpty(p.Keys())
 }
 
 func (p *Projection) Exists(key string) bool {
-	return helper.Contains(p.keys, key)
+	return checker.Contains(p.keys, key)
 }
 
 func (p *Projection) ContainsNumericKey() bool {
 	for _, key := range p.keys {
-		if helper.IsNumeric(key) {
+		if checker.IsNumeric(key) {
 			return true
 		}
 	}
@@ -82,15 +82,15 @@ func (p *Projection) TypeNumeric() enum.ProjectionType {
 }
 
 func (p *Projection) IsAddition(key string) bool {
-	return p.Exists(key) && helper.Equals(p.Get(key), enum.ProjectionValueAddition)
+	return p.Exists(key) && checker.Equals(p.Get(key), enum.ProjectionValueAddition)
 }
 
 func (p *Projection) IsRejection(key string) bool {
-	return p.Exists(key) && helper.Equals(p.Get(key), enum.ProjectionValueRejection)
+	return p.Exists(key) && checker.Equals(p.Get(key), enum.ProjectionValueRejection)
 }
 
 func (p *Projection) UnmarshalJSON(data []byte) error {
-	if helper.IsEmpty(data) || helper.Equals(strings.TrimSpace(string(data)), "{}") {
+	if checker.IsEmpty(data) || checker.Equals(strings.TrimSpace(string(data)), "{}") {
 		return nil
 	}
 
@@ -98,7 +98,7 @@ func (p *Projection) UnmarshalJSON(data []byte) error {
 
 	p.keys = []string{}
 	p.values = map[string]enum.ProjectionValue{}
-	for field := iter.ReadObject(); helper.IsNotEmpty(field); field = iter.ReadObject() {
+	for field := iter.ReadObject(); checker.IsNotEmpty(field); field = iter.ReadObject() {
 		p.keys = append(p.keys, field)
 		p.values[field] = enum.ProjectionValue(iter.ReadInt())
 	}
@@ -122,7 +122,7 @@ func (p *Projection) MarshalJSON() ([]byte, error) {
 
 func (p *Projection) allAddition() bool {
 	for _, key := range p.Keys() {
-		if helper.IsNotEqualTo(p.Get(key), enum.ProjectionValueAddition) {
+		if checker.NotEquals(p.Get(key), enum.ProjectionValueAddition) {
 			return false
 		}
 	}
@@ -131,7 +131,7 @@ func (p *Projection) allAddition() bool {
 
 func (p *Projection) allNumericAddition() bool {
 	for _, key := range p.Keys() {
-		if helper.IsNumeric(key) && helper.IsNotEqualTo(p.Get(key), enum.ProjectionValueAddition) {
+		if checker.IsNumeric(key) && checker.NotEquals(p.Get(key), enum.ProjectionValueAddition) {
 			return false
 		}
 	}
@@ -140,7 +140,7 @@ func (p *Projection) allNumericAddition() bool {
 
 func (p *Projection) allRejection() bool {
 	for _, key := range p.Keys() {
-		if helper.IsNotEqualTo(p.Get(key), enum.ProjectionValueRejection) {
+		if checker.NotEquals(p.Get(key), enum.ProjectionValueRejection) {
 			return false
 		}
 	}
@@ -149,7 +149,7 @@ func (p *Projection) allRejection() bool {
 
 func (p *Projection) allNumericRejection() bool {
 	for _, key := range p.Keys() {
-		if helper.IsNumeric(key) && helper.IsNotEqualTo(p.Get(key), enum.ProjectionValueRejection) {
+		if checker.IsNumeric(key) && checker.NotEquals(p.Get(key), enum.ProjectionValueRejection) {
 			return false
 		}
 	}

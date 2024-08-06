@@ -1,7 +1,7 @@
 package service
 
 import (
-	"github.com/GabrielHCataldo/go-helper/helper"
+	"github.com/tech4works/checker"
 	"github.com/tech4works/gopen-gateway/internal/domain/mapper"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
 	timerate "golang.org/x/time/rate"
@@ -28,7 +28,7 @@ func NewLimiter() Limiter {
 }
 
 func (s *limiterService) AllowRate(request *vo.HTTPRequest, rate vo.Rate) (err error) {
-	if !rate.HasData() {
+	if rate.IsEmpty() {
 		return nil
 	}
 
@@ -52,12 +52,12 @@ func (s *limiterService) AllowRate(request *vo.HTTPRequest, rate vo.Rate) (err e
 
 func (s *limiterService) AllowSize(request *vo.HTTPRequest, limiter vo.Limiter) error {
 	maxHeaderSize := limiter.MaxHeaderSize()
-	if helper.IsGreaterThan(request.Header().Size(), maxHeaderSize) {
+	if checker.IsGreaterThan(request.Header().Size(), maxHeaderSize) {
 		return mapper.NewErrHeaderTooLarge(maxHeaderSize.String())
 	}
 
 	maxBodySize := limiter.MaxBodySize()
-	if helper.ContainsIgnoreCase(request.Header().Get(mapper.ContentType), "multipart/form-data") {
+	if checker.ContainsIgnoreCase(request.Header().Get(mapper.ContentType), "multipart/form-data") {
 		maxBodySize = limiter.MaxMultipartMemorySize()
 	}
 
@@ -69,7 +69,7 @@ func (s *limiterService) AllowSize(request *vo.HTTPRequest, limiter vo.Limiter) 
 	readCloser := http.MaxBytesReader(nil, io.NopCloser(bodyBuffer), int64(maxBodySize))
 
 	_, err := io.ReadAll(readCloser)
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		return mapper.NewErrPayloadTooLarge(maxBodySize.String())
 	}
 

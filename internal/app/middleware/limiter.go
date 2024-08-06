@@ -18,7 +18,7 @@ package middleware
 
 import (
 	"github.com/GabrielHCataldo/go-errors/errors"
-	"github.com/GabrielHCataldo/go-helper/helper"
+	"github.com/tech4works/checker"
 	"github.com/tech4works/gopen-gateway/internal/app"
 	"github.com/tech4works/gopen-gateway/internal/domain/mapper"
 	"github.com/tech4works/gopen-gateway/internal/domain/service"
@@ -41,7 +41,7 @@ func NewLimiter(service service.Limiter) Limiter {
 
 func (l limiterMiddleware) Do(ctx app.Context) {
 	err := l.service.AllowRate(ctx.Request(), ctx.Endpoint().Limiter().Rate())
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		ctx.WriteError(http.StatusTooManyRequests, err)
 		return
 	}

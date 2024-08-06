@@ -23,6 +23,7 @@ import (
 	"github.com/GabrielHCataldo/go-errors/errors"
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/opentracing/opentracing-go"
+	"github.com/tech4works/checker"
 	"github.com/tech4works/gopen-gateway/internal/app"
 	"github.com/tech4works/gopen-gateway/internal/app/model/dto"
 	"github.com/tech4works/gopen-gateway/internal/domain/mapper"
@@ -43,7 +44,7 @@ func NewClient() app.HTTPClient {
 func (c client) MakeRequest(ctx context.Context, endpoint *vo.Endpoint, request *vo.HTTPBackendRequest,
 ) *vo.HTTPBackendResponse {
 	httpRequest, err := c.buildNetHTTPRequest(ctx, request)
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		return c.buildHTTPBackendResponseByErr(endpoint, err)
 	}
 
@@ -52,11 +53,11 @@ func (c client) MakeRequest(ctx context.Context, endpoint *vo.Endpoint, request 
 	httpResponse, err := net.DefaultClient.Do(httpRequest)
 
 	var httpBackendResponse *vo.HTTPBackendResponse
-	if err = c.treatHTTPClientErr(err); helper.IsNotNil(err) {
+	if err = c.treatHTTPClientErr(err); checker.NonNil(err) {
 		httpBackendResponse = c.buildHTTPBackendResponseByErr(endpoint, err)
 	} else {
 		httpBackendResponse, err = c.buildHTTPBackendResponse(httpResponse)
-		if helper.IsNotNil(err) {
+		if checker.NonNil(err) {
 			httpBackendResponse = c.buildHTTPBackendResponseByErr(endpoint, err)
 		}
 	}
@@ -71,7 +72,7 @@ func (c client) buildNetHTTPRequest(ctx context.Context, request *vo.HTTPBackend
 		body = io.NopCloser(request.Body().Buffer())
 	}
 	netReq, err := net.NewRequestWithContext(ctx, request.Method(), request.Url(), body)
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		return nil, err
 	}
 
@@ -82,9 +83,9 @@ func (c client) buildNetHTTPRequest(ctx context.Context, request *vo.HTTPBackend
 	netReq.URL.RawQuery = query.Encode()
 
 	span := opentracing.SpanFromContext(ctx)
-	if helper.IsNotNil(span) {
+	if checker.NonNil(span) {
 		err = span.Tracer().Inject(span.Context(), opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(netReq.Header))
-		if helper.IsNotNil(err) {
+		if checker.NonNil(err) {
 			return nil, err
 		}
 	}
@@ -94,7 +95,7 @@ func (c client) buildNetHTTPRequest(ctx context.Context, request *vo.HTTPBackend
 
 func (c client) startSpan(ctx context.Context, request *vo.HTTPBackendRequest) opentracing.Span {
 	span := opentracing.SpanFromContext(ctx)
-	if helper.IsNil(span) {
+	if checker.IsNil(span) {
 		return nil
 	}
 
@@ -111,13 +112,13 @@ func (c client) startSpan(ctx context.Context, request *vo.HTTPBackendRequest) o
 }
 
 func (c client) finishSpan(span opentracing.Span, httpBackendResponse *vo.HTTPBackendResponse) {
-	if helper.IsNil(span) {
+	if checker.IsNil(span) {
 		return
 	}
 
 	span.SetTag("response.status", helper.SimpleConvertToString(httpBackendResponse.StatusCode()))
 	span.SetTag("response.header", helper.SimpleConvertToString(httpBackendResponse.Header()))
-	if helper.IsNotNil(httpBackendResponse.Body()) {
+	if checker.NonNil(httpBackendResponse.Body()) {
 		span.SetTag("response.body", httpBackendResponse.Body().Resume())
 	} else {
 		span.SetTag("response.body", "")
@@ -127,7 +128,7 @@ func (c client) finishSpan(span opentracing.Span, httpBackendResponse *vo.HTTPBa
 }
 
 func (c client) treatHTTPClientErr(err error) error {
-	if helper.IsNil(err) {
+	if checker.IsNil(err) {
 		return nil
 	}
 
@@ -168,12 +169,12 @@ func (c client) buildHTTPBackendResponse(httpResponse *net.Response) (*vo.HTTPBa
 	header := vo.NewHeader(httpResponse.Header)
 
 	var body *vo.Body
-	if helper.IsNotNil(httpResponse.Body) {
+	if checker.NonNil(httpResponse.Body) {
 		contentType := httpResponse.Header.Get(mapper.ContentType)
 		contentEncoding := httpResponse.Header.Get(mapper.ContentEncoding)
 
 		bodyBytes, err := io.ReadAll(httpResponse.Body)
-		if helper.IsNotNil(err) {
+		if checker.NonNil(err) {
 			return nil, err
 		}
 		body = vo.NewBody(contentType, contentEncoding, bytes.NewBuffer(bodyBytes))

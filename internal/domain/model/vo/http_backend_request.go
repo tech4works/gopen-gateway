@@ -18,7 +18,7 @@ package vo
 
 import (
 	"fmt"
-	"github.com/GabrielHCataldo/go-helper/helper"
+	"github.com/tech4works/checker"
 )
 
 type HTTPBackendRequest struct {
@@ -85,5 +85,5 @@ func (b *HTTPBackendRequest) Body() *Body {
 }
 
 func (b *HTTPBackendRequest) HasBody() bool {
-	return helper.IsNotNil(b.body)
+	return checker.NonNil(b.body)
 }

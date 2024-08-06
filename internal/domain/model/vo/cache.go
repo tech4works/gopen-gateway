@@ -16,7 +16,9 @@
 
 package vo
 
-import "github.com/GabrielHCataldo/go-helper/helper"
+import (
+	"github.com/tech4works/checker"
+)
 
 type Cache struct {
 	enabled           bool
@@ -77,21 +79,21 @@ func (c Cache) StrategyHeaders() []string {
 }
 
 func (c Cache) AllowCacheControlNonNil() bool {
-	return helper.IfNilReturns(c.allowCacheControl, false)
+	return checker.IfNilReturns(c.allowCacheControl, false)
 }
 
 func (c Cache) HasOnlyIfMethods() bool {
-	return helper.IsNotNil(c.onlyIfMethods)
+	return checker.NonNil(c.onlyIfMethods)
 }
 
 func (c Cache) HasAnyOnlyIfMethods() bool {
-	return helper.IsNotEmpty(c.onlyIfMethods)
+	return checker.IsNotEmpty(c.onlyIfMethods)
 }
 
 func (c Cache) HasOnlyIfStatusCodes() bool {
-	return helper.IsNotNil(c.onlyIfStatusCodes)
+	return checker.NonNil(c.onlyIfStatusCodes)
 }
 
 func (c Cache) HasAnyOnlyIfStatusCodes() bool {
-	return helper.IsNotEmpty(c.onlyIfStatusCodes)
+	return checker.IsNotEmpty(c.onlyIfStatusCodes)
 }

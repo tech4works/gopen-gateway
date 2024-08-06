@@ -3,6 +3,7 @@ package service
 import (
 	"github.com/GabrielHCataldo/go-errors/errors"
 	"github.com/GabrielHCataldo/go-helper/helper"
+	"github.com/tech4works/checker"
 	"github.com/tech4works/gopen-gateway/internal/domain"
 	"github.com/tech4works/gopen-gateway/internal/domain/mapper"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
@@ -31,7 +32,7 @@ func (d dynamicValueService) Get(value string, request *vo.HTTPRequest, history 
 		result, err := d.getValueBySyntax(word, request, history)
 		if errors.Is(err, mapper.ErrValueNotFound) {
 			continue
-		} else if helper.IsNotNil(err) {
+		} else if checker.NonNil(err) {
 			errs = append(errs, err)
 		} else {
 			value = strings.Replace(value, word, result, 1)
@@ -42,10 +43,10 @@ func (d dynamicValueService) Get(value string, request *vo.HTTPRequest, history 
 
 func (d dynamicValueService) GetAsSliceOfString(value string, request *vo.HTTPRequest, history *vo.History) ([]string, []error) {
 	newValue, errs := d.Get(value, request, history)
-	if helper.IsSliceType(newValue) {
+	if checker.IsSlice(newValue) {
 		var ss []string
 		err := helper.ConvertToDest(newValue, &ss)
-		if helper.IsNil(err) {
+		if checker.IsNil(err) {
 			return ss, errs
 		} else {
 			errs = append(errs, err)
@@ -62,14 +63,14 @@ func (d dynamicValueService) findAllBySyntax(value string) []string {
 func (d dynamicValueService) getValueBySyntax(word string, request *vo.HTTPRequest, history *vo.History) (string, error) {
 	cleanSintaxe := strings.ReplaceAll(word, "#", "")
 	dotSplit := strings.Split(cleanSintaxe, ".")
-	if helper.IsEmpty(dotSplit) {
+	if checker.IsEmpty(dotSplit) {
 		return "", errors.Newf("Invalid dynamic value syntax! key: %s", word)
 	}
 
 	prefix := dotSplit[0]
-	if helper.Contains(prefix, "request") {
+	if checker.Contains(prefix, "request") {
 		return d.getRequestValueByJsonPath(cleanSintaxe, request)
-	} else if helper.Contains(prefix, "responses") {
+	} else if checker.Contains(prefix, "responses") {
 		return d.getResponseValueByJsonPath(cleanSintaxe, history)
 	} else {
 		return "", errors.Newf("Invalid prefix syntax %s!", prefix)
@@ -80,7 +81,7 @@ func (d dynamicValueService) getRequestValueByJsonPath(jsonPath string, request 
 	jsonPath = strings.Replace(jsonPath, "request.", "", 1)
 
 	jsonRequest, err := request.Map()
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		return "", err
 	}
 
@@ -96,7 +97,7 @@ func (d dynamicValueService) getResponseValueByJsonPath(jsonPath string, history
 	jsonPath = strings.Replace(jsonPath, "responses.", "", 1)
 
 	jsonResponse, err := history.Map()
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		return "", err
 	}
 

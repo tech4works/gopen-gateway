@@ -2,6 +2,7 @@ package factory
 
 import (
 	"github.com/GabrielHCataldo/go-helper/helper"
+	"github.com/tech4works/checker"
 	"github.com/tech4works/gopen-gateway/internal/app/model/dto"
 	"os"
 )
@@ -27,7 +28,7 @@ func countEndpoints(gopen dto.Gopen) int {
 }
 
 func countMiddlewares(gopen dto.Gopen) int {
-	if helper.IsNotNil(gopen.Middlewares) {
+	if checker.NonNil(gopen.Middlewares) {
 		return len(gopen.Middlewares)
 	}
 	return 0

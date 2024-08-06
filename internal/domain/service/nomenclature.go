@@ -2,6 +2,7 @@ package service
 
 import (
 	"github.com/GabrielHCataldo/go-helper/helper"
+	"github.com/tech4works/checker"
 	"github.com/tech4works/gopen-gateway/internal/domain"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
@@ -29,17 +30,17 @@ func (n nomenclatureService) ToCase(body *vo.Body, nomenclature enum.Nomenclatur
 	}
 
 	raw, err := body.Raw()
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		return body, []error{err}
 	}
 
 	jsonStr, errs := n.convertKeysToCase(raw, nomenclature)
-	if helper.IsNotEmpty(errs) {
+	if checker.IsNotEmpty(errs) {
 		return body, errs
 	}
 
 	buffer, err := helper.ConvertToBuffer(jsonStr)
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		return body, []error{err}
 	}
 
@@ -62,7 +63,7 @@ func (n nomenclatureService) convertKeysToCase(jsonStr string, nomenclature enum
 		newKey := n.nomenclature.Parse(nomenclature, key)
 		if value.IsObject() || value.IsArray() {
 			childJson, childErrs := n.convertKeysToCase(value.Raw(), nomenclature)
-			if helper.IsNotEmpty(childErrs) {
+			if checker.IsNotEmpty(childErrs) {
 				errs = append(errs, childErrs...)
 				return true
 			}
@@ -71,7 +72,7 @@ func (n nomenclatureService) convertKeysToCase(jsonStr string, nomenclature enum
 			newResult, err = n.jsonPath.Set(result, newKey, value.Raw())
 		}
 
-		if helper.IsNotNil(err) {
+		if checker.NonNil(err) {
 			errs = append(errs, err)
 			return true
 		}

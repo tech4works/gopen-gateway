@@ -18,6 +18,7 @@ package vo
 
 import (
 	"github.com/GabrielHCataldo/go-helper/helper"
+	"github.com/tech4works/checker"
 	"github.com/tech4works/gopen-gateway/internal/domain/mapper"
 	"net/http"
 	"strings"
@@ -30,7 +31,7 @@ type Header struct {
 func NewHeader(values map[string][]string) Header {
 	cleanValues := map[string][]string{}
 	for k, v := range values {
-		if helper.IsNotNil(values) && helper.IsNotEmpty(v) {
+		if checker.IsNotEmpty(v) {
 			cleanValues[k] = v
 		}
 	}
@@ -38,7 +39,7 @@ func NewHeader(values map[string][]string) Header {
 }
 
 func NewHeaderByBody(body *Body) Header {
-	if helper.IsNil(body) {
+	if checker.IsNil(body) {
 		return Header{}
 	}
 
@@ -65,7 +66,7 @@ func (h *Header) GetAll(key string) []string {
 
 func (h *Header) Get(key string) string {
 	valuesByKey := h.values[key]
-	if helper.IsNotEmpty(valuesByKey) {
+	if checker.IsNotEmpty(valuesByKey) {
 		return strings.Join(valuesByKey, ", ")
 	}
 	return ""
@@ -73,7 +74,7 @@ func (h *Header) Get(key string) string {
 
 func (h *Header) GetFirst(key string) string {
 	valuesByKey := h.values[key]
-	if helper.IsNotEmpty(valuesByKey) {
+	if checker.IsNotEmpty(valuesByKey) {
 		return valuesByKey[0]
 	}
 	return ""
@@ -133,8 +134,9 @@ func (h *Header) MarshalJSON() ([]byte, error) {
 
 func (h *Header) UnmarshalJSON(data []byte) error {
 	var values map[string][]string
+
 	err := helper.ConvertToDest(data, &values)
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		return err
 	}
 

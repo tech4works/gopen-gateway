@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/GabrielHCataldo/go-helper/helper"
+	"github.com/tech4works/checker"
 	"strconv"
 )
 
@@ -31,7 +32,7 @@ type Body struct {
 }
 
 func NewBody(contentType, contentEncoding string, buffer *bytes.Buffer) *Body {
-	if helper.IsNil(buffer) || helper.IsEmpty(buffer.Bytes()) {
+	if checker.IsNil(buffer) || checker.IsEmpty(buffer.Bytes()) {
 		return nil
 	}
 	return &Body{
@@ -42,7 +43,7 @@ func NewBody(contentType, contentEncoding string, buffer *bytes.Buffer) *Body {
 }
 
 func NewBodyWithContentType(contentType ContentType, buffer *bytes.Buffer) *Body {
-	if helper.IsNil(buffer) || helper.IsEmpty(buffer.Bytes()) {
+	if checker.IsNil(buffer) || checker.IsEmpty(buffer.Bytes()) {
 		return nil
 	}
 	return &Body{
@@ -52,7 +53,7 @@ func NewBodyWithContentType(contentType ContentType, buffer *bytes.Buffer) *Body
 }
 
 func NewBodyJson(buffer *bytes.Buffer) *Body {
-	if helper.IsNil(buffer) || helper.IsEmpty(buffer.Bytes()) {
+	if checker.IsNil(buffer) || checker.IsEmpty(buffer.Bytes()) {
 		return nil
 	}
 	return &Body{
@@ -92,7 +93,7 @@ func (b *Body) RawBytes() []byte {
 
 func (b *Body) String() (string, error) {
 	bs, err := b.Bytes()
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		return string(b.RawBytes()), err
 	}
 	return string(bs), nil
@@ -100,7 +101,7 @@ func (b *Body) String() (string, error) {
 
 func (b *Body) Raw() (string, error) {
 	s, err := b.String()
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		return "", err
 	}
 	if b.ContentType().IsText() {
@@ -134,24 +135,27 @@ func (b *Body) Map() (any, error) {
 	if b.ContentType().IsNotJSON() {
 		return nil, nil
 	}
+
 	bs, err := b.Bytes()
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		return nil, err
 	}
 
 	var dest any
 	err = helper.ConvertToDest(bs, &dest)
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		return nil, err
 	}
+
 	return dest, nil
 }
 
 func (b *Body) MarshalJSON() ([]byte, error) {
 	base64, err := helper.ConvertToBase64(b.buffer.Bytes())
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		return nil, err
 	}
+
 	return json.Marshal(map[string]any{
 		"contentType":     b.contentType,
 		"contentEncoding": b.contentEncoding,
@@ -163,19 +167,21 @@ func (b *Body) UnmarshalJSON(data []byte) error {
 	var mapBody map[string]any
 
 	err := json.Unmarshal(data, &mapBody)
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		return err
 	}
 
 	if value, exists := mapBody["buffer"]; exists {
 		valueStr, err := helper.ConvertToString(value)
-		if helper.IsNotNil(err) {
+		if checker.NonNil(err) {
 			return err
 		}
+
 		bufferStr, err := helper.ConvertBase64ToString(valueStr)
-		if helper.IsNotNil(err) {
+		if checker.NonNil(err) {
 			return err
 		}
+
 		b.buffer = bytes.NewBufferString(bufferStr)
 	}
 

@@ -17,7 +17,7 @@
 package vo
 
 import (
-	"github.com/GabrielHCataldo/go-helper/helper"
+	"github.com/tech4works/checker"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
 )
 
@@ -180,7 +180,7 @@ func (b *Backend) Method() string {
 }
 
 func (b *Backend) HasRequest() bool {
-	return helper.IsNotNil(b.request)
+	return checker.NonNil(b.request)
 }
 
 func (b *Backend) Request() *BackendRequest {
@@ -188,7 +188,7 @@ func (b *Backend) Request() *BackendRequest {
 }
 
 func (b *Backend) HasResponse() bool {
-	return helper.IsNotNil(b.response)
+	return checker.NonNil(b.response)
 }
 
 func (b *Backend) Response() *BackendResponse {
@@ -196,25 +196,25 @@ func (b *Backend) Response() *BackendResponse {
 }
 
 func (b *Backend) CountAllDataTransforms() (count int) {
-	if helper.IsNotNil(b.Request()) {
+	if checker.NonNil(b.Request()) {
 		count += b.Request().CountAllDataTransforms()
 	}
-	if helper.IsNotNil(b.Response()) {
+	if checker.NonNil(b.Response()) {
 		count += b.Response().CountAllDataTransforms()
 	}
 	return count
 }
 
 func (b *Backend) IsBeforeware() bool {
-	return helper.Equals(b.kind, enum.BackendTypeBeforeware)
+	return checker.Equals(b.kind, enum.BackendTypeBeforeware)
 }
 
 func (b *Backend) IsNormal() bool {
-	return helper.Equals(b.kind, enum.BackendTypeNormal)
+	return checker.Equals(b.kind, enum.BackendTypeNormal)
 }
 
 func (b *Backend) IsAfterware() bool {
-	return helper.Equals(b.kind, enum.BackendTypeAfterware)
+	return checker.Equals(b.kind, enum.BackendTypeAfterware)
 }
 
 func (b *Backend) Type() enum.BackendType {
@@ -314,13 +314,13 @@ func (b BackendRequest) CountQueryDataTransforms() (count int) {
 	if b.OmitQuery() {
 		return 1
 	}
-	if helper.IsNotNil(b.QueryMapper()) {
+	if checker.NonNil(b.QueryMapper()) {
 		count += len(b.QueryMapper().Keys())
 	}
-	if helper.IsNotNil(b.QueryProjection()) {
+	if checker.NonNil(b.QueryProjection()) {
 		count += len(b.QueryProjection().Keys())
 	}
-	if helper.IsNotNil(b.QueryModifiers()) {
+	if checker.NonNil(b.QueryModifiers()) {
 		count += len(b.QueryModifiers())
 	}
 	return count
@@ -330,13 +330,13 @@ func (b BackendRequest) CountHeaderDataTransforms() (count int) {
 	if b.OmitHeader() {
 		return 1
 	}
-	if helper.IsNotNil(b.HeaderMapper()) {
+	if checker.NonNil(b.HeaderMapper()) {
 		count += len(b.HeaderMapper().Keys())
 	}
-	if helper.IsNotNil(b.HeaderProjection()) {
+	if checker.NonNil(b.HeaderProjection()) {
 		count += len(b.HeaderProjection().Keys())
 	}
-	if helper.IsNotNil(b.HeaderModifiers()) {
+	if checker.NonNil(b.HeaderModifiers()) {
 		count += len(b.HeaderModifiers())
 	}
 	return count
@@ -346,20 +346,20 @@ func (b BackendRequest) CountBodyDataTransforms() (count int) {
 	if b.OmitBody() {
 		return 1
 	}
-	if helper.IsNotNil(b.BodyMapper()) {
+	if checker.NonNil(b.BodyMapper()) {
 		count += len(b.BodyMapper().Keys())
 	}
-	if helper.IsNotNil(b.BodyProjection()) {
+	if checker.NonNil(b.BodyProjection()) {
 		count += len(b.BodyProjection().Keys())
 	}
-	if helper.IsNotNil(b.BodyModifiers()) {
+	if checker.NonNil(b.BodyModifiers()) {
 		count += len(b.BodyModifiers())
 	}
 	return count
 }
 
 func (b BackendRequest) CountParamDataTransforms() int {
-	if helper.IsNotNil(b.ParamModifiers()) {
+	if checker.NonNil(b.ParamModifiers()) {
 		return len(b.ParamModifiers())
 	}
 	return 0
@@ -402,7 +402,7 @@ func (b BackendResponse) BodyModifiers() []Modifier {
 }
 
 func (b BackendResponse) HasGroup() bool {
-	return helper.IsNotEmpty(b.group)
+	return checker.IsNotEmpty(b.group)
 }
 
 func (b BackendResponse) Group() string {
@@ -422,13 +422,13 @@ func (b BackendResponse) CountHeaderDataTransforms() (count int) {
 	if b.OmitHeader() {
 		return 1
 	}
-	if helper.IsNotNil(b.HeaderMapper()) {
+	if checker.NonNil(b.HeaderMapper()) {
 		count += len(b.HeaderMapper().Keys())
 	}
-	if helper.IsNotNil(b.HeaderProjection()) {
+	if checker.NonNil(b.HeaderProjection()) {
 		count += len(b.HeaderProjection().Keys())
 	}
-	if helper.IsNotNil(b.HeaderModifiers()) {
+	if checker.NonNil(b.HeaderModifiers()) {
 		count += len(b.HeaderModifiers())
 	}
 	return count
@@ -438,13 +438,13 @@ func (b BackendResponse) CountBodyDataTransforms() (count int) {
 	if b.OmitBody() {
 		return 1
 	}
-	if helper.IsNotNil(b.BodyMapper()) {
+	if checker.NonNil(b.BodyMapper()) {
 		count += len(b.BodyMapper().Keys())
 	}
-	if helper.IsNotNil(b.BodyProjection()) {
+	if checker.NonNil(b.BodyProjection()) {
 		count += len(b.BodyProjection().Keys())
 	}
-	if helper.IsNotNil(b.BodyModifiers()) {
+	if checker.NonNil(b.BodyModifiers()) {
 		count += len(b.BodyModifiers())
 	}
 	return count

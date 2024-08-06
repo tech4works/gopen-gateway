@@ -50,12 +50,12 @@ func (q Query) NotExists(key string) bool {
 	return !q.Exists(key)
 }
 
-func (q Query) Len() int {
+func (q Query) Length() int {
 	return len(q.values)
 }
 
 func (q Query) IsEmpty() bool {
-	return q.Len() == 0
+	return q.Length() == 0
 }
 
 func (q Query) Keys() (ss []string) {

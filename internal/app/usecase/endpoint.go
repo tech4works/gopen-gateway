@@ -2,7 +2,7 @@ package usecase
 
 import (
 	"context"
-	"github.com/GabrielHCataldo/go-helper/helper"
+	"github.com/tech4works/checker"
 	"github.com/tech4works/gopen-gateway/internal/app"
 	"github.com/tech4works/gopen-gateway/internal/app/model/dto"
 	"github.com/tech4works/gopen-gateway/internal/domain/factory"
@@ -66,7 +66,7 @@ func (e endpointUseCase) makeBackendRequest(ctx context.Context, executeData dto
 
 func (e endpointUseCase) checkAbortBackendResponse(endpoint *vo.Endpoint, response *vo.HTTPBackendResponse) bool {
 	statusCode := response.StatusCode()
-	return (endpoint.HasAbortStatusCodes() && helper.Contains(endpoint.AbortIfStatusCodes(), statusCode.Code())) ||
+	return (endpoint.HasAbortStatusCodes() && checker.Contains(endpoint.AbortIfStatusCodes(), statusCode.Code())) ||
 		(!endpoint.HasAbortStatusCodes() && statusCode.Failed())
 }
 
@@ -119,7 +119,7 @@ func (e endpointUseCase) filterHistory(executeData dto.ExecuteEndpoint, history 
 
 		httpBackendResponse := e.buildHTTPBackendResponse(executeData, backend, httpBackendRequest, httpBackendTemporaryResponse, history)
 
-		if helper.IsNotNil(httpBackendResponse) {
+		if checker.NonNil(httpBackendResponse) {
 			backends = append(backends, backend)
 			requests = append(requests, httpBackendRequest)
 			responses = append(responses, httpBackendResponse)

@@ -6,6 +6,7 @@ import (
 	"github.com/GabrielHCataldo/go-helper/helper"
 	xj "github.com/basgys/goxml2json"
 	"github.com/clbanning/mxj/v2"
+	"github.com/tech4works/checker"
 	"github.com/tech4works/gopen-gateway/internal/domain"
 )
 
@@ -18,7 +19,7 @@ func New() domain.Converter {
 
 func (p provider) ConvertJSONToXML(bs []byte) ([]byte, error) {
 	mapJson, err := mxj.NewMapJson(bs)
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		return nil, err
 	}
 	return mapJson.Xml("root")
@@ -30,9 +31,10 @@ func (p provider) ConvertTextToXML(bs []byte) ([]byte, error) {
 
 func (p provider) ConvertXMLToJSON(bs []byte) ([]byte, error) {
 	jsonData, err := xj.Convert(bytes.NewBuffer(bs))
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		return nil, err
 	}
+
 	return jsonData.Bytes(), nil
 }
 

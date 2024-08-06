@@ -2,7 +2,7 @@ package service
 
 import (
 	"github.com/GabrielHCataldo/go-errors/errors"
-	"github.com/GabrielHCataldo/go-helper/helper"
+	"github.com/tech4works/checker"
 	"github.com/tech4works/gopen-gateway/internal/domain/mapper"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
 	"strings"
@@ -38,13 +38,15 @@ func (s securityCorsService) ValidateMethod(securityCors *vo.SecurityCors, reque
 func (s securityCorsService) ValidateHeaders(securityCors *vo.SecurityCors, request *vo.HTTPRequest) error {
 	var headersNotAllowed []string
 	for _, key := range request.Header().Keys() {
-		if helper.IsNotEqualTo(key, mapper.XForwardedFor) && !securityCors.AllowHeader(key) {
+		if checker.NotEquals(key, mapper.XForwardedFor) && !securityCors.AllowHeader(key) {
 			headersNotAllowed = append(headersNotAllowed, key)
 		}
 	}
-	if helper.IsNotEmpty(headersNotAllowed) {
+
+	if checker.IsNotEmpty(headersNotAllowed) {
 		keys := strings.Join(headersNotAllowed, ", ")
 		return errors.Newf("Headers contain not mapped fields on security-cors.allow-headers: %s", keys)
 	}
+
 	return nil
 }

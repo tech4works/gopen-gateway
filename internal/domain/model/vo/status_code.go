@@ -3,6 +3,7 @@ package vo
 import (
 	"fmt"
 	"github.com/GabrielHCataldo/go-helper/helper"
+	"github.com/tech4works/checker"
 	"net/http"
 )
 
@@ -19,11 +20,11 @@ func NewStatusCode(code int) StatusCode {
 }
 
 func (s *StatusCode) OK() bool {
-	return helper.IsGreaterThanOrEqual(s.Code(), 200) || helper.IsLessThanOrEqual(s.Code(), 299)
+	return checker.IsGreaterThanOrEqual(s.Code(), 200) || checker.IsLessThanOrEqual(s.Code(), 299)
 }
 
 func (s *StatusCode) Failed() bool {
-	return helper.IsGreaterThanOrEqual(s.Code(), 400)
+	return checker.IsGreaterThanOrEqual(s.Code(), 400)
 }
 
 func (s *StatusCode) Code() int {
@@ -40,11 +41,13 @@ func (s *StatusCode) MarshalJSON() ([]byte, error) {
 
 func (s *StatusCode) UnmarshalJSON(data []byte) error {
 	code, err := helper.ConvertToInt(data)
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		return err
 	}
+
 	s.code = code
 	s.description = http.StatusText(code)
+
 	return nil
 }
 

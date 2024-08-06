@@ -18,7 +18,7 @@ package vo
 
 import (
 	"fmt"
-	"github.com/GabrielHCataldo/go-helper/helper"
+	"github.com/tech4works/checker"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
 	"time"
 )
@@ -98,7 +98,7 @@ func (e *Endpoint) Method() string {
 }
 
 func (e *Endpoint) Timeout() Duration {
-	if helper.IsGreaterThan(e.timeout, 0) {
+	if checker.IsGreaterThan(e.timeout, 0) {
 		return e.timeout
 	}
 	return NewDuration(30 * time.Second)
@@ -146,7 +146,7 @@ func (e *Endpoint) CountBackends() (count int) {
 func (e *Endpoint) CountBackendsNonOmit() int {
 	count := 0
 	for _, backend := range e.Backends() {
-		if helper.IsNil(backend.Response()) || !backend.Response().Omit() {
+		if checker.IsNil(backend.Response()) || !backend.Response().Omit() {
 			count++
 		}
 	}
@@ -154,7 +154,7 @@ func (e *Endpoint) CountBackendsNonOmit() int {
 }
 
 func (e *Endpoint) CountAllDataTransforms() (count int) {
-	if helper.IsNotNil(e.Response()) {
+	if checker.NonNil(e.Response()) {
 		count += e.Response().CountAllDataTransforms()
 	}
 	for _, backend := range e.backends {
@@ -164,7 +164,7 @@ func (e *Endpoint) CountAllDataTransforms() (count int) {
 }
 
 func (e *Endpoint) HasAbortStatusCodes() bool {
-	return helper.IsNotNil(e.abortIfStatusCodes)
+	return checker.NonNil(e.abortIfStatusCodes)
 }
 
 func (e *Endpoint) Response() *EndpointResponse {
@@ -181,11 +181,11 @@ func (e *Endpoint) Resume() string {
 }
 
 func (e *Endpoint) NoCache() bool {
-	return helper.IsNil(e.Cache()) || e.Cache().Disabled()
+	return checker.IsNil(e.Cache()) || e.Cache().Disabled()
 }
 
 func (e *Endpoint) HasResponse() bool {
-	return helper.IsNotNil(e.response)
+	return checker.NonNil(e.response)
 }
 
 func (e EndpointResponse) HasContentType() bool {

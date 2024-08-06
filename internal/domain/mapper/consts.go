@@ -16,7 +16,9 @@
 
 package mapper
 
-import "github.com/GabrielHCataldo/go-helper/helper"
+import (
+	"github.com/tech4works/checker"
+)
 
 const (
 	ContentType     = "Content-Type"
@@ -39,13 +41,9 @@ func gopenHeaderKeys() []string {
 }
 
 func IsHeaderMandatoryKey(key string) bool {
-	return helper.Contains(mandatoryHeaderKeys(), key)
+	return checker.Contains(mandatoryHeaderKeys(), key)
 }
 
 func IsNotHeaderMandatoryKey(key string) bool {
 	return !IsHeaderMandatoryKey(key)
-}
-
-func IsNotGopenHeaderKey(key string) bool {
-	return !helper.Contains(gopenHeaderKeys(), key)
 }

@@ -22,6 +22,7 @@ import (
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/GabrielHCataldo/go-redis-template/redis"
 	"github.com/GabrielHCataldo/go-redis-template/redis/option"
+	"github.com/tech4works/checker"
 	"github.com/tech4works/gopen-gateway/internal/domain"
 	"github.com/tech4works/gopen-gateway/internal/domain/mapper"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
@@ -45,7 +46,7 @@ func NewRedisStore(address, password string) domain.Store {
 
 func (r redisStore) Set(ctx context.Context, key string, cacheResponse *vo.CacheResponse) error {
 	gzipBase64, err := helper.CompressWithGzipToBase64(cacheResponse)
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		return err
 	}
 
@@ -66,13 +67,13 @@ func (r redisStore) Get(ctx context.Context, key string) (*vo.CacheResponse, err
 	err := r.redisTemplate.Get(ctx, key, &cacheGzipBase64)
 	if errors.Is(err, redis.ErrKeyNotFound) {
 		return nil, mapper.NewErrCacheNotFound()
-	} else if helper.IsNotNil(err) {
+	} else if checker.NonNil(err) {
 		return nil, err
 	}
 
 	var cacheResponse vo.CacheResponse
 	err = helper.DecompressFromBase64WithGzipToDest(cacheGzipBase64, &cacheResponse)
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		return nil, err
 	}
 

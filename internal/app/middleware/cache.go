@@ -17,7 +17,7 @@
 package middleware
 
 import (
-	"github.com/GabrielHCataldo/go-helper/helper"
+	"github.com/tech4works/checker"
 	"github.com/tech4works/gopen-gateway/internal/app"
 	"github.com/tech4works/gopen-gateway/internal/domain/service"
 )
@@ -45,9 +45,9 @@ func (c cacheMiddleware) Do(ctx app.Context) {
 	}
 
 	response, err := c.service.Read(ctx.Context(), ctx.Endpoint().Cache(), ctx.Request())
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		c.printWarnf(ctx, "Error read cache err: %s", err)
-	} else if helper.IsNotNil(response) {
+	} else if checker.NonNil(response) {
 		ctx.WriteCacheResponse(response)
 		return
 	}
@@ -55,7 +55,7 @@ func (c cacheMiddleware) Do(ctx app.Context) {
 	ctx.Next()
 
 	err = c.service.Write(ctx.Context(), ctx.Endpoint().Cache(), ctx.Request(), ctx.Response())
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		c.printWarnf(ctx, "Error write cache err: %s", err)
 	}
 }

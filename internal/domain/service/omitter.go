@@ -2,6 +2,7 @@ package service
 
 import (
 	"github.com/GabrielHCataldo/go-helper/helper"
+	"github.com/tech4works/checker"
 	"github.com/tech4works/gopen-gateway/internal/domain"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
 )
@@ -31,12 +32,12 @@ func (o omitterService) OmitEmptyValuesFromBody(body *vo.Body) (*vo.Body, []erro
 
 func (o omitterService) omitEmptyValuesFromBodyText(body *vo.Body) (*vo.Body, []error) {
 	bodyStr, err := body.String()
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		return nil, []error{err}
 	}
 
 	buffer, err := helper.ConvertToBuffer(helper.CleanAllRepeatSpaces(bodyStr))
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		return nil, []error{err}
 	}
 
@@ -45,17 +46,17 @@ func (o omitterService) omitEmptyValuesFromBodyText(body *vo.Body) (*vo.Body, []
 
 func (o omitterService) omitEmptyValuesFromBodyJson(body *vo.Body) (*vo.Body, []error) {
 	raw, err := body.Raw()
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		return nil, []error{err}
 	}
 
 	newBodyStr, errs := o.removeAllEmptyFields(raw)
-	if helper.IsNotEmpty(errs) {
+	if checker.IsNotEmpty(errs) {
 		return nil, errs
 	}
 
 	buffer, err := helper.ConvertToBuffer(newBodyStr)
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		return nil, []error{err}
 	}
 
@@ -68,7 +69,7 @@ func (o omitterService) removeAllEmptyFields(jsonStr string) (string, []error) {
 	o.jsonPath.Parse(jsonStr).ForEach(func(key string, value domain.JSONValue) bool {
 		if value.IsObject() || value.IsArray() {
 			childJson, childErrs := o.removeAllEmptyFields(value.Raw())
-			if helper.IsNotEmpty(childErrs) {
+			if checker.IsNotEmpty(childErrs) {
 				errs = append(errs, childErrs...)
 				return true
 			}
@@ -77,13 +78,13 @@ func (o omitterService) removeAllEmptyFields(jsonStr string) (string, []error) {
 
 		var newJsonStr string
 		var err error
-		if helper.IsEmpty(value.Interface()) {
+		if checker.IsEmpty(value.Interface()) {
 			newJsonStr, err = o.jsonPath.Delete(jsonStr, key)
 		} else {
 			newJsonStr, err = o.jsonPath.Set(jsonStr, key, value.Raw())
 		}
 
-		if helper.IsNotNil(err) {
+		if checker.NonNil(err) {
 			errs = append(errs, err)
 			return true
 		}

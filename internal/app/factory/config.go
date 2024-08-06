@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/GabrielHCataldo/go-errors/errors"
 	"github.com/GabrielHCataldo/go-helper/helper"
+	"github.com/tech4works/checker"
 	"github.com/tech4works/gopen-gateway/internal/app/model/dto"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
@@ -19,7 +20,7 @@ func BuildGopen(gopen *dto.Gopen) *vo.Gopen {
 }
 
 func buildSecurityCors(securityCors *dto.SecurityCors) *vo.SecurityCors {
-	if helper.IsNil(securityCors) {
+	if checker.IsNil(securityCors) {
 		return nil
 	}
 	return vo.NewSecurityCors(securityCors.AllowOrigins, securityCors.AllowMethods, securityCors.AllowHeaders)
@@ -32,19 +33,19 @@ func buildEndpoints(gopen *dto.Gopen) []vo.Endpoint {
 	for _, endpoint := range gopen.Endpoints {
 		var err string
 		for _, registeredEndpoint := range endpoints {
-			if helper.IsNotEqualTo(endpoint.Path, registeredEndpoint.Path()) ||
-				helper.IsNotEqualTo(endpoint.Method, registeredEndpoint.Method()) {
+			if checker.NotEquals(endpoint.Path, registeredEndpoint.Path()) ||
+				checker.NotEquals(endpoint.Method, registeredEndpoint.Method()) {
 				continue
 			}
 			err = fmt.Sprintf("- Duplicate endpoint path: %s method: %s", endpoint.Path, endpoint.Method)
 			errs = append(errs, err)
 		}
-		if helper.IsEmpty(err) {
+		if checker.IsEmpty(err) {
 			endpoints = append(endpoints, buildEndpoint(gopen, endpoint))
 		}
 	}
 
-	if helper.IsNotEmpty(errs) {
+	if checker.IsNotEmpty(errs) {
 		panic(strings.Join(errs, "\n"))
 	}
 
@@ -65,7 +66,7 @@ func buildEndpoint(gopen *dto.Gopen, endpoint dto.Endpoint) vo.Endpoint {
 }
 
 func buildTimeout(timeout, endpointTimeout vo.Duration) vo.Duration {
-	if helper.IsGreaterThan(endpointTimeout, 0) {
+	if checker.IsGreaterThan(endpointTimeout, 0) {
 		return endpointTimeout
 	} else {
 		return timeout
@@ -78,27 +79,27 @@ func buildLimiter(limiter *dto.Limiter, endpointLimiter *dto.EndpointLimiter) vo
 	var maxMultipartForm vo.Bytes
 	var endpointRate, rate *dto.Rate
 
-	if helper.IsNotNil(limiter) {
-		if helper.IsNotNil(limiter.MaxHeaderSize) {
+	if checker.NonNil(limiter) {
+		if checker.NonNil(limiter.MaxHeaderSize) {
 			maxHeaderSize = *limiter.MaxHeaderSize
 		}
-		if helper.IsNotNil(limiter.MaxBodySize) {
+		if checker.NonNil(limiter.MaxBodySize) {
 			maxBodySize = *limiter.MaxBodySize
 		}
-		if helper.IsNotNil(limiter.MaxMultipartMemorySize) {
+		if checker.NonNil(limiter.MaxMultipartMemorySize) {
 			maxMultipartForm = *limiter.MaxMultipartMemorySize
 		}
 		rate = limiter.Rate
 	}
 
-	if helper.IsNotNil(endpointLimiter) {
-		if helper.IsNotNil(endpointLimiter.MaxHeaderSize) {
+	if checker.NonNil(endpointLimiter) {
+		if checker.NonNil(endpointLimiter.MaxHeaderSize) {
 			maxHeaderSize = endpointLimiter.MaxHeaderSize
 		}
-		if helper.IsNotNil(endpointLimiter.MaxBodySize) {
+		if checker.NonNil(endpointLimiter.MaxBodySize) {
 			maxBodySize = endpointLimiter.MaxBodySize
 		}
-		if helper.IsNotNil(endpointLimiter.MaxMultipartMemorySize) {
+		if checker.NonNil(endpointLimiter.MaxMultipartMemorySize) {
 			maxMultipartForm = endpointLimiter.MaxMultipartMemorySize
 		}
 		endpointRate = endpointLimiter.Rate
@@ -111,20 +112,20 @@ func buildLimiterRate(rate, endpointRate *dto.Rate) vo.Rate {
 	var every vo.Duration
 	var capacity int
 
-	if helper.IsNotNil(rate) {
-		if helper.IsNotNil(rate.Every) {
+	if checker.NonNil(rate) {
+		if checker.NonNil(rate.Every) {
 			every = *rate.Every
 		}
-		if helper.IsNotNil(rate.Capacity) {
+		if checker.NonNil(rate.Capacity) {
 			capacity = *rate.Capacity
 		}
 	}
 
-	if helper.IsNotNil(endpointRate) {
-		if helper.IsNotNil(endpointRate.Every) {
+	if checker.NonNil(endpointRate) {
+		if checker.NonNil(endpointRate.Every) {
 			every = *endpointRate.Every
 		}
-		if helper.IsNotNil(endpointRate.Capacity) {
+		if checker.NonNil(endpointRate.Capacity) {
 			capacity = *endpointRate.Capacity
 		}
 	}
@@ -133,7 +134,7 @@ func buildLimiterRate(rate, endpointRate *dto.Rate) vo.Rate {
 }
 
 func buildCache(cache *dto.Cache, endpointCache *dto.EndpointCache) *vo.Cache {
-	if helper.IsNil(cache) && helper.IsNil(endpointCache) {
+	if checker.IsNil(cache) && checker.IsNil(endpointCache) {
 		return nil
 	}
 
@@ -145,7 +146,7 @@ func buildCache(cache *dto.Cache, endpointCache *dto.EndpointCache) *vo.Cache {
 	var onlyIfMethods []string
 	var allowCacheControl *bool
 
-	if helper.IsNotNil(cache) {
+	if checker.NonNil(cache) {
 		duration = cache.Duration
 		strategyHeaders = cache.StrategyHeaders
 		onlyIfStatusCodes = cache.OnlyIfStatusCodes
@@ -153,19 +154,19 @@ func buildCache(cache *dto.Cache, endpointCache *dto.EndpointCache) *vo.Cache {
 		allowCacheControl = cache.AllowCacheControl
 	}
 
-	if helper.IsNotNil(endpointCache) {
+	if checker.NonNil(endpointCache) {
 		enabled = endpointCache.Enabled
 		ignoreQuery = endpointCache.IgnoreQuery
-		if helper.IsGreaterThan(endpointCache.Duration, 0) {
+		if checker.IsGreaterThan(endpointCache.Duration, 0) {
 			duration = endpointCache.Duration
 		}
-		if helper.IsNotNil(endpointCache.StrategyHeaders) {
+		if checker.NonNil(endpointCache.StrategyHeaders) {
 			strategyHeaders = endpointCache.StrategyHeaders
 		}
-		if helper.IsNotNil(endpointCache.AllowCacheControl) {
+		if checker.NonNil(endpointCache.AllowCacheControl) {
 			allowCacheControl = endpointCache.AllowCacheControl
 		}
-		if helper.IsNotNil(endpointCache.OnlyIfStatusCodes) {
+		if checker.NonNil(endpointCache.OnlyIfStatusCodes) {
 			onlyIfStatusCodes = endpointCache.OnlyIfStatusCodes
 		}
 	}
@@ -174,7 +175,7 @@ func buildCache(cache *dto.Cache, endpointCache *dto.EndpointCache) *vo.Cache {
 }
 
 func buildEndpointResponse(endpointResponse *dto.EndpointResponse) *vo.EndpointResponse {
-	if helper.IsNil(endpointResponse) {
+	if checker.IsNil(endpointResponse) {
 		return nil
 	}
 	return vo.NewEndpointResponse(
@@ -256,7 +257,7 @@ func buildBackendRequest(
 	propagateQueryModifiers,
 	propagateBodyModifiers *[]vo.Modifier,
 ) *vo.BackendRequest {
-	if helper.IsNotNil(backend.Request) {
+	if checker.NonNil(backend.Request) {
 		buildAndPropagateModifiers(backend.Request.HeaderModifiers, propagateHeaderModifiers)
 		buildAndPropagateModifiers(backend.Request.ParamModifiers, propagateParamModifiers)
 		buildAndPropagateModifiers(backend.Request.QueryModifiers, propagateQueryModifiers)
@@ -281,8 +282,8 @@ func buildBackendRequest(
 			*propagateQueryModifiers,
 			*propagateBodyModifiers,
 		)
-	} else if helper.IsNotEmpty(propagateHeaderModifiers) || helper.IsNotEmpty(propagateParamModifiers) ||
-		helper.IsNotEmpty(propagateQueryModifiers) || helper.IsNotEmpty(propagateBodyModifiers) {
+	} else if checker.IsNotEmpty(propagateHeaderModifiers) || checker.IsNotEmpty(propagateParamModifiers) ||
+		checker.IsNotEmpty(propagateQueryModifiers) || checker.IsNotEmpty(propagateBodyModifiers) {
 		return vo.NewBackendRequestOnlyModifiers(
 			*propagateHeaderModifiers,
 			*propagateParamModifiers,
@@ -305,9 +306,9 @@ func buildAndPropagateModifiers(modifiers []dto.Modifier, propagateModifiers *[]
 }
 
 func buildBackendResponse(backend dto.Backend, backendType enum.BackendType) *vo.BackendResponse {
-	if helper.IsNil(backend.Response) {
+	if checker.IsNil(backend.Response) {
 		return nil
-	} else if helper.Equals(backendType, enum.BackendTypeBeforeware) || helper.Equals(backendType, enum.BackendTypeAfterware) {
+	} else if checker.Equals(backendType, enum.BackendTypeBeforeware) || checker.Equals(backendType, enum.BackendTypeAfterware) {
 		return vo.NewBackendResponseForMiddleware()
 	}
 

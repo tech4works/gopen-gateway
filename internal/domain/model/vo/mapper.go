@@ -18,8 +18,8 @@ package vo
 
 import (
 	"fmt"
-	"github.com/GabrielHCataldo/go-helper/helper"
 	jsoniter "github.com/json-iterator/go"
+	"github.com/tech4works/checker"
 	"strconv"
 	"strings"
 )
@@ -30,7 +30,7 @@ type Mapper struct {
 }
 
 func (m *Mapper) IsEmpty() bool {
-	return helper.IsEmpty(m)
+	return checker.IsEmpty(m)
 }
 
 func (m *Mapper) IsNotEmpty() bool {
@@ -38,7 +38,7 @@ func (m *Mapper) IsNotEmpty() bool {
 }
 
 func (m *Mapper) Exists(key string) bool {
-	return helper.Contains(m.keys, key)
+	return checker.Contains(m.keys, key)
 }
 
 func (m *Mapper) Keys() []string {
@@ -50,7 +50,7 @@ func (m *Mapper) Get(key string) string {
 }
 
 func (m *Mapper) UnmarshalJSON(data []byte) error {
-	if helper.IsEmpty(data) || helper.Equals(strings.TrimSpace(string(data)), "{}") {
+	if checker.IsEmpty(data) || checker.Equals(strings.TrimSpace(string(data)), "{}") {
 		return nil
 	}
 
@@ -59,7 +59,7 @@ func (m *Mapper) UnmarshalJSON(data []byte) error {
 	m.keys = []string{}
 	m.values = map[string]string{}
 
-	for field := iter.ReadObject(); helper.IsNotEmpty(field); field = iter.ReadObject() {
+	for field := iter.ReadObject(); checker.IsNotEmpty(field); field = iter.ReadObject() {
 		m.keys = append(m.keys, field)
 		m.values[field] = iter.ReadString()
 	}

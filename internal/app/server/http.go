@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/GabrielHCataldo/go-helper/helper"
+	"github.com/tech4works/checker"
 	"github.com/tech4works/gopen-gateway/internal/app"
 	"github.com/tech4works/gopen-gateway/internal/app/controller"
 	"github.com/tech4works/gopen-gateway/internal/app/factory"
@@ -144,7 +145,7 @@ func (h http) ListenAndServe() {
 }
 
 func (h http) Shutdown(ctx context.Context) error {
-	if helper.IsNil(h.Server) {
+	if checker.IsNil(h.Server) {
 		return nil
 	}
 	return h.Server.Shutdown(ctx)

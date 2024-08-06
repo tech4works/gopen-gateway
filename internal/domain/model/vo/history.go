@@ -2,6 +2,7 @@ package vo
 
 import (
 	"github.com/GabrielHCataldo/go-helper/helper"
+	"github.com/tech4works/checker"
 )
 
 type History struct {
@@ -35,11 +36,11 @@ func (h *History) Get(i int) (*Backend, *HTTPBackendRequest, *HTTPBackendRespons
 }
 
 func (h *History) SingleResponse() bool {
-	return helper.IsLessThanOrEqual(h.Size(), 1)
+	return checker.IsLessThanOrEqual(h.Size(), 1)
 }
 
 func (h *History) MultipleResponses() bool {
-	return helper.IsGreaterThan(h.Size(), 1)
+	return checker.IsGreaterThan(h.Size(), 1)
 }
 
 func (h *History) Size() int {
@@ -63,7 +64,7 @@ func (h *History) Map() (string, error) {
 	var sliceOfMap []any
 	for _, response := range h.responses {
 		responseMap, err := response.Map()
-		if helper.IsNotNil(err) {
+		if checker.NonNil(err) {
 			return "", err
 		}
 		sliceOfMap = append(sliceOfMap, responseMap)

@@ -17,7 +17,7 @@
 package vo
 
 import (
-	"github.com/GabrielHCataldo/go-helper/helper"
+	"github.com/tech4works/checker"
 	"time"
 )
 
@@ -54,21 +54,21 @@ func NewRate(every Duration, capacity int) Rate {
 }
 
 func (l Limiter) MaxHeaderSize() Bytes {
-	if helper.IsGreaterThan(l.maxHeaderSize, 0) {
+	if checker.IsGreaterThan(l.maxHeaderSize, 0) {
 		return l.maxHeaderSize
 	}
 	return NewBytes("1MB")
 }
 
 func (l Limiter) MaxBodySize() Bytes {
-	if helper.IsGreaterThan(l.maxBodySize, 0) {
+	if checker.IsGreaterThan(l.maxBodySize, 0) {
 		return l.maxBodySize
 	}
 	return NewBytes("3MB")
 }
 
 func (l Limiter) MaxMultipartMemorySize() Bytes {
-	if helper.IsGreaterThan(l.maxMultipartMemorySize, 0) {
+	if checker.IsGreaterThan(l.maxMultipartMemorySize, 0) {
 		return l.maxMultipartMemorySize
 	}
 	return NewBytes("5MB")
@@ -78,8 +78,8 @@ func (l Limiter) Rate() Rate {
 	return l.rate
 }
 
-func (r Rate) HasData() bool {
-	return helper.IsGreaterThan(r.Capacity(), 0) && helper.IsGreaterThan(r.Every(), 0)
+func (r Rate) IsEmpty() bool {
+	return checker.IsLessThanOrEqual(r.Capacity(), 0) && checker.IsLessThanOrEqual(r.Every(), 0)
 }
 
 func (r Rate) Capacity() int {

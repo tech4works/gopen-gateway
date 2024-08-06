@@ -9,6 +9,7 @@ import (
 	"github.com/fsnotify/fsnotify"
 	"github.com/joho/godotenv"
 	"github.com/opentracing/opentracing-go"
+	"github.com/tech4works/checker"
 	"github.com/tech4works/gopen-gateway/internal/app"
 	"github.com/tech4works/gopen-gateway/internal/app/model/dto"
 	"github.com/tech4works/gopen-gateway/internal/app/server"
@@ -44,20 +45,20 @@ func New() app.Boot {
 }
 
 func (p provider) Init() string {
-	if helper.IsLessThanOrEqual(os.Args, 1) {
+	if checker.IsLengthLessThanOrEqual(os.Args, 1) {
 		panic("Please enter ENV as second argument! ex: dev, prd")
 	}
 
 	err := p.loadDefaultEnvs()
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		panic(err)
 	}
 
 	tracerHost := os.Getenv("TRACER_HOST")
-	if helper.IsNotEmpty(tracerHost) {
+	if checker.IsNotEmpty(tracerHost) {
 		p.log.PrintInfo("Booting Tracer...")
 		tracer, closer, err := p.initTracer(tracerHost)
-		if helper.IsNotNil(err) {
+		if checker.NonNil(err) {
 			p.log.PrintWarn(err)
 		} else {
 			defer closer.Close()
@@ -73,25 +74,25 @@ func (p provider) Init() string {
 func (p provider) Start(env string) {
 	p.log.PrintInfo("Loading Gopen envs...")
 	err := p.loadEnvs(env)
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		p.log.PrintWarn(err)
 	}
 
 	p.log.PrintInfo("Loading Gopen json...")
 	gopen, err := p.loadJson(env)
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		panic(err)
 	}
 
 	p.log.PrintInfo("Configuring cache store...")
 	store := cache.NewMemoryStore()
-	if helper.IsNotNil(gopen.Store) {
+	if checker.NonNil(gopen.Store) {
 		store = cache.NewRedisStore(gopen.Store.Redis.Address, gopen.Store.Redis.Password)
 	}
 	defer store.Close()
 
 	err = p.writeRuntimeJson(gopen)
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		p.log.PrintWarn(err)
 	}
 
@@ -113,7 +114,7 @@ func (p provider) Start(env string) {
 	if gopen.HotReload {
 		p.log.PrintInfo("Configuring watcher...")
 		watcher, err := p.initWatcher(env, httpServer)
-		if helper.IsNotNil(err) {
+		if checker.NonNil(err) {
 			p.log.PrintWarn("Error configure watcher:", err)
 		} else {
 			defer watcher.Close()
@@ -129,7 +130,7 @@ func (p provider) Stop() {
 	p.log.PrintInfo("Removing runtime json...")
 
 	err := p.removeRuntimeJson()
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		p.log.PrintWarn("Error to remove runtime json!")
 	}
 
@@ -138,7 +139,7 @@ func (p provider) Stop() {
 
 func (p provider) restart(env string, oldServer server.HTTP) {
 	defer func() {
-		if r := recover(); helper.IsNotNil(r) {
+		if r := recover(); checker.NonNil(r) {
 			errorDetails := errors.Details(r.(error))
 			p.log.PrintError("Error restart server:", errorDetails.GetCause())
 
@@ -154,7 +155,7 @@ func (p provider) restart(env string, oldServer server.HTTP) {
 
 	p.log.PrintInfo("Shutting down current server...")
 	err := oldServer.Shutdown(ctx)
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		p.log.PrintWarnf("Error shutdown current server: %s!", err)
 		return
 	}
@@ -186,11 +187,12 @@ func (p provider) initTracer(host string) (opentracing.Tracer, io.Closer, error)
 
 func (p provider) initWatcher(env string, oldServer server.HTTP) (*fsnotify.Watcher, error) {
 	watcher, err := fsnotify.NewWatcher()
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		return nil, err
 	}
+
 	defer func() {
-		if helper.IsNotNil(err) {
+		if checker.NonNil(err) {
 			watcher.Close()
 		}
 	}()
@@ -199,7 +201,7 @@ func (p provider) initWatcher(env string, oldServer server.HTTP) (*fsnotify.Watc
 		for {
 			select {
 			case ev, ok := <-watcher.Events:
-				if !ok || helper.IsNotEqualTo(ev.Op, fsnotify.Chmod) {
+				if !ok || checker.NotEquals(ev.Op, fsnotify.Chmod) {
 					return
 				}
 				p.restart(env, oldServer)
@@ -209,7 +211,7 @@ func (p provider) initWatcher(env string, oldServer server.HTTP) (*fsnotify.Watc
 
 	for _, path := range []string{p.buildEnvUri(env), p.buildJsonUri(env)} {
 		err = watcher.Add(path)
-		if helper.IsNotNil(err) {
+		if checker.NonNil(err) {
 			return nil, err
 		}
 	}
@@ -218,7 +220,7 @@ func (p provider) initWatcher(env string, oldServer server.HTTP) (*fsnotify.Watc
 }
 
 func (p provider) loadDefaultEnvs() (err error) {
-	if err = godotenv.Load("./.env"); helper.IsNotNil(err) {
+	if err = godotenv.Load("./.env"); checker.NonNil(err) {
 		err = errors.New("Error load Gopen envs default:", err)
 	}
 	return err
@@ -227,7 +229,7 @@ func (p provider) loadDefaultEnvs() (err error) {
 func (p provider) loadEnvs(env string) (err error) {
 	gopenEnvUri := p.buildEnvUri(env)
 
-	if err = godotenv.Overload(gopenEnvUri); helper.IsNotNil(err) {
+	if err = godotenv.Overload(gopenEnvUri); checker.NonNil(err) {
 		err = errors.New("Error load Gopen envs from uri:", gopenEnvUri, "err:", err)
 	}
 
@@ -238,18 +240,18 @@ func (p provider) loadJson(env string) (*dto.Gopen, error) {
 	gopenJsonUri := p.buildJsonUri(env)
 
 	gopenJsonBytes, err := os.ReadFile(gopenJsonUri)
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		return nil, errors.New("Error read Gopen config from file json:", gopenJsonUri, "err:", err)
 	}
 	gopenJsonBytes = p.fillEnvValues(gopenJsonBytes)
 
-	if err = p.validateJsonBySchema(gopenJsonBytes); helper.IsNotNil(err) {
+	if err = p.validateJsonBySchema(gopenJsonBytes); checker.NonNil(err) {
 		return nil, err
 	}
 
 	var gopen dto.Gopen
 	err = helper.ConvertToDest(gopenJsonBytes, &gopen)
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		return nil, err
 	}
 
@@ -269,7 +271,7 @@ func (p provider) fillEnvValues(gopenJsonBytes []byte) []byte {
 	for _, word := range words {
 		envKey := strings.ReplaceAll(word, "$", "")
 		envValue := os.Getenv(envKey)
-		if helper.IsNotEmpty(envValue) {
+		if checker.IsNotEmpty(envValue) {
 			gopenJsonStr = strings.ReplaceAll(gopenJsonStr, word, envValue)
 			count++
 		}
@@ -283,7 +285,7 @@ func (p provider) validateJsonBySchema(jsonBytes []byte) error {
 	documentLoader := gojsonschema.NewBytesLoader(jsonBytes)
 
 	result, err := gojsonschema.Validate(schemaLoader, documentLoader)
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		return errors.New("Error validate schema:", err)
 	} else if !result.Valid() {
 		errorMsg := fmt.Sprintf("Map poorly formatted!\n")
@@ -299,13 +301,13 @@ func (p provider) validateJsonBySchema(jsonBytes []byte) error {
 func (p provider) writeRuntimeJson(gopen *dto.Gopen) error {
 	if _, err := os.Stat(runtimeFolder); os.IsNotExist(err) {
 		err = os.MkdirAll(runtimeFolder, 0755)
-		if helper.IsNotNil(err) {
+		if checker.NonNil(err) {
 			return err
 		}
 	}
 
 	gopenJsonBytes, err := json.MarshalIndent(gopen, "", "\t")
-	if helper.IsNil(err) {
+	if checker.IsNil(err) {
 		err = os.WriteFile(jsonRuntimeUri, gopenJsonBytes, 0644)
 	}
 

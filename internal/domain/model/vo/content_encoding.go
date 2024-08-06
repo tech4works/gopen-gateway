@@ -1,6 +1,8 @@
 package vo
 
-import "github.com/GabrielHCataldo/go-helper/helper"
+import (
+	"github.com/tech4works/checker"
+)
 
 type ContentEncoding string
 
@@ -25,7 +27,7 @@ func (c ContentEncoding) IsSupported() bool {
 }
 
 func (c ContentEncoding) Valid() bool {
-	return helper.IsNotEmpty(c)
+	return checker.IsNotEmpty(c)
 }
 
 func (c ContentEncoding) Invalid() bool {
@@ -33,9 +35,9 @@ func (c ContentEncoding) Invalid() bool {
 }
 
 func (c ContentEncoding) IsGzip() bool {
-	return helper.EqualsIgnoreCase(c, "gzip")
+	return checker.EqualsIgnoreCase(c, "gzip")
 }
 
 func (c ContentEncoding) IsDeflate() bool {
-	return helper.EqualsIgnoreCase(c, "deflate")
+	return checker.EqualsIgnoreCase(c, "deflate")
 }

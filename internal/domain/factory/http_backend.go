@@ -2,6 +2,7 @@ package factory
 
 import (
 	"github.com/GabrielHCataldo/go-helper/helper"
+	"github.com/tech4works/checker"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
 	"github.com/tech4works/gopen-gateway/internal/domain/service"
@@ -78,7 +79,7 @@ func (f httpBackendFactory) BuildResponse(backend *vo.Backend, temporaryResponse
 func (f httpBackendFactory) buildRequestBalancedHost(backend *vo.Backend) string {
 	// todo: aqui obtemos o host (correto é criar um domínio chamado balancer aonde ele vai retornar o host
 	//  disponível pegando como base, se ele esta de pé ou não, e sua config de porcentagem)
-	if helper.EqualsLen(backend.Hosts(), 1) {
+	if checker.IsLengthEquals(backend.Hosts(), 1) {
 		return backend.Hosts()[0]
 	}
 	return backend.Hosts()[helper.RandomNumber(0, len(backend.Hosts())-1)]
@@ -88,7 +89,7 @@ func (f httpBackendFactory) buildRequestBody(backend *vo.Backend, request *vo.HT
 	*vo.Body, []error) {
 	if !backend.HasRequest() {
 		return request.Body(), nil
-	} else if helper.IsNil(request.Body()) || backend.Request().OmitBody() {
+	} else if checker.IsNil(request.Body()) || backend.Request().OmitBody() {
 		return nil, nil
 	}
 
@@ -168,7 +169,7 @@ func (f httpBackendFactory) buildResponseBody(backend *vo.Backend, temporaryResp
 	allErrors = append(allErrors, mapErrs...)
 	allErrors = append(allErrors, projectErrs...)
 	allErrors = append(allErrors, modifyErrs...)
-	if helper.IsNotNil(aggregateErr) {
+	if checker.NonNil(aggregateErr) {
 		allErrors = append(allErrors, aggregateErr)
 	}
 
@@ -196,11 +197,11 @@ func (f httpBackendFactory) modifyBody(modifiers []vo.Modifier, body *vo.Body, r
 
 	for _, bodyModifier := range modifiers {
 		modifierValue, dynamicValueErrs := f.dynamicValueService.Get(bodyModifier.Value(), request, history)
-		if helper.IsNotEmpty(dynamicValueErrs) {
+		if checker.IsNotEmpty(dynamicValueErrs) {
 			errs = append(errs, dynamicValueErrs...)
 		}
 		modifiedBody, err := f.modifierService.ModifyBody(body, bodyModifier.Action(), bodyModifier.Key(), modifierValue)
-		if helper.IsNotNil(err) {
+		if checker.NonNil(err) {
 			errs = append(errs, err)
 		}
 		body = modifiedBody
@@ -232,7 +233,7 @@ func (f httpBackendFactory) modifyBodyContentType(contentTypeConfig enum.Content
 	}
 
 	newBody, err := f.contentService.ModifyBodyContentType(body, contentType)
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		return body, []error{err}
 	}
 
@@ -253,7 +254,7 @@ func (f httpBackendFactory) modifyBodyContentEncoding(contentEncodingConfig enum
 	}
 
 	newBody, err := f.contentService.ModifyBodyContentEncoding(body, contentEncoding)
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		return body, []error{err}
 	}
 
@@ -266,11 +267,11 @@ func (f httpBackendFactory) modifyURLPath(backend *vo.Backend, urlPath vo.URLPat
 
 	for _, paramModifier := range backend.Request().ParamModifiers() {
 		modifierValue, dynamicValueErrs := f.dynamicValueService.Get(paramModifier.Value(), request, history)
-		if helper.IsNotEmpty(dynamicValueErrs) {
+		if checker.IsNotEmpty(dynamicValueErrs) {
 			errs = append(errs, dynamicValueErrs...)
 		}
 		modifiedUrlPath, err := f.modifierService.ModifyUrlPath(urlPath, paramModifier.Action(), paramModifier.Key(), modifierValue)
-		if helper.IsNotNil(err) {
+		if checker.NonNil(err) {
 			errs = append(errs, err)
 		}
 		urlPath = modifiedUrlPath
@@ -285,11 +286,11 @@ func (f httpBackendFactory) modifyHeader(modifiers []vo.Modifier, header vo.Head
 
 	for _, headerModifier := range modifiers {
 		modifierValue, dynamicValueErrs := f.dynamicValueService.GetAsSliceOfString(headerModifier.Value(), request, history)
-		if helper.IsNotEmpty(dynamicValueErrs) {
+		if checker.IsNotEmpty(dynamicValueErrs) {
 			errs = append(errs, dynamicValueErrs...)
 		}
 		modifiedHeader, err := f.modifierService.ModifyHeader(header, headerModifier.Action(), headerModifier.Key(), modifierValue)
-		if helper.IsNotNil(err) {
+		if checker.NonNil(err) {
 			errs = append(errs, err)
 		}
 		header = modifiedHeader
@@ -304,11 +305,11 @@ func (f httpBackendFactory) modifyQuery(backend *vo.Backend, query vo.Query, req
 
 	for _, queryModifier := range backend.Request().QueryModifiers() {
 		modifierValue, dynamicValueErrs := f.dynamicValueService.GetAsSliceOfString(queryModifier.Value(), request, history)
-		if helper.IsNotEmpty(dynamicValueErrs) {
+		if checker.IsNotEmpty(dynamicValueErrs) {
 			errs = append(errs, dynamicValueErrs...)
 		}
 		modifiedQuery, err := f.modifierService.ModifyQuery(query, queryModifier.Action(), queryModifier.Key(), modifierValue)
-		if helper.IsNotNil(err) {
+		if checker.NonNil(err) {
 			errs = append(errs, err)
 		}
 		query = modifiedQuery

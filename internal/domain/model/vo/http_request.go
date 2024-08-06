@@ -18,6 +18,7 @@ package vo
 
 import (
 	"github.com/GabrielHCataldo/go-helper/helper"
+	"github.com/tech4works/checker"
 	"github.com/tech4works/gopen-gateway/internal/domain/mapper"
 )
 
@@ -71,9 +72,9 @@ func (h *HTTPRequest) Body() *Body {
 
 func (h *HTTPRequest) Map() (string, error) {
 	var body any
-	if helper.IsNotNil(h.Body()) {
+	if checker.NonNil(h.Body()) {
 		bodyMap, err := h.Body().Map()
-		if helper.IsNotNil(err) {
+		if checker.NonNil(err) {
 			return "", err
 		}
 		body = bodyMap
@@ -91,5 +92,5 @@ func (h *HTTPRequest) ClientIP() string {
 }
 
 func (h *HTTPRequest) HasBody() bool {
-	return helper.IsNotNil(h.body)
+	return checker.NonNil(h.body)
 }

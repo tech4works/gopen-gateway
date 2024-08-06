@@ -17,7 +17,7 @@
 package vo
 
 import (
-	"github.com/GabrielHCataldo/go-helper/helper"
+	"github.com/tech4works/checker"
 )
 
 type Gopen struct {
@@ -43,7 +43,7 @@ func (g Gopen) SecurityCors() *SecurityCors {
 }
 
 func (g Gopen) HasSecurityCors() bool {
-	return helper.IsNotNil(g.securityCors)
+	return checker.NonNil(g.securityCors)
 }
 
 func (g Gopen) Endpoints() []Endpoint {

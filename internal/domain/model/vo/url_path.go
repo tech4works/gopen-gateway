@@ -18,7 +18,7 @@ package vo
 
 import (
 	"fmt"
-	"github.com/GabrielHCataldo/go-helper/helper"
+	"github.com/tech4works/checker"
 	"strings"
 )
 
@@ -30,7 +30,7 @@ type URLPath struct {
 func NewURLPath(path string, paramValues map[string]string) URLPath {
 	filteredParams := map[string]string{}
 	for key, value := range paramValues {
-		if helper.Contains(path, patternParamPathKey(key)) {
+		if checker.Contains(path, patternParamPathKey(key)) {
 			filteredParams[key] = value
 		}
 	}
@@ -58,7 +58,7 @@ func (u URLPath) Params() Params {
 }
 
 func (u URLPath) Exists(key string) bool {
-	return helper.Contains(u.value, patternParamPathKey(key)) && u.params.Exists(key)
+	return checker.Contains(u.value, patternParamPathKey(key)) && u.params.Exists(key)
 }
 
 func (u URLPath) NotExists(key string) bool {

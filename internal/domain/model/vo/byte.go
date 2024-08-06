@@ -18,6 +18,7 @@ package vo
 
 import (
 	"github.com/GabrielHCataldo/go-helper/helper"
+	"github.com/tech4works/checker"
 	"strconv"
 )
 
@@ -33,14 +34,14 @@ func NewBytesByInt(i int) Bytes {
 
 func (b *Bytes) UnmarshalJSON(v []byte) error {
 	str, err := strconv.Unquote(string(v))
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		return err
-	} else if helper.IsEmpty(str) {
+	} else if checker.IsEmpty(str) {
 		return nil
 	}
 
 	value, err := helper.ConvertByteUnitStrToFloat(str)
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		return err
 	}
 	*b = Bytes(value)
@@ -49,9 +50,10 @@ func (b *Bytes) UnmarshalJSON(v []byte) error {
 }
 
 func (b *Bytes) MarshalJSON() ([]byte, error) {
-	if helper.IsNil(b) || helper.IsEmpty(b) {
+	if checker.IsNil(b) || checker.IsEmpty(b) {
 		return nil, nil
 	}
+
 	return []byte(strconv.Quote(b.String())), nil
 }
 

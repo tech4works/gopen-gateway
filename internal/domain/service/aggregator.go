@@ -3,6 +3,7 @@ package service
 import (
 	"fmt"
 	"github.com/GabrielHCataldo/go-helper/helper"
+	"github.com/tech4works/checker"
 	"github.com/tech4works/gopen-gateway/internal/domain"
 	"github.com/tech4works/gopen-gateway/internal/domain/mapper"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
@@ -36,22 +37,22 @@ func (a aggregatorService) AggregateHeaders(base, value vo.Header) vo.Header {
 }
 
 func (a aggregatorService) AggregateBodyToKey(key string, value *vo.Body) (*vo.Body, error) {
-	if helper.IsEmpty(key) || value.ContentType().IsNotJSON() || helper.IsNil(value) {
+	if checker.IsEmpty(key) || value.ContentType().IsNotJSON() || checker.IsNil(value) {
 		return value, nil
 	}
 
 	raw, err := value.Raw()
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		return value, err
 	}
 
 	jsonValue, err := a.jsonPath.Set("{}", key, raw)
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		return value, err
 	}
 
 	buffer, err := helper.ConvertToBuffer(jsonValue)
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		return value, err
 	}
 
@@ -73,13 +74,13 @@ func (a aggregatorService) AggregateBodiesIntoSlice(history *vo.History) (*vo.Bo
 		}
 
 		raw, err := httpBackendResponse.Body().Raw()
-		if helper.IsNotNil(err) {
+		if checker.NonNil(err) {
 			errs = append(errs, err)
 			continue
 		}
 
 		newJsonStr, mergeErrs := a.merge(i, newJsonStr, raw)
-		if helper.IsNotEmpty(mergeErrs) {
+		if checker.IsNotEmpty(mergeErrs) {
 			errs = append(errs, mergeErrs...)
 			continue
 		}
@@ -101,13 +102,13 @@ func (a aggregatorService) AggregateBodies(history *vo.History) (*vo.Body, []err
 		}
 
 		raw, err := httpBackendResponse.Body().Raw()
-		if helper.IsNotNil(err) {
+		if checker.NonNil(err) {
 			errs = append(errs, err)
 			continue
 		}
 
 		newJsonStr, mergeErrs := a.merge(i, result, raw)
-		if helper.IsNotEmpty(mergeErrs) {
+		if checker.IsNotEmpty(mergeErrs) {
 			errs = append(errs, mergeErrs...)
 			continue
 		}
@@ -129,7 +130,7 @@ func (a aggregatorService) buildBodyDefaultForSlice(httpBackendResponse *vo.HTTP
 }
 
 func (a aggregatorService) merge(i int, jsonStr, raw string) (string, []error) {
-	if helper.IsNotJson(raw) || helper.IsSlice(raw) {
+	if checker.IsNotJSON(raw) || checker.IsSlice(raw) {
 		return a.mergeJSONByKey(i, jsonStr, raw)
 	}
 	return a.mergeJSON(jsonStr, raw)
@@ -137,7 +138,7 @@ func (a aggregatorService) merge(i int, jsonStr, raw string) (string, []error) {
 
 func (a aggregatorService) mergeJSONByKey(i int, jsonStr, raw string) (string, []error) {
 	newJsonStr, err := a.jsonPath.Set(jsonStr, fmt.Sprintf("backend%v", i), raw)
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		return jsonStr, []error{err}
 	}
 	return newJsonStr, nil
@@ -150,7 +151,7 @@ func (a aggregatorService) mergeJSON(jsonStr, raw string) (string, []error) {
 	result = jsonStr
 	a.jsonPath.Parse(raw).ForEach(func(key string, value domain.JSONValue) bool {
 		newResult, err := a.jsonPath.Add(result, key, value.Raw())
-		if helper.IsNotNil(err) {
+		if checker.NonNil(err) {
 			errs = append(errs, err)
 			return true
 		}
@@ -163,7 +164,7 @@ func (a aggregatorService) mergeJSON(jsonStr, raw string) (string, []error) {
 
 func (a aggregatorService) buildBodyJson(result string, errs []error) (*vo.Body, []error) {
 	buffer, err := helper.ConvertToBuffer(result)
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		errs = append(errs, err)
 		return nil, errs
 	}

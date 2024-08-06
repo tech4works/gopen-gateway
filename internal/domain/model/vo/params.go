@@ -1,6 +1,9 @@
 package vo
 
-import "github.com/GabrielHCataldo/go-helper/helper"
+import (
+	"github.com/GabrielHCataldo/go-helper/helper"
+	"github.com/tech4works/checker"
+)
 
 type Params struct {
 	values map[string]string
@@ -9,7 +12,7 @@ type Params struct {
 func NewParams(values map[string]string) Params {
 	cleanValues := map[string]string{}
 	for key, value := range values {
-		if helper.IsNotEmpty(values) {
+		if checker.IsNotEmpty(values) {
 			cleanValues[key] = value
 		}
 	}
@@ -39,12 +42,12 @@ func (p Params) Copy() map[string]string {
 	return copiedMap
 }
 
-func (p Params) Len() int {
+func (p Params) Length() int {
 	return len(p.values)
 }
 
 func (p Params) IsEmpty() bool {
-	return helper.Equals(p.Len(), 0)
+	return checker.Equals(p.Length(), 0)
 }
 
 func (p Params) String() string {

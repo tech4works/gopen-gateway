@@ -19,12 +19,12 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/GabrielHCataldo/go-helper/helper"
+	"github.com/tech4works/checker"
 	"os"
 )
 
-// JsonConfig represents the JSON configuration structure.
-type JsonConfig struct {
+// jsonConfig represents the JSON configuration structure.
+type jsonConfig struct {
 	// Port represents the port number in a JSON configuration structure. The port number must be in
 	// the range of 1 to 65535.
 	Port int `json:"port"`
@@ -40,18 +40,18 @@ type JsonConfig struct {
 // The function signature is: `func main()`.
 func main() {
 	file, err := os.Open(os.Args[1])
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		fmt.Fprintf(os.Stderr, "Failed to open file: %v\n", err)
 		os.Exit(1)
 	}
 	defer file.Close()
 
-	data := JsonConfig{}
+	data := jsonConfig{}
 	err = json.NewDecoder(file).Decode(&data)
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		fmt.Fprintf(os.Stderr, "Failed to decode JSON: %v\n", err)
 		os.Exit(1)
-	} else if helper.IsLessThan(data.Port, 1) || helper.IsGreaterThan(data.Port, 65535) {
+	} else if checker.IsLessThan(data.Port, 1) || checker.IsGreaterThan(data.Port, 65535) {
 		fmt.Fprintf(os.Stderr, "Port %d is out of range 1-65535", data.Port)
 		os.Exit(1)
 	}

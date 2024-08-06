@@ -21,6 +21,7 @@ import (
 	"github.com/GabrielHCataldo/go-errors/errors"
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/jellydator/ttlcache/v2"
+	"github.com/tech4works/checker"
 	"github.com/tech4works/gopen-gateway/internal/domain"
 	"github.com/tech4works/gopen-gateway/internal/domain/mapper"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
@@ -43,7 +44,7 @@ func NewMemoryStore() domain.Store {
 
 func (m memoryStore) Set(_ context.Context, key string, cacheResponse *vo.CacheResponse) error {
 	gzipBase64, err := helper.CompressWithGzipToBase64(cacheResponse)
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		return err
 	}
 
@@ -63,13 +64,13 @@ func (m memoryStore) Get(_ context.Context, key string) (*vo.CacheResponse, erro
 	value, err := m.ttlCache.Get(key)
 	if errors.Is(err, ttlcache.ErrNotFound) {
 		return nil, mapper.NewErrCacheNotFound()
-	} else if helper.IsNotNil(err) {
+	} else if checker.NonNil(err) {
 		return nil, err
 	}
 
 	var cacheResponse vo.CacheResponse
 	err = helper.DecompressFromBase64WithGzipToDest(value, &cacheResponse)
-	if helper.IsNotNil(err) {
+	if checker.NonNil(err) {
 		return nil, err
 	}
 

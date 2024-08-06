@@ -1,7 +1,7 @@
 package vo
 
 import (
-	"github.com/GabrielHCataldo/go-helper/helper"
+	"github.com/tech4works/checker"
 )
 
 type HTTPResponse struct {
@@ -38,5 +38,5 @@ func (h *HTTPResponse) Body() *Body {
 }
 
 func (h *HTTPResponse) HasBody() bool {
-	return helper.IsNotNil(h.body)
+	return checker.NonNil(h.body)
 }

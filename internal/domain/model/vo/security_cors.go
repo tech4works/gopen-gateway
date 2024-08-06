@@ -17,7 +17,7 @@
 package vo
 
 import (
-	"github.com/GabrielHCataldo/go-helper/helper"
+	"github.com/tech4works/checker"
 )
 
 type SecurityCors struct {
@@ -35,13 +35,13 @@ func NewSecurityCors(allowsOrigins, allowMethods, allowHeaders []string) *Securi
 }
 
 func (s SecurityCors) AllowOrigin(origin string) bool {
-	return helper.IsEmpty(s.allowOrigins) || helper.Contains(s.allowOrigins, origin)
+	return checker.IsEmpty(s.allowOrigins) || checker.Contains(s.allowOrigins, origin)
 }
 
 func (s SecurityCors) AllowMethod(method string) bool {
-	return helper.IsEmpty(s.allowMethods) || helper.Contains(s.allowMethods, method)
+	return checker.IsEmpty(s.allowMethods) || checker.Contains(s.allowMethods, method)
 }
 
 func (s SecurityCors) AllowHeader(headerKey string) bool {
-	return helper.IsEmpty(s.allowHeaders) || helper.Contains(s.allowHeaders, headerKey)
+	return checker.IsEmpty(s.allowHeaders) || checker.Contains(s.allowHeaders, headerKey)
 }

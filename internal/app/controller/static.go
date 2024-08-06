@@ -17,7 +17,7 @@
 package controller
 
 import (
-	"github.com/GabrielHCataldo/go-helper/helper"
+	"github.com/tech4works/checker"
 	"github.com/tech4works/gopen-gateway/internal/app"
 	"github.com/tech4works/gopen-gateway/internal/app/factory"
 	"github.com/tech4works/gopen-gateway/internal/app/model/dto"
@@ -45,7 +45,7 @@ func (s staticController) Ping(ctx app.Context) {
 }
 
 func (s staticController) Version(ctx app.Context) {
-	if helper.IsNotEmpty(s.gopen.Version) {
+	if checker.IsNotEmpty(s.gopen.Version) {
 		ctx.WriteString(http.StatusOK, s.gopen.Version)
 		return
 	}
