@@ -36,10 +36,6 @@ func mandatoryHeaderKeys() []string {
 		XGopenComplete, XGopenSuccess}
 }
 
-func gopenHeaderKeys() []string {
-	return []string{XGopenCache, XGopenCacheTTL, XGopenComplete, XGopenSuccess}
-}
-
 func IsHeaderMandatoryKey(key string) bool {
 	return checker.Contains(mandatoryHeaderKeys(), key)
 }
