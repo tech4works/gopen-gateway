@@ -2,8 +2,8 @@ package service
 
 import (
 	"github.com/GabrielHCataldo/go-errors/errors"
-	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/tech4works/checker"
+	"github.com/tech4works/converter"
 	"github.com/tech4works/gopen-gateway/internal/domain"
 	"github.com/tech4works/gopen-gateway/internal/domain/mapper"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
@@ -45,7 +45,7 @@ func (d dynamicValueService) GetAsSliceOfString(value string, request *vo.HTTPRe
 	newValue, errs := d.Get(value, request, history)
 	if checker.IsSlice(newValue) {
 		var ss []string
-		err := helper.ConvertToDest(newValue, &ss)
+		err := converter.ToDestWithErr(newValue, &ss)
 		if checker.IsNil(err) {
 			return ss, errs
 		} else {

@@ -1,12 +1,12 @@
-package converter
+package convert
 
 import (
 	"bytes"
 	"fmt"
-	"github.com/GabrielHCataldo/go-helper/helper"
 	xj "github.com/basgys/goxml2json"
 	"github.com/clbanning/mxj/v2"
 	"github.com/tech4works/checker"
+	"github.com/tech4works/converter"
 	"github.com/tech4works/gopen-gateway/internal/domain"
 )
 
@@ -26,7 +26,7 @@ func (p provider) ConvertJSONToXML(bs []byte) ([]byte, error) {
 }
 
 func (p provider) ConvertTextToXML(bs []byte) ([]byte, error) {
-	return helper.ConvertToBytes(fmt.Sprintf("<root>%s</root>", string(bs)))
+	return converter.ToBytesWithErr(fmt.Sprintf("<root>%s</root>", string(bs)))
 }
 
 func (p provider) ConvertXMLToJSON(bs []byte) ([]byte, error) {
@@ -39,5 +39,5 @@ func (p provider) ConvertXMLToJSON(bs []byte) ([]byte, error) {
 }
 
 func (p provider) ConvertTextToJSON(bs []byte) ([]byte, error) {
-	return helper.ConvertToBytes(fmt.Sprintf("{\"text\": \"%v\"}", string(bs)))
+	return converter.ToBytesWithErr(fmt.Sprintf("{\"text\": \"%v\"}", string(bs)))
 }

@@ -17,8 +17,8 @@
 package vo
 
 import (
-	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/tech4works/checker"
+	"github.com/tech4works/converter"
 	"github.com/tech4works/gopen-gateway/internal/domain/mapper"
 	"net/http"
 	"strings"
@@ -57,7 +57,7 @@ func (h *Header) Http() http.Header {
 }
 
 func (h *Header) String() string {
-	return helper.CompactString(h.values)
+	return converter.ToCompactString(h.values)
 }
 
 func (h *Header) GetAll(key string) []string {
@@ -118,7 +118,7 @@ func (h *Header) Size() int {
 
 func (h *Header) SizeStr() string {
 	bs := NewBytesByInt(h.Size())
-	return helper.CompactString(bs.String())
+	return converter.ToCompactString(bs.String())
 }
 
 func (h *Header) Keys() (ss []string) {
@@ -129,13 +129,13 @@ func (h *Header) Keys() (ss []string) {
 }
 
 func (h *Header) MarshalJSON() ([]byte, error) {
-	return helper.ConvertToBytes(h.Map())
+	return converter.ToBytesWithErr(h.Map())
 }
 
 func (h *Header) UnmarshalJSON(data []byte) error {
 	var values map[string][]string
 
-	err := helper.ConvertToDest(data, &values)
+	err := converter.ToDestWithErr(data, &values)
 	if checker.NonNil(err) {
 		return err
 	}

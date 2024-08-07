@@ -1,8 +1,8 @@
 package factory
 
 import (
-	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/tech4works/checker"
+	"github.com/tech4works/converter"
 	"github.com/tech4works/gopen-gateway/internal/app/model/dto"
 	"os"
 )
@@ -15,7 +15,7 @@ func BuildSettingView(gopen dto.Gopen) dto.SettingView {
 		Version:      os.Getenv("VERSION"),
 		VersionDate:  os.Getenv("VERSION_DATE"),
 		Founder:      os.Getenv("FOUNDER"),
-		Contributors: helper.SimpleConvertToInt(os.Getenv("CONTRIBUTORS")),
+		Contributors: converter.ToInt(os.Getenv("CONTRIBUTORS")),
 		Endpoints:    countEndpoints(gopen),
 		Middlewares:  countMiddlewares(gopen),
 		Backends:     countBackends(gopen),

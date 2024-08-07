@@ -34,14 +34,14 @@ func NewSecurityCors(allowsOrigins, allowMethods, allowHeaders []string) *Securi
 	}
 }
 
-func (s SecurityCors) AllowOrigin(origin string) bool {
-	return checker.IsEmpty(s.allowOrigins) || checker.Contains(s.allowOrigins, origin)
+func (s SecurityCors) DisallowOrigin(origin string) bool {
+	return checker.NotContains(s.allowOrigins, origin)
 }
 
-func (s SecurityCors) AllowMethod(method string) bool {
-	return checker.IsEmpty(s.allowMethods) || checker.Contains(s.allowMethods, method)
+func (s SecurityCors) DisallowMethod(method string) bool {
+	return checker.NotContains(s.allowMethods, method)
 }
 
-func (s SecurityCors) AllowHeader(headerKey string) bool {
-	return checker.IsEmpty(s.allowHeaders) || checker.Contains(s.allowHeaders, headerKey)
+func (s SecurityCors) DisallowHeader(headerKey string) bool {
+	return checker.NotContains(s.allowHeaders, headerKey)
 }

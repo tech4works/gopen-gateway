@@ -1,8 +1,8 @@
 package factory
 
 import (
-	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/tech4works/checker"
+	"github.com/tech4works/converter"
 	"github.com/tech4works/gopen-gateway/internal/domain/mapper"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
@@ -42,8 +42,8 @@ func (h httpResponseFactory) BuildAbortedResponse(endpoint *vo.Endpoint, history
 
 	header := vo.NewHeader(map[string][]string{
 		mapper.XGopenCache:    {"false"},
-		mapper.XGopenSuccess:  {helper.SimpleConvertToString(lastStatusCode.OK())},
-		mapper.XGopenComplete: {helper.SimpleConvertToString(checker.Equals(history.Size(), endpoint.CountBackendsNonOmit()))},
+		mapper.XGopenSuccess:  {converter.ToString(lastStatusCode.OK())},
+		mapper.XGopenComplete: {converter.ToString(checker.Equals(history.Size(), endpoint.CountBackendsNonOmit()))},
 	})
 	header = h.aggregatorService.AggregateHeaders(header, lastHeader)
 
@@ -101,8 +101,8 @@ func (h httpResponseFactory) buildBodyByHistory(endpoint *vo.Endpoint, history *
 func (h httpResponseFactory) buildHeaderByHistory(endpoint *vo.Endpoint, body *vo.Body, history *vo.History) vo.Header {
 	mapHeader := map[string][]string{
 		mapper.XGopenCache:    {"false"},
-		mapper.XGopenSuccess:  {helper.SimpleConvertToString(history.AllOK())},
-		mapper.XGopenComplete: {helper.SimpleConvertToString(checker.Equals(history.Size(), endpoint.CountBackendsNonOmit()))},
+		mapper.XGopenSuccess:  {converter.ToString(history.AllOK())},
+		mapper.XGopenComplete: {converter.ToString(checker.Equals(history.Size(), endpoint.CountBackendsNonOmit()))},
 	}
 	if checker.NonNil(body) {
 		mapHeader[mapper.ContentType] = []string{body.ContentType().String()}

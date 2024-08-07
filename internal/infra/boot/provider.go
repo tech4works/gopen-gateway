@@ -5,17 +5,17 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/GabrielHCataldo/go-errors/errors"
-	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/fsnotify/fsnotify"
 	"github.com/joho/godotenv"
 	"github.com/opentracing/opentracing-go"
 	"github.com/tech4works/checker"
+	"github.com/tech4works/converter"
 	"github.com/tech4works/gopen-gateway/internal/app"
 	"github.com/tech4works/gopen-gateway/internal/app/model/dto"
 	"github.com/tech4works/gopen-gateway/internal/app/server"
 	"github.com/tech4works/gopen-gateway/internal/infra/api"
 	"github.com/tech4works/gopen-gateway/internal/infra/cache"
-	"github.com/tech4works/gopen-gateway/internal/infra/converter"
+	"github.com/tech4works/gopen-gateway/internal/infra/convert"
 	"github.com/tech4works/gopen-gateway/internal/infra/http"
 	"github.com/tech4works/gopen-gateway/internal/infra/jsonpath"
 	"github.com/tech4works/gopen-gateway/internal/infra/log"
@@ -105,7 +105,7 @@ func (p provider) Start(env string) {
 	router := api.NewRouter()
 	httpClient := http.NewClient()
 	jsonPath := jsonpath.New()
-	nConverter := converter.New()
+	nConverter := convert.New()
 	nNomenclature := nomenclature.New()
 
 	httpServer := server.New(gopen, p.log, router, httpClient, endpointLog, backendLog, httpLog, jsonPath, nConverter,
@@ -250,7 +250,7 @@ func (p provider) loadJson(env string) (*dto.Gopen, error) {
 	}
 
 	var gopen dto.Gopen
-	err = helper.ConvertToDest(gopenJsonBytes, &gopen)
+	err = converter.ToDestWithErr(gopenJsonBytes, &gopen)
 	if checker.NonNil(err) {
 		return nil, err
 	}
@@ -262,7 +262,7 @@ func (p provider) fillEnvValues(gopenJsonBytes []byte) []byte {
 	// todo: aceitar campos não string receber variável de ambiente também
 	//  foi pensado que talvez utilizar campos string e any para isso, convertendo para o tipo desejado apenas
 	//  quando objeto de valor for montado
-	gopenJsonStr := helper.SimpleConvertToString(gopenJsonBytes)
+	gopenJsonStr := converter.ToString(gopenJsonBytes)
 
 	regex := regexp.MustCompile(`\$\w+`)
 	words := regex.FindAllString(gopenJsonStr, -1)
@@ -277,7 +277,7 @@ func (p provider) fillEnvValues(gopenJsonBytes []byte) []byte {
 		}
 	}
 
-	return helper.SimpleConvertToBytes(gopenJsonStr)
+	return converter.ToBytes(gopenJsonStr)
 }
 
 func (p provider) validateJsonBySchema(jsonBytes []byte) error {

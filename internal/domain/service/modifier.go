@@ -2,8 +2,8 @@ package service
 
 import (
 	"fmt"
-	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/tech4works/checker"
+	"github.com/tech4works/converter"
 	"github.com/tech4works/gopen-gateway/internal/domain"
 	"github.com/tech4works/gopen-gateway/internal/domain/mapper"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
@@ -508,7 +508,7 @@ func (s modifierService) deleteBodyJson(body *vo.Body, key string) (*vo.Body, er
 }
 
 func (s modifierService) newBodyByString(body *vo.Body, modifiedBodyJson string) (*vo.Body, error) {
-	buffer, err := helper.ConvertToBuffer(modifiedBodyJson)
+	buffer, err := converter.ToBufferWithErr(modifiedBodyJson)
 	if checker.NonNil(err) {
 		return body, err
 	}

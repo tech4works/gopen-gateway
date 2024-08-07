@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/tech4works/checker"
+	"github.com/tech4works/converter"
 	"strconv"
 )
 
@@ -113,7 +114,7 @@ func (b *Body) Raw() (string, error) {
 func (b *Body) Resume() string {
 	if b.contentType.IsJSON() || b.contentType.IsXML() || b.contentType.IsText() {
 		s, _ := b.String()
-		return helper.CompactString(s)
+		return converter.ToCompactString(s)
 	}
 	return fmt.Sprintf("type=%s encoding=%s contentLength=%s", b.contentType, b.contentEncoding, b.SizeInByteUnit())
 }
@@ -123,7 +124,7 @@ func (b *Body) Size() int {
 }
 
 func (b *Body) SizeInString() string {
-	return helper.SimpleConvertToString(b.Size())
+	return converter.ToString(b.Size())
 }
 
 func (b *Body) SizeInByteUnit() string {
@@ -142,7 +143,7 @@ func (b *Body) Map() (any, error) {
 	}
 
 	var dest any
-	err = helper.ConvertToDest(bs, &dest)
+	err = converter.ToDestWithErr(bs, &dest)
 	if checker.NonNil(err) {
 		return nil, err
 	}
@@ -151,7 +152,7 @@ func (b *Body) Map() (any, error) {
 }
 
 func (b *Body) MarshalJSON() ([]byte, error) {
-	base64, err := helper.ConvertToBase64(b.buffer.Bytes())
+	base64, err := converter.ToBase64WithErr(b.buffer.Bytes())
 	if checker.NonNil(err) {
 		return nil, err
 	}
@@ -172,12 +173,12 @@ func (b *Body) UnmarshalJSON(data []byte) error {
 	}
 
 	if value, exists := mapBody["buffer"]; exists {
-		valueStr, err := helper.ConvertToString(value)
+		valueStr, err := converter.ToStringWithErr(value)
 		if checker.NonNil(err) {
 			return err
 		}
 
-		bufferStr, err := helper.ConvertBase64ToString(valueStr)
+		bufferStr, err := converter.FromBase64ToStringWithErr(valueStr)
 		if checker.NonNil(err) {
 			return err
 		}

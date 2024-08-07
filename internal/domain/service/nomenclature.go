@@ -1,8 +1,8 @@
 package service
 
 import (
-	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/tech4works/checker"
+	"github.com/tech4works/converter"
 	"github.com/tech4works/gopen-gateway/internal/domain"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
@@ -39,7 +39,7 @@ func (n nomenclatureService) ToCase(body *vo.Body, nomenclature enum.Nomenclatur
 		return body, errs
 	}
 
-	buffer, err := helper.ConvertToBuffer(jsonStr)
+	buffer, err := converter.ToBufferWithErr(jsonStr)
 	if checker.NonNil(err) {
 		return body, []error{err}
 	}

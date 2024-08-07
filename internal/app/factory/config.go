@@ -3,7 +3,6 @@ package factory
 import (
 	"fmt"
 	"github.com/GabrielHCataldo/go-errors/errors"
-	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/tech4works/checker"
 	"github.com/tech4works/gopen-gateway/internal/app/model/dto"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
@@ -190,10 +189,10 @@ func buildEndpointResponse(endpointResponse *dto.EndpointResponse) *vo.EndpointR
 func buildBackends(middlewares map[string]dto.Backend, endpoint dto.Endpoint) []vo.Backend {
 	var result []vo.Backend
 
-	propagateHeaderModifiers := helper.ConvertToPointer([]vo.Modifier{})
-	propagateParamModifiers := helper.ConvertToPointer([]vo.Modifier{})
-	propagateQueryModifiers := helper.ConvertToPointer([]vo.Modifier{})
-	propagateBodyModifiers := helper.ConvertToPointer([]vo.Modifier{})
+	propagateHeaderModifiers := &[]vo.Modifier{}
+	propagateParamModifiers := &[]vo.Modifier{}
+	propagateQueryModifiers := &[]vo.Modifier{}
+	propagateBodyModifiers := &[]vo.Modifier{}
 
 	result = append(result, buildMiddlewareBackend(endpoint.Beforewares, middlewares, enum.BackendTypeBeforeware,
 		propagateHeaderModifiers, propagateParamModifiers, propagateBodyModifiers, propagateQueryModifiers)...)

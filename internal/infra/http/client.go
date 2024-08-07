@@ -21,9 +21,9 @@ import (
 	"context"
 	goerrors "errors"
 	"github.com/GabrielHCataldo/go-errors/errors"
-	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/opentracing/opentracing-go"
 	"github.com/tech4works/checker"
+	"github.com/tech4works/converter"
 	"github.com/tech4works/gopen-gateway/internal/app"
 	"github.com/tech4works/gopen-gateway/internal/app/model/dto"
 	"github.com/tech4works/gopen-gateway/internal/domain/mapper"
@@ -116,8 +116,11 @@ func (c client) finishSpan(span opentracing.Span, httpBackendResponse *vo.HTTPBa
 		return
 	}
 
-	span.SetTag("response.status", helper.SimpleConvertToString(httpBackendResponse.StatusCode()))
-	span.SetTag("response.header", helper.SimpleConvertToString(httpBackendResponse.Header()))
+	statusCode := httpBackendResponse.StatusCode()
+	header := httpBackendResponse.Header()
+
+	span.SetTag("response.status", statusCode.String())
+	span.SetTag("response.header", header.String())
 	if checker.NonNil(httpBackendResponse.Body()) {
 		span.SetTag("response.body", httpBackendResponse.Body().Resume())
 	} else {
@@ -151,7 +154,7 @@ func (c client) buildHTTPBackendResponseByErr(endpoint *vo.Endpoint, err error) 
 	statusCode := vo.NewStatusCode(code)
 
 	details := errors.Details(err)
-	buffer := helper.SimpleConvertToBuffer(dto.ErrorBody{
+	buffer := converter.ToBuffer(dto.ErrorBody{
 		File:      details.GetFile(),
 		Line:      details.GetLine(),
 		Endpoint:  endpoint.Path(),

@@ -1,8 +1,8 @@
 package vo
 
 import (
-	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/tech4works/checker"
+	"github.com/tech4works/converter"
 )
 
 type Params struct {
@@ -51,7 +51,7 @@ func (p Params) IsEmpty() bool {
 }
 
 func (p Params) String() string {
-	return helper.SimpleConvertToString(p.values)
+	return converter.ToString(p.values)
 }
 
 func (p Params) Exists(key string) bool {

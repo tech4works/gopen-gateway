@@ -68,6 +68,7 @@ require (
 	github.com/redis/go-redis/v9 v9.4.0 // indirect
 	github.com/rogpeppe/go-internal v1.8.0 // indirect
 	github.com/shopspring/decimal v1.3.1 // indirect
+	github.com/tech4works/converter v0.0.0-20240807115921-39a44dbd653f // indirect
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.0 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect

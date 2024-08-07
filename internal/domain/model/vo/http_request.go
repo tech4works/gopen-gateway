@@ -17,8 +17,8 @@
 package vo
 
 import (
-	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/tech4works/checker"
+	"github.com/tech4works/converter"
 	"github.com/tech4works/gopen-gateway/internal/domain/mapper"
 )
 
@@ -79,7 +79,7 @@ func (h *HTTPRequest) Map() (string, error) {
 		}
 		body = bodyMap
 	}
-	return helper.ConvertToString(map[string]any{
+	return converter.ToStringWithErr(map[string]any{
 		"header": h.Header().Map(),
 		"params": h.Params().Map(),
 		"query":  h.Query().Map(),

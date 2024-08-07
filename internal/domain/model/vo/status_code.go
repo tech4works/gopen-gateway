@@ -2,8 +2,8 @@ package vo
 
 import (
 	"fmt"
-	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/tech4works/checker"
+	"github.com/tech4works/converter"
 	"net/http"
 )
 
@@ -36,11 +36,11 @@ func (s *StatusCode) Description() string {
 }
 
 func (s *StatusCode) MarshalJSON() ([]byte, error) {
-	return helper.ConvertToBytes(s.Code())
+	return converter.ToBytesWithErr(s.Code())
 }
 
 func (s *StatusCode) UnmarshalJSON(data []byte) error {
-	code, err := helper.ConvertToInt(data)
+	code, err := converter.ToIntWithErr(data)
 	if checker.NonNil(err) {
 		return err
 	}

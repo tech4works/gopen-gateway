@@ -1,8 +1,8 @@
 package service
 
 import (
-	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/tech4works/checker"
+	"github.com/tech4works/converter"
 	"github.com/tech4works/gopen-gateway/internal/domain"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
 )
@@ -36,7 +36,7 @@ func (o omitterService) omitEmptyValuesFromBodyText(body *vo.Body) (*vo.Body, []
 		return nil, []error{err}
 	}
 
-	buffer, err := helper.ConvertToBuffer(helper.CleanAllRepeatSpaces(bodyStr))
+	buffer, err := converter.ToBufferWithErr(converter.ToCompactString(bodyStr))
 	if checker.NonNil(err) {
 		return nil, []error{err}
 	}
@@ -55,7 +55,7 @@ func (o omitterService) omitEmptyValuesFromBodyJson(body *vo.Body) (*vo.Body, []
 		return nil, errs
 	}
 
-	buffer, err := helper.ConvertToBuffer(newBodyStr)
+	buffer, err := converter.ToBufferWithErr(newBodyStr)
 	if checker.NonNil(err) {
 		return nil, []error{err}
 	}

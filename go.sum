@@ -142,6 +142,12 @@ github.com/stretchr/testify v1.9.0 h1:HtqpIVDClZ4nwg75+f6Lvsy/wHu+3BoSGCbBAcpTsT
 github.com/stretchr/testify v1.9.0/go.mod h1:r2ic/lqez/lEtzL7wO/rwa5dbSLXVDPFyf8C91i36aY=
 github.com/tech4works/checker v0.0.0-20240806130137-539a8623a656 h1:zbh+Q7PghXbyR9T/yZwez8qvmqaeAlKXhy06XZDlyuk=
 github.com/tech4works/checker v0.0.0-20240806130137-539a8623a656/go.mod h1:5nre6qBAdD1TjzmsbOlu1BWCd4tnle0jcilI5TCkq7E=
+github.com/tech4works/converter v0.0.0-20240807110213-942a365f4fff h1:7zQCgsBbUtA1tryvoZG1RWgFGUxC+oMDE4IZr41RXL8=
+github.com/tech4works/converter v0.0.0-20240807110213-942a365f4fff/go.mod h1:E6kmMLu94wlJ3cn4XUkUmN1xLtPtrIpBWR1HorsqjZo=
+github.com/tech4works/converter v0.0.0-20240807112326-f157e231c26d h1:pf8QhbdYCa4CDQTSnTRXEzSwpMJFP5QVnJRMjMkyWjE=
+github.com/tech4works/converter v0.0.0-20240807112326-f157e231c26d/go.mod h1:E6kmMLu94wlJ3cn4XUkUmN1xLtPtrIpBWR1HorsqjZo=
+github.com/tech4works/converter v0.0.0-20240807115921-39a44dbd653f h1:3NBxNQWmbOcvZCTFUEDDMhwp0zI5Yt/9TqGCH2dwGuM=
+github.com/tech4works/converter v0.0.0-20240807115921-39a44dbd653f/go.mod h1:E6kmMLu94wlJ3cn4XUkUmN1xLtPtrIpBWR1HorsqjZo=
 github.com/tidwall/gjson v1.14.2/go.mod h1:/wbyibRr2FHMks5tjHJ5F8dMZh3AcwJEMf5vlfC0lxk=
 github.com/tidwall/gjson v1.17.1 h1:wlYEnwqAHgzmhNUFfw7Xalt2JzQvsMx2Se4PcoFCT/U=
 github.com/tidwall/gjson v1.17.1/go.mod h1:/wbyibRr2FHMks5tjHJ5F8dMZh3AcwJEMf5vlfC0lxk=

@@ -17,15 +17,49 @@
 package vo
 
 import (
-	"github.com/GabrielHCataldo/go-helper/helper"
+	"fmt"
+	"github.com/GabrielHCataldo/go-errors/errors"
 	"github.com/tech4works/checker"
+	"math"
+	"regexp"
 	"strconv"
 )
+
+var unitMap = map[string]float64{
+	"B":  0,
+	"KB": 1,
+	"MB": 2,
+	"GB": 3,
+	"TB": 4,
+	"PB": 5,
+	"EB": 6,
+	"ZB": 7,
+	"YB": 8,
+}
 
 type Bytes int64
 
 func NewBytes(bytesUnit string) Bytes {
-	return Bytes(helper.SimpleConvertByteUnitStrToFloat(bytesUnit))
+	bytes, _ := NewBytesWithErr(bytesUnit)
+	return bytes
+}
+
+func NewBytesWithErr(bytesUnit string) (Bytes, error) {
+	regex := regexp.MustCompile(`^(\d+)\s?(\w+)?$`)
+	match := regex.FindAllStringSubmatch(bytesUnit, -1)
+
+	if len(match) == 0 || len(match[0]) < 3 {
+		return 0, errors.Newf("Error byte unit mal formated")
+	}
+
+	qty, _ := strconv.ParseFloat(match[0][1], 64)
+	unit := match[0][2]
+
+	if exp, ok := unitMap[unit]; ok {
+		return Bytes(qty * math.Pow(1024, exp)), nil
+	}
+
+	return 0, errors.Newf("Error byte unit mal formated")
 }
 
 func NewBytesByInt(i int) Bytes {
@@ -40,11 +74,12 @@ func (b *Bytes) UnmarshalJSON(v []byte) error {
 		return nil
 	}
 
-	value, err := helper.ConvertByteUnitStrToFloat(str)
+	value, err := NewBytesWithErr(str)
 	if checker.NonNil(err) {
 		return err
 	}
-	*b = Bytes(value)
+
+	*b = value
 
 	return nil
 }
@@ -58,5 +93,16 @@ func (b *Bytes) MarshalJSON() ([]byte, error) {
 }
 
 func (b *Bytes) String() string {
-	return helper.ConvertToByteUnitStr(b)
+	unit := 1024
+	in := int(*b)
+
+	if in < unit {
+		return fmt.Sprintf("%vB", in)
+	}
+	div, exp := unit, 0
+	for n := in / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%v%cB", in/div, "KMGTPEZY"[exp])
 }

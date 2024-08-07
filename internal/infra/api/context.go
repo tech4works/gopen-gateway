@@ -20,11 +20,11 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/GabrielHCataldo/go-errors/errors"
-	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/gin-gonic/gin"
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/tech4works/checker"
+	"github.com/tech4works/converter"
 	"github.com/tech4works/gopen-gateway/internal/app"
 	"github.com/tech4works/gopen-gateway/internal/app/model/dto"
 	"github.com/tech4works/gopen-gateway/internal/domain/mapper"
@@ -79,7 +79,7 @@ func buildSpan(gin *gin.Context, request *vo.HTTPRequest) opentracing.Span {
 	span.SetTag("request.query", request.Query().String())
 	if checker.NonNil(request.Body()) {
 		s, _ := request.Body().String()
-		span.SetTag("request.body", helper.CompactString(s))
+		span.SetTag("request.body", converter.ToCompactString(s))
 	} else {
 		span.SetTag("request.body", "")
 	}
@@ -190,7 +190,7 @@ func (c *Context) WriteError(code int, err error) {
 	statusCode := vo.NewStatusCode(code)
 
 	details := errors.Details(err)
-	buffer := helper.SimpleConvertToBuffer(dto.ErrorBody{
+	buffer := converter.ToBuffer(dto.ErrorBody{
 		File:      details.GetFile(),
 		Line:      details.GetLine(),
 		Endpoint:  c.endpoint.Path(),
@@ -216,7 +216,7 @@ func (c *Context) WriteStatusCode(code int) {
 
 func (c *Context) WriteString(code int, s string) {
 	statusCode := vo.NewStatusCode(code)
-	body := vo.NewBodyWithContentType(vo.NewContentTypeTextPlain(), helper.SimpleConvertToBuffer(s))
+	body := vo.NewBodyWithContentType(vo.NewContentTypeTextPlain(), converter.ToBuffer(s))
 	header := c.buildHeader(true, statusCode, body)
 
 	c.Write(vo.NewHTTPResponse(statusCode, header, body))
@@ -224,7 +224,7 @@ func (c *Context) WriteString(code int, s string) {
 
 func (c *Context) WriteJson(code int, a any) {
 	statusCode := vo.NewStatusCode(code)
-	body := vo.NewBodyWithContentType(vo.NewContentTypeJson(), helper.SimpleConvertToBuffer(a))
+	body := vo.NewBodyWithContentType(vo.NewContentTypeJson(), converter.ToBuffer(a))
 	header := c.buildHeader(true, statusCode, body)
 
 	c.Write(vo.NewHTTPResponse(statusCode, header, body))
@@ -233,8 +233,8 @@ func (c *Context) WriteJson(code int, a any) {
 func (c *Context) buildHeader(complete bool, statusCode vo.StatusCode, body *vo.Body) vo.Header {
 	mapHeader := map[string][]string{
 		mapper.XGopenCache:    {"false"},
-		mapper.XGopenComplete: {helper.SimpleConvertToString(complete)},
-		mapper.XGopenSuccess:  {helper.SimpleConvertToString(statusCode.OK())},
+		mapper.XGopenComplete: {converter.ToString(complete)},
+		mapper.XGopenSuccess:  {converter.ToString(statusCode.OK())},
 	}
 	if checker.NonNil(body) {
 		mapHeader[mapper.ContentType] = []string{body.ContentType().String()}
@@ -283,7 +283,7 @@ func (c *Context) transformToWritten(response *vo.HTTPResponse) {
 	span.SetTag("response.header", header.String())
 	if checker.NonNil(body) {
 		s, _ := body.String()
-		span.SetTag("response.body", helper.CompactString(s))
+		span.SetTag("response.body", converter.ToCompactString(s))
 	} else {
 		span.SetTag("response.body", "")
 	}

@@ -3,6 +3,7 @@ package service
 import (
 	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/tech4works/checker"
+	"github.com/tech4works/converter"
 	"github.com/tech4works/gopen-gateway/internal/domain"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
@@ -36,7 +37,7 @@ func (c contentService) ModifyBodyContentType(body *vo.Body, contentType enum.Co
 		return body, err
 	}
 
-	buffer, err := helper.ConvertToBuffer(bodyBytes)
+	buffer, err := converter.ToBufferWithErr(bodyBytes)
 	if checker.NonNil(err) {
 		return body, err
 	}
@@ -55,7 +56,7 @@ func (c contentService) ModifyBodyContentEncoding(body *vo.Body, contentEncoding
 		return body, err
 	}
 
-	buffer, err := helper.ConvertToBuffer(bodyBytes)
+	buffer, err := converter.ToBufferWithErr(bodyBytes)
 	if checker.NonNil(err) {
 		return body, err
 	}

@@ -17,7 +17,7 @@
 package vo
 
 import (
-	"github.com/GabrielHCataldo/go-helper/helper"
+	"github.com/tech4works/converter"
 	"net/url"
 	"sort"
 	"strings"
@@ -104,5 +104,5 @@ func (q Query) Copy() map[string][]string {
 }
 
 func (q Query) String() string {
-	return helper.SimpleConvertToString(q.values)
+	return converter.ToString(q.values)
 }

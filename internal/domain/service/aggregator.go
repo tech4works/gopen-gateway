@@ -2,8 +2,8 @@ package service
 
 import (
 	"fmt"
-	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/tech4works/checker"
+	"github.com/tech4works/converter"
 	"github.com/tech4works/gopen-gateway/internal/domain"
 	"github.com/tech4works/gopen-gateway/internal/domain/mapper"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
@@ -51,7 +51,7 @@ func (a aggregatorService) AggregateBodyToKey(key string, value *vo.Body) (*vo.B
 		return value, err
 	}
 
-	buffer, err := helper.ConvertToBuffer(jsonValue)
+	buffer, err := converter.ToBufferWithErr(jsonValue)
 	if checker.NonNil(err) {
 		return value, err
 	}
@@ -123,7 +123,7 @@ func (a aggregatorService) buildBodyDefaultForSlice(httpBackendResponse *vo.HTTP
 	code := httpBackendResponse.StatusCode()
 
 	jsonStr := "{}"
-	jsonStr, _ = a.jsonPath.Set(jsonStr, "ok", helper.SimpleConvertToString(httpBackendResponse.OK()))
+	jsonStr, _ = a.jsonPath.Set(jsonStr, "ok", converter.ToString(httpBackendResponse.OK()))
 	jsonStr, _ = a.jsonPath.Set(jsonStr, "code", code.String())
 
 	return jsonStr
@@ -163,7 +163,7 @@ func (a aggregatorService) mergeJSON(jsonStr, raw string) (string, []error) {
 }
 
 func (a aggregatorService) buildBodyJson(result string, errs []error) (*vo.Body, []error) {
-	buffer, err := helper.ConvertToBuffer(result)
+	buffer, err := converter.ToBufferWithErr(result)
 	if checker.NonNil(err) {
 		errs = append(errs, err)
 		return nil, errs

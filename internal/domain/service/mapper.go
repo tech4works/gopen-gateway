@@ -1,8 +1,8 @@
 package service
 
 import (
-	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/tech4works/checker"
+	"github.com/tech4works/converter"
 	"github.com/tech4works/gopen-gateway/internal/domain"
 	mapper2 "github.com/tech4works/gopen-gateway/internal/domain/mapper"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
@@ -85,7 +85,7 @@ func (m mapperService) mapBodyText(body *vo.Body, mapper *vo.Mapper) (*vo.Body, 
 		}
 	}
 
-	buffer, err := helper.ConvertToBuffer(mappedBody)
+	buffer, err := converter.ToBufferWithErr(mappedBody)
 	if checker.NonNil(err) {
 		return body, []error{err}
 	}
@@ -112,7 +112,7 @@ func (m mapperService) mapBodyJson(body *vo.Body, mapper *vo.Mapper) (*vo.Body, 
 		return body, errs
 	}
 
-	buffer, err := helper.ConvertToBuffer(mappedBodyStr)
+	buffer, err := converter.ToBufferWithErr(mappedBodyStr)
 	if checker.NonNil(err) {
 		return body, []error{err}
 	}

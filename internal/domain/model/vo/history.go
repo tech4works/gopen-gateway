@@ -1,8 +1,8 @@
 package vo
 
 import (
-	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/tech4works/checker"
+	"github.com/tech4works/converter"
 )
 
 type History struct {
@@ -69,5 +69,5 @@ func (h *History) Map() (string, error) {
 		}
 		sliceOfMap = append(sliceOfMap, responseMap)
 	}
-	return helper.ConvertToString(sliceOfMap)
+	return converter.ToStringWithErr(sliceOfMap)
 }

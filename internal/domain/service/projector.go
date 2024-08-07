@@ -1,8 +1,8 @@
 package service
 
 import (
-	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/tech4works/checker"
+	"github.com/tech4works/converter"
 	"github.com/tech4works/gopen-gateway/internal/domain"
 	"github.com/tech4works/gopen-gateway/internal/domain/mapper"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
@@ -68,7 +68,7 @@ func (s projectorService) ProjectBody(body *vo.Body, projection *vo.Projection) 
 		return body, errs
 	}
 
-	buffer, err := helper.ConvertToBuffer(projectedBody)
+	buffer, err := converter.ToBufferWithErr(projectedBody)
 	if checker.NonNil(err) {
 		return body, []error{err}
 	}

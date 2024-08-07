@@ -1,11 +1,11 @@
 package factory
 
 import (
-	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/tech4works/checker"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
 	"github.com/tech4works/gopen-gateway/internal/domain/service"
+	"math/rand"
 )
 
 type httpBackendFactory struct {
@@ -82,7 +82,7 @@ func (f httpBackendFactory) buildRequestBalancedHost(backend *vo.Backend) string
 	if checker.IsLengthEquals(backend.Hosts(), 1) {
 		return backend.Hosts()[0]
 	}
-	return backend.Hosts()[helper.RandomNumber(0, len(backend.Hosts())-1)]
+	return backend.Hosts()[rand.Intn(len(backend.Hosts())-1)]
 }
 
 func (f httpBackendFactory) buildRequestBody(backend *vo.Backend, request *vo.HTTPRequest, history *vo.History) (

@@ -19,8 +19,8 @@ package server
 import (
 	"context"
 	"fmt"
-	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/tech4works/checker"
+	"github.com/tech4works/converter"
 	"github.com/tech4works/gopen-gateway/internal/app"
 	"github.com/tech4works/gopen-gateway/internal/app/controller"
 	"github.com/tech4works/gopen-gateway/internal/app/factory"
@@ -126,8 +126,7 @@ func (h http) ListenAndServe() {
 		handles := h.buildEndpointHandles()
 		h.router.Handle(h.gopen, &endpoint, handles...)
 
-		lenString := helper.SimpleConvertToString(len(handles))
-		h.log.PrintInfof("Registered route with %s handles: %s", lenString, endpoint.Resume())
+		h.log.PrintInfof("Registered route with %s handles: %s", converter.ToString(len(handles)), endpoint.Resume())
 	}
 
 	address := fmt.Sprint(":", h.gopen.Port())
