@@ -25,35 +25,61 @@ Com essa nova API Gateway você não precisará equilibrar pratos para economiza
 e ainda otimizará o seu desenvolvimento, veja abaixo todos os recursos disponíveis:
 
 - Json de configuração simplificado para múltiplos ambientes.
-- Configuração rápida de variáveis de ambiente para múltiplos ambientes.
-- Versionamento via JSON de configuração.
-- Execução via docker com hot reload opcional.
-- Configuração de timeout global e local para cada endpoint.
-- Configuração de cache global e local para cada endpoint, com customização da estratégia da chave de armazenamento, e
-  condições baseada em códigos de status de resposta e método HTTP para ler e salvar o mesmo.
+
+
+- Configuração rápida de variáveis de ambiente.
+
+
+- Execução via docker com hot reload de configuração opcional.
+
+
+- Timeout granular, com uma configuração padrão para todos os endpoints, mas podendo especificar para cada endpoint.
+
+
+- Cache granular, com estratégia e condição para o armazenamento customizavel.
+
+
 - Armazenamento de cache local ou global utilizando Redis.
-- Configuração de limitador de tamanho, global e local para cada endpoint, limitando o tamanho do Header, Body e
-  Multipart Memory.
-- Configuração de limitador de taxa, global e local para cada endpoint, limitando pelo tempo e rajada pelo IP.
-- Configuração de segurança de CORS com validações de origens, método HTTP e headers.
-- Configuração global de múltiplos middlewares, para serem usados posteriormente no endpoint caso indicado.
-- Filtragem personalizada de envio de headers e query para os backends do endpoint.
-- Processamento de múltiplos backends, sendo eles beforewares, principais e afterwares para o endpoint.
-- Configuração personalizada para abortar processo de execução dos backends pelo código de status retornado.
-- Modificadores para todos os conteúdos de requisição e response (Status Code, Path, Header, Params, Query, Body)
-  ao nível global (requisição/response) e local (requisição backend/response backend) com ações de remoção,
-  adição, alteração, substituição e renomeio.
-- Obtenha o valor a ser modificado de variáveis de ambiente, da requisição atual, do histórico de respostas do endpoint,
-  ou até mesmo do valor passado na configuração.
-- Executa os modificadores no contexto que desejar, antes de uma requisição backend ou depois, você decide.
-- Faça com que as modificações reflitam em todas as requisições/respostas seguintes, usando a mesma ao nível global.
-- Omita a resposta de um backend caso necessite, a mesma não será utilizada na resposta do endpoint.
-- Omita o body de requisição do seu backend caso precise.
-- Agregue suas múltiplas respostas dos backends caso deseje, podendo personalizar o nome do campo a ser alocado a
-  resposta do backend.
-- Agrupe o body de resposta do seu backend em um campo específico de resposta do endpoint.
-- Personalização do tipo de resposta do endpoint podendo ser JSON, TEXT e XML.
-- Tenha mais observabilidade com o cadastro automático do trace id no header das requisições seguintes e logs bem
+
+
+- Limitador de uso e de carga granular, com uma configuração padrão para todos os endpoints, mas podendo especificar
+  para cada endpoint.
+
+
+- Segurança de CORS com validações de origens, método HTTP e headers.
+
+
+- Múltiplos middlewares, para serem usados posteriormente no endpoint caso necessário.
+
+
+- Filtragem personalizada de envio de Headers, Query e Body para os backends do endpoint.
+
+
+- Processamento de múltiplos backends por endpoint.
+
+
+- Aborte o processo de execução dos backends pelo código de status retornado de forma personalizada.
+
+
+- Customize sua requisição e resposta do backend utilizando nossos recursos:
+    - Omita informações.
+    - Mapeamento. (Header, Query e Body)
+    - Projeção. (Header, Query e Body)
+    - Personalização da nomenclatura do body.
+    - Personalização do tipo do conteúdo do body.
+    - Comprima o body de requisição usando GZIP ou DEFLATE.
+    - Modificadores, são pontos e ações especificas para modificar algum conteúdo de requisição ou resposta.
+    - Agrupe o body de resposta em um campo específico informado.
+
+
+- Customize sua resposta de endpoint utilizando nossos recursos:
+    - Omita informações vazias do body.
+    - Agregue múltiplas respostas dos backends.
+    - Personalização do tipo do body.
+    - Personalização da nomenclatura do body.
+    - Comprima o body de requisição usando GZIP ou DEFLATE.
+
+- Tenha mais observabilidade com o cadastro automático do Trace ID no header das requisições seguintes e logs bem
   estruturados.
 
 # Documentação
@@ -94,7 +120,7 @@ contendo os nomes dos seus ambientes, você pode dar o nome que quiser, essa pas
 
 ## JSON de configuração
 
-Com base nesse arquivo JSON de configuração obtido pela env desejada a aplicação terá seus endpoints e suas regras
+Com base nesse arquivo JSON de configuração obtido pela env desejada, a aplicação terá seus endpoints e suas regras
 definidas, veja abaixo um exemplo simples com todos os campos possíveis e seus conceitos e regras:
 
 ````json
