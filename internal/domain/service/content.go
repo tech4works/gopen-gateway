@@ -1,8 +1,8 @@
 package service
 
 import (
-	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/tech4works/checker"
+	"github.com/tech4works/compressor"
 	"github.com/tech4works/converter"
 	"github.com/tech4works/gopen-gateway/internal/domain"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
@@ -104,10 +104,10 @@ func (c contentService) modifyBodyContentEncoding(body *vo.Body, contentEncoding
 	switch contentEncoding {
 	case enum.ContentEncodingGzip:
 		httpContentEncoding = vo.NewContentEncodingGzip()
-		bodyBytes, err = helper.CompressWithGzip(rawBytes)
+		bodyBytes, err = compressor.ToGzipWithErr(rawBytes)
 	case enum.ContentEncodingDeflate:
 		httpContentEncoding = vo.NewContentEncodingDeflate()
-		bodyBytes, err = helper.CompressWithDeflate(rawBytes)
+		bodyBytes, err = compressor.ToDeflateWithErr(rawBytes)
 	default:
 		bodyBytes = rawBytes
 	}

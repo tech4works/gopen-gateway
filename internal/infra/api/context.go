@@ -19,12 +19,12 @@ package api
 import (
 	"bytes"
 	"fmt"
-	"github.com/GabrielHCataldo/go-errors/errors"
 	"github.com/gin-gonic/gin"
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/tech4works/checker"
 	"github.com/tech4works/converter"
+	"github.com/tech4works/errors"
 	"github.com/tech4works/gopen-gateway/internal/app"
 	"github.com/tech4works/gopen-gateway/internal/app/model/dto"
 	"github.com/tech4works/gopen-gateway/internal/domain/mapper"
@@ -191,10 +191,10 @@ func (c *Context) WriteError(code int, err error) {
 
 	details := errors.Details(err)
 	buffer := converter.ToBuffer(dto.ErrorBody{
-		File:      details.GetFile(),
-		Line:      details.GetLine(),
+		File:      details.File(),
+		Line:      details.Line(),
 		Endpoint:  c.endpoint.Path(),
-		Message:   details.GetMessage(),
+		Message:   details.Message(),
 		Timestamp: time.Now(),
 	})
 	body := vo.NewBodyJson(buffer)

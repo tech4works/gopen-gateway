@@ -18,8 +18,8 @@ package vo
 
 import (
 	"fmt"
-	"github.com/GabrielHCataldo/go-errors/errors"
 	"github.com/tech4works/checker"
+	"github.com/tech4works/errors"
 	"math"
 	"regexp"
 	"strconv"

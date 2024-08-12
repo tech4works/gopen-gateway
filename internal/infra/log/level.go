@@ -2,7 +2,6 @@ package log
 
 import (
 	"fmt"
-	"github.com/GabrielHCataldo/go-logger/logger"
 )
 
 type level string
@@ -15,20 +14,20 @@ const (
 )
 
 func (l level) String() string {
-	return fmt.Sprint(l.color(), string(l), logger.StyleReset)
+	return fmt.Sprint(l.color(), string(l), "\x1b[0m")
 }
 
 func (l level) color() string {
 	switch l {
 	case InfoLevel:
-		return logger.ForegroundBlue
+		return "\x1b[34m"
 	case DebugLevel:
-		return logger.ForegroundCyan
+		return "\x1b[36m"
 	case WarnLevel:
-		return logger.ForegroundYellow
+		return "\x1b[33m"
 	case ErrorLevel:
-		return logger.ForegroundRed
+		return "\x1b[31m"
 	default:
-		return logger.StyleReset
+		return "\x1b[0m"
 	}
 }

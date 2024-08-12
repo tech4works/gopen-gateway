@@ -2,8 +2,8 @@ package factory
 
 import (
 	"fmt"
-	"github.com/GabrielHCataldo/go-errors/errors"
 	"github.com/tech4works/checker"
+	"github.com/tech4works/errors"
 	"github.com/tech4works/gopen-gateway/internal/app/model/dto"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"

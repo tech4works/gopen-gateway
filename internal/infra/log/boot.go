@@ -18,7 +18,6 @@ package log
 
 import (
 	"fmt"
-	"github.com/GabrielHCataldo/go-logger/logger"
 	"github.com/tech4works/gopen-gateway/internal/app"
 	"os"
 )
@@ -51,7 +50,7 @@ Best open source API Gateway!            %s
 }
 
 func (l bootLog) PrintTitle(title string) {
-	l.PrintInfof("-----------------------< %s%s%s >-----------------------", logger.StyleBold, title, logger.StyleReset)
+	l.PrintInfof("-----------------------< %s%s%s >-----------------------", StyleBold, title, StyleReset)
 }
 
 func (l bootLog) PrintInfo(msg ...any) {

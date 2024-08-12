@@ -20,9 +20,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/tech4works/checker"
 	"github.com/tech4works/converter"
+	"github.com/tech4works/decompressor"
 	"strconv"
 )
 
@@ -81,9 +81,9 @@ func (b *Body) Buffer() *bytes.Buffer {
 
 func (b *Body) Bytes() ([]byte, error) {
 	if b.ContentEncoding().IsGzip() {
-		return helper.DecompressWithGzip(b.RawBytes())
+		return decompressor.ToBytesWithErr(decompressor.TypeGzip, b.RawBytes())
 	} else if b.ContentEncoding().IsDeflate() {
-		return helper.DecompressWithDeflate(b.RawBytes())
+		return decompressor.ToBytesWithErr(decompressor.TypeDeflate, b.RawBytes())
 	}
 	return b.RawBytes(), nil
 }

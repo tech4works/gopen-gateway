@@ -1,7 +1,7 @@
 package mapper
 
 import (
-	"github.com/GabrielHCataldo/go-errors/errors"
+	"github.com/tech4works/errors"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
 	"time"
 )

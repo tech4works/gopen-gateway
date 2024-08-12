@@ -18,26 +18,24 @@ package cache
 
 import (
 	"context"
-	"github.com/GabrielHCataldo/go-errors/errors"
-	"github.com/GabrielHCataldo/go-helper/helper"
-	"github.com/GabrielHCataldo/go-redis-template/redis"
-	"github.com/GabrielHCataldo/go-redis-template/redis/option"
+	"github.com/redis/go-redis/v9"
 	"github.com/tech4works/checker"
+	"github.com/tech4works/compressor"
+	"github.com/tech4works/converter"
+	"github.com/tech4works/decompressor"
+	"github.com/tech4works/errors"
 	"github.com/tech4works/gopen-gateway/internal/domain"
 	"github.com/tech4works/gopen-gateway/internal/domain/mapper"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
 )
 
-// redisStore represents a Redis cache store that implements the CacheStore interface.
 type redisStore struct {
-	redisTemplate *redis.Template
+	client *redis.Client
 }
 
-// NewRedisStore creates a new Redis cache store with the given address and password.
-// It returns a CacheStore interface that can be used to interact with the Redis cache.
 func NewRedisStore(address, password string) domain.Store {
 	return &redisStore{
-		redisTemplate: redis.NewTemplate(option.Client{
+		client: redis.NewClient(&redis.Options{
 			Addr:     address,
 			Password: password,
 		}),
@@ -45,34 +43,33 @@ func NewRedisStore(address, password string) domain.Store {
 }
 
 func (r redisStore) Set(ctx context.Context, key string, cacheResponse *vo.CacheResponse) error {
-	gzipBase64, err := helper.CompressWithGzipToBase64(cacheResponse)
+	b64, err := compressor.ToGzipBase64WithErr(cacheResponse)
 	if checker.NonNil(err) {
 		return err
 	}
 
-	return r.redisTemplate.Set(ctx, key, gzipBase64, option.NewSet().SetTTL(cacheResponse.Duration.Time()))
+	return r.client.Set(ctx, key, b64, cacheResponse.Duration.Time()).Err()
 }
 
-// Del deletes the value associated with the given key from the Redis cache.
-// It takes the context and key as parameters.
-// If the key does not exist in the cache, Del returns nil (no error is returned).
-// If there is any error during the deletion, that error is returned.
-// If everything goes well, Del returns nil.
 func (r redisStore) Del(ctx context.Context, key string) error {
-	return r.redisTemplate.Del(ctx, key)
+	return r.client.Del(ctx, key).Err()
 }
 
 func (r redisStore) Get(ctx context.Context, key string) (*vo.CacheResponse, error) {
-	var cacheGzipBase64 string
-	err := r.redisTemplate.Get(ctx, key, &cacheGzipBase64)
-	if errors.Is(err, redis.ErrKeyNotFound) {
+	cacheGzipBase64, err := r.client.Get(ctx, key).Result()
+	if errors.Is(err, redis.Nil) {
 		return nil, mapper.NewErrCacheNotFound()
 	} else if checker.NonNil(err) {
 		return nil, err
 	}
 
+	bs, err := decompressor.ToBytesWithErr(decompressor.TypeGzipBase64, cacheGzipBase64)
+	if checker.NonNil(err) {
+		return nil, err
+	}
+
 	var cacheResponse vo.CacheResponse
-	err = helper.DecompressFromBase64WithGzipToDest(cacheGzipBase64, &cacheResponse)
+	err = converter.ToDestWithErr(bs, &cacheResponse)
 	if checker.NonNil(err) {
 		return nil, err
 	}
@@ -80,8 +77,6 @@ func (r redisStore) Get(ctx context.Context, key string) (*vo.CacheResponse, err
 	return &cacheResponse, nil
 }
 
-// Close closes the connection to the Redis server.
-// It returns an error if there was a problem disconnecting from the server.
 func (r redisStore) Close() error {
-	return r.redisTemplate.Disconnect()
+	return r.client.Close()
 }

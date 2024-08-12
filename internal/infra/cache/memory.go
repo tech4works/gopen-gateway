@@ -18,22 +18,21 @@ package cache
 
 import (
 	"context"
-	"github.com/GabrielHCataldo/go-errors/errors"
-	"github.com/GabrielHCataldo/go-helper/helper"
 	"github.com/jellydator/ttlcache/v2"
 	"github.com/tech4works/checker"
+	"github.com/tech4works/compressor"
+	"github.com/tech4works/converter"
+	"github.com/tech4works/decompressor"
+	"github.com/tech4works/errors"
 	"github.com/tech4works/gopen-gateway/internal/domain"
 	"github.com/tech4works/gopen-gateway/internal/domain/mapper"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
 )
 
-// memoryStore represents an in-memory cache store that implements the CacheStore interface.
 type memoryStore struct {
 	ttlCache *ttlcache.Cache
 }
 
-// NewMemoryStore returns a new instance of the MemoryStore structure that implements the CacheStore interface.
-// This implementation uses an in-memory cache with a time-to-live (TTL)
 func NewMemoryStore() domain.Store {
 	ttlCache := ttlcache.NewCache()
 	ttlCache.SkipTTLExtensionOnHit(true)
@@ -43,19 +42,14 @@ func NewMemoryStore() domain.Store {
 }
 
 func (m memoryStore) Set(_ context.Context, key string, cacheResponse *vo.CacheResponse) error {
-	gzipBase64, err := helper.CompressWithGzipToBase64(cacheResponse)
+	b64, err := compressor.ToGzipBase64WithErr(cacheResponse)
 	if checker.NonNil(err) {
 		return err
 	}
 
-	return m.ttlCache.SetWithTTL(key, gzipBase64, cacheResponse.Duration.Time())
+	return m.ttlCache.SetWithTTL(key, b64, cacheResponse.Duration.Time())
 }
 
-// Del removes a key-value pair from the memory cache with the specified key.
-// The key is a string that serves as the identifier for the key-value pair to be removed.
-// The error returned indicates any issues encountered while removing the key-value pair.
-// Implementing the CacheStore interface, this method uses the underlying ttlCache to remove the data.
-// The ttlCache.Remove function is used to remove the key-value pair from the cache.
 func (m memoryStore) Del(_ context.Context, key string) error {
 	return m.ttlCache.Remove(key)
 }
@@ -68,8 +62,13 @@ func (m memoryStore) Get(_ context.Context, key string) (*vo.CacheResponse, erro
 		return nil, err
 	}
 
+	bs, err := decompressor.ToBytesWithErr(decompressor.TypeGzipBase64, value)
+	if checker.NonNil(err) {
+		return nil, err
+	}
+
 	var cacheResponse vo.CacheResponse
-	err = helper.DecompressFromBase64WithGzipToDest(value, &cacheResponse)
+	err = converter.ToDestWithErr(bs, &cacheResponse)
 	if checker.NonNil(err) {
 		return nil, err
 	}

@@ -4,12 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/GabrielHCataldo/go-errors/errors"
 	"github.com/fsnotify/fsnotify"
 	"github.com/joho/godotenv"
 	"github.com/opentracing/opentracing-go"
 	"github.com/tech4works/checker"
 	"github.com/tech4works/converter"
+	"github.com/tech4works/errors"
 	"github.com/tech4works/gopen-gateway/internal/app"
 	"github.com/tech4works/gopen-gateway/internal/app/model/dto"
 	"github.com/tech4works/gopen-gateway/internal/app/server"
@@ -141,7 +141,7 @@ func (p provider) restart(env string, oldServer server.HTTP) {
 	defer func() {
 		if r := recover(); checker.NonNil(r) {
 			errorDetails := errors.Details(r.(error))
-			p.log.PrintError("Error restart server:", errorDetails.GetCause())
+			p.log.PrintError("Error restart server:", errorDetails.Cause())
 
 			p.recovery(oldServer)
 		}
