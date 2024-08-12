@@ -25,7 +25,7 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/json-iterator/go v1.1.12
 	github.com/opentracing/opentracing-go v1.2.0
-	github.com/redis/go-redis/v9 v9.4.0
+	github.com/redis/go-redis/v9 v9.6.1
 	github.com/tech4works/checker v0.0.0-20240806130137-539a8623a656
 	github.com/tech4works/compressor v0.0.0-20240807194218-7122652ffea0
 	github.com/tech4works/converter v0.0.0-20240807115921-39a44dbd653f
