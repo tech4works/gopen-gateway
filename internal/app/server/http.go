@@ -35,7 +35,7 @@ import (
 )
 
 type http struct {
-	*net.Server
+	net                     *net.Server
 	gopen                   *vo.Gopen
 	log                     app.BootLog
 	router                  app.Router
@@ -102,7 +102,7 @@ func New(
 	endpointController := controller.NewEndpoint(endpointUseCase)
 
 	log.PrintInfo("Building value objects...")
-	return http{
+	return &http{
 		gopen:                   factory.BuildGopen(gopen),
 		log:                     log,
 		router:                  router,
@@ -117,40 +117,40 @@ func New(
 	}
 }
 
-func (h http) ListenAndServe() {
+func (h *http) ListenAndServe() {
 	h.log.PrintInfo("Configuring routes...")
 
+	h.buildRoutes()
 	h.buildStaticRoutes()
 
+	h.net = &net.Server{
+		Addr:    fmt.Sprint(":", h.gopen.Port()),
+		Handler: h.router.Engine(),
+	}
+
+	h.log.SkipLine()
+	h.log.PrintTitle(fmt.Sprintf("LISTEN AND SERVE %s", h.net.Addr))
+
+	h.net.ListenAndServe()
+}
+
+func (h *http) Shutdown(ctx context.Context) error {
+	if checker.IsNil(h.net) {
+		return nil
+	}
+	return h.net.Shutdown(ctx)
+}
+
+func (h *http) buildRoutes() {
 	for _, endpoint := range h.gopen.Endpoints() {
 		handles := h.buildEndpointHandles()
 		h.router.Handle(h.gopen, &endpoint, handles...)
 
 		h.log.PrintInfof("Registered route with %s handles: %s", converter.ToString(len(handles)), endpoint.Resume())
 	}
-
-	address := fmt.Sprint(":", h.gopen.Port())
-	h.log.PrintInfof("Listening and serving HTTP on %s!", address)
-
-	h.Server = &net.Server{
-		Addr:    address,
-		Handler: h.router.Engine(),
-	}
-
-	h.log.SkipLine()
-	h.log.PrintTitle("LISTEN AND SERVER")
-
-	h.Server.ListenAndServe()
 }
 
-func (h http) Shutdown(ctx context.Context) error {
-	if checker.IsNil(h.Server) {
-		return nil
-	}
-	return h.Server.Shutdown(ctx)
-}
-
-func (h http) buildStaticRoutes() {
+func (h *http) buildStaticRoutes() {
 	formatLog := "Registered route with 5 handles: %s --> \"%s\""
 
 	pingEndpoint := h.buildStaticPingRoute()
@@ -163,25 +163,25 @@ func (h http) buildStaticRoutes() {
 	h.log.PrintInfof(formatLog, settingsEndpoint.Method(), settingsEndpoint.Path())
 }
 
-func (h http) buildStaticPingRoute() *vo.Endpoint {
+func (h *http) buildStaticPingRoute() *vo.Endpoint {
 	endpoint := vo.NewEndpointStatic("/ping", net.MethodGet)
 	h.buildStaticRoute(&endpoint, h.staticController.Ping)
 	return &endpoint
 }
 
-func (h http) buildStaticVersionRoute() *vo.Endpoint {
+func (h *http) buildStaticVersionRoute() *vo.Endpoint {
 	endpoint := vo.NewEndpointStatic("/version", net.MethodGet)
 	h.buildStaticRoute(&endpoint, h.staticController.Version)
 	return &endpoint
 }
 
-func (h http) buildStaticSettingsRoute() *vo.Endpoint {
+func (h *http) buildStaticSettingsRoute() *vo.Endpoint {
 	endpoint := vo.NewEndpointStatic("/settings", net.MethodGet)
 	h.buildStaticRoute(&endpoint, h.staticController.Settings)
 	return &endpoint
 }
 
-func (h http) buildStaticRoute(endpointStatic *vo.Endpoint, handler app.HandlerFunc) {
+func (h *http) buildStaticRoute(endpointStatic *vo.Endpoint, handler app.HandlerFunc) {
 	timeoutHandler := h.timeoutMiddleware.Do
 	panicHandler := h.panicRecoveryMiddleware.Do
 	logHandler := h.logMiddleware.Do
@@ -189,21 +189,14 @@ func (h http) buildStaticRoute(endpointStatic *vo.Endpoint, handler app.HandlerF
 	h.router.Handle(h.gopen, endpointStatic, timeoutHandler, panicHandler, logHandler, limiterHandler, handler)
 }
 
-func (h http) buildEndpointHandles() []app.HandlerFunc {
-	timeoutHandler := h.timeoutMiddleware.Do
-	panicHandler := h.panicRecoveryMiddleware.Do
-	logHandler := h.logMiddleware.Do
-	securityCorsHandler := h.securityCorsMiddleware.Do
-	limiterHandler := h.limiterMiddleware.Do
-	cacheHandler := h.cacheMiddleware.Do
-	endpointHandler := h.endpointController.Execute
+func (h *http) buildEndpointHandles() []app.HandlerFunc {
 	return []app.HandlerFunc{
-		timeoutHandler,
-		panicHandler,
-		logHandler,
-		securityCorsHandler,
-		limiterHandler,
-		cacheHandler,
-		endpointHandler,
+		h.timeoutMiddleware.Do,
+		h.panicRecoveryMiddleware.Do,
+		h.logMiddleware.Do,
+		h.securityCorsMiddleware.Do,
+		h.limiterMiddleware.Do,
+		h.cacheMiddleware.Do,
+		h.endpointController.Execute,
 	}
 }

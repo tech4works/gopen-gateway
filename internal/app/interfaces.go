@@ -10,8 +10,8 @@ import (
 )
 
 type Boot interface {
-	Init() string
-	Start(env string)
+	Init() (string, *dto.Gopen)
+	Start(env string, gopen *dto.Gopen)
 	Stop()
 }
 

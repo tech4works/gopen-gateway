@@ -44,7 +44,7 @@ func New() app.Boot {
 	}
 }
 
-func (p provider) Init() string {
+func (p provider) Init() (string, *dto.Gopen) {
 	if checker.IsLengthLessThanOrEqual(os.Args, 1) {
 		panic("Please enter ENV as second argument! ex: dev, prd")
 	}
@@ -66,14 +66,12 @@ func (p provider) Init() string {
 		}
 	}
 
+	env := os.Args[1]
+
 	p.log.PrintLogo()
 
-	return os.Args[1]
-}
-
-func (p provider) Start(env string) {
 	p.log.PrintInfo("Loading Gopen envs...")
-	err := p.loadEnvs(env)
+	err = p.loadEnvs(env)
 	if checker.NonNil(err) {
 		p.log.PrintWarn(err)
 	}
@@ -84,6 +82,10 @@ func (p provider) Start(env string) {
 		panic(err)
 	}
 
+	return env, gopen
+}
+
+func (p provider) Start(env string, gopen *dto.Gopen) {
 	p.log.PrintInfo("Configuring cache store...")
 	store := cache.NewMemoryStore()
 	if checker.NonNil(gopen.Store) {
@@ -91,7 +93,7 @@ func (p provider) Start(env string) {
 	}
 	defer store.Close()
 
-	err = p.writeRuntimeJson(gopen)
+	err := p.writeRuntimeJson(gopen)
 	if checker.NonNil(err) {
 		p.log.PrintWarn(err)
 	}
@@ -113,7 +115,7 @@ func (p provider) Start(env string) {
 
 	if gopen.HotReload {
 		p.log.PrintInfo("Configuring watcher...")
-		watcher, err := p.initWatcher(env, httpServer)
+		watcher, err := p.initWatcher(env, gopen, httpServer)
 		if checker.NonNil(err) {
 			p.log.PrintWarn("Error configure watcher:", err)
 		} else {
@@ -137,20 +139,20 @@ func (p provider) Stop() {
 	p.log.PrintTitle("STOPPED")
 }
 
-func (p provider) restart(env string, oldServer server.HTTP) {
+func (p provider) restart(env string, oldGopen *dto.Gopen, oldServer server.HTTP) {
 	defer func() {
 		if r := recover(); checker.NonNil(r) {
 			errorDetails := errors.Details(r.(error))
 			p.log.PrintError("Error restart server:", errorDetails.Cause())
 
-			p.recovery(oldServer)
+			p.recovery(env, oldGopen)
 		}
 	}()
 
 	p.log.SkipLine()
 	p.log.PrintTitle("RESTART")
 
-	ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.TODO(), 5*time.Minute)
 	defer cancel()
 
 	p.log.PrintInfo("Shutting down current server...")
@@ -160,14 +162,26 @@ func (p provider) restart(env string, oldServer server.HTTP) {
 		return
 	}
 
-	go p.Start(env)
+	p.log.PrintInfo("Reloading Gopen envs...")
+	err = p.loadEnvs(env)
+	if checker.NonNil(err) {
+		p.log.PrintWarn(err)
+	}
+
+	p.log.PrintInfo("Reloading Gopen json...")
+	gopen, err := p.loadJson(env)
+	if checker.NonNil(err) {
+		panic(err)
+	}
+
+	p.Start(env, gopen)
 }
 
-func (p provider) recovery(oldServer server.HTTP) {
+func (p provider) recovery(env string, oldGopen *dto.Gopen) {
 	p.log.SkipLine()
 	p.log.PrintTitle("RECOVERY")
 
-	go oldServer.ListenAndServe()
+	go p.Start(env, oldGopen)
 }
 
 func (p provider) initTracer(host string) (opentracing.Tracer, io.Closer, error) {
@@ -185,7 +199,7 @@ func (p provider) initTracer(host string) (opentracing.Tracer, io.Closer, error)
 	return jaegerConfig.NewTracer(jaegercfg.Logger(log.NewNoop()))
 }
 
-func (p provider) initWatcher(env string, oldServer server.HTTP) (*fsnotify.Watcher, error) {
+func (p provider) initWatcher(env string, oldGopen *dto.Gopen, oldServer server.HTTP) (*fsnotify.Watcher, error) {
 	watcher, err := fsnotify.NewWatcher()
 	if checker.NonNil(err) {
 		return nil, err
@@ -204,7 +218,7 @@ func (p provider) initWatcher(env string, oldServer server.HTTP) (*fsnotify.Watc
 				if !ok || checker.NotEquals(ev.Op, fsnotify.Chmod) {
 					return
 				}
-				p.restart(env, oldServer)
+				p.restart(env, oldGopen, oldServer)
 			}
 		}
 	}()

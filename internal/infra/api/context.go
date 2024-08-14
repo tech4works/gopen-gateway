@@ -274,15 +274,11 @@ func (c *Context) transformToWritten(response *vo.HTTPResponse) {
 	c.engine.Abort()
 	c.response = response
 
-	statusCode := response.StatusCode()
-	header := response.Header()
-	body := response.Body()
-
 	span := c.Span()
-	span.SetTag("response.status", statusCode.String())
-	span.SetTag("response.header", header.String())
-	if checker.NonNil(body) {
-		s, _ := body.String()
+	span.SetTag("response.status", response.StatusCode().String())
+	span.SetTag("response.header", response.Header().String())
+	if response.HasBody() {
+		s, _ := response.Body().String()
 		span.SetTag("response.body", converter.ToCompactString(s))
 	} else {
 		span.SetTag("response.body", "")

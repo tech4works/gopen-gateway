@@ -104,6 +104,7 @@ type Endpoint struct {
 }
 
 type EndpointResponse struct {
+	Comment         string               `json:"@comment,omitempty"`
 	Aggregate       bool                 `json:"aggregate,omitempty"`
 	ContentType     enum.ContentType     `json:"content-type,omitempty"`
 	ContentEncoding enum.ContentEncoding `json:"content-encoding,omitempty"`
@@ -121,6 +122,7 @@ type Backend struct {
 }
 
 type BackendRequest struct {
+	Comment          string               `json:"@comment,omitempty"`
 	OmitHeader       bool                 `json:"omit-header,omitempty"`
 	OmitQuery        bool                 `json:"omit-query,omitempty"`
 	OmitBody         bool                 `json:"omit-body,omitempty"`
@@ -141,6 +143,7 @@ type BackendRequest struct {
 }
 
 type BackendResponse struct {
+	Comment          string         `json:"@comment,omitempty"`
 	Omit             bool           `json:"omit,omitempty"`
 	OmitHeader       bool           `json:"omit-header,omitempty"`
 	OmitBody         bool           `json:"omit-body,omitempty"`
@@ -154,7 +157,6 @@ type BackendResponse struct {
 }
 
 type Modifier struct {
-	Comment   string              `json:"@comment,omitempty"`
 	Action    enum.ModifierAction `json:"action,omitempty"`
 	Propagate bool                `json:"propagate,omitempty"`
 	Key       string              `json:"key,omitempty"`

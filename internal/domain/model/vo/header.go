@@ -52,19 +52,19 @@ func NewHeaderByBody(body *Body) Header {
 	return Header{values: values}
 }
 
-func (h *Header) Http() http.Header {
+func (h Header) Http() http.Header {
 	return h.values
 }
 
-func (h *Header) String() string {
+func (h Header) String() string {
 	return converter.ToCompactString(h.values)
 }
 
-func (h *Header) GetAll(key string) []string {
+func (h Header) GetAll(key string) []string {
 	return h.values[key]
 }
 
-func (h *Header) Get(key string) string {
+func (h Header) Get(key string) string {
 	valuesByKey := h.values[key]
 	if checker.IsNotEmpty(valuesByKey) {
 		return strings.Join(valuesByKey, ", ")
@@ -72,7 +72,7 @@ func (h *Header) Get(key string) string {
 	return ""
 }
 
-func (h *Header) GetFirst(key string) string {
+func (h Header) GetFirst(key string) string {
 	valuesByKey := h.values[key]
 	if checker.IsNotEmpty(valuesByKey) {
 		return valuesByKey[0]
@@ -80,16 +80,16 @@ func (h *Header) GetFirst(key string) string {
 	return ""
 }
 
-func (h *Header) Exists(key string) bool {
+func (h Header) Exists(key string) bool {
 	_, ok := h.values[key]
 	return ok
 }
 
-func (h *Header) NotExists(key string) bool {
+func (h Header) NotExists(key string) bool {
 	return !h.Exists(key)
 }
 
-func (h *Header) Copy() map[string][]string {
+func (h Header) Copy() map[string][]string {
 	copiedValues := map[string][]string{}
 	for key, value := range h.values {
 		copiedValues[key] = value
@@ -97,11 +97,11 @@ func (h *Header) Copy() map[string][]string {
 	return copiedValues
 }
 
-func (h *Header) Map() any {
+func (h Header) Map() any {
 	return h.Copy()
 }
 
-func (h *Header) Size() int {
+func (h Header) Size() int {
 	size := 0
 	for key, values := range h.values {
 		size += len(key) + 2
@@ -116,19 +116,19 @@ func (h *Header) Size() int {
 	return size
 }
 
-func (h *Header) SizeStr() string {
+func (h Header) SizeStr() string {
 	bs := NewBytesByInt(h.Size())
 	return converter.ToCompactString(bs.String())
 }
 
-func (h *Header) Keys() (ss []string) {
+func (h Header) Keys() (ss []string) {
 	for key := range h.values {
 		ss = append(ss, key)
 	}
 	return ss
 }
 
-func (h *Header) MarshalJSON() ([]byte, error) {
+func (h Header) MarshalJSON() ([]byte, error) {
 	return converter.ToBytesWithErr(h.Map())
 }
 

@@ -28,7 +28,7 @@ require (
 	github.com/redis/go-redis/v9 v9.6.1
 	github.com/tech4works/checker v0.0.0-20240806130137-539a8623a656
 	github.com/tech4works/compressor v0.0.0-20240807194218-7122652ffea0
-	github.com/tech4works/converter v0.0.0-20240807115921-39a44dbd653f
+	github.com/tech4works/converter v0.0.0-20240813212833-e25e14cbad01
 	github.com/tech4works/decompressor v0.0.0-20240807211058-01326b21a00d
 	github.com/tech4works/errors v0.0.0-20240808195604-e140d8516829
 	github.com/tidwall/gjson v1.17.1

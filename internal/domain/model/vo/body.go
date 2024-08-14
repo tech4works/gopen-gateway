@@ -173,9 +173,9 @@ func (b *Body) UnmarshalJSON(data []byte) error {
 	}
 
 	if value, exists := mapBody["buffer"]; exists {
-		valueStr, err := converter.ToStringWithErr(value)
-		if checker.NonNil(err) {
-			return err
+		valueStr, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("buffer not a string")
 		}
 
 		bufferStr, err := converter.FromBase64ToStringWithErr(valueStr)
@@ -187,15 +187,16 @@ func (b *Body) UnmarshalJSON(data []byte) error {
 	}
 
 	if value, exists := mapBody["contentType"]; exists {
-		contentType, ok := value.(ContentType)
+		str, ok := value.(string)
 		if ok {
-			b.contentType = contentType
+			b.contentType = NewContentType(str)
 		}
 	}
+
 	if value, exists := mapBody["contentEncoding"]; exists {
-		contentEncoding, ok := value.(ContentEncoding)
+		str, ok := value.(string)
 		if ok {
-			b.contentEncoding = contentEncoding
+			b.contentEncoding = NewContentEncoding(str)
 		}
 	}
 

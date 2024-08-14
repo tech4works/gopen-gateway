@@ -19,23 +19,23 @@ func NewStatusCode(code int) StatusCode {
 	}
 }
 
-func (s *StatusCode) OK() bool {
+func (s StatusCode) OK() bool {
 	return checker.IsGreaterThanOrEqual(s.Code(), 200) || checker.IsLessThanOrEqual(s.Code(), 299)
 }
 
-func (s *StatusCode) Failed() bool {
+func (s StatusCode) Failed() bool {
 	return checker.IsGreaterThanOrEqual(s.Code(), 400)
 }
 
-func (s *StatusCode) Code() int {
+func (s StatusCode) Code() int {
 	return s.code
 }
 
-func (s *StatusCode) Description() string {
+func (s StatusCode) Description() string {
 	return s.description
 }
 
-func (s *StatusCode) MarshalJSON() ([]byte, error) {
+func (s StatusCode) MarshalJSON() ([]byte, error) {
 	return converter.ToBytesWithErr(s.Code())
 }
 
@@ -51,6 +51,6 @@ func (s *StatusCode) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (s *StatusCode) String() string {
+func (s StatusCode) String() string {
 	return fmt.Sprintf("%v %s", s.Code(), s.Description())
 }

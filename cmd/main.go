@@ -25,8 +25,8 @@ import (
 func main() {
 	cmd := boot.New()
 
-	env := cmd.Init()
-	go cmd.Start(env)
+	env, gopen := cmd.Init()
+	go cmd.Start(env, gopen)
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)

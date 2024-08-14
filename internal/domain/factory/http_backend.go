@@ -131,7 +131,7 @@ func (f httpBackendFactory) buildRequestHeader(backend *vo.Backend, body *vo.Bod
 		return header, nil
 	}
 
-	header = f.aggregatorService.AggregateHeaders(header, *request.Header())
+	header = f.aggregatorService.AggregateHeaders(header, request.Header())
 	header = f.mapperService.MapHeader(header, backend.Request().HeaderMapper())
 	header = f.projectorService.ProjectHeader(header, backend.Request().HeaderProjection())
 

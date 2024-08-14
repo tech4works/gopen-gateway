@@ -54,8 +54,8 @@ func (h *HTTPRequest) Method() string {
 	return h.method
 }
 
-func (h *HTTPRequest) Header() *Header {
-	return &h.header
+func (h *HTTPRequest) Header() Header {
+	return h.header
 }
 
 func (h *HTTPRequest) Params() Params {

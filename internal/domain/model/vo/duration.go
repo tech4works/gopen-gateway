@@ -28,12 +28,19 @@ func NewDuration(timeDuration time.Duration) Duration {
 	return Duration(timeDuration)
 }
 
-func (d *Duration) Time() time.Duration {
-	return time.Duration(*d)
+func (d Duration) Time() time.Duration {
+	return time.Duration(d)
 }
 
-func (d *Duration) String() string {
+func (d Duration) String() string {
 	return d.Time().String()
+}
+
+func (d Duration) MarshalJSON() ([]byte, error) {
+	if checker.IsNil(d) || checker.IsEmpty(d) {
+		return nil, nil
+	}
+	return []byte(strconv.Quote(d.String())), nil
 }
 
 func (d *Duration) UnmarshalJSON(b []byte) error {
@@ -51,11 +58,4 @@ func (d *Duration) UnmarshalJSON(b []byte) error {
 
 	*d = Duration(duration)
 	return nil
-}
-
-func (d *Duration) MarshalJSON() ([]byte, error) {
-	if checker.IsNil(d) || checker.IsEmpty(d) {
-		return nil, nil
-	}
-	return []byte(strconv.Quote(d.String())), nil
 }
