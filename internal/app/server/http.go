@@ -31,6 +31,7 @@ import (
 	domainFactory "github.com/tech4works/gopen-gateway/internal/domain/factory"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
 	"github.com/tech4works/gopen-gateway/internal/domain/service"
+	"go.elastic.co/apm/module/apmhttp/v2"
 	net "net/http"
 )
 
@@ -125,7 +126,7 @@ func (h *http) ListenAndServe() {
 
 	h.net = &net.Server{
 		Addr:    fmt.Sprint(":", h.gopen.Port()),
-		Handler: h.router.Engine(),
+		Handler: apmhttp.Wrap(h.router.Engine()),
 	}
 
 	h.log.SkipLine()

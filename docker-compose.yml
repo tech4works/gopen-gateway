@@ -12,6 +12,7 @@ services:
     environment:
       - ENV=${ENV}
       - TRACER_HOST=${TRACER_HOST}
+      - ELASTIC_APM_SERVICE_NAME=gopen-gateway
     restart: no
     logging:
       driver: gelf
@@ -19,6 +20,7 @@ services:
         gelf-address: udp://host.docker.internal:12201
     depends_on:
       - jaeger
+      - apm_server
     networks:
       - gopen-network
   jaeger:
@@ -63,5 +65,15 @@ services:
       - "5601:5601"
     networks:
       - gopen-network
+  apm_server:
+    image: docker.elastic.co/apm/apm-server:7.14.1
+    ports:
+      - 8200:8200
+    networks:
+      - gopen-network
+    depends_on:
+      - elasticsearch
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
 networks:
   gopen-network:
