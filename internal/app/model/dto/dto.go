@@ -36,6 +36,9 @@ type Gopen struct {
 	Endpoints    []Endpoint         `json:"endpoints,omitempty"`
 }
 
+type Trace struct {
+}
+
 type Store struct {
 	Redis *Redis `json:"redis,omitempty"`
 }

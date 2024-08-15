@@ -13,6 +13,9 @@ RUN go mod download
 # Copy the .env file
 COPY ./.env ./.env
 
+# Copy the .json-schema.json file
+COPY ./json-schema.json ./json-schema.json
+
 # Copy the cmd folder
 COPY ./cmd/main.go ./cmd/main.go
 
@@ -37,6 +40,9 @@ COPY --from=builder /app/cmd .
 
 # Copy the .env file
 COPY --from=builder /app/.env ./.env
+
+# Copy the .json-schema.json file
+COPY --from=builder /app/json-schema.json ./json-schema.json
 
 # Create the runtime folder in the "root" working repository
 RUN mkdir -p ./runtime

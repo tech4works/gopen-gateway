@@ -27,6 +27,7 @@ import (
 	"github.com/tech4works/gopen-gateway/internal/domain"
 	"github.com/tech4works/gopen-gateway/internal/domain/mapper"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
+	"go.elastic.co/apm/v2"
 )
 
 type redisStore struct {
@@ -43,6 +44,14 @@ func NewRedisStore(address, password string) domain.Store {
 }
 
 func (r redisStore) Set(ctx context.Context, key string, cacheResponse *vo.CacheResponse) error {
+	span, _ := apm.StartSpan(ctx, "Write", "cache")
+	if checker.NonNil(span) {
+		span.Context.SetLabel("cache", "GLOBAL")
+		span.Context.SetLabel("key", key)
+
+		defer span.End()
+	}
+
 	b64, err := compressor.ToGzipBase64WithErr(cacheResponse)
 	if checker.NonNil(err) {
 		return err
@@ -56,6 +65,17 @@ func (r redisStore) Del(ctx context.Context, key string) error {
 }
 
 func (r redisStore) Get(ctx context.Context, key string) (*vo.CacheResponse, error) {
+	span, _ := apm.StartSpan(ctx, "Read", "cache")
+	if checker.NonNil(span) {
+		span.Context.SetLabel("cache", "GLOBAL")
+		span.Context.SetLabel("key", key)
+
+		defer span.End()
+	}
+
+	span.Context.SetLabel("cache", "GLOBAL")
+	span.Context.SetLabel("key", key)
+
 	cacheGzipBase64, err := r.client.Get(ctx, key).Result()
 	if errors.Is(err, redis.Nil) {
 		return nil, mapper.NewErrCacheNotFound()

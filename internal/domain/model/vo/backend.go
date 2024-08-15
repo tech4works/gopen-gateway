@@ -205,6 +205,20 @@ func (b *Backend) CountAllDataTransforms() (count int) {
 	return count
 }
 
+func (b *Backend) CountRequestDataTransforms() (count int) {
+	if checker.NonNil(b.Request()) {
+		count += b.Request().CountAllDataTransforms()
+	}
+	return count
+}
+
+func (b *Backend) CountResponseDataTransforms() (count int) {
+	if checker.NonNil(b.Response()) {
+		count += b.Response().CountAllDataTransforms()
+	}
+	return count
+}
+
 func (b *Backend) IsBeforeware() bool {
 	return checker.Equals(b.kind, enum.BackendTypeBeforeware)
 }

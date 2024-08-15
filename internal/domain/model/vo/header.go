@@ -53,7 +53,7 @@ func NewHeaderByBody(body *Body) Header {
 }
 
 func (h Header) Http() http.Header {
-	return h.values
+	return h.Copy()
 }
 
 func (h Header) String() string {

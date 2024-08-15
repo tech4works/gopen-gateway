@@ -7,6 +7,7 @@ import (
 	"github.com/tech4works/gopen-gateway/internal/app/model/dto"
 	"github.com/tech4works/gopen-gateway/internal/domain/factory"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
+	"go.elastic.co/apm/v2"
 	"time"
 )
 
@@ -37,7 +38,7 @@ func (e endpointUseCase) Execute(ctx context.Context, executeData dto.ExecuteEnd
 	history := vo.NewEmptyHistory()
 
 	for _, backend := range executeData.Endpoint.Backends() {
-		httpBackendRequest := e.buildHTTPBackendRequest(executeData, &backend, history)
+		httpBackendRequest := e.buildHTTPBackendRequest(ctx, executeData, &backend, history)
 
 		httpBackendResponse := e.makeBackendRequest(ctx, executeData, &backend, httpBackendRequest)
 
@@ -47,7 +48,7 @@ func (e endpointUseCase) Execute(ctx context.Context, executeData dto.ExecuteEnd
 		}
 	}
 
-	return e.buildHTTPResponse(executeData, history)
+	return e.buildHTTPResponse(ctx, executeData, history)
 }
 
 func (e endpointUseCase) makeBackendRequest(ctx context.Context, executeData dto.ExecuteEndpoint, backend *vo.Backend,
@@ -70,8 +71,14 @@ func (e endpointUseCase) checkAbortBackendResponse(endpoint *vo.Endpoint, respon
 		(!endpoint.HasAbortStatusCodes() && statusCode.Failed())
 }
 
-func (e endpointUseCase) buildHTTPBackendRequest(executeData dto.ExecuteEndpoint, backend *vo.Backend,
+func (e endpointUseCase) buildHTTPBackendRequest(ctx context.Context, executeData dto.ExecuteEndpoint, backend *vo.Backend,
 	history *vo.History) *vo.HTTPBackendRequest {
+	span, _ := apm.StartSpan(ctx, "Backend request", "factory")
+	if checker.NonNil(span) {
+		span.Context.SetLabel("transformations", backend.CountRequestDataTransforms())
+		defer span.End()
+	}
+
 	httpBackendRequest, errs := e.httpBackendFactory.BuildRequest(backend, executeData.Request, history)
 	for _, err := range errs {
 		e.backendLog.PrintWarn(executeData, backend, httpBackendRequest, err)
@@ -98,8 +105,9 @@ func (e endpointUseCase) buildAbortedHTTPResponse(executeData dto.ExecuteEndpoin
 	return e.httpResponseFactory.BuildAbortedResponse(executeData.Endpoint, history)
 }
 
-func (e endpointUseCase) buildHTTPResponse(executeData dto.ExecuteEndpoint, history *vo.History) *vo.HTTPResponse {
-	filteredHistory := e.filterHistory(executeData, history)
+func (e endpointUseCase) buildHTTPResponse(ctx context.Context, executeData dto.ExecuteEndpoint, history *vo.History,
+) *vo.HTTPResponse {
+	filteredHistory := e.filterHistory(ctx, executeData, history)
 	httpResponse, errs := e.httpResponseFactory.BuildResponse(executeData.Endpoint, filteredHistory)
 
 	for _, err := range errs {
@@ -109,7 +117,13 @@ func (e endpointUseCase) buildHTTPResponse(executeData dto.ExecuteEndpoint, hist
 	return httpResponse
 }
 
-func (e endpointUseCase) filterHistory(executeData dto.ExecuteEndpoint, history *vo.History) *vo.History {
+func (e endpointUseCase) filterHistory(ctx context.Context, executeData dto.ExecuteEndpoint, history *vo.History,
+) *vo.History {
+	span, _ := apm.StartSpan(ctx, "Response", "factory")
+	if checker.NonNil(span) {
+		defer span.End()
+	}
+
 	var backends []*vo.Backend
 	var requests []*vo.HTTPBackendRequest
 	var responses []*vo.HTTPBackendResponse
@@ -117,7 +131,8 @@ func (e endpointUseCase) filterHistory(executeData dto.ExecuteEndpoint, history 
 	for i := 0; i < history.Size(); i++ {
 		backend, httpBackendRequest, httpBackendTemporaryResponse := history.Get(i)
 
-		httpBackendResponse := e.buildHTTPBackendResponse(executeData, backend, httpBackendRequest, httpBackendTemporaryResponse, history)
+		httpBackendResponse := e.buildHTTPBackendResponse(executeData, backend, httpBackendRequest,
+			httpBackendTemporaryResponse, history)
 
 		if checker.NonNil(httpBackendResponse) {
 			backends = append(backends, backend)

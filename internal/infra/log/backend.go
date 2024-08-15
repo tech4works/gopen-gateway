@@ -16,9 +16,8 @@ func NewBackend() app.BackendLog {
 }
 
 func (b backendLog) PrintRequest(executeData dto.ExecuteEndpoint, backend *vo.Backend, request *vo.HTTPBackendRequest) {
-	header := request.Header()
-
-	text := fmt.Sprintf("REQ header.user-agent: %s | header.size: %s", header.Get("User-Agent"), header.SizeStr())
+	text := fmt.Sprintf("REQ header.user-agent: %s | header.size: %s", request.Header().Get("User-Agent"),
+		request.Header().SizeStr())
 	if request.HasBody() {
 		body := request.Body()
 		text += fmt.Sprintf(" | body.content-type: %s | body.size: %s", body.ContentType().String(), body.SizeInByteUnit())

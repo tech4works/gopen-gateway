@@ -27,6 +27,7 @@ import (
 	"github.com/tech4works/gopen-gateway/internal/domain"
 	"github.com/tech4works/gopen-gateway/internal/domain/mapper"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
+	"go.elastic.co/apm/v2"
 )
 
 type memoryStore struct {
@@ -41,7 +42,15 @@ func NewMemoryStore() domain.Store {
 	}
 }
 
-func (m memoryStore) Set(_ context.Context, key string, cacheResponse *vo.CacheResponse) error {
+func (m memoryStore) Set(ctx context.Context, key string, cacheResponse *vo.CacheResponse) error {
+	span, _ := apm.StartSpan(ctx, "Write", "cache")
+	if checker.NonNil(span) {
+		span.Context.SetLabel("cache", "GLOBAL")
+		span.Context.SetLabel("key", key)
+
+		defer span.End()
+	}
+
 	b64, err := compressor.ToGzipBase64WithErr(cacheResponse)
 	if checker.NonNil(err) {
 		return err
@@ -54,7 +63,15 @@ func (m memoryStore) Del(_ context.Context, key string) error {
 	return m.ttlCache.Remove(key)
 }
 
-func (m memoryStore) Get(_ context.Context, key string) (*vo.CacheResponse, error) {
+func (m memoryStore) Get(ctx context.Context, key string) (*vo.CacheResponse, error) {
+	span, _ := apm.StartSpan(ctx, "Read", "cache")
+	if checker.NonNil(span) {
+		span.Context.SetLabel("cache", "LOCAL")
+		span.Context.SetLabel("key", key)
+
+		defer span.End()
+	}
+
 	value, err := m.ttlCache.Get(key)
 	if errors.Is(err, ttlcache.ErrNotFound) {
 		return nil, mapper.NewErrCacheNotFound()

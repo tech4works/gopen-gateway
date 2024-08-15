@@ -121,8 +121,8 @@ func New(
 func (h *http) ListenAndServe() {
 	h.log.PrintInfo("Configuring routes...")
 
-	h.buildRoutes()
 	h.buildStaticRoutes()
+	h.buildRoutes()
 
 	h.net = &net.Server{
 		Addr:    fmt.Sprint(":", h.gopen.Port()),

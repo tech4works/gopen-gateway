@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/fsnotify/fsnotify"
 	"github.com/joho/godotenv"
-	"github.com/opentracing/opentracing-go"
 	"github.com/tech4works/checker"
 	"github.com/tech4works/converter"
 	"github.com/tech4works/errors"
@@ -20,10 +19,7 @@ import (
 	"github.com/tech4works/gopen-gateway/internal/infra/jsonpath"
 	"github.com/tech4works/gopen-gateway/internal/infra/log"
 	"github.com/tech4works/gopen-gateway/internal/infra/nomenclature"
-	"github.com/uber/jaeger-client-go"
-	jaegercfg "github.com/uber/jaeger-client-go/config"
 	"github.com/xeipuuv/gojsonschema"
-	"io"
 	"os"
 	"regexp"
 	"strings"
@@ -54,21 +50,9 @@ func (p provider) Init() (string, *dto.Gopen) {
 		panic(err)
 	}
 
-	tracerHost := os.Getenv("TRACER_HOST")
-	if checker.IsNotEmpty(tracerHost) {
-		p.log.PrintInfo("Booting Tracer...")
-		tracer, closer, err := p.initTracer(tracerHost)
-		if checker.NonNil(err) {
-			p.log.PrintWarn(err)
-		} else {
-			defer closer.Close()
-			opentracing.SetGlobalTracer(tracer)
-		}
-	}
+	p.log.PrintLogo()
 
 	env := os.Args[1]
-
-	p.log.PrintLogo()
 
 	p.log.PrintInfo("Loading Gopen envs...")
 	err = p.loadEnvs(env)
@@ -81,6 +65,9 @@ func (p provider) Init() (string, *dto.Gopen) {
 	if checker.NonNil(err) {
 		panic(err)
 	}
+
+	os.Setenv("ELASTIC_APM_ENVIRONMENT", env)
+	os.Setenv("ELASTIC_APM_SERVICE_VERSION", gopen.Version)
 
 	return env, gopen
 }
@@ -182,21 +169,6 @@ func (p provider) recovery(env string, oldGopen *dto.Gopen) {
 	p.log.PrintTitle("RECOVERY")
 
 	go p.Start(env, oldGopen)
-}
-
-func (p provider) initTracer(host string) (opentracing.Tracer, io.Closer, error) {
-	jaegerConfig := &jaegercfg.Configuration{
-		ServiceName: "gopen-gateway",
-		Sampler: &jaegercfg.SamplerConfig{
-			Type:  jaeger.SamplerTypeConst,
-			Param: 1,
-		},
-		Reporter: &jaegercfg.ReporterConfig{
-			LogSpans:           false,
-			LocalAgentHostPort: host,
-		},
-	}
-	return jaegerConfig.NewTracer(jaegercfg.Logger(log.NewNoop()))
 }
 
 func (p provider) initWatcher(env string, oldGopen *dto.Gopen, oldServer server.HTTP) (*fsnotify.Watcher, error) {

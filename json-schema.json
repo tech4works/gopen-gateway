@@ -847,9 +847,7 @@
     "$schema": {
       "type": "string",
       "enum": [
-        "../../json-schema.json",
-        "https://raw.githubusercontent.com/tech4works/gopen-gateway/main/json-schema.json",
-        "https://raw.githubusercontent.com/tech4works/gopen-gateway/v1.0.0/json-schema.json"
+        "../../json-schema.json"
       ]
     },
     "@comment": {

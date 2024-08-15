@@ -20,6 +20,7 @@ import (
 	"github.com/tech4works/checker"
 	"github.com/tech4works/errors"
 	"github.com/tech4works/gopen-gateway/internal/app"
+	"go.elastic.co/apm/v2"
 	"net/http"
 	"runtime/debug"
 )
@@ -42,7 +43,17 @@ func (p panicRecoveryMiddleware) Do(ctx app.Context) {
 	defer func() {
 		if r := recover(); checker.NonNil(r) {
 			p.printErrorf(ctx, "%s:%s", r, string(debug.Stack()))
-			ctx.WriteError(http.StatusInternalServerError, errors.New("Gateway panic error occurred! detail:", r))
+
+			err := errors.New("Gateway panic error occurred! detail:", r)
+
+			tx := apm.TransactionFromContext(ctx.Context())
+			if checker.NonNil(tx) {
+				apmErr := apm.DefaultTracer().NewError(err)
+				apmErr.SetTransaction(tx)
+				apmErr.Send()
+			}
+
+			ctx.WriteError(http.StatusInternalServerError, err)
 		}
 	}()
 	ctx.Next()

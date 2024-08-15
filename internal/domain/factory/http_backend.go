@@ -127,11 +127,15 @@ func (f httpBackendFactory) buildRequestURLPath(backend *vo.Backend, request *vo
 func (f httpBackendFactory) buildRequestHeader(backend *vo.Backend, body *vo.Body, request *vo.HTTPRequest,
 	history *vo.History) (vo.Header, []error) {
 	header := vo.NewHeaderByBody(body)
-	if !backend.HasRequest() || backend.Request().OmitHeader() {
+	if backend.HasRequest() && backend.Request().OmitHeader() {
 		return header, nil
 	}
 
 	header = f.aggregatorService.AggregateHeaders(header, request.Header())
+	if !backend.HasRequest() {
+		return header, nil
+	}
+
 	header = f.mapperService.MapHeader(header, backend.Request().HeaderMapper())
 	header = f.projectorService.ProjectHeader(header, backend.Request().HeaderProjection())
 

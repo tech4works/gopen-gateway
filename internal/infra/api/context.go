@@ -20,8 +20,6 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/gin-gonic/gin"
-	"github.com/opentracing/opentracing-go"
-	"github.com/opentracing/opentracing-go/ext"
 	"github.com/tech4works/checker"
 	"github.com/tech4works/converter"
 	"github.com/tech4works/errors"
@@ -29,7 +27,7 @@ import (
 	"github.com/tech4works/gopen-gateway/internal/app/model/dto"
 	"github.com/tech4works/gopen-gateway/internal/domain/mapper"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
-	"github.com/uber/jaeger-client-go"
+	"go.elastic.co/apm/v2"
 	"golang.org/x/net/context"
 	"io"
 	"sync"
@@ -38,7 +36,6 @@ import (
 
 type Context struct {
 	startTime time.Time
-	span      opentracing.Span
 	mutex     *sync.RWMutex
 	engine    *gin.Context
 	gopen     *vo.Gopen
@@ -51,40 +48,12 @@ func newContext(gin *gin.Context, gopen *vo.Gopen, endpoint *vo.Endpoint) app.Co
 	request := buildHTTPRequest(gin)
 	return &Context{
 		startTime: time.Now(),
-		span:      buildSpan(gin, request),
 		mutex:     &sync.RWMutex{},
 		engine:    gin,
 		gopen:     gopen,
 		endpoint:  endpoint,
 		request:   request,
 	}
-}
-
-func buildSpan(gin *gin.Context, request *vo.HTTPRequest) opentracing.Span {
-	var span opentracing.Span
-
-	tracer := opentracing.GlobalTracer()
-	wireContext, err := tracer.Extract(opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(gin.Request.Header))
-	if checker.NonNil(err) {
-		span = opentracing.StartSpan(gin.FullPath())
-	} else {
-		span = opentracing.StartSpan(gin.FullPath(), ext.RPCServerOption(wireContext))
-	}
-	gin.Request = gin.Request.WithContext(opentracing.ContextWithSpan(gin.Request.Context(), span))
-
-	span.SetTag("request.url", request.Url())
-	span.SetTag("request.method", request.Method())
-	span.SetTag("request.params", request.Params().String())
-	span.SetTag("request.header", request.Header().String())
-	span.SetTag("request.query", request.Query().String())
-	if checker.NonNil(request.Body()) {
-		s, _ := request.Body().String()
-		span.SetTag("request.body", converter.ToCompactString(s))
-	} else {
-		span.SetTag("request.body", "")
-	}
-
-	return span
 }
 
 func buildHTTPRequest(gin *gin.Context) *vo.HTTPRequest {
@@ -129,14 +98,10 @@ func (c *Context) Latency() time.Duration {
 	return time.Now().Sub(c.startTime)
 }
 
-func (c *Context) Span() opentracing.Span {
-	return c.span
-}
-
 func (c *Context) TraceID() string {
-	spanContext, ok := c.span.Context().(jaeger.SpanContext)
-	if ok {
-		return spanContext.TraceID().String()
+	tx := apm.TransactionFromContext(c.Context())
+	if checker.NonNil(tx) {
+		return tx.TraceContext().Trace.String()
 	}
 	return "undefined"
 }
@@ -183,7 +148,8 @@ func (c *Context) Write(response *vo.HTTPResponse) {
 		c.writeStatusCode(response.StatusCode())
 	}
 
-	c.transformToWritten(response)
+	c.engine.Abort()
+	c.response = response
 }
 
 func (c *Context) WriteError(code int, err error) {
@@ -268,20 +234,4 @@ func (c *Context) writeBody(statusCode vo.StatusCode, contentType string, body [
 		return
 	}
 	c.engine.Data(statusCode.Code(), contentType, body)
-}
-
-func (c *Context) transformToWritten(response *vo.HTTPResponse) {
-	c.engine.Abort()
-	c.response = response
-
-	span := c.Span()
-	span.SetTag("response.status", response.StatusCode().String())
-	span.SetTag("response.header", response.Header().String())
-	if response.HasBody() {
-		s, _ := response.Body().String()
-		span.SetTag("response.body", converter.ToCompactString(s))
-	} else {
-		span.SetTag("response.body", "")
-	}
-	span.Finish()
 }

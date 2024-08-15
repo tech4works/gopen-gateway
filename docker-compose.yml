@@ -11,27 +11,16 @@ services:
       - ./gopen/${ENV}:/root/gopen/${ENV}
     environment:
       - ENV=${ENV}
-      - TRACER_HOST=${TRACER_HOST}
-      - ELASTIC_APM_SERVICE_NAME=gopen-gateway
+      - ELASTIC_APM_SERVICE_NAME=api-gateway
+      - ELASTIC_APM_CAPTURE_BODY=all
+      - ELASTIC_APM_SERVER_URL=http://apm_server:8200
     restart: no
     logging:
       driver: gelf
       options:
         gelf-address: udp://host.docker.internal:12201
     depends_on:
-      - jaeger
       - apm_server
-    networks:
-      - gopen-network
-  jaeger:
-    image: jaegertracing/all-in-one:latest
-    ports:
-      - 5775:5775/udp
-      - 6831:6831/udp
-      - 6832:6832/udp
-      - 5778:5778
-      - 16686:16686
-      - 14268:14268
     networks:
       - gopen-network
   logstash:
@@ -75,5 +64,27 @@ services:
       - elasticsearch
     environment:
       - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+  metricbeat:
+    image: docker.elastic.co/beats/metricbeat:7.14.1
+    user: root
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - type: bind
+        source: ./metricbeat.docker.yml
+        target: /usr/share/metricbeat/metricbeat.yml
+    depends_on:
+      - elasticsearch
+    command: metricbeat -e -strict.perms=false
+    networks:
+      - gopen-network
+  heartbeat:
+    image: docker.elastic.co/beats/heartbeat:7.14.1
+    volumes:
+      - type: bind
+        source: ./heartbeat.docker.yml
+        target: /usr/share/heartbeat/heartbeat.yml
+    command: heartbeat -e -strict.perms=false
+    networks:
+      - gopen-network
 networks:
   gopen-network:

@@ -18,9 +18,6 @@ else
 	$(error Unknown operating system: $(UNAME_S))
 endif
 
-# Set the default Tracer host address
-TRACER_HOST ?= jaeger:6831
-
 # Command to build binaries used in the playground
 build-readport: build-readport-linux build-readport-darwin build-readport-windows
 

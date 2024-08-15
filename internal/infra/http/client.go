@@ -20,7 +20,6 @@ import (
 	"bytes"
 	"context"
 	berrors "errors"
-	"github.com/opentracing/opentracing-go"
 	"github.com/tech4works/checker"
 	"github.com/tech4works/converter"
 	"github.com/tech4works/errors"
@@ -28,6 +27,8 @@ import (
 	"github.com/tech4works/gopen-gateway/internal/app/model/dto"
 	"github.com/tech4works/gopen-gateway/internal/domain/mapper"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
+	"go.elastic.co/apm/module/apmhttp/v2"
+	"go.elastic.co/apm/v2"
 	"io"
 	net "net/http"
 	"net/url"
@@ -48,9 +49,12 @@ func (c client) MakeRequest(ctx context.Context, endpoint *vo.Endpoint, request 
 		return c.buildHTTPBackendResponseByErr(endpoint, err)
 	}
 
-	span := c.startSpan(ctx, request)
-
-	httpResponse, err := net.DefaultClient.Do(httpRequest)
+	netClient := &net.Client{}
+	tx := apm.TransactionFromContext(ctx)
+	if checker.NonNil(tx) {
+		netClient.Transport = apmhttp.WrapRoundTripper(net.DefaultTransport)
+	}
+	httpResponse, err := netClient.Do(httpRequest)
 
 	var httpBackendResponse *vo.HTTPBackendResponse
 	if err = c.treatHTTPClientErr(err); checker.NonNil(err) {
@@ -62,7 +66,6 @@ func (c client) MakeRequest(ctx context.Context, endpoint *vo.Endpoint, request 
 		}
 	}
 
-	c.finishSpan(span, httpBackendResponse)
 	return httpBackendResponse
 }
 
@@ -76,58 +79,13 @@ func (c client) buildNetHTTPRequest(ctx context.Context, request *vo.HTTPBackend
 		return nil, err
 	}
 
-	header := *request.Header()
+	header := request.Header()
 	query := request.Query()
 
 	netReq.Header = header.Http()
 	netReq.URL.RawQuery = query.Encode()
 
-	span := opentracing.SpanFromContext(ctx)
-	if checker.NonNil(span) {
-		err = span.Tracer().Inject(span.Context(), opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(netReq.Header))
-		if checker.NonNil(err) {
-			return nil, err
-		}
-	}
-
-	return netReq, nil
-}
-
-func (c client) startSpan(ctx context.Context, request *vo.HTTPBackendRequest) opentracing.Span {
-	span := opentracing.SpanFromContext(ctx)
-	if checker.IsNil(span) {
-		return nil
-	}
-
-	urlTag := opentracing.Tag{Key: "request.url", Value: request.Url()}
-	methodTag := opentracing.Tag{Key: "request.method", Value: request.Method()}
-	headerTag := opentracing.Tag{Key: "request.header", Value: request.Header().String()}
-	bodyTag := opentracing.Tag{Key: "request.body", Value: ""}
-	if request.HasBody() {
-		bodyTag.Value = request.Body().Resume()
-	}
-	childOf := opentracing.ChildOf(span.Context())
-
-	return span.Tracer().StartSpan(request.Path().Raw(), childOf, urlTag, methodTag, headerTag, bodyTag)
-}
-
-func (c client) finishSpan(span opentracing.Span, httpBackendResponse *vo.HTTPBackendResponse) {
-	if checker.IsNil(span) {
-		return
-	}
-
-	statusCode := httpBackendResponse.StatusCode()
-	header := httpBackendResponse.Header()
-
-	span.SetTag("response.status", statusCode.String())
-	span.SetTag("response.header", header.String())
-	if checker.NonNil(httpBackendResponse.Body()) {
-		span.SetTag("response.body", httpBackendResponse.Body().Resume())
-	} else {
-		span.SetTag("response.body", "")
-	}
-
-	span.Finish()
+	return apmhttp.RequestWithContext(ctx, netReq), nil
 }
 
 func (c client) treatHTTPClientErr(err error) error {

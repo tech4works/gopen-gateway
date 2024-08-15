@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"github.com/opentracing/opentracing-go"
 	"github.com/tech4works/gopen-gateway/internal/app/model/dto"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
 	"net/http"
@@ -39,7 +38,6 @@ type Context interface {
 	Done() <-chan struct{}
 	Next()
 	Latency() time.Duration
-	Span() opentracing.Span
 	TraceID() string
 	ClientIP() string
 	Gopen() *vo.Gopen
