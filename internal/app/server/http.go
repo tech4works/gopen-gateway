@@ -33,6 +33,7 @@ import (
 	"github.com/tech4works/gopen-gateway/internal/domain/service"
 	"go.elastic.co/apm/module/apmhttp/v2"
 	net "net/http"
+	"os"
 )
 
 type http struct {
@@ -125,7 +126,7 @@ func (h *http) ListenAndServe() {
 	h.buildRoutes()
 
 	h.net = &net.Server{
-		Addr:    fmt.Sprint(":", h.gopen.Port()),
+		Addr:    fmt.Sprint(":", os.Getenv("GOPEN_PORT")),
 		Handler: apmhttp.Wrap(h.router.Engine()),
 	}
 

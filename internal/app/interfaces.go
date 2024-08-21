@@ -9,8 +9,8 @@ import (
 )
 
 type Boot interface {
-	Init() (string, *dto.Gopen)
-	Start(env string, gopen *dto.Gopen)
+	Init() *dto.Gopen
+	Start(gopen *dto.Gopen)
 	Stop()
 }
 
@@ -37,7 +37,7 @@ type Context interface {
 	WithContext(ctx context.Context)
 	Done() <-chan struct{}
 	Next()
-	Latency() time.Duration
+	Duration() time.Duration
 	TraceID() string
 	ClientIP() string
 	Gopen() *vo.Gopen
@@ -72,7 +72,7 @@ type EndpointLog interface {
 
 type BackendLog interface {
 	PrintRequest(executeData dto.ExecuteEndpoint, backend *vo.Backend, request *vo.HTTPBackendRequest)
-	PrintResponse(executeData dto.ExecuteEndpoint, backend *vo.Backend, request *vo.HTTPBackendRequest, response *vo.HTTPBackendResponse, latency time.Duration)
+	PrintResponse(executeData dto.ExecuteEndpoint, backend *vo.Backend, request *vo.HTTPBackendRequest, response *vo.HTTPBackendResponse, duration time.Duration)
 	PrintInfof(executeData dto.ExecuteEndpoint, backend *vo.Backend, request *vo.HTTPBackendRequest, format string, msg ...any)
 	PrintInfo(executeData dto.ExecuteEndpoint, backend *vo.Backend, request *vo.HTTPBackendRequest, msg ...any)
 	PrintWarnf(executeData dto.ExecuteEndpoint, backend *vo.Backend, request *vo.HTTPBackendRequest, format string, msg ...any)

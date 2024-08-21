@@ -12,7 +12,6 @@ import (
 
 func BuildGopen(gopen *dto.Gopen) *vo.Gopen {
 	return vo.NewGopen(
-		gopen.Port,
 		buildSecurityCors(gopen.SecurityCors),
 		buildEndpoints(gopen),
 	)

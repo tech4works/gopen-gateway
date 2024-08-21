@@ -25,7 +25,6 @@ import (
 type Gopen struct {
 	Comment      string             `json:"@comment,omitempty"`
 	Version      string             `json:"version,omitempty"`
-	Port         int                `json:"port,omitempty"`
 	HotReload    bool               `json:"hot-reload,omitempty"`
 	Store        *Store             `json:"store,omitempty"`
 	Timeout      vo.Duration        `json:"timeout,omitempty"`
@@ -34,9 +33,6 @@ type Gopen struct {
 	SecurityCors *SecurityCors      `json:"security-cors,omitempty"`
 	Middlewares  map[string]Backend `json:"middlewares,omitempty"`
 	Endpoints    []Endpoint         `json:"endpoints,omitempty"`
-}
-
-type Trace struct {
 }
 
 type Store struct {

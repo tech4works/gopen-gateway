@@ -845,10 +845,7 @@
   "type": "object",
   "properties": {
     "$schema": {
-      "type": "string",
-      "enum": [
-        "../../json-schema.json"
-      ]
+      "type": "string"
     },
     "@comment": {
       "type": "string"
@@ -892,8 +889,5 @@
       }
     }
   },
-  "required": [
-    "port"
-  ],
   "additionalProperties": false
 }

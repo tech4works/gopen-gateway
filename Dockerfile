@@ -47,9 +47,5 @@ COPY --from=builder /app/json-schema.json ./json-schema.json
 # Create the runtime folder in the "root" working repository
 RUN mkdir -p ./runtime
 
-# Add an ARG variable to receive an external value
-ARG ENV
-ENV ENV ${ENV}
-
 # Command to run the Go application
-CMD ./main ${ENV}
+CMD ./main

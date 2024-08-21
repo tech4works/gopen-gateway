@@ -21,21 +21,15 @@ import (
 )
 
 type Gopen struct {
-	port         int
 	securityCors *SecurityCors
 	endpoints    []Endpoint
 }
 
-func NewGopen(port int, securityCors *SecurityCors, endpoints []Endpoint) *Gopen {
+func NewGopen(securityCors *SecurityCors, endpoints []Endpoint) *Gopen {
 	return &Gopen{
-		port:         port,
 		securityCors: securityCors,
 		endpoints:    endpoints,
 	}
-}
-
-func (g Gopen) Port() int {
-	return g.port
 }
 
 func (g Gopen) SecurityCors() *SecurityCors {

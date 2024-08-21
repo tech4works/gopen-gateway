@@ -40,9 +40,13 @@ func New() app.Boot {
 	}
 }
 
-func (p provider) Init() (string, *dto.Gopen) {
-	if checker.IsLengthLessThanOrEqual(os.Args, 1) {
-		panic("Please enter ENV as second argument! ex: dev, prd")
+func (p provider) Init() *dto.Gopen {
+	if checker.IsEmpty(os.Getenv("GOPEN_ENV")) || checker.IsEmpty(os.Getenv("GOPEN_PORT")) {
+		panic("Please fill in the mandatory environment variables which are GOPEN_ENV and GOPEN_PORT!")
+	}
+
+	if !checker.IsInt(os.Getenv("GOPEN_PORT")) {
+		panic("Please fill the environment variable GOPEN_PORT with numbers only!")
 	}
 
 	err := p.loadDefaultEnvs()
@@ -52,27 +56,25 @@ func (p provider) Init() (string, *dto.Gopen) {
 
 	p.log.PrintLogo()
 
-	env := os.Args[1]
-
 	p.log.PrintInfo("Loading Gopen envs...")
-	err = p.loadEnvs(env)
+	err = p.loadEnvs()
 	if checker.NonNil(err) {
 		p.log.PrintWarn(err)
 	}
 
 	p.log.PrintInfo("Loading Gopen json...")
-	gopen, err := p.loadJson(env)
+	gopen, err := p.loadJson()
 	if checker.NonNil(err) {
 		panic(err)
 	}
 
-	os.Setenv("ELASTIC_APM_ENVIRONMENT", env)
+	os.Setenv("ELASTIC_APM_ENVIRONMENT", os.Getenv("GOPEN_ENV"))
 	os.Setenv("ELASTIC_APM_SERVICE_VERSION", gopen.Version)
 
-	return env, gopen
+	return gopen
 }
 
-func (p provider) Start(env string, gopen *dto.Gopen) {
+func (p provider) Start(gopen *dto.Gopen) {
 	p.log.PrintInfo("Configuring cache store...")
 	store := cache.NewMemoryStore()
 	if checker.NonNil(gopen.Store) {
@@ -102,7 +104,7 @@ func (p provider) Start(env string, gopen *dto.Gopen) {
 
 	if gopen.HotReload {
 		p.log.PrintInfo("Configuring watcher...")
-		watcher, err := p.initWatcher(env, gopen, httpServer)
+		watcher, err := p.initWatcher(gopen, httpServer)
 		if checker.NonNil(err) {
 			p.log.PrintWarn("Error configure watcher:", err)
 		} else {
@@ -126,13 +128,13 @@ func (p provider) Stop() {
 	p.log.PrintTitle("STOPPED")
 }
 
-func (p provider) restart(env string, oldGopen *dto.Gopen, oldServer server.HTTP) {
+func (p provider) restart(oldGopen *dto.Gopen, oldServer server.HTTP) {
 	defer func() {
 		if r := recover(); checker.NonNil(r) {
 			errorDetails := errors.Details(r.(error))
 			p.log.PrintError("Error restart server:", errorDetails.Cause())
 
-			p.recovery(env, oldGopen)
+			p.recovery(oldGopen)
 		}
 	}()
 
@@ -150,28 +152,28 @@ func (p provider) restart(env string, oldGopen *dto.Gopen, oldServer server.HTTP
 	}
 
 	p.log.PrintInfo("Reloading Gopen envs...")
-	err = p.loadEnvs(env)
+	err = p.loadEnvs()
 	if checker.NonNil(err) {
 		p.log.PrintWarn(err)
 	}
 
 	p.log.PrintInfo("Reloading Gopen json...")
-	gopen, err := p.loadJson(env)
+	gopen, err := p.loadJson()
 	if checker.NonNil(err) {
 		panic(err)
 	}
 
-	p.Start(env, gopen)
+	p.Start(gopen)
 }
 
-func (p provider) recovery(env string, oldGopen *dto.Gopen) {
+func (p provider) recovery(oldGopen *dto.Gopen) {
 	p.log.SkipLine()
 	p.log.PrintTitle("RECOVERY")
 
-	go p.Start(env, oldGopen)
+	go p.Start(oldGopen)
 }
 
-func (p provider) initWatcher(env string, oldGopen *dto.Gopen, oldServer server.HTTP) (*fsnotify.Watcher, error) {
+func (p provider) initWatcher(oldGopen *dto.Gopen, oldServer server.HTTP) (*fsnotify.Watcher, error) {
 	watcher, err := fsnotify.NewWatcher()
 	if checker.NonNil(err) {
 		return nil, err
@@ -190,12 +192,12 @@ func (p provider) initWatcher(env string, oldGopen *dto.Gopen, oldServer server.
 				if !ok || checker.NotEquals(ev.Op, fsnotify.Chmod) {
 					return
 				}
-				p.restart(env, oldGopen, oldServer)
+				p.restart(oldGopen, oldServer)
 			}
 		}
 	}()
 
-	for _, path := range []string{p.buildEnvUri(env), p.buildJsonUri(env)} {
+	for _, path := range []string{p.buildEnvUri(), p.buildJsonUri()} {
 		err = watcher.Add(path)
 		if checker.NonNil(err) {
 			return nil, err
@@ -212,8 +214,8 @@ func (p provider) loadDefaultEnvs() (err error) {
 	return err
 }
 
-func (p provider) loadEnvs(env string) (err error) {
-	gopenEnvUri := p.buildEnvUri(env)
+func (p provider) loadEnvs() (err error) {
+	gopenEnvUri := p.buildEnvUri()
 
 	if err = godotenv.Overload(gopenEnvUri); checker.NonNil(err) {
 		err = errors.New("Error load Gopen envs from uri:", gopenEnvUri, "err:", err)
@@ -222,8 +224,8 @@ func (p provider) loadEnvs(env string) (err error) {
 	return err
 }
 
-func (p provider) loadJson(env string) (*dto.Gopen, error) {
-	gopenJsonUri := p.buildJsonUri(env)
+func (p provider) loadJson() (*dto.Gopen, error) {
+	gopenJsonUri := p.buildJsonUri()
 
 	gopenJsonBytes, err := os.ReadFile(gopenJsonUri)
 	if checker.NonNil(err) {
@@ -308,10 +310,10 @@ func (p provider) removeRuntimeJson() error {
 	return err
 }
 
-func (p provider) buildEnvUri(env string) string {
-	return fmt.Sprintf("./gopen/%s/.env", env)
+func (p provider) buildEnvUri() string {
+	return fmt.Sprintf("./gopen/%s/.env", os.Getenv("GOPEN_ENV"))
 }
 
-func (p provider) buildJsonUri(env string) string {
-	return fmt.Sprintf("./gopen/%s/.json", env)
+func (p provider) buildJsonUri() string {
+	return fmt.Sprintf("./gopen/%s/.json", os.Getenv("GOPEN_ENV"))
 }

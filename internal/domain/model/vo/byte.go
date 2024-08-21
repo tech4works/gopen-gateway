@@ -93,16 +93,5 @@ func (b *Bytes) MarshalJSON() ([]byte, error) {
 }
 
 func (b *Bytes) String() string {
-	unit := 1024
-	in := int(*b)
-
-	if in < unit {
-		return fmt.Sprintf("%vB", in)
-	}
-	div, exp := unit, 0
-	for n := in / unit; n >= unit; n /= unit {
-		div *= unit
-		exp++
-	}
-	return fmt.Sprintf("%v%cB", in/div, "KMGTPEZY"[exp])
+	return fmt.Sprintf("%vB", int(*b))
 }

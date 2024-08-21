@@ -27,12 +27,12 @@ func (b backendLog) PrintRequest(executeData dto.ExecuteEndpoint, backend *vo.Ba
 }
 
 func (b backendLog) PrintResponse(executeData dto.ExecuteEndpoint, backend *vo.Backend, request *vo.HTTPBackendRequest,
-	response *vo.HTTPBackendResponse, latency time.Duration) {
+	response *vo.HTTPBackendResponse, duration time.Duration) {
 	statusCode := response.StatusCode()
 	statusCodeText := BuildStatusCodeText(statusCode)
 
 	Printf(InfoLevel, backend.Type().Abbreviation(), b.prefix(executeData, backend, request),
-		"RES status-code:%v| latency: %s", statusCodeText, latency)
+		"RES status-code:%v| duration: %vms", statusCodeText, duration.Milliseconds())
 }
 
 func (b backendLog) PrintInfof(executeData dto.ExecuteEndpoint, backend *vo.Backend, request *vo.HTTPBackendRequest,

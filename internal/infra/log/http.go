@@ -26,15 +26,15 @@ func (a httpLog) PrintRequest(ctx app.Context) {
 
 func (a httpLog) PrintResponse(ctx app.Context) {
 	statusCode := BuildStatusCodeText(ctx.Response().StatusCode())
-	latency := ctx.Latency().String()
+	duration := ctx.Duration().Milliseconds()
 
 	prefix := a.prefix(ctx)
 
-	Printf(InfoLevel, "RES", prefix, "status-code:%s| latency: %s", statusCode, latency)
+	Printf(InfoLevel, "RES", prefix, "status-code:%s| duration: %vms", statusCode, duration)
 }
 
 func (a httpLog) prefix(ctx app.Context) string {
-	path := ctx.Endpoint().Path()
+	path := ctx.Request().Path().Raw()
 	traceID := BuildTraceIDText(ctx.TraceID())
 	ip := ctx.ClientIP()
 

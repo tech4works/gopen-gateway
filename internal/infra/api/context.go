@@ -94,7 +94,7 @@ func (c *Context) Next() {
 	c.engine.Next()
 }
 
-func (c *Context) Latency() time.Duration {
+func (c *Context) Duration() time.Duration {
 	return time.Now().Sub(c.startTime)
 }
 

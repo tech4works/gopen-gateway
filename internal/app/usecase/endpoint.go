@@ -58,9 +58,9 @@ func (e endpointUseCase) makeBackendRequest(ctx context.Context, executeData dto
 
 	startTime := time.Now()
 	httpBackendResponse := e.httpClient.MakeRequest(ctx, executeData.Endpoint, httpBackendRequest)
-	latency := time.Since(startTime)
+	duration := time.Since(startTime)
 
-	e.backendLog.PrintResponse(executeData, backend, httpBackendRequest, httpBackendResponse, latency)
+	e.backendLog.PrintResponse(executeData, backend, httpBackendRequest, httpBackendResponse, duration)
 
 	return httpBackendResponse
 }

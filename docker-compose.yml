@@ -5,85 +5,84 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "${PORT}:${PORT}"
+      - "${GOPEN_PORT}:${GOPEN_PORT}"
     volumes:
-      - ./runtime:/root/runtime
-      - ./gopen/${ENV}:/root/gopen/${ENV}
+      - "./runtime:/root/runtime"
+      - "./gopen/${GOPEN_ENV}:/root/gopen/${GOPEN_ENV}"
     environment:
-      - ENV=${ENV}
-      - ELASTIC_APM_SERVICE_NAME=api-gateway
-      - ELASTIC_APM_CAPTURE_BODY=all
-      - ELASTIC_APM_SERVER_URL=http://apm_server:8200
+      - "GOPEN_ENV"
+      - "GOPEN_PORT"
+      - "ELASTIC_APM_SERVICE_NAME=gopen-gateway"
+      - "ELASTIC_APM_CAPTURE_BODY=all"
+      - "ELASTIC_APM_SERVER_URL=http://apm_server:8200"
     restart: no
     logging:
       driver: gelf
       options:
         gelf-address: udp://host.docker.internal:12201
-    depends_on:
-      - apm_server
     networks:
       - gopen-network
-  logstash:
-    image: docker.elastic.co/logstash/logstash:7.14.1
-    volumes:
-      - ./internal/infra/logstash/logstash.conf:/usr/share/logstash/pipeline/logstash.conf
-    ports:
-      - "12201:12201/udp"
-    networks:
-      - gopen-network
-    depends_on:
-      - elasticsearch
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:7.14.1
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.15.2
     environment:
-      - node.name=elasticsearch
-      - discovery.seed_hosts=elasticsearch
-      - cluster.initial_master_nodes=elasticsearch
-      - cluster.name=docker-cluster
-      - bootstrap.memory_lock=true
-      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
-    ulimits:
-      memlock:
-        soft: -1
-        hard: -1
+      - "discovery.type=single-node"
+      - "xpack.security.enabled=false"
+      - "xpack.security.authc.api_key.enabled=false"
+    ports:
+      - "19200:9200"
+      - "9300:9300"
     networks:
       - gopen-network
   kibana:
-    image: docker.elastic.co/kibana/kibana:7.14.1
+    image: docker.elastic.co/kibana/kibana:7.15.2
     ports:
       - "5601:5601"
+    volumes:
+      - ./kibana-config.ndjson:/usr/share/kibana/config/exported-config.ndjson
+    depends_on:
+      - elasticsearch
+    networks:
+      - gopen-network
+  logstash:
+    image: docker.elastic.co/logstash/logstash:7.15.2
+    ports:
+      - "12201:12201/udp"
+    volumes:
+      - "./logstash.conf:/usr/share/logstash/pipeline/logstash.conf"
+    depends_on:
+      - elasticsearch
     networks:
       - gopen-network
   apm_server:
-    image: docker.elastic.co/apm/apm-server:7.14.1
+    image: docker.elastic.co/apm/apm-server:7.15.2
     ports:
-      - 8200:8200
+      - "8200:8200"
+    environment:
+      - "ELASTICSEARCH_HOSTS=http://elasticsearch:9200"
     networks:
       - gopen-network
-    depends_on:
-      - elasticsearch
-    environment:
-      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
   metricbeat:
-    image: docker.elastic.co/beats/metricbeat:7.14.1
+    image: docker.elastic.co/beats/metricbeat:7.15.2
     user: root
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - type: bind
-        source: ./metricbeat.docker.yml
-        target: /usr/share/metricbeat/metricbeat.yml
+      - "/var/run/docker.sock:/var/run/docker.sock"
+      - type: "bind"
+        source: "./metricbeat.docker.yml"
+        target: "/usr/share/metricbeat/metricbeat.yml"
+    command: "metricbeat -e -strict.perms=false"
     depends_on:
       - elasticsearch
-    command: metricbeat -e -strict.perms=false
     networks:
       - gopen-network
   heartbeat:
-    image: docker.elastic.co/beats/heartbeat:7.14.1
+    image: docker.elastic.co/beats/heartbeat:7.15.2
     volumes:
-      - type: bind
-        source: ./heartbeat.docker.yml
-        target: /usr/share/heartbeat/heartbeat.yml
-    command: heartbeat -e -strict.perms=false
+      - type: "bind"
+        source: "./heartbeat.docker.yml"
+        target: "/usr/share/heartbeat/heartbeat.yml"
+    command: "heartbeat -e -strict.perms=false"
+    depends_on:
+      - elasticsearch
     networks:
       - gopen-network
 networks:

@@ -2,9 +2,7 @@ package factory
 
 import (
 	"github.com/tech4works/checker"
-	"github.com/tech4works/converter"
 	"github.com/tech4works/gopen-gateway/internal/app/model/dto"
-	"os"
 )
 
 func BuildSettingView(gopen dto.Gopen) dto.SettingView {
@@ -12,10 +10,10 @@ func BuildSettingView(gopen dto.Gopen) dto.SettingView {
 	copied.Store = nil
 
 	return dto.SettingView{
-		Version:      os.Getenv("VERSION"),
-		VersionDate:  os.Getenv("VERSION_DATE"),
-		Founder:      os.Getenv("FOUNDER"),
-		Contributors: converter.ToInt(os.Getenv("CONTRIBUTORS")),
+		Version:      "v1.0.0",
+		VersionDate:  "05/10/2024",
+		Founder:      "Gabriel Cataldo",
+		Contributors: 1,
 		Endpoints:    countEndpoints(gopen),
 		Middlewares:  countMiddlewares(gopen),
 		Backends:     countBackends(gopen),
