@@ -1,6 +1,6 @@
 <img src="assets/logo.png" alt="">
 
-[![Project status](https://img.shields.io/badge/version-v1.0.0-orange.svg)](https://github.com/tech4works/gopen-gateway/releases/tag/v1.0.0)
+[![Project status](https://img.shields.io/badge/version-beta-orange.svg)](https://github.com/tech4works/gopen-gateway/releases/tag/v1.0.0)
 [![Playground](https://img.shields.io/badge/%F0%9F%8F%90-playground-9900cc.svg)](https://github.com/tech4works/gopen-gateway)
 [![Docker](https://badgen.net/badge/icon/docker?icon=docker&label)](https://hub.docker.com/r/tech4works/gopen-gateway)
 [![Open Source Helpers](https://www.codetriage.com/tech4works/gopen-gateway/badges/users.svg)](https://www.codetriage.com/tech4works/gopen-gateway)
