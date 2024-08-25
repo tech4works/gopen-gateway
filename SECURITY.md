@@ -13,7 +13,7 @@ We take security seriously. If you've discovered a security vulnerability within
 
 Publicly disclosing a vulnerability could put the entire community at risk, so we ask that you not share such information until we've had a chance to address it.
 
-Please send us a confidential report via email to gabrielcataldo.adm@gmail.com. We'll work with you to ensure that we fully understand the issue and can address it as rapidly as possible. We treat each report as a top priority.
+Please send us a confidential report via email to adm@tech4works.com. We'll work with you to ensure that we fully understand the issue and can address it as rapidly as possible. We treat each report as a top priority.
 
 ## Security Related Configuration
 
@@ -30,4 +30,4 @@ We're committed to taking all necessary measures to promptly address security-re
 
 By working together, we can strengthen the security of the entire open-source ecosystem.
 
-Please, DO NOT share vulnerabilities publicly. Reach out to us via gabrielcataldo.adm@gmail.com.
+Please, DO NOT share vulnerabilities publicly. Reach out to us via adm@tech4works.com.

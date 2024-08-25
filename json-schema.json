@@ -112,6 +112,48 @@
         ]
       }
     },
+    "param-modifier": {
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "enum": [
+            "SET",
+            "RPL",
+            "DEL"
+          ]
+        },
+        "propagate": {
+          "type": "boolean"
+        },
+        "key": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        }
+      },
+      "if": {
+        "properties": {
+          "action": {
+            "const": "DEL"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "action",
+          "key"
+        ]
+      },
+      "else": {
+        "required": [
+          "action",
+          "key",
+          "value"
+        ]
+      }
+    },
     "response-modifier": {
       "type": "object",
       "properties": {
@@ -475,7 +517,7 @@
           "type": "array",
           "minItems": 1,
           "items": {
-            "$ref": "#/definitions/request-modifier"
+            "$ref": "#/definitions/param-modifier"
           }
         },
         "query-modifiers": {

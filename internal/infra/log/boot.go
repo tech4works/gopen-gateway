@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 Gabriel Cataldo
+ * Copyright 2024 Tech4Works
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -44,7 +44,7 @@ func (l bootLog) PrintLogo() {
 -----------------------------------------------
 Best open source API Gateway!            %s
 -----------------------------------------------
-2024 • Gabriel Cataldo.
+2024 • Tech4Works.
 
 `, os.Getenv("VERSION"))
 }

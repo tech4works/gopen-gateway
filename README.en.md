@@ -11,7 +11,7 @@
 [![HitCount](https://hits.dwyl.com/tech4works/gopen-gateway.svg)](http://hits.dwyl.com/tech4works/gopen-gateway)
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Ftech4works%2Fgopen-gateway.svg?type=small)](https://app.fossa.com/projects/git%2Bgithub.com%2Ftech4works%2Fgopen-gateway?ref=badge_small)
 
-![United States](https://raw.githubusercontent.com/stevenrskelton/flag-icon/master/png/16/country-4x3/us.png)
-[Inglés](https://github.com/tech4works/gopen-gateway/blob/main/README.en.md) |
 ![Brazil](https://raw.githubusercontent.com/stevenrskelton/flag-icon/master/png/16/country-4x3/br.png)
-[Portugués](https://github.com/tech4works/gopen-gateway/blob/main/README.pt-br.md)
+[Portuguese](https://github.com/tech4works/gopen-gateway/blob/main/README.md) |
+![Spain](https://raw.githubusercontent.com/stevenrskelton/flag-icon/master/png/16/country-4x3/es.png)
+[Spanish](https://github.com/tech4works/gopen-gateway/blob/main/README.es.md)
