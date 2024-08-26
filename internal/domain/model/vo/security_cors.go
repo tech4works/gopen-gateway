@@ -35,13 +35,13 @@ func NewSecurityCors(allowsOrigins, allowMethods, allowHeaders []string) *Securi
 }
 
 func (s SecurityCors) DisallowOrigin(origin string) bool {
-	return checker.NotContains(s.allowOrigins, origin)
+	return checker.NonNil(s.allowOrigins) && checker.NotContains(s.allowOrigins, origin)
 }
 
 func (s SecurityCors) DisallowMethod(method string) bool {
-	return checker.NotContains(s.allowMethods, method)
+	return checker.NonNil(s.allowOrigins) && checker.NotContains(s.allowMethods, method)
 }
 
 func (s SecurityCors) DisallowHeader(headerKey string) bool {
-	return checker.NotContains(s.allowHeaders, headerKey)
+	return checker.NonNil(s.allowOrigins) && checker.NotContains(s.allowHeaders, headerKey)
 }
