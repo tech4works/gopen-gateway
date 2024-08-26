@@ -65,15 +65,10 @@ func (p provider) Init() *dto.Gopen {
 		panic("Please fill the environment variable GOPEN_PORT with numbers only!")
 	}
 
-	err := p.loadDefaultEnvs()
-	if checker.NonNil(err) {
-		panic(err)
-	}
-
 	p.log.PrintLogo()
 
 	p.log.PrintInfo("Loading Gopen envs...")
-	err = p.loadEnvs()
+	err := p.loadEnvs()
 	if checker.NonNil(err) {
 		p.log.PrintWarn(err)
 	}
@@ -221,13 +216,6 @@ func (p provider) initWatcher(oldGopen *dto.Gopen, oldServer server.HTTP) (*fsno
 	}
 
 	return watcher, nil
-}
-
-func (p provider) loadDefaultEnvs() (err error) {
-	if err = godotenv.Load("./.env"); checker.NonNil(err) {
-		err = errors.New("Error load Gopen envs default:", err)
-	}
-	return err
 }
 
 func (p provider) loadEnvs() (err error) {
