@@ -75,7 +75,7 @@ func (m mapperService) MapQuery(query vo.Query, mapper *vo.Mapper) vo.Query {
 }
 
 func (m mapperService) MapBody(body *vo.Body, mapper *vo.Mapper) (*vo.Body, []error) {
-	if checker.IsNil(mapper) || mapper.IsNotEmpty() || checker.IsNil(body) {
+	if checker.IsNil(mapper) || mapper.IsEmpty() || checker.IsNil(body) {
 		return body, nil
 	}
 

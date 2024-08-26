@@ -201,7 +201,7 @@ func (p provider) initWatcher(oldGopen *dto.Gopen, oldServer server.HTTP) (*fsno
 			select {
 			case ev, ok := <-watcher.Events:
 				if !ok || checker.NotEquals(ev.Op, fsnotify.Chmod) {
-					return
+					continue
 				}
 				p.restart(oldGopen, oldServer)
 			}
