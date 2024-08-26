@@ -1,6 +1,0 @@
-heartbeat.monitors:
-  - type: http
-    urls: ["http://app:8080/ping"]
-    schedule: '@every 300s'
-output.elasticsearch:
-  hosts: ["elasticsearch:9200"]

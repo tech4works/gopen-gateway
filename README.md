@@ -1,9 +1,9 @@
 <img src="assets/logo.png" alt="">
 
 [![Project status](https://img.shields.io/badge/version-beta-orange.svg)](https://github.com/tech4works/gopen-gateway/releases/tag/v1.0.0)
+[![GitHub](https://badgen.net/badge/icon/base?icon=github&label)](https://github.com/tech4works/gopen-gateway-base)
 [![Playground](https://img.shields.io/badge/%F0%9F%8F%90-playground-9900cc.svg)](https://github.com/tech4works/gopen-gateway)
 [![Docker](https://badgen.net/badge/icon/docker?icon=docker&label)](https://hub.docker.com/r/tech4works/gopen-gateway)
-[![Open Source Helpers](https://www.codetriage.com/tech4works/gopen-gateway/badges/users.svg)](https://www.codetriage.com/tech4works/gopen-gateway)
 [![TODOs](https://img.shields.io/badge/TODOs-2-red.svg?style=flat)](https://github.com/tech4works/gopen-gateway)
 [![Go Report Card](https://goreportcard.com/badge/github.com/tech4works/gopen-gateway)](https://goreportcard.com/report/github.com/tech4works/gopen-gateway)
 [![GoDoc](https://godoc.org/github/tech4works/gopen-gateway?status.svg)](https://pkg.go.dev/github.com/tech4works/gopen-gateway/helper)
@@ -2901,8 +2901,12 @@ e sempre adicionamos o campo `X-Forwarded-For` com o IP do client.
 
 # Usabilidade
 
-Use o projeto [playground](https://github.com/tech4works/gopen-gateway-playground) para começar a explorar e
-utilizar na prática o GOPEN API Gateway!
+- [Playground](https://github.com/tech4works/gopen-gateway-playground) um repositório para começar a explorar e aprender
+  na prática!
+
+    
+- [Base](https://github.com/tech4works/gopen-gateway-base) um repositório para começar o seu novo projeto, apenas com o
+  necessário!
 
 # Como contríbuir?
 
@@ -2934,13 +2938,6 @@ VSCode:
 code gopen-gateway
 ```
 
-## Air
-
-Caso queira utilizar o hot reload para otimizar no desenvolvimento, o projeto já tem o arquivo
-`.air.toml` como exemplo para você utilizar como quiser.
-
-Veja a documentação sobre esse projeto fantástico [clicando aqui](https://github.com/cosmtrek/air).
-
 ## Gitflow
 
 Para inicializar o desenvolvimento, você pode criar uma branch a partir da main, para um futuro PR para a mesma.
@@ -2962,7 +2959,6 @@ abaixa:
 - [uuid](https://github.com/google/uuid)
 - [godotenv](https://github.com/joho/godotenv)
 - [gojsonschema](https://github.com/xeipuuv/gojsonschema)
-- [air](https://github.com/cosmtrek/air)
 - [go-redis](https://github.com/redis/go-redis)
 - [ttlcache](https://github.com/jellydator/ttlcache)
 

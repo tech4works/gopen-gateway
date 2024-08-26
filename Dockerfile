@@ -10,9 +10,6 @@ COPY go.mod go.sum ./
 # Downloading all dependencies
 RUN go mod download
 
-# Copy the .env file
-COPY ./.env ./.env
-
 # Copy the .json-schema.json file
 COPY ./json-schema.json ./json-schema.json
 
@@ -37,9 +34,6 @@ WORKDIR /root/
 
 # Copy the main files from the cmd folder
 COPY --from=builder /app/cmd .
-
-# Copy the .env file
-COPY --from=builder /app/.env ./.env
 
 # Copy the .json-schema.json file
 COPY --from=builder /app/json-schema.json ./json-schema.json
