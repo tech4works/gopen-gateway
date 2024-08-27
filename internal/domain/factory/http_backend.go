@@ -110,9 +110,9 @@ func (f httpBackendFactory) buildRequestBody(backend *vo.Backend, request *vo.HT
 	}
 
 	body := request.Body()
-	body, mapErrs := f.mapperService.MapBody(body, backend.Request().BodyMapper())
 	body, projectErrs := f.projectorService.ProjectBody(body, backend.Request().BodyProjection())
 	body, modifyErrs := f.modifyBody(backend.Request().BodyModifiers(), body, request, history)
+	body, mapErrs := f.mapperService.MapBody(body, backend.Request().BodyMapper())
 	body, omitErrs := f.omitEmptyValuesFromBody(backend.Request().OmitEmpty(), body)
 	body, modifyCaseErrs := f.modifyBodyCase(backend.Request().Nomenclature(), body)
 	body, modifyContentTypeErrs := f.modifyBodyContentType(backend.Request().ContentType(), body)
@@ -152,8 +152,8 @@ func (f httpBackendFactory) buildRequestHeader(backend *vo.Backend, body *vo.Bod
 		return header, nil
 	}
 
-	header = f.mapperService.MapHeader(header, backend.Request().HeaderMapper())
 	header = f.projectorService.ProjectHeader(header, backend.Request().HeaderProjection())
+	header = f.mapperService.MapHeader(header, backend.Request().HeaderMapper())
 
 	return f.modifyHeader(backend.Request().HeaderModifiers(), header, request, history)
 }
@@ -167,8 +167,8 @@ func (f httpBackendFactory) buildRequestQuery(backend *vo.Backend, request *vo.H
 	}
 
 	query := request.Query()
-	query = f.mapperService.MapQuery(query, backend.Request().QueryMapper())
 	query = f.projectorService.ProjectQuery(query, backend.Request().QueryProjection())
+	query = f.mapperService.MapQuery(query, backend.Request().QueryMapper())
 
 	return f.modifyQuery(backend, query, request, history)
 }
@@ -180,9 +180,9 @@ func (f httpBackendFactory) buildResponseBody(backend *vo.Backend, temporaryResp
 	}
 
 	body := temporaryResponse.Body()
-	body, mapErrs := f.mapperService.MapBody(body, backend.Response().BodyMapper())
 	body, projectErrs := f.projectorService.ProjectBody(body, backend.Response().BodyProjection())
 	body, modifyErrs := f.modifyBody(backend.Response().BodyModifiers(), body, request, history)
+	body, mapErrs := f.mapperService.MapBody(body, backend.Response().BodyMapper())
 	body, aggregateErr := f.aggregatorService.AggregateBodyToKey(backend.Response().Group(), body)
 
 	var allErrors []error
@@ -205,8 +205,8 @@ func (f httpBackendFactory) buildResponseHeader(backend *vo.Backend, temporaryRe
 	}
 
 	header = f.aggregatorService.AggregateHeaders(header, temporaryResponse.Header())
-	header = f.mapperService.MapHeader(header, backend.Response().HeaderMapper())
 	header = f.projectorService.ProjectHeader(header, backend.Response().HeaderProjection())
+	header = f.mapperService.MapHeader(header, backend.Response().HeaderMapper())
 
 	return f.modifyHeader(backend.Response().HeaderModifiers(), header, request, history)
 }
