@@ -323,7 +323,7 @@ Campo opcional, é responsável pela configuração global de cache, caso o endp
 [endpoint.cache.enabled](#endpointcacheenabled) com o valor `true` apenas, ele irá herdar os outros valores do mesmo
 para sí.
 
-O valor do cache é apenas gravado 1 vez a cada X duração informada no campo `every`.
+O valor do cache é apenas gravado 1 vez a cada X duração informada no campo `duration`.
 
 Os campos [only-if-status-codes](#cacheonly-if-status-codes) e [only-if-methods](#cacheonly-if-methods) são utilizados
 para verificar se naquele endpoint habilitado a ter cache, pode ser lido e escrito o cache com base no método HTTP e
