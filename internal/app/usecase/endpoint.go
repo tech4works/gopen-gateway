@@ -18,12 +18,15 @@ package usecase
 
 import (
 	"context"
+	berrors "errors"
 	"github.com/tech4works/checker"
 	"github.com/tech4works/gopen-gateway/internal/app"
 	"github.com/tech4works/gopen-gateway/internal/app/model/dto"
 	"github.com/tech4works/gopen-gateway/internal/domain/factory"
+	"github.com/tech4works/gopen-gateway/internal/domain/mapper"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
 	"go.elastic.co/apm/v2"
+	"net/url"
 	"time"
 )
 
@@ -56,7 +59,12 @@ func (e endpointUseCase) Execute(ctx context.Context, executeData dto.ExecuteEnd
 	for _, backend := range executeData.Endpoint.Backends() {
 		httpBackendRequest := e.buildHTTPBackendRequest(ctx, executeData, &backend, history)
 
-		httpBackendResponse := e.makeBackendRequest(ctx, executeData, &backend, httpBackendRequest)
+		var httpBackendResponse *vo.HTTPBackendResponse
+		if backend.HasRequest() && backend.Request().IsConcurrent() {
+			httpBackendResponse = e.makeConcurrentBackendRequest(ctx, &backend, executeData, httpBackendRequest)
+		} else {
+			httpBackendResponse = e.makeBackendRequest(ctx, executeData, &backend, httpBackendRequest)
+		}
 
 		history = history.Add(&backend, httpBackendRequest, httpBackendResponse)
 		if e.checkAbortBackendResponse(executeData.Endpoint, httpBackendResponse) {
@@ -67,18 +75,67 @@ func (e endpointUseCase) Execute(ctx context.Context, executeData dto.ExecuteEnd
 	return e.buildHTTPResponse(ctx, executeData, history)
 }
 
-func (e endpointUseCase) makeBackendRequest(ctx context.Context, executeData dto.ExecuteEndpoint, backend *vo.Backend,
-	httpBackendRequest *vo.HTTPBackendRequest) *vo.HTTPBackendResponse {
+func (e endpointUseCase) makeConcurrentBackendRequest(
+	ctx context.Context,
+	backend *vo.Backend,
+	executeData dto.ExecuteEndpoint,
+	httpBackendRequest *vo.HTTPBackendRequest,
+) *vo.HTTPBackendResponse {
+	concurrentCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
 
+	responseChan := make(chan *vo.HTTPBackendResponse)
+	for i := 0; i < backend.Request().Concurrent(); i++ {
+		go func() {
+			httpBackendResponse := e.makeBackendRequest(concurrentCtx, executeData, backend, httpBackendRequest)
+			responseChan <- httpBackendResponse
+		}()
+	}
+
+	select {
+	case httpBackendResponse := <-responseChan:
+		return httpBackendResponse
+	}
+}
+
+func (e endpointUseCase) makeBackendRequest(
+	ctx context.Context,
+	executeData dto.ExecuteEndpoint,
+	backend *vo.Backend,
+	httpBackendRequest *vo.HTTPBackendRequest,
+) *vo.HTTPBackendResponse {
 	e.backendLog.PrintRequest(executeData, backend, httpBackendRequest)
 
 	startTime := time.Now()
-	httpBackendResponse := e.httpClient.MakeRequest(ctx, executeData.Endpoint, httpBackendRequest)
+	httpResponse, err := e.httpClient.MakeRequest(ctx, httpBackendRequest)
 	duration := time.Since(startTime)
+
+	var httpBackendResponse *vo.HTTPBackendResponse
+	if err = e.treatHTTPClientErr(err); checker.NonNil(err) {
+		httpBackendResponse = e.httpBackendFactory.BuildTemporaryResponseByErr(executeData.Endpoint, err)
+	} else {
+		httpBackendResponse = e.httpBackendFactory.BuildTemporaryResponse(httpResponse)
+	}
 
 	e.backendLog.PrintResponse(executeData, backend, httpBackendRequest, httpBackendResponse, duration)
 
 	return httpBackendResponse
+}
+
+func (e endpointUseCase) treatHTTPClientErr(err error) error {
+	if checker.IsNil(err) {
+		return nil
+	}
+
+	var urlErr *url.Error
+	berrors.As(err, &urlErr)
+	if berrors.Is(urlErr.Err, context.Canceled) {
+		return mapper.NewErrConcurrentCanceled()
+	} else if urlErr.Timeout() {
+		return mapper.NewErrGatewayTimeoutByErr(err)
+	}
+
+	return mapper.NewErrBadGateway(err)
 }
 
 func (e endpointUseCase) checkAbortBackendResponse(endpoint *vo.Endpoint, response *vo.HTTPBackendResponse) bool {

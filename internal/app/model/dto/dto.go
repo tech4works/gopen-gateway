@@ -122,6 +122,7 @@ type Backend struct {
 
 type BackendRequest struct {
 	Comment          string               `json:"@comment,omitempty"`
+	Concurrent       int                  `json:"concurrent,omitempty"`
 	OmitHeader       bool                 `json:"omit-header,omitempty"`
 	OmitQuery        bool                 `json:"omit-query,omitempty"`
 	OmitBody         bool                 `json:"omit-body,omitempty"`

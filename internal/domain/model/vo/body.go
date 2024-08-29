@@ -137,17 +137,25 @@ func (b *Body) Map() (any, error) {
 		return nil, nil
 	}
 
-	bs, err := b.Bytes()
+	str, err := b.String()
 	if checker.NonNil(err) {
 		return nil, err
 	}
 
-	var dest any
-	err = converter.ToDestWithErr(bs, &dest)
+	if checker.IsSlice(str) {
+		var dest []any
+		err = converter.ToDestWithErr(str, &dest)
+		if checker.NonNil(err) {
+			return nil, err
+		}
+		return dest, nil
+	}
+
+	var dest map[string]any
+	err = converter.ToDestWithErr(str, &dest)
 	if checker.NonNil(err) {
 		return nil, err
 	}
-
 	return dest, nil
 }
 

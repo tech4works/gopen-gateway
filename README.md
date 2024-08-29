@@ -61,6 +61,9 @@ e ainda otimizará o seu desenvolvimento, veja abaixo todos os recursos disponí
 - Aborte o processo de execução dos backends pelo código de status de forma personalizada.
 
 
+- Chamadas concorrentes ao backend caso configurado.
+
+
 - Customize sua requisição e resposta do backend utilizando nossos recursos:
     - Omita informações.
     - Mapeamento. (Header, Query e Body)
@@ -197,6 +200,7 @@ regras:
         - [method](#endpointbackendmethod)
         - [request](#endpointbackendrequest)
             - [@comment](#endpointbackendrequestcomment)
+            - [concurrent](#endpointbackendrequestconcurrent)
             - [omit-header](#endpointbackendrequestomit-header)
             - [omit-query](#endpointbackendrequestomit-query)
             - [omit-body](#endpointbackendrequestomit-body)
@@ -236,6 +240,7 @@ regras:
                 - [propagate](#endpointbackendrequestbody-modifierpropagate)
         - [response](#endpointbackendresponse)
             - [@comment](#endpointbackendresponsecomment)
+            - [omit](#endpointbackendresponseomit)
             - [omit-header](#endpointbackendresponseomit-header)
             - [omit-body](#endpointbackendresponseomit-body)
             - [header-mapper](#endpointbackendresponseheader-mapper)
@@ -888,6 +893,14 @@ Campo opcional, do tipo objeto, é responsável pela customização da requisiç
 
 Campo opcional, do tipo string, campo livre para anotações.
 
+### endpoint.backend.request.concurrent
+
+Campo opcional, do tipo inteiro, é responsável pela quantidade de requisições concorrentes que deseja fazer ao
+serviço backend.
+
+O valor padrão é `0`, indicando que será executado apenas 1 requisição de forma síncrona, os valores aceitos são 
+de no mínimo `2` e no máximo `10`.
+
 ### endpoint.backend.request.omit-header
 
 Campo opcional, do tipo booleano, o valor padrão é `false`, indica o desejo de omitir o cabeçalho da requisição.
@@ -1510,6 +1523,12 @@ Campo opcional, do tipo objeto, é responsável pela customização da resposta 
 
 Campo opcional, do tipo string, campo livre para anotações.
 
+
+### endpoint.backend.response.omit
+
+Campo opcional, do tipo booleano, o valor padrão é `false`, indica o desejo de omitir toda a resposta ao usuário final
+HTTP.
+
 ### endpoint.backend.response.omit-header
 
 Campo opcional, do tipo booleano, o valor padrão é `false`, indica o desejo de omitir o cabeçalho da resposta.
@@ -2010,17 +2029,17 @@ substituindo a sintaxe pelo valor, o resultado foi `991238`.
 
 ### Resposta
 
-Quando menciona a sintaxe `#response...` você estará obtendo os valores do histórico de respostas dos backends do
+Quando menciona a sintaxe `#responses...` você estará obtendo os valores do histórico de respostas dos backends do
 endpoint sendo [beforewares](#endpointbeforewares), [backends](#endpointbackends) e [afterwares](#endpointafterwares)
 
 No exemplo, eu tenho apenas um backend e o mesmo foi processado, então posso está utilizando a sintaxe:
 
-`#response.0.header.X-Value.0`
+`#responses.0.header.X-Value.0`
 
 Nesse outro exemplo de sintaxe temos três backends configurados e dois já foram processados, então podemos utilizar a
 seguinte sintaxe no processo do terceiro backend:
 
-`#request.1.body.users.0`
+`#responses.1.body.users.0`
 
 Nesses exemplos citados vemos que podemos obter o valor da resposta de um backend que já foi processado,
 e que estão armazenados em um tipo de histórico temporário.
@@ -2699,6 +2718,12 @@ foram agrupados e separados por vírgula.
 
 Toda API Gateway tem suas respostas padrão para cada cenário de erro, então iremos listar abaixo cada
 cenário e sua respectiva resposta HTTP:
+
+#### 204 (No Content)
+
+Esse cenário acontece quando todos os backends forem preenchidos com a configuração
+[endpoint.backend.response.omit](#endpointbackendresponseomit-body) como `true` e o endpoint foi processado corretamente,
+porém não há nada a ser retornado.
 
 #### 413 (Request Entity Too Large)
 

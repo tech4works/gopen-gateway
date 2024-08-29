@@ -278,6 +278,7 @@ func buildBackendRequest(
 		buildAndPropagateModifiers(backend.Request.BodyModifiers, propagateBodyModifiers)
 
 		return vo.NewBackendRequest(
+			backend.Request.Concurrent,
 			backend.Request.OmitHeader,
 			backend.Request.OmitQuery,
 			backend.Request.OmitBody,
@@ -320,10 +321,10 @@ func buildAndPropagateModifiers(modifiers []dto.Modifier, propagateModifiers *[]
 }
 
 func buildBackendResponse(backend dto.Backend, backendType enum.BackendType) *vo.BackendResponse {
-	if checker.IsNil(backend.Response) {
-		return nil
-	} else if checker.Equals(backendType, enum.BackendTypeBeforeware) || checker.Equals(backendType, enum.BackendTypeAfterware) {
+	if checker.Equals(backendType, enum.BackendTypeBeforeware) || checker.Equals(backendType, enum.BackendTypeAfterware) {
 		return vo.NewBackendResponseForMiddleware()
+	} else if checker.IsNil(backend.Response) {
+		return nil
 	}
 
 	return vo.NewBackendResponse(

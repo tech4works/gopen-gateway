@@ -93,7 +93,7 @@ func (h httpResponseFactory) buildBodyByHistory(endpoint *vo.Endpoint, history *
 
 	if history.MultipleResponses() {
 		body, errs = h.buildBodyFromMultipleResponses(endpoint, history)
-	} else {
+	} else if history.SingleResponse() {
 		body = history.Last().Body()
 	}
 

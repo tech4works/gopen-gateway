@@ -17,11 +17,19 @@
 package factory
 
 import (
+	"bytes"
 	"github.com/tech4works/checker"
+	"github.com/tech4works/converter"
+	"github.com/tech4works/errors"
+	"github.com/tech4works/gopen-gateway/internal/app/model/dto"
+	"github.com/tech4works/gopen-gateway/internal/domain/mapper"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
 	"github.com/tech4works/gopen-gateway/internal/domain/service"
+	"io"
 	"math/rand"
+	"net/http"
+	"time"
 )
 
 type httpBackendFactory struct {
@@ -37,8 +45,9 @@ type httpBackendFactory struct {
 
 type HTTPBackend interface {
 	BuildRequest(backend *vo.Backend, request *vo.HTTPRequest, history *vo.History) (*vo.HTTPBackendRequest, []error)
-	BuildResponse(backend *vo.Backend, temporaryResponse *vo.HTTPBackendResponse, request *vo.HTTPRequest,
-		history *vo.History) (*vo.HTTPBackendResponse, []error)
+	BuildTemporaryResponse(httpResponse *http.Response) *vo.HTTPBackendResponse
+	BuildTemporaryResponseByErr(endpoint *vo.Endpoint, err error) *vo.HTTPBackendResponse
+	BuildResponse(backend *vo.Backend, temporaryResponse *vo.HTTPBackendResponse, request *vo.HTTPRequest, history *vo.History) (*vo.HTTPBackendResponse, []error)
 }
 
 func NewHTTPBackend(mapperService service.Mapper, projectorService service.Projector,
@@ -72,6 +81,53 @@ func (f httpBackendFactory) BuildRequest(backend *vo.Backend, request *vo.HTTPRe
 	allErrs = append(allErrs, queryErrs...)
 
 	return vo.NewHTTPBackendRequest(host, backend.Method(), urlPath, header, query, body), allErrs
+}
+
+func (f httpBackendFactory) BuildTemporaryResponse(httpResponse *http.Response) *vo.HTTPBackendResponse {
+	statusCode := vo.NewStatusCode(httpResponse.StatusCode)
+	header := vo.NewHeader(httpResponse.Header)
+
+	var body *vo.Body
+	if checker.NonNil(httpResponse.Body) {
+		contentType := httpResponse.Header.Get(mapper.ContentType)
+		contentEncoding := httpResponse.Header.Get(mapper.ContentEncoding)
+
+		bodyBytes, err := io.ReadAll(httpResponse.Body)
+		if checker.NonNil(err) {
+			panic(err)
+		}
+
+		body = vo.NewBody(contentType, contentEncoding, bytes.NewBuffer(bodyBytes))
+	}
+
+	return vo.NewHTTPBackendResponse(statusCode, header, body)
+}
+
+func (f httpBackendFactory) BuildTemporaryResponseByErr(endpoint *vo.Endpoint, err error) *vo.HTTPBackendResponse {
+	if errors.Is(err, mapper.ErrConcurrentCanceled) {
+		return nil
+	}
+
+	var code int
+	if errors.Is(err, mapper.ErrGatewayTimeout) {
+		code = http.StatusGatewayTimeout
+	} else if errors.Is(err, mapper.ErrBadGateway) {
+		code = http.StatusBadGateway
+	}
+	statusCode := vo.NewStatusCode(code)
+
+	details := errors.Details(err)
+	buffer := converter.ToBuffer(dto.ErrorBody{
+		File:      details.File(),
+		Line:      details.Line(),
+		Endpoint:  endpoint.Path(),
+		Message:   details.Message(),
+		Timestamp: time.Now(),
+	})
+	body := vo.NewBodyJson(buffer)
+	header := vo.NewHeaderByBody(body)
+
+	return vo.NewHTTPBackendResponse(statusCode, header, body)
 }
 
 func (f httpBackendFactory) BuildResponse(backend *vo.Backend, temporaryResponse *vo.HTTPBackendResponse,

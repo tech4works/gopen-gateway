@@ -33,6 +33,7 @@ const msgErrPayloadTooLarge = "payload too large error:"
 const msgErrHeaderTooLarge = "header too large error:"
 const msgErrTooManyRequests = "too many requests error:"
 const msgErrCacheNotFound = "cache not found"
+const msgErrConcurrentCanceled = "concurrent context canceled"
 
 var ErrBadGateway = errors.New(msgErrBadGateway)
 var ErrGatewayTimeout = errors.New(msgErrGatewayTimeout)
@@ -45,6 +46,7 @@ var ErrInvalidAction = errors.New(msgErrInvalidAction)
 var ErrEmptyKey = errors.New(msgErrEmptyKey)
 var ErrEmptyValue = errors.New(msgErrEmptyValue)
 var ErrIncompatibleBodyType = errors.New(msgErrIncompatibleBodyType)
+var ErrConcurrentCanceled = errors.New(msgErrConcurrentCanceled)
 
 func NewErrBadGateway(err error) error {
 	ErrBadGateway = errors.NewSkipCaller(2, msgErrBadGateway, err)
@@ -54,6 +56,11 @@ func NewErrBadGateway(err error) error {
 func NewErrGatewayTimeoutByErr(err error) error {
 	ErrGatewayTimeout = errors.NewSkipCaller(2, msgErrGatewayTimeout, err)
 	return ErrGatewayTimeout
+}
+
+func NewErrConcurrentCanceled() error {
+	ErrConcurrentCanceled = errors.NewSkipCaller(2, msgErrConcurrentCanceled)
+	return ErrConcurrentCanceled
 }
 
 func NewErrPayloadTooLarge(limit string) error {

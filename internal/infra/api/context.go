@@ -72,7 +72,11 @@ func buildHTTPRequest(gin *gin.Context) *vo.HTTPRequest {
 	}
 	path := vo.NewURLPath(gin.FullPath(), ginParams)
 
-	bodyBytes, _ := io.ReadAll(gin.Request.Body)
+	bodyBytes, err := io.ReadAll(gin.Request.Body)
+	if checker.NonNil(err) {
+		panic(err)
+	}
+
 	body := vo.NewBody(gin.GetHeader(mapper.ContentType), gin.GetHeader(mapper.ContentEncoding), bytes.NewBuffer(bodyBytes))
 
 	return vo.NewHTTPRequest(path, url, gin.Request.Method, header, query, body)

@@ -18,6 +18,7 @@ package log
 
 import (
 	"fmt"
+	"github.com/tech4works/checker"
 	"github.com/tech4works/gopen-gateway/internal/app"
 	"github.com/tech4works/gopen-gateway/internal/app/model/dto"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
@@ -44,6 +45,10 @@ func (b backendLog) PrintRequest(executeData dto.ExecuteEndpoint, backend *vo.Ba
 
 func (b backendLog) PrintResponse(executeData dto.ExecuteEndpoint, backend *vo.Backend, request *vo.HTTPBackendRequest,
 	response *vo.HTTPBackendResponse, duration time.Duration) {
+	if checker.IsNil(response) {
+		return
+	}
+
 	statusCode := response.StatusCode()
 	statusCodeText := BuildStatusCodeText(statusCode)
 

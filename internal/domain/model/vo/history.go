@@ -52,7 +52,7 @@ func (h *History) Get(i int) (*Backend, *HTTPBackendRequest, *HTTPBackendRespons
 }
 
 func (h *History) SingleResponse() bool {
-	return checker.IsLessThanOrEqual(h.Size(), 1)
+	return checker.Equals(h.Size(), 1)
 }
 
 func (h *History) MultipleResponses() bool {

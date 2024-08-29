@@ -69,7 +69,7 @@ type Context interface {
 }
 
 type HTTPClient interface {
-	MakeRequest(ctx context.Context, endpoint *vo.Endpoint, request *vo.HTTPBackendRequest) *vo.HTTPBackendResponse
+	MakeRequest(ctx context.Context, request *vo.HTTPBackendRequest) (*http.Response, error)
 }
 
 type HTTPLog interface {

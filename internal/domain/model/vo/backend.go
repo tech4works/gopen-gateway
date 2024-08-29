@@ -31,6 +31,7 @@ type Backend struct {
 }
 
 type BackendRequest struct {
+	concurrent       int
 	omitHeader       bool
 	omitQuery        bool
 	omitBody         bool
@@ -82,6 +83,7 @@ func NewBackend(
 }
 
 func NewBackendRequest(
+	concurrent int,
 	omitHeader,
 	omitQuery,
 	omitBody bool,
@@ -101,6 +103,7 @@ func NewBackendRequest(
 	bodyModifiers []Modifier,
 ) *BackendRequest {
 	return &BackendRequest{
+		concurrent:       concurrent,
 		omitHeader:       omitHeader,
 		omitQuery:        omitQuery,
 		omitBody:         omitBody,
@@ -233,6 +236,14 @@ func (b *Backend) IsAfterware() bool {
 
 func (b *Backend) Type() enum.BackendType {
 	return b.kind
+}
+
+func (b BackendRequest) IsConcurrent() bool {
+	return checker.IsGreaterThanOrEqual(b.concurrent, 2)
+}
+
+func (b BackendRequest) Concurrent() int {
+	return b.concurrent
 }
 
 func (b BackendRequest) OmitHeader() bool {
