@@ -8,7 +8,6 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/tech4works/gopen-gateway)](https://goreportcard.com/report/github.com/tech4works/gopen-gateway)
 [![GoDoc](https://godoc.org/github/tech4works/gopen-gateway?status.svg)](https://pkg.go.dev/github.com/tech4works/gopen-gateway/helper)
 [![GitHub go.mod Go version of a Go module](https://img.shields.io/github/go-mod/go-version/tech4works/gopen-gateway)](https://github.com/tech4works/gopen-gateway/blob/main/go.mod)
-[![HitCount](https://hits.dwyl.com/tech4works/gopen-gateway.svg)](http://hits.dwyl.com/tech4works/gopen-gateway)
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Ftech4works%2Fgopen-gateway.svg?type=small)](https://app.fossa.com/projects/git%2Bgithub.com%2Ftech4works%2Fgopen-gateway?ref=badge_small)
 
 [//]: # (![United States]&#40;https://raw.githubusercontent.com/stevenrskelton/flag-icon/master/png/16/country-4x3/us.png&#41;)
