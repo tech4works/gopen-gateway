@@ -1,6 +1,6 @@
 <img src="assets/logo.png" alt="">
 
-[![Project status](https://img.shields.io/badge/version-beta-orange.svg)](https://github.com/tech4works/gopen-gateway/releases/tag/v1.0.0)
+[![Project status](https://img.shields.io/badge/version-v1.0.0-orange.svg)](https://github.com/tech4works/gopen-gateway/releases/tag/v1.0.0)
 [![GitHub](https://badgen.net/badge/icon/base?icon=github&label)](https://github.com/tech4works/gopen-gateway-base)
 [![Playground](https://img.shields.io/badge/%F0%9F%8F%90-playground-9900cc.svg)](https://github.com/tech4works/gopen-gateway)
 [![Docker](https://badgen.net/badge/icon/docker?icon=docker&label)](https://hub.docker.com/r/tech4works/gopen-gateway)
@@ -11,10 +11,13 @@
 [![HitCount](https://hits.dwyl.com/tech4works/gopen-gateway.svg)](http://hits.dwyl.com/tech4works/gopen-gateway)
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Ftech4works%2Fgopen-gateway.svg?type=small)](https://app.fossa.com/projects/git%2Bgithub.com%2Ftech4works%2Fgopen-gateway?ref=badge_small)
 
-![United States](https://raw.githubusercontent.com/stevenrskelton/flag-icon/master/png/16/country-4x3/us.png)
-[Inglês](https://github.com/tech4works/gopen-gateway/blob/main/README.en.md) |
-![Spain](https://raw.githubusercontent.com/stevenrskelton/flag-icon/master/png/16/country-4x3/es.png)
-[Espanhol](https://github.com/tech4works/gopen-gateway/blob/main/README.es.md)
+[//]: # (![United States]&#40;https://raw.githubusercontent.com/stevenrskelton/flag-icon/master/png/16/country-4x3/us.png&#41;)
+
+[//]: # ([Inglês]&#40;https://github.com/tech4works/gopen-gateway/blob/main/README.en.md&#41; |)
+
+[//]: # (![Spain]&#40;https://raw.githubusercontent.com/stevenrskelton/flag-icon/master/png/16/country-4x3/es.png&#41;)
+
+[//]: # ([Espanhol]&#40;https://github.com/tech4works/gopen-gateway/blob/main/README.es.md&#41;)
 
 O projeto GOPEN foi criado no intuito de ajudar os desenvolvedores a terem uma API Gateway robusta e de fácil manuseio,
 com a oportunidade de atuar em melhorias agregando a comunidade, e o mais importante, sem gastar nada.
