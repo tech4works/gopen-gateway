@@ -2,7 +2,7 @@
 
 [![Project status](https://img.shields.io/badge/version-v1.0.0-orange.svg)](https://github.com/tech4works/gopen-gateway/releases/tag/v1.0.0)
 [![GitHub](https://badgen.net/badge/icon/base?icon=github&label)](https://github.com/tech4works/gopen-gateway-base)
-[![Playground](https://img.shields.io/badge/%F0%9F%8F%90-playground-9900cc.svg)](https://github.com/tech4works/gopen-gateway)
+[![Playground](https://img.shields.io/badge/%F0%9F%8F%90-playground-9900cc.svg)](https://github.com/tech4works/gopen-gateway-playground)
 [![Docker](https://badgen.net/badge/icon/docker?icon=docker&label)](https://hub.docker.com/r/tech4works/gopen-gateway)
 [![TODOs](https://img.shields.io/badge/TODOs-2-red.svg?style=flat)](https://github.com/tech4works/gopen-gateway)
 [![Go Report Card](https://goreportcard.com/badge/github.com/tech4works/gopen-gateway)](https://goreportcard.com/report/github.com/tech4works/gopen-gateway)
