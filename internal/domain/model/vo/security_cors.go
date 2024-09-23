@@ -39,9 +39,9 @@ func (s SecurityCors) DisallowOrigin(origin string) bool {
 }
 
 func (s SecurityCors) DisallowMethod(method string) bool {
-	return checker.NonNil(s.allowOrigins) && checker.NotContains(s.allowMethods, method)
+	return checker.NonNil(s.allowMethods) && checker.NotContains(s.allowMethods, method)
 }
 
 func (s SecurityCors) DisallowHeader(headerKey string) bool {
-	return checker.NonNil(s.allowOrigins) && checker.NotContains(s.allowHeaders, headerKey)
+	return checker.NonNil(s.allowHeaders) && checker.NotContains(s.allowHeaders, headerKey)
 }
