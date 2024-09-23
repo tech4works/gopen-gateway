@@ -1,6 +1,6 @@
 <img src="assets/logo.png" alt="">
 
-[![Project status](https://img.shields.io/badge/version-v1.0.0-orange.svg)](https://github.com/tech4works/gopen-gateway/releases/tag/v1.0.0)
+[![Project status](https://img.shields.io/badge/version-v1.0.1-orange.svg)](https://github.com/tech4works/gopen-gateway/releases/tag/v1.0.1)
 [![GitHub](https://badgen.net/badge/icon/base?icon=github&label)](https://github.com/tech4works/gopen-gateway-base)
 [![Playground](https://img.shields.io/badge/%F0%9F%8F%90-playground-9900cc.svg)](https://github.com/tech4works/gopen-gateway-playground)
 [![Docker](https://badgen.net/badge/icon/docker?icon=docker&label)](https://hub.docker.com/r/tech4works/gopen-gateway)
@@ -20,10 +20,10 @@
 
 O projeto GOPEN foi criado no intuito de ajudar os desenvolvedores a terem uma API Gateway robusta e de fácil manuseio,
 com a oportunidade de atuar em melhorias agregando a comunidade, e o mais importante, sem gastar nada.
-Foi desenvolvida, pois muitas APIs Gateway do mercado de forma gratuita, não atendem muitas necessidades minímas
+Foi desenvolvida, pois muitas APIs Gateway do mercado de forma gratuita, não atendem muitas necessidades mínimas
 para uma aplicação, induzindo-o a fazer o upgrade.
 
-Com essa nova API Gateway você não precisará equilibrar pratos para economizar em sua infraestrutura e arquitetura,
+Com essa nova API Gateway você não precisará equilibrar pratos para economizar na sua infraestrutura e arquitetura,
 e ainda otimizará o seu desenvolvimento, veja abaixo todos os recursos disponíveis:
 
 - Json de configuração simplificado para múltiplos ambientes.
@@ -49,6 +49,9 @@ e ainda otimizará o seu desenvolvimento, veja abaixo todos os recursos disponí
 
 
 - Segurança de CORS com validações de origens, método HTTP e headers.
+
+
+- Timeout linear, enviando o tempo restante para processamento num cabeçalho de requisição.
 
 
 - Múltiplos middlewares, para serem usados posteriormente no endpoint caso necessário.
@@ -900,7 +903,7 @@ Campo opcional, do tipo string, campo livre para anotações.
 Campo opcional, do tipo inteiro, é responsável pela quantidade de requisições concorrentes que deseja fazer ao
 serviço backend.
 
-O valor padrão é `0`, indicando que será executado apenas 1 requisição de forma síncrona, os valores aceitos são 
+O valor padrão é `0`, indicando que será executado apenas 1 requisição de forma síncrona, os valores aceitos são
 de no mínimo `2` e no máximo `10`.
 
 ### endpoint.backend.request.omit-header
@@ -1524,7 +1527,6 @@ Campo opcional, do tipo objeto, é responsável pela customização da resposta 
 ### endpoint.backend.response.@comment
 
 Campo opcional, do tipo string, campo livre para anotações.
-
 
 ### endpoint.backend.response.omit
 
@@ -2627,6 +2629,11 @@ cabeçalho respondidos pelos backends configurados no endpoint, indepêndente da
 
 Também são adicionados até quatro campos no cabeçalho veja abaixo sobre os mesmos:
 
+- `X-Gopen-Timeout`: Enviado na requisição ao backend, ele contém o tempo restante para o processamento em
+  milissegundos, com o mesmo dá para implementar um contexto com timeout linear nos seus microserviços, evitando vazamento
+  de processos, já que após esse tempo a API Gateway retornara [504 (Gateway Timeout)](#504-gateway-timeout).
+
+
 - `X-Gopen-Cache`: Caso a resposta do endpoint não seja "fresca", isto é, foi utilizado a resposta armazenada em cache,
   é retornado o valor `true`, caso contrário retorna o valor `false`.
 
@@ -2724,7 +2731,8 @@ cenário e sua respectiva resposta HTTP:
 #### 204 (No Content)
 
 Esse cenário acontece quando todos os backends forem preenchidos com a configuração
-[endpoint.backend.response.omit](#endpointbackendresponseomit-body) como `true` e o endpoint foi processado corretamente,
+[endpoint.backend.response.omit](#endpointbackendresponseomit-body) como `true` e o endpoint foi processado
+corretamente,
 porém não há nada a ser retornado.
 
 #### 413 (Request Entity Too Large)
@@ -2931,7 +2939,7 @@ e sempre adicionamos o campo `X-Forwarded-For` com o IP do client.
 - [Playground](https://github.com/tech4works/gopen-gateway-playground) um repositório para começar a explorar e aprender
   na prática!
 
-    
+
 - [Base](https://github.com/tech4works/gopen-gateway-base) um repositório para começar o seu novo projeto, apenas com o
   necessário!
 

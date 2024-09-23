@@ -114,6 +114,8 @@ github.com/stretchr/testify v1.9.0 h1:HtqpIVDClZ4nwg75+f6Lvsy/wHu+3BoSGCbBAcpTsT
 github.com/stretchr/testify v1.9.0/go.mod h1:r2ic/lqez/lEtzL7wO/rwa5dbSLXVDPFyf8C91i36aY=
 github.com/tech4works/checker v0.0.0-20240806130137-539a8623a656 h1:zbh+Q7PghXbyR9T/yZwez8qvmqaeAlKXhy06XZDlyuk=
 github.com/tech4works/checker v0.0.0-20240806130137-539a8623a656/go.mod h1:5nre6qBAdD1TjzmsbOlu1BWCd4tnle0jcilI5TCkq7E=
+github.com/tech4works/checker v0.0.0-20240909191103-d458a76ac8ce h1:tpa+D5c4bZQI6yR0zLRO5TFi7KLy3kt5xTZqiZs2sx4=
+github.com/tech4works/checker v0.0.0-20240909191103-d458a76ac8ce/go.mod h1:5nre6qBAdD1TjzmsbOlu1BWCd4tnle0jcilI5TCkq7E=
 github.com/tech4works/compressor v0.0.0-20240807194218-7122652ffea0 h1:cbcpn2UgVeMevp0YG7bxLwDK8HcQS2lfOFnYqRcmEyU=
 github.com/tech4works/compressor v0.0.0-20240807194218-7122652ffea0/go.mod h1:mmZXwDtz6pAOVK9fVVK2aoxbt4UK3NC2t7zVvLLBK4U=
 github.com/tech4works/converter v0.0.0-20240813212833-e25e14cbad01 h1:QgXP6rV6oFSIWFfY7PnKQNZn73VZIrqN5ewwlDH4128=

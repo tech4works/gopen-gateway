@@ -19,12 +19,15 @@ package http
 import (
 	"context"
 	"github.com/tech4works/checker"
+	"github.com/tech4works/converter"
 	"github.com/tech4works/gopen-gateway/internal/app"
+	"github.com/tech4works/gopen-gateway/internal/domain/mapper"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
 	"go.elastic.co/apm/module/apmhttp/v2"
 	"go.elastic.co/apm/v2"
 	"io"
 	net "net/http"
+	"time"
 )
 
 type client struct {
@@ -62,7 +65,14 @@ func (c client) buildNetHTTPRequest(ctx context.Context, request *vo.HTTPBackend
 	header := request.Header()
 	query := request.Query()
 
-	netReq.Header = header.Http()
+	httpHeader := header.Http()
+	timeout, ok := ctx.Deadline()
+	if ok {
+		remaining := time.Until(timeout)
+		httpHeader.Set(mapper.XGopenTimeout, converter.ToString(remaining.Milliseconds()))
+	}
+
+	netReq.Header = httpHeader
 	netReq.URL.RawQuery = query.Encode()
 
 	return apmhttp.RequestWithContext(ctx, netReq), nil

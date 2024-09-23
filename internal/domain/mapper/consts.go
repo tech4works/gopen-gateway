@@ -25,6 +25,7 @@ const (
 	ContentEncoding = "Content-Encoding"
 	ContentLength   = "Content-Length"
 	XForwardedFor   = "X-Forwarded-For"
+	XGopenTimeout   = "X-Gopen-Timeout"
 	XGopenCache     = "X-Gopen-Cache"
 	XGopenCacheTTL  = "X-Gopen-Cache-Ttl"
 	XGopenComplete  = "X-Gopen-Complete"
@@ -32,8 +33,8 @@ const (
 )
 
 func mandatoryHeaderKeys() []string {
-	return []string{ContentType, ContentEncoding, ContentLength, XForwardedFor, XGopenCache, XGopenCacheTTL,
-		XGopenComplete, XGopenSuccess}
+	return []string{ContentType, ContentEncoding, ContentLength, XGopenCache, XGopenCacheTTL, XGopenComplete,
+		XGopenSuccess, XGopenTimeout}
 }
 
 func IsHeaderMandatoryKey(key string) bool {
