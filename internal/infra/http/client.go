@@ -38,13 +38,21 @@ func NewClient() app.HTTPClient {
 }
 
 func (c client) MakeRequest(ctx context.Context, request *vo.HTTPBackendRequest) (*net.Response, error) {
-	httpRequest, err := c.buildNetHTTPRequest(ctx, request)
+	timeout, ok := ctx.Deadline()
+	if !ok {
+		return nil, context.DeadlineExceeded
+	}
+
+	requestCtx, cancel := context.WithTimeout(context.Background(), time.Until(timeout))
+	defer cancel()
+
+	httpRequest, err := c.buildNetHTTPRequest(requestCtx, request)
 	if checker.NonNil(err) {
 		return nil, err
 	}
 
 	netClient := &net.Client{}
-	tx := apm.TransactionFromContext(ctx)
+	tx := apm.TransactionFromContext(requestCtx)
 	if checker.NonNil(tx) {
 		netClient.Transport = apmhttp.WrapRoundTripper(net.DefaultTransport)
 	}

@@ -13,7 +13,7 @@
 
 module github.com/tech4works/gopen-gateway
 
-go 1.22
+go 1.23.1
 
 require (
 	github.com/basgys/goxml2json v1.1.0
