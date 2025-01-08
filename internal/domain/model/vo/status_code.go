@@ -36,7 +36,7 @@ func NewStatusCode(code int) StatusCode {
 }
 
 func (s StatusCode) OK() bool {
-	return checker.IsGreaterThanOrEqual(s.Code(), 200) || checker.IsLessThanOrEqual(s.Code(), 299)
+	return checker.IsGreaterThanOrEqual(s.Code(), 200) && checker.IsLessThanOrEqual(s.Code(), 299)
 }
 
 func (s StatusCode) Failed() bool {

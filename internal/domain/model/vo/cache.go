@@ -90,10 +90,6 @@ func (c Cache) HasAnyOnlyIfMethods() bool {
 	return checker.IsNotEmpty(c.onlyIfMethods)
 }
 
-func (c Cache) HasOnlyIfStatusCodes() bool {
-	return checker.NonNil(c.onlyIfStatusCodes)
-}
-
 func (c Cache) HasAnyOnlyIfStatusCodes() bool {
 	return checker.IsNotEmpty(c.onlyIfStatusCodes)
 }
