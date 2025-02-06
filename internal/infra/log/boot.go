@@ -19,7 +19,6 @@ package log
 import (
 	"fmt"
 	"github.com/tech4works/gopen-gateway/internal/app"
-	"os"
 )
 
 type bootLog struct {
@@ -33,7 +32,7 @@ func NewBoot() app.BootLog {
 }
 
 func (l bootLog) PrintLogo() {
-	fmt.Printf(` 
+	fmt.Print(` 
  ######    #######  ########  ######## ##    ##
 ##    ##  ##     ## ##     ## ##       ###   ##
 ##        ##     ## ##     ## ##       ####  ##
@@ -42,11 +41,11 @@ func (l bootLog) PrintLogo() {
 ##    ##  ##     ## ##        ##       ##   ###
  ######    #######  ##        ######## ##    ##
 -----------------------------------------------
-Best open source API Gateway!            %s
+Best open source API Gateway!            v1.0.6
 -----------------------------------------------
 2024 • Tech4Works.
 
-`, os.Getenv("VERSION"))
+`)
 }
 
 func (l bootLog) PrintTitle(title string) {

@@ -104,10 +104,18 @@ func (e endpointUseCase) makeBackendRequest(
 	backend *vo.Backend,
 	httpBackendRequest *vo.HTTPBackendRequest,
 ) *vo.HTTPBackendResponse {
+	timeout, ok := ctx.Deadline()
+	if !ok {
+		return e.httpBackendFactory.BuildTemporaryResponseByErr(executeData.Endpoint, context.DeadlineExceeded)
+	}
+
+	requestCtx, cancel := context.WithTimeout(context.Background(), time.Until(timeout))
+	defer cancel()
+
 	e.backendLog.PrintRequest(executeData, backend, httpBackendRequest)
 
 	startTime := time.Now()
-	httpResponse, err := e.httpClient.MakeRequest(ctx, httpBackendRequest)
+	httpResponse, err := e.httpClient.MakeRequest(requestCtx, httpBackendRequest)
 	duration := time.Since(startTime)
 
 	var httpBackendResponse *vo.HTTPBackendResponse
