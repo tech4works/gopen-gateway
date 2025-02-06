@@ -231,7 +231,7 @@ func (f httpBackendFactory) buildRequestQuery(backend *vo.Backend, request *vo.H
 
 func (f httpBackendFactory) buildResponseBody(backend *vo.Backend, temporaryResponse *vo.HTTPBackendResponse,
 	request *vo.HTTPRequest, history *vo.History) (*vo.Body, []error) {
-	if !temporaryResponse.HasBody() || backend.Response().OmitBody() {
+	if temporaryResponse.StatusCode().Failed() || !temporaryResponse.HasBody() || backend.Response().OmitBody() {
 		return nil, nil
 	}
 
