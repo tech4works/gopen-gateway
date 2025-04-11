@@ -35,11 +35,15 @@ type Endpoint struct {
 }
 
 type EndpointResponse struct {
-	aggregate       bool
-	contentType     enum.ContentType
-	contentEncoding enum.ContentEncoding
-	nomenclature    enum.Nomenclature
-	omitEmpty       bool
+	aggregate        bool
+	omitEmpty        bool
+	headerMapper     *Mapper
+	bodyMapper       *Mapper
+	headerProjection *Projection
+	bodyProjection   *Projection
+	contentType      enum.ContentType
+	contentEncoding  enum.ContentEncoding
+	nomenclature     enum.Nomenclature
 }
 
 func NewEndpoint(
@@ -75,17 +79,25 @@ func NewEndpointStatic(path, method string) Endpoint {
 
 func NewEndpointResponse(
 	aggregate bool,
+	omitEmpty bool,
+	headerMapper *Mapper,
+	bodyMapper *Mapper,
+	headerProjection *Projection,
+	bodyProjection *Projection,
 	contentType enum.ContentType,
 	contentEncoding enum.ContentEncoding,
 	nomenclature enum.Nomenclature,
-	omitEmpty bool,
 ) *EndpointResponse {
 	return &EndpointResponse{
-		aggregate:       aggregate,
-		contentType:     contentType,
-		contentEncoding: contentEncoding,
-		nomenclature:    nomenclature,
-		omitEmpty:       omitEmpty,
+		aggregate:        aggregate,
+		omitEmpty:        omitEmpty,
+		headerMapper:     headerMapper,
+		bodyMapper:       bodyMapper,
+		headerProjection: headerProjection,
+		bodyProjection:   bodyProjection,
+		contentType:      contentType,
+		contentEncoding:  contentEncoding,
+		nomenclature:     nomenclature,
 	}
 }
 
@@ -210,6 +222,22 @@ func (e EndpointResponse) Aggregate() bool {
 
 func (e EndpointResponse) OmitEmpty() bool {
 	return e.omitEmpty
+}
+
+func (e EndpointResponse) HeaderMapper() *Mapper {
+	return e.headerMapper
+}
+
+func (e EndpointResponse) HeaderProjection() *Projection {
+	return e.headerProjection
+}
+
+func (e EndpointResponse) BodyMapper() *Mapper {
+	return e.bodyMapper
+}
+
+func (e EndpointResponse) BodyProjection() *Projection {
+	return e.bodyProjection
 }
 
 func (e EndpointResponse) HasNomenclature() bool {

@@ -103,12 +103,16 @@ type Endpoint struct {
 }
 
 type EndpointResponse struct {
-	Comment         string               `json:"@comment,omitempty"`
-	Aggregate       bool                 `json:"aggregate,omitempty"`
-	ContentType     enum.ContentType     `json:"content-type,omitempty"`
-	ContentEncoding enum.ContentEncoding `json:"content-encoding,omitempty"`
-	Nomenclature    enum.Nomenclature    `json:"nomenclature,omitempty"`
-	OmitEmpty       bool                 `json:"omit-empty,omitempty"`
+	Comment          string               `json:"@comment,omitempty"`
+	Aggregate        bool                 `json:"aggregate,omitempty"`
+	OmitEmpty        bool                 `json:"omit-empty,omitempty"`
+	HeaderMapper     *vo.Mapper           `json:"header-mapper,omitempty"`
+	BodyMapper       *vo.Mapper           `json:"body-mapper,omitempty"`
+	HeaderProjection *vo.Projection       `json:"header-projection,omitempty"`
+	BodyProjection   *vo.Projection       `json:"body-projection,omitempty"`
+	ContentType      enum.ContentType     `json:"content-type,omitempty"`
+	ContentEncoding  enum.ContentEncoding `json:"content-encoding,omitempty"`
+	Nomenclature     enum.Nomenclature    `json:"nomenclature,omitempty"`
 }
 
 type Backend struct {

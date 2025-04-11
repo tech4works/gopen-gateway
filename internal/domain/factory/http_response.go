@@ -29,6 +29,8 @@ import (
 type httpResponseFactory struct {
 	aggregatorService   service.Aggregator
 	omitterService      service.Omitter
+	mapperService       service.Mapper
+	projectorService    service.Projector
 	nomenclatureService service.Nomenclature
 	contentService      service.Content
 	httpBackendFactory  HTTPBackend
@@ -40,10 +42,13 @@ type HTTPResponse interface {
 }
 
 func NewHTTPResponse(aggregatorService service.Aggregator, omitterService service.Omitter,
-	nomenclatureService service.Nomenclature, contentService service.Content, httpBackendFactory HTTPBackend) HTTPResponse {
+	mapperService service.Mapper, projectorService service.Projector, nomenclatureService service.Nomenclature,
+	contentService service.Content, httpBackendFactory HTTPBackend) HTTPResponse {
 	return httpResponseFactory{
 		aggregatorService:   aggregatorService,
 		omitterService:      omitterService,
+		mapperService:       mapperService,
+		projectorService:    projectorService,
 		nomenclatureService: nomenclatureService,
 		contentService:      contentService,
 		httpBackendFactory:  httpBackendFactory,
@@ -103,11 +108,15 @@ func (h httpResponseFactory) buildBodyByHistory(endpoint *vo.Endpoint, history *
 
 	body, omitErrs := h.omitEmptyValuesFromBody(endpoint.Response().OmitEmpty(), body)
 	body, modifyCaseErrs := h.modifyBodyCase(endpoint.Response().Nomenclature(), body)
+	body, mapErrs := h.mapperService.MapBody(body, endpoint.Response().BodyMapper())
+	body, projectErrs := h.projectorService.ProjectBody(body, endpoint.Response().BodyProjection())
 	body, modifyContentTypeErrs := h.modifyBodyContentType(endpoint.Response().ContentType(), body)
 	body, modifyBodyContentEncodingErrs := h.modifyBodyContentEncoding(endpoint.Response().ContentEncoding(), body)
 
 	errs = append(errs, omitErrs...)
 	errs = append(errs, modifyCaseErrs...)
+	errs = append(errs, mapErrs...)
+	errs = append(errs, projectErrs...)
 	errs = append(errs, modifyContentTypeErrs...)
 	errs = append(errs, modifyBodyContentEncodingErrs...)
 

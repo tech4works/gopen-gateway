@@ -387,6 +387,15 @@
         "aggregate": {
           "type": "boolean"
         },
+        "omit-empty": {
+          "type": "boolean"
+        },
+        "header-mapper": {
+          "$ref": "#/definitions/header-mapper"
+        },
+        "body-mapper": {
+          "$ref": "#/definitions/body-mapper"
+        },
         "content-type": {
           "$ref": "#/definitions/content-type"
         },
@@ -395,9 +404,6 @@
         },
         "nomenclature": {
           "$ref": "#/definitions/nomenclature"
-        },
-        "omit-empty": {
-          "type": "boolean"
         }
       },
       "additionalProperties": false

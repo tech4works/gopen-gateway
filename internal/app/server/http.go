@@ -85,8 +85,8 @@ func New(
 	log.PrintInfo("Building factories...")
 	httpBackendFactory := domainFactory.NewHTTPBackend(mapperService, projectorService, dynamicValueService,
 		modifierService, omitterService, nomenclatureService, contentService, aggregatorService)
-	httpResponseFactory := domainFactory.NewHTTPResponse(aggregatorService, omitterService, nomenclatureService,
-		contentService, httpBackendFactory)
+	httpResponseFactory := domainFactory.NewHTTPResponse(aggregatorService, omitterService, mapperService,
+		projectorService, nomenclatureService, contentService, httpBackendFactory)
 
 	log.PrintInfo("Building use cases...")
 	endpointUseCase := usecase.NewEndpoint(httpBackendFactory, httpResponseFactory, httpClient, endpointLog, backendLog)

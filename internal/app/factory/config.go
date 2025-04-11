@@ -194,10 +194,14 @@ func buildEndpointResponse(endpointResponse *dto.EndpointResponse) *vo.EndpointR
 	}
 	return vo.NewEndpointResponse(
 		endpointResponse.Aggregate,
+		endpointResponse.OmitEmpty,
+		endpointResponse.HeaderMapper,
+		endpointResponse.BodyMapper,
+		endpointResponse.HeaderProjection,
+		endpointResponse.BodyProjection,
 		endpointResponse.ContentType,
 		endpointResponse.ContentEncoding,
 		endpointResponse.Nomenclature,
-		endpointResponse.OmitEmpty,
 	)
 }
 
