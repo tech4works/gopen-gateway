@@ -19,11 +19,14 @@ package factory
 import (
 	"github.com/tech4works/checker"
 	"github.com/tech4works/converter"
+	"github.com/tech4works/errors"
+	"github.com/tech4works/gopen-gateway/internal/app/model/dto"
 	"github.com/tech4works/gopen-gateway/internal/domain/mapper"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
 	"github.com/tech4works/gopen-gateway/internal/domain/service"
 	"net/http"
+	"time"
 )
 
 type httpResponseFactory struct {
@@ -37,6 +40,7 @@ type httpResponseFactory struct {
 }
 
 type HTTPResponse interface {
+	BuildErrorResponse(endpoint *vo.Endpoint, err error) *vo.HTTPResponse
 	BuildAbortedResponse(endpoint *vo.Endpoint, history *vo.History) *vo.HTTPResponse
 	BuildResponse(endpoint *vo.Endpoint, history *vo.History) (*vo.HTTPResponse, []error)
 }
@@ -53,6 +57,26 @@ func NewHTTPResponse(aggregatorService service.Aggregator, omitterService servic
 		contentService:      contentService,
 		httpBackendFactory:  httpBackendFactory,
 	}
+}
+
+func (h httpResponseFactory) BuildErrorResponse(endpoint *vo.Endpoint, err error) *vo.HTTPResponse {
+	statusCode := vo.NewStatusCode(http.StatusInternalServerError)
+	header := vo.NewHeader(map[string][]string{
+		mapper.XGopenCache:    {"false"},
+		mapper.XGopenSuccess:  {converter.ToString(false)},
+		mapper.XGopenComplete: {converter.ToString(false)},
+	})
+	details := errors.Details(err)
+	buffer := converter.ToBuffer(dto.ErrorBody{
+		File:      details.File(),
+		Line:      details.Line(),
+		Endpoint:  endpoint.Path(),
+		Message:   details.Message(),
+		Timestamp: time.Now(),
+	})
+	body := vo.NewBodyJson(buffer)
+
+	return vo.NewHTTPResponse(statusCode, header, body)
 }
 
 func (h httpResponseFactory) BuildAbortedResponse(endpoint *vo.Endpoint, history *vo.History) *vo.HTTPResponse {

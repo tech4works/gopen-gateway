@@ -19,7 +19,7 @@ package log
 import (
 	"fmt"
 	"github.com/tech4works/gopen-gateway/internal/app"
-	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
+	"github.com/tech4works/gopen-gateway/internal/app/model/dto"
 )
 
 type endpointLog struct {
@@ -32,39 +32,36 @@ func NewEndpoint() app.EndpointLog {
 	}
 }
 
-func (e endpointLog) PrintInfof(endpoint *vo.Endpoint, request *vo.HTTPRequest, clientIP, traceID, format string,
-	msg ...any) {
-	Printf(InfoLevel, e.tag, e.prefix(endpoint, request, clientIP, traceID), format, msg...)
+func (e endpointLog) PrintInfof(executeData dto.ExecuteEndpoint, format string, msg ...any) {
+	Printf(InfoLevel, e.tag, e.prefix(executeData), format, msg...)
 }
 
-func (e endpointLog) PrintInfo(endpoint *vo.Endpoint, request *vo.HTTPRequest, clientIP, traceID string, msg ...any) {
-	Print(InfoLevel, e.tag, e.prefix(endpoint, request, clientIP, traceID), msg...)
+func (e endpointLog) PrintInfo(executeData dto.ExecuteEndpoint, msg ...any) {
+	Print(InfoLevel, e.tag, e.prefix(executeData), msg...)
 }
 
-func (e endpointLog) PrintWarnf(endpoint *vo.Endpoint, request *vo.HTTPRequest, clientIP, traceID, format string,
-	msg ...any) {
-	Printf(WarnLevel, e.tag, e.prefix(endpoint, request, clientIP, traceID), format, msg...)
+func (e endpointLog) PrintWarnf(executeData dto.ExecuteEndpoint, format string, msg ...any) {
+	Printf(WarnLevel, e.tag, e.prefix(executeData), format, msg...)
 }
 
-func (e endpointLog) PrintWarn(endpoint *vo.Endpoint, request *vo.HTTPRequest, clientIP, traceID string, msg ...any) {
-	Print(WarnLevel, e.tag, e.prefix(endpoint, request, clientIP, traceID), msg...)
+func (e endpointLog) PrintWarn(executeData dto.ExecuteEndpoint, msg ...any) {
+	Print(WarnLevel, e.tag, e.prefix(executeData), msg...)
 }
 
-func (e endpointLog) PrintErrorf(endpoint *vo.Endpoint, request *vo.HTTPRequest, clientIP, traceID, format string,
-	msg ...any) {
-	Printf(ErrorLevel, e.tag, e.prefix(endpoint, request, clientIP, traceID), format, msg...)
+func (e endpointLog) PrintErrorf(executeData dto.ExecuteEndpoint, format string, msg ...any) {
+	Printf(ErrorLevel, e.tag, e.prefix(executeData), format, msg...)
 }
 
-func (e endpointLog) PrintError(endpoint *vo.Endpoint, request *vo.HTTPRequest, clientIP, traceID string, msg ...any) {
-	Print(ErrorLevel, e.tag, e.prefix(endpoint, request, clientIP, traceID), msg...)
+func (e endpointLog) PrintError(executeData dto.ExecuteEndpoint, msg ...any) {
+	Print(ErrorLevel, e.tag, e.prefix(executeData), msg...)
 }
 
-func (e endpointLog) prefix(endpoint *vo.Endpoint, request *vo.HTTPRequest, clientIP, traceID string) string {
-	path := endpoint.Path()
-	traceIDText := BuildTraceIDText(traceID)
+func (e endpointLog) prefix(executeData dto.ExecuteEndpoint) string {
+	path := executeData.Endpoint.Path()
+	traceIDText := BuildTraceIDText(executeData.TraceID)
 
-	method := BuildMethodText(request.Method())
-	url := BuildUriText(request.Url())
+	method := BuildMethodText(executeData.Endpoint.Method())
+	url := BuildUriText(executeData.Request.URL())
 
-	return fmt.Sprintf("[%s | %s | %s |%s| %s]", path, clientIP, traceIDText, method, url)
+	return fmt.Sprintf("[%s | %s | %s |%s| %s]", path, executeData.ClientIP, traceIDText, method, url)
 }

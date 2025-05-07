@@ -34,22 +34,33 @@ type endpointUseCase struct {
 	httpBackendFactory  factory.HTTPBackend
 	httpResponseFactory factory.HTTPResponse
 	httpClient          app.HTTPClient
+	publishClient       app.PublisherClient
 	endpointLog         app.EndpointLog
 	backendLog          app.BackendLog
+	publisherLog        app.PublisherLog
 }
 
 type Endpoint interface {
 	Execute(ctx context.Context, executeData dto.ExecuteEndpoint) *vo.HTTPResponse
 }
 
-func NewEndpoint(backendFactory factory.HTTPBackend, responseFactory factory.HTTPResponse, httpClient app.HTTPClient,
-	endpointLog app.EndpointLog, backendLog app.BackendLog) Endpoint {
+func NewEndpoint(
+	backendFactory factory.HTTPBackend,
+	responseFactory factory.HTTPResponse,
+	httpClient app.HTTPClient,
+	publishClient app.PublisherClient,
+	endpointLog app.EndpointLog,
+	backendLog app.BackendLog,
+	publisherLog app.PublisherLog,
+) Endpoint {
 	return endpointUseCase{
 		httpBackendFactory:  backendFactory,
 		httpResponseFactory: responseFactory,
 		httpClient:          httpClient,
+		publishClient:       publishClient,
 		endpointLog:         endpointLog,
 		backendLog:          backendLog,
+		publisherLog:        publisherLog,
 	}
 }
 
@@ -70,6 +81,11 @@ func (e endpointUseCase) Execute(ctx context.Context, executeData dto.ExecuteEnd
 		if e.checkAbortBackendResponse(executeData.Endpoint, httpBackendResponse) {
 			return e.buildAbortedHTTPResponse(executeData, history)
 		}
+	}
+
+	err := e.executePublishers(ctx, executeData)
+	if checker.NonNil(err) {
+		return e.httpResponseFactory.BuildErrorResponse(executeData.Endpoint, err)
 	}
 
 	return e.buildHTTPResponse(ctx, executeData, history)
@@ -128,6 +144,16 @@ func (e endpointUseCase) makeBackendRequest(
 	e.backendLog.PrintResponse(executeData, backend, httpBackendRequest, httpBackendResponse, duration)
 
 	return httpBackendResponse
+}
+
+func (e endpointUseCase) publish(
+	ctx context.Context,
+	executeData dto.ExecuteEndpoint,
+	publisher *vo.Publisher,
+	message *vo.Message,
+) error {
+	e.publisherLog.PrintRequest(executeData, publisher, message)
+	return e.publishClient.Publish(ctx, publisher, message)
 }
 
 func (e endpointUseCase) treatHTTPClientErr(err error) error {
@@ -192,7 +218,7 @@ func (e endpointUseCase) buildHTTPResponse(ctx context.Context, executeData dto.
 	httpResponse, errs := e.httpResponseFactory.BuildResponse(executeData.Endpoint, filteredHistory)
 
 	for _, err := range errs {
-		e.printEndpointWarn(executeData, err)
+		e.endpointLog.PrintWarn(executeData, err)
 	}
 
 	return httpResponse
@@ -225,6 +251,28 @@ func (e endpointUseCase) filterHistory(ctx context.Context, executeData dto.Exec
 	return vo.NewHistory(backends, requests, responses)
 }
 
-func (e endpointUseCase) printEndpointWarn(executeData dto.ExecuteEndpoint, err error) {
-	e.endpointLog.PrintWarn(executeData.Endpoint, executeData.Request, executeData.ClientIP, executeData.TraceID, err)
+func (e endpointUseCase) executePublishers(ctx context.Context, executeData dto.ExecuteEndpoint) error {
+	if !executeData.Endpoint.HasPublishers() {
+		return nil
+	}
+
+	if executeData.Request.HasBody() {
+		// todo: add edition flow of message sending
+		body, err := executeData.Request.Body().String()
+		if checker.NonNil(err) {
+			return err
+		}
+		message := vo.NewMessage(body)
+
+		for _, publisher := range executeData.Endpoint.Publishers() {
+			err = e.publish(ctx, executeData, &publisher, &message)
+			if checker.NonNil(err) {
+				return err
+			}
+		}
+	} else {
+		e.endpointLog.PrintWarn(executeData, "Ignore publishers because request body is empty!")
+	}
+
+	return nil
 }

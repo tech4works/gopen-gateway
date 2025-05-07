@@ -36,6 +36,10 @@ type ContentEncoding string
 
 type CacheControl string
 
+type ProxyProvider string
+
+type PublisherProvider string
+
 const (
 	ModifierScopeRequest  ModifierScope = "REQUEST"
 	ModifierScopeResponse ModifierScope = "RESPONSE"
@@ -86,6 +90,13 @@ const (
 const (
 	CacheControlNoCache CacheControl = "no-cache"
 	CacheControlNoStore CacheControl = "no-store"
+)
+const (
+	ProxyProviderNgrok ProxyProvider = "NGROK"
+)
+const (
+	PublisherProviderAwsSqs PublisherProvider = "AWS/SQS"
+	PublisherProviderAwsSns PublisherProvider = "AWS/SNS"
 )
 
 func (c ContentType) IsEnumValid() bool {

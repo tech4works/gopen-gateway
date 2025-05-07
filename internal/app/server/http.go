@@ -32,12 +32,15 @@ import (
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
 	"github.com/tech4works/gopen-gateway/internal/domain/service"
 	"go.elastic.co/apm/module/apmhttp/v2"
-	net "net/http"
+	"golang.ngrok.com/ngrok"
+	"golang.ngrok.com/ngrok/config"
+	"net"
+	nethttp "net/http"
 	"os"
 )
 
 type http struct {
-	net                     *net.Server
+	net                     *nethttp.Server
 	gopen                   *vo.Gopen
 	log                     app.BootLog
 	router                  app.Router
@@ -61,8 +64,11 @@ func New(
 	log app.BootLog,
 	router app.Router,
 	httpClient app.HTTPClient,
+	publisherClient app.PublisherClient,
+	middlewareLog app.MiddlewareLog,
 	endpointLog app.EndpointLog,
 	backendLog app.BackendLog,
+	publisherLog app.PublisherLog,
 	httpLog app.HTTPLog,
 	jsonPath domain.JSONPath,
 	converter domain.Converter,
@@ -89,15 +95,16 @@ func New(
 		projectorService, nomenclatureService, contentService, httpBackendFactory)
 
 	log.PrintInfo("Building use cases...")
-	endpointUseCase := usecase.NewEndpoint(httpBackendFactory, httpResponseFactory, httpClient, endpointLog, backendLog)
+	endpointUseCase := usecase.NewEndpoint(httpBackendFactory, httpResponseFactory, httpClient, publisherClient,
+		endpointLog, backendLog, publisherLog)
 
 	log.PrintInfo("Building middlewares...")
-	panicRecoveryMiddleware := middleware.NewPanicRecovery(endpointLog)
+	panicRecoveryMiddleware := middleware.NewPanicRecovery(middlewareLog)
 	logMiddleware := middleware.NewLog(httpLog)
 	securityCorsMiddleware := middleware.NewSecurityCors(securityCorsService)
 	timeoutMiddleware := middleware.NewTimeout()
 	limiterMiddleware := middleware.NewLimiter(limiterService)
-	cacheMiddleware := middleware.NewCache(cacheService, endpointLog)
+	cacheMiddleware := middleware.NewCache(cacheService, middlewareLog)
 
 	log.PrintInfo("Building controllers...")
 	staticController := controller.NewStatic(gopen)
@@ -120,20 +127,44 @@ func New(
 }
 
 func (h *http) ListenAndServe() {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	h.log.PrintInfo("Configuring routes...")
 
 	h.buildStaticRoutes()
 	h.buildRoutes()
 
-	h.net = &net.Server{
-		Addr:    fmt.Sprint(":", os.Getenv("GOPEN_PORT")),
+	h.net = &nethttp.Server{
 		Handler: apmhttp.Wrap(h.router.Engine()),
 	}
 
-	h.log.SkipLine()
-	h.log.PrintTitle(fmt.Sprintf("LISTEN AND SERVE %s", h.net.Addr))
+	var listener net.Listener
+	var err error
+	if h.gopen.HasProxy() {
+		h.log.PrintInfo("Configuring proxy...")
 
-	h.net.ListenAndServe()
+		var opts []config.HTTPEndpointOption
+		for _, d := range h.gopen.Proxy().Domains() {
+			opts = append(opts, config.WithDomain(d))
+		}
+
+		listener, err = ngrok.Listen(
+			ctx,
+			config.HTTPEndpoint(opts...),
+			ngrok.WithAuthtoken(h.gopen.Proxy().Token()),
+		)
+	} else {
+		listener, err = net.Listen("tcp", fmt.Sprint(":", os.Getenv("GOPEN_PORT")))
+	}
+	if checker.NonNil(err) {
+		panic(err)
+	}
+
+	h.log.SkipLine()
+	h.log.PrintTitle(fmt.Sprintf("LISTEN AND SERVE %s", listener.Addr().String()))
+
+	h.net.Serve(listener)
 }
 
 func (h *http) Shutdown(ctx context.Context) error {
@@ -166,19 +197,19 @@ func (h *http) buildStaticRoutes() {
 }
 
 func (h *http) buildStaticPingRoute() *vo.Endpoint {
-	endpoint := vo.NewEndpointStatic("/ping", net.MethodGet)
+	endpoint := vo.NewEndpointStatic("/ping", nethttp.MethodGet)
 	h.buildStaticRoute(&endpoint, h.staticController.Ping)
 	return &endpoint
 }
 
 func (h *http) buildStaticVersionRoute() *vo.Endpoint {
-	endpoint := vo.NewEndpointStatic("/version", net.MethodGet)
+	endpoint := vo.NewEndpointStatic("/version", nethttp.MethodGet)
 	h.buildStaticRoute(&endpoint, h.staticController.Version)
 	return &endpoint
 }
 
 func (h *http) buildStaticSettingsRoute() *vo.Endpoint {
-	endpoint := vo.NewEndpointStatic("/settings", net.MethodGet)
+	endpoint := vo.NewEndpointStatic("/settings", nethttp.MethodGet)
 	h.buildStaticRoute(&endpoint, h.staticController.Settings)
 	return &endpoint
 }

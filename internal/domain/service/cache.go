@@ -86,7 +86,7 @@ func (c cacheService) canWrite(cache *vo.Cache, request *vo.HTTPRequest, respons
 }
 
 func (c cacheService) buildKey(cache *vo.Cache, request *vo.HTTPRequest) string {
-	url := request.Url()
+	url := request.URL()
 	if cache.IgnoreQuery() {
 		url = request.Path().String()
 	}

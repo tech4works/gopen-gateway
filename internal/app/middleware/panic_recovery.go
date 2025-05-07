@@ -26,14 +26,14 @@ import (
 )
 
 type panicRecoveryMiddleware struct {
-	log app.EndpointLog
+	log app.MiddlewareLog
 }
 
 type PanicRecovery interface {
 	Do(ctx app.Context)
 }
 
-func NewPanicRecovery(log app.EndpointLog) PanicRecovery {
+func NewPanicRecovery(log app.MiddlewareLog) PanicRecovery {
 	return panicRecoveryMiddleware{
 		log: log,
 	}
@@ -42,7 +42,7 @@ func NewPanicRecovery(log app.EndpointLog) PanicRecovery {
 func (p panicRecoveryMiddleware) Do(ctx app.Context) {
 	defer func() {
 		if r := recover(); checker.NonNil(r) {
-			p.printErrorf(ctx, "%s:%s", r, string(debug.Stack()))
+			p.log.PrintErrorf(ctx, "%s:%s", r, string(debug.Stack()))
 
 			err := errors.New("Gateway panic error occurred! detail:", r)
 
@@ -57,8 +57,4 @@ func (p panicRecoveryMiddleware) Do(ctx app.Context) {
 		}
 	}()
 	ctx.Next()
-}
-
-func (p panicRecoveryMiddleware) printErrorf(ctx app.Context, format string, msg ...any) {
-	p.log.PrintErrorf(ctx.Endpoint(), ctx.Request(), ctx.ClientIP(), ctx.TraceID(), format, msg...)
 }

@@ -20,6 +20,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	aws "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/sns"
+	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/fsnotify/fsnotify"
 	"github.com/joho/godotenv"
 	"github.com/tech4works/checker"
@@ -35,6 +38,7 @@ import (
 	"github.com/tech4works/gopen-gateway/internal/infra/jsonpath"
 	"github.com/tech4works/gopen-gateway/internal/infra/log"
 	"github.com/tech4works/gopen-gateway/internal/infra/nomenclature"
+	"github.com/tech4works/gopen-gateway/internal/infra/publisher"
 	"github.com/xeipuuv/gojsonschema"
 	"os"
 	"regexp"
@@ -86,6 +90,9 @@ func (p provider) Init() *dto.Gopen {
 }
 
 func (p provider) Start(gopen *dto.Gopen) {
+	ctx, cancel := context.WithTimeout(context.TODO(), 1*time.Minute)
+	defer cancel()
+
 	p.log.PrintInfo("Configuring cache store...")
 	store := cache.NewMemoryStore()
 	if checker.NonNil(gopen.Store) {
@@ -93,25 +100,38 @@ func (p provider) Start(gopen *dto.Gopen) {
 	}
 	defer store.Close()
 
+	p.log.PrintInfo("Configuring publishers clients...")
+	var sqsClient *sqs.Client
+	var snsClient *sns.Client
+
+	awsConfig, _ := aws.LoadDefaultConfig(ctx)
+	if checker.NonNil(awsConfig) {
+		sqsClient = sqs.NewFromConfig(awsConfig)
+		snsClient = sns.NewFromConfig(awsConfig)
+	}
+
 	err := p.writeRuntimeJson(gopen)
 	if checker.NonNil(err) {
 		p.log.PrintWarn(err)
 	}
 
 	p.log.PrintInfo("Building log providers...")
+	middlewareLog := log.NewMiddleware()
 	endpointLog := log.NewEndpoint()
 	backendLog := log.NewBackend()
+	publisherLog := log.NewPublisher()
 	httpLog := log.NewHTTPLog()
 
 	p.log.PrintInfo("Building server...")
 	router := api.NewRouter()
 	httpClient := http.NewClient()
+	publisherClient := publisher.NewClient(sqsClient, snsClient)
 	jsonPath := jsonpath.New()
 	nConverter := convert.New()
 	nNomenclature := nomenclature.New()
 
-	httpServer := server.New(gopen, p.log, router, httpClient, endpointLog, backendLog, httpLog, jsonPath, nConverter,
-		store, nNomenclature)
+	httpServer := server.New(gopen, p.log, router, httpClient, publisherClient, middlewareLog, endpointLog, backendLog,
+		publisherLog, httpLog, jsonPath, nConverter, store, nNomenclature)
 
 	if gopen.HotReload {
 		p.log.PrintInfo("Configuring watcher...")

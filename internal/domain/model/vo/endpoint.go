@@ -32,6 +32,7 @@ type Endpoint struct {
 	abortIfStatusCodes *[]int
 	response           *EndpointResponse
 	backends           []Backend
+	publishers         []Publisher
 }
 
 type EndpointResponse struct {
@@ -55,6 +56,7 @@ func NewEndpoint(
 	abortIfStatusCodes *[]int,
 	response *EndpointResponse,
 	backends []Backend,
+	publishers []Publisher,
 ) Endpoint {
 	return Endpoint{
 		path:               path,
@@ -65,6 +67,7 @@ func NewEndpoint(
 		abortIfStatusCodes: abortIfStatusCodes,
 		response:           response,
 		backends:           backends,
+		publishers:         publishers,
 	}
 }
 
@@ -128,6 +131,10 @@ func (e *Endpoint) Backends() []Backend {
 	return e.backends
 }
 
+func (e *Endpoint) Publishers() []Publisher {
+	return e.publishers
+}
+
 func (e *Endpoint) CountBeforewares() (count int) {
 	for _, backend := range e.backends {
 		if backend.IsBeforeware() {
@@ -151,6 +158,13 @@ func (e *Endpoint) CountBackends() (count int) {
 		if backend.IsNormal() {
 			count++
 		}
+	}
+	return count
+}
+
+func (e *Endpoint) CountPublishers() (count int) {
+	for range e.publishers {
+		count++
 	}
 	return count
 }
@@ -188,8 +202,8 @@ func (e *Endpoint) AbortIfStatusCodes() *[]int {
 }
 
 func (e *Endpoint) Resume() string {
-	return fmt.Sprintf("%s --> \"%s\" (beforeware:%v, afterware:%v, backends:%v, transformations:%v)",
-		e.method, e.path, e.CountBeforewares(), e.CountAfterwares(), e.CountBackends(), e.CountAllDataTransforms())
+	return fmt.Sprintf("%s --> \"%s\" (beforeware:%v, afterware:%v, backends:%v, publishers: %v, transformations:%v)",
+		e.method, e.path, e.CountBeforewares(), e.CountAfterwares(), e.CountBackends(), e.CountPublishers(), e.CountAllDataTransforms())
 }
 
 func (e *Endpoint) NoCache() bool {
@@ -198,6 +212,10 @@ func (e *Endpoint) NoCache() bool {
 
 func (e *Endpoint) HasResponse() bool {
 	return checker.NonNil(e.response)
+}
+
+func (e *Endpoint) HasPublishers() bool {
+	return checker.IsNotEmpty(e.publishers)
 }
 
 func (e EndpointResponse) HasContentType() bool {

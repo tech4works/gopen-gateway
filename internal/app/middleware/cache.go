@@ -24,14 +24,14 @@ import (
 
 type cacheMiddleware struct {
 	service service.Cache
-	log     app.EndpointLog
+	log     app.MiddlewareLog
 }
 
 type Cache interface {
 	Do(ctx app.Context)
 }
 
-func NewCache(service service.Cache, log app.EndpointLog) Cache {
+func NewCache(service service.Cache, log app.MiddlewareLog) Cache {
 	return cacheMiddleware{
 		service: service,
 		log:     log,
@@ -61,5 +61,5 @@ func (c cacheMiddleware) Do(ctx app.Context) {
 }
 
 func (c cacheMiddleware) printWarnf(ctx app.Context, format string, msg ...any) {
-	c.log.PrintWarnf(ctx.Endpoint(), ctx.Request(), ctx.ClientIP(), ctx.TraceID(), format, msg...)
+	c.log.PrintWarnf(ctx, format, msg...)
 }

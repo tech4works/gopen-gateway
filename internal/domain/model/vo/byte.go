@@ -92,6 +92,6 @@ func (b *Bytes) MarshalJSON() ([]byte, error) {
 	return []byte(strconv.Quote(b.String())), nil
 }
 
-func (b *Bytes) String() string {
-	return fmt.Sprintf("%vB", int(*b))
+func (b Bytes) String() string {
+	return fmt.Sprintf("%vB", int(b))
 }

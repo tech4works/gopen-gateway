@@ -72,18 +72,31 @@ type HTTPClient interface {
 	MakeRequest(ctx context.Context, request *vo.HTTPBackendRequest) (*http.Response, error)
 }
 
+type PublisherClient interface {
+	Publish(ctx context.Context, publisher *vo.Publisher, message *vo.Message) error
+}
+
 type HTTPLog interface {
 	PrintRequest(ctx Context)
 	PrintResponse(ctx Context)
 }
 
+type MiddlewareLog interface {
+	PrintInfof(ctx Context, format string, msg ...any)
+	PrintInfo(ctx Context, msg ...any)
+	PrintWarnf(ctx Context, format string, msg ...any)
+	PrintWarn(ctx Context, msg ...any)
+	PrintErrorf(ctx Context, format string, msg ...any)
+	PrintError(ctx Context, msg ...any)
+}
+
 type EndpointLog interface {
-	PrintInfof(endpoint *vo.Endpoint, request *vo.HTTPRequest, clientIP, traceID, format string, msg ...any)
-	PrintInfo(endpoint *vo.Endpoint, request *vo.HTTPRequest, clientIP, traceID string, msg ...any)
-	PrintWarnf(endpoint *vo.Endpoint, request *vo.HTTPRequest, clientIP, traceID, format string, msg ...any)
-	PrintWarn(endpoint *vo.Endpoint, request *vo.HTTPRequest, clientIP, traceID string, msg ...any)
-	PrintErrorf(endpoint *vo.Endpoint, request *vo.HTTPRequest, clientIP, traceID, format string, msg ...any)
-	PrintError(endpoint *vo.Endpoint, request *vo.HTTPRequest, clientIP, traceID string, msg ...any)
+	PrintInfof(executeData dto.ExecuteEndpoint, format string, msg ...any)
+	PrintInfo(executeData dto.ExecuteEndpoint, msg ...any)
+	PrintWarnf(executeData dto.ExecuteEndpoint, format string, msg ...any)
+	PrintWarn(executeData dto.ExecuteEndpoint, msg ...any)
+	PrintErrorf(executeData dto.ExecuteEndpoint, format string, msg ...any)
+	PrintError(executeData dto.ExecuteEndpoint, msg ...any)
 }
 
 type BackendLog interface {
@@ -95,4 +108,8 @@ type BackendLog interface {
 	PrintWarn(executeData dto.ExecuteEndpoint, backend *vo.Backend, request *vo.HTTPBackendRequest, msg ...any)
 	PrintErrorf(executeData dto.ExecuteEndpoint, backend *vo.Backend, request *vo.HTTPBackendRequest, format string, msg ...any)
 	PrintError(executeData dto.ExecuteEndpoint, backend *vo.Backend, request *vo.HTTPBackendRequest, msg ...any)
+}
+
+type PublisherLog interface {
+	PrintRequest(executeData dto.ExecuteEndpoint, publisher *vo.Publisher, message *vo.Message)
 }

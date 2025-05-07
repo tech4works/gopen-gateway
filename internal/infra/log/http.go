@@ -55,7 +55,7 @@ func (a httpLog) prefix(ctx app.Context) string {
 	ip := ctx.ClientIP()
 
 	method := BuildMethodText(ctx.Request().Method())
-	url := BuildUriText(ctx.Request().Url())
+	url := BuildUriText(ctx.Request().URL())
 
 	return fmt.Sprintf("[%s | %s | %s |%s| %s]", path, ip, traceID, method, url)
 }

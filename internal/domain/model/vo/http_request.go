@@ -42,7 +42,7 @@ func NewHTTPRequest(path URLPath, url, method string, header Header, query Query
 	}
 }
 
-func (h *HTTPRequest) Url() string {
+func (h *HTTPRequest) URL() string {
 	return h.url
 }
 

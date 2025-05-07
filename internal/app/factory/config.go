@@ -28,9 +28,17 @@ import (
 
 func BuildGopen(gopen *dto.Gopen) *vo.Gopen {
 	return vo.NewGopen(
+		buildProxy(gopen.Proxy),
 		buildSecurityCors(gopen.SecurityCors),
 		buildEndpoints(gopen),
 	)
+}
+
+func buildProxy(proxy *dto.Proxy) *vo.Proxy {
+	if checker.IsNil(proxy) {
+		return nil
+	}
+	return vo.NewProxy(proxy.Provider, proxy.Token, proxy.Domains)
 }
 
 func buildSecurityCors(securityCors *dto.SecurityCors) *vo.SecurityCors {
@@ -76,6 +84,7 @@ func buildEndpoint(gopen *dto.Gopen, endpoint dto.Endpoint) vo.Endpoint {
 		endpoint.AbortIfStatusCodes,
 		buildEndpointResponse(endpoint.Response),
 		buildBackends(gopen.Middlewares, endpoint),
+		buildPublishers(endpoint),
 	)
 }
 
@@ -222,6 +231,14 @@ func buildBackends(middlewares map[string]dto.Backend, endpoint dto.Endpoint) []
 	result = append(result, buildMiddlewareBackend(endpoint.Afterwares, middlewares, enum.BackendTypeAfterware,
 		propagateHeaderModifiers, propagateParamModifiers, propagateBodyModifiers, propagateQueryModifiers)...)
 
+	return result
+}
+
+func buildPublishers(endpoint dto.Endpoint) []vo.Publisher {
+	var result []vo.Publisher
+	for _, publisher := range endpoint.Publishers {
+		result = append(result, vo.NewPublisher(publisher.Provider, publisher.Reference))
+	}
 	return result
 }
 

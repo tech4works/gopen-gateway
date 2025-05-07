@@ -26,6 +26,7 @@ type Gopen struct {
 	Comment      string             `json:"@comment,omitempty"`
 	Version      string             `json:"version,omitempty"`
 	HotReload    bool               `json:"hot-reload,omitempty"`
+	Proxy        *Proxy             `json:"proxy,omitempty"`
 	Store        *Store             `json:"store,omitempty"`
 	Timeout      vo.Duration        `json:"timeout,omitempty"`
 	Cache        *Cache             `json:"cache,omitempty"`
@@ -33,6 +34,12 @@ type Gopen struct {
 	SecurityCors *SecurityCors      `json:"security-cors,omitempty"`
 	Middlewares  map[string]Backend `json:"middlewares,omitempty"`
 	Endpoints    []Endpoint         `json:"endpoints,omitempty"`
+}
+
+type Proxy struct {
+	Provider enum.ProxyProvider `json:"provider,omitempty"`
+	Token    string             `json:"token,omitempty"`
+	Domains  []string           `json:"domains,omitempty"`
 }
 
 type Store struct {
@@ -100,6 +107,7 @@ type Endpoint struct {
 	Beforewares        []string          `json:"beforewares,omitempty"`
 	Afterwares         []string          `json:"afterwares,omitempty"`
 	Backends           []Backend         `json:"backends,omitempty"`
+	Publishers         []Publisher       `json:"publishers,omitempty"`
 }
 
 type EndpointResponse struct {
@@ -122,6 +130,12 @@ type Backend struct {
 	Method   string           `json:"method,omitempty"`
 	Request  *BackendRequest  `json:"request,omitempty"`
 	Response *BackendResponse `json:"response,omitempty"`
+}
+
+type Publisher struct {
+	Comment   string                 `json:"@comment,omitempty"`
+	Provider  enum.PublisherProvider `json:"provider,omitempty"`
+	Reference string                 `json:"reference,omitempty"`
 }
 
 type BackendRequest struct {
