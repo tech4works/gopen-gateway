@@ -1,6 +1,6 @@
 <img src="assets/logo.png" alt="">
 
-[![Project status](https://img.shields.io/badge/version-v1.0.8-orange.svg)](https://github.com/tech4works/gopen-gateway/releases/tag/v1.0.8)
+[![Project status](https://img.shields.io/badge/version-v1.0.9-orange.svg)](https://github.com/tech4works/gopen-gateway/releases/tag/v1.0.9)
 [![GitHub](https://badgen.net/badge/icon/base?icon=github&label)](https://github.com/tech4works/gopen-gateway-base)
 [![Playground](https://img.shields.io/badge/%F0%9F%8F%90-playground-9900cc.svg)](https://github.com/tech4works/gopen-gateway-playground)
 [![Docker](https://badgen.net/badge/icon/docker?icon=docker&label)](https://hub.docker.com/r/tech4works/gopen-gateway)
@@ -100,13 +100,13 @@ configuração e variáveis de ambiente, então vamos lá!
 
 Independente de como irá utilizar a API Gateway, ela exige duas variáveis de ambiente que são:
 
-### GOPEN_PORT
+### PORT
 
 Porta aonde sua API Gateway irá ouvir e servir.
 
 Exemplo: **8080**
 
-### GOPEN_ENV
+### ENV
 
 Qual ambiente sua API Gateway irá atuar.
 
@@ -145,7 +145,7 @@ contendo os nomes dos seus ambientes, você pode dar o nome que quiser, essa pas
 
 ## JSON de configuração
 
-Com base nesse arquivo JSON de configuração obtido através da variável de ambiente [GOPEN_ENV](#gopen_env) informada,
+Com base nesse arquivo JSON de configuração obtido através da variável de ambiente [ENV](#env) informada,
 a aplicação terá seus endpoints e suas regras definidas, veja abaixo todos os campos possíveis e seus conceitos e
 regras:
 

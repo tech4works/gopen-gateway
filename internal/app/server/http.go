@@ -155,7 +155,7 @@ func (h *http) ListenAndServe() {
 			ngrok.WithAuthtoken(h.gopen.Proxy().Token()),
 		)
 	} else {
-		listener, err = net.Listen("tcp", fmt.Sprint(":", os.Getenv("GOPEN_PORT")))
+		listener, err = net.Listen("tcp", fmt.Sprint(":", os.Getenv("PORT")))
 	}
 	if checker.NonNil(err) {
 		panic(err)

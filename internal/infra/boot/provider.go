@@ -61,12 +61,12 @@ func New() app.Boot {
 }
 
 func (p provider) Init() *dto.Gopen {
-	if checker.IsEmpty(os.Getenv("GOPEN_ENV")) || checker.IsEmpty(os.Getenv("GOPEN_PORT")) {
-		panic("Please fill in the mandatory environment variables which are GOPEN_ENV and GOPEN_PORT!")
+	if checker.IsEmpty(os.Getenv("ENV")) || checker.IsEmpty(os.Getenv("PORT")) {
+		panic("Please fill in the mandatory environment variables which are ENV and PORT!")
 	}
 
-	if !checker.IsInt(os.Getenv("GOPEN_PORT")) {
-		panic("Please fill the environment variable GOPEN_PORT with numbers only!")
+	if !checker.IsInt(os.Getenv("PORT")) {
+		panic("Please fill the environment variable PORT with numbers only!")
 	}
 
 	p.log.PrintLogo()
@@ -83,7 +83,7 @@ func (p provider) Init() *dto.Gopen {
 		panic(err)
 	}
 
-	os.Setenv("ELASTIC_APM_ENVIRONMENT", os.Getenv("GOPEN_ENV"))
+	os.Setenv("ELASTIC_APM_ENVIRONMENT", os.Getenv("ENV"))
 	os.Setenv("ELASTIC_APM_SERVICE_VERSION", gopen.Version)
 
 	return gopen
@@ -335,9 +335,9 @@ func (p provider) removeRuntimeJson() error {
 }
 
 func (p provider) buildEnvUri() string {
-	return fmt.Sprintf("./gopen/%s/.env", os.Getenv("GOPEN_ENV"))
+	return fmt.Sprintf("./gopen/%s/.env", os.Getenv("ENV"))
 }
 
 func (p provider) buildJsonUri() string {
-	return fmt.Sprintf("./gopen/%s/.json", os.Getenv("GOPEN_ENV"))
+	return fmt.Sprintf("./gopen/%s/.json", os.Getenv("ENV"))
 }
