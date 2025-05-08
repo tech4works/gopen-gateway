@@ -113,7 +113,7 @@ func (c cacheService) allowMethod(cache *vo.Cache, request *vo.HTTPRequest) bool
 
 func (c cacheService) allowStatusCode(cache *vo.Cache, response *vo.HTTPResponse) bool {
 	return (!cache.HasAnyOnlyIfStatusCodes() && response.StatusCode().OK()) ||
-		checker.Contains(cache.OnlyIfStatusCodes(), response.StatusCode().Code())
+		(checker.NonNil(cache.OnlyIfStatusCodes()) && checker.Contains(cache.OnlyIfStatusCodes(), response.StatusCode().Code()))
 }
 
 func (c cacheService) extractCacheControl(cache *vo.Cache, request *vo.HTTPRequest) enum.CacheControl {

@@ -1,10 +1,10 @@
-# Build phase
+# Build phase (Go binary creation)
 FROM golang:1.23.1 AS builder
 
 # Set the working directory
 WORKDIR /app
 
-# Copy the go mod and sum files
+# Copy go.mod and go.sum files to the container
 COPY go.mod go.sum ./
 
 # Download dependencies
@@ -15,22 +15,22 @@ COPY ./json-schema.json ./json-schema.json
 COPY ./cmd/main.go ./cmd/main.go
 COPY ./internal ./internal
 
-# Change to the directory containing "main.go"
+# Change to the directory containing main.go
 WORKDIR /app/cmd
 
-# Build the Go app
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -installsuffix cgo -o main . && rm main.go
+# Build the Go app for Linux/amd64 architecture
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -installsuffix cgo -o main .
 
-# Execution phase (using Alpine)
+# Execution phase (using Alpine to run the binary)
 FROM alpine:latest
 
-# Install CA certificates (for https requests)
+# Install SSL certificates (required for https requests)
 RUN apk --no-cache add ca-certificates
 
-# Set the working directory to /app
+# Set the working directory for execution
 WORKDIR /app
 
-# Copy the binary from the builder stage
+# Copy the compiled binary from the build phase
 COPY --from=builder /app/cmd/main ./main
 
 # Copy the .json-schema.json file
@@ -43,4 +43,4 @@ RUN mkdir -p ./runtime
 RUN chmod +x ./main
 
 # Command to run the Go application
-CMD ./main
+CMD ["/app/main"]
