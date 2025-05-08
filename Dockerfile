@@ -19,7 +19,7 @@ COPY ./internal ./internal
 WORKDIR /app/cmd
 
 # Build the Go app
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main . && rm main.go
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -installsuffix cgo -o main . && rm main.go
 
 # Execution phase (using Alpine)
 FROM alpine:latest
@@ -43,4 +43,4 @@ RUN mkdir -p ./runtime
 RUN chmod +x ./main
 
 # Command to run the Go application
-CMD ["./main"]
+CMD ./main
