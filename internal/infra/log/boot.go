@@ -41,7 +41,7 @@ func (l bootLog) PrintLogo() {
 ##    ##  ##     ## ##        ##       ##   ###
  ######    #######  ##        ######## ##    ##
 -----------------------------------------------
-Best open source API Gateway!            v1.0.6
+Best open source API Gateway!            v1.1.0
 -----------------------------------------------
 2024 • Tech4Works.
 

@@ -183,7 +183,7 @@ func (p provider) restart(oldGopen *dto.Gopen, oldServer server.HTTP) {
 	}
 
 	p.log.PrintInfo("Reloading Gopen envs...")
-	err = p.loadEnvs()
+	err = p.reloadEnvs()
 	if checker.NonNil(err) {
 		p.log.PrintWarn(err)
 	}
@@ -239,6 +239,16 @@ func (p provider) initWatcher(oldGopen *dto.Gopen, oldServer server.HTTP) (*fsno
 }
 
 func (p provider) loadEnvs() (err error) {
+	gopenEnvUri := p.buildEnvUri()
+
+	if err = godotenv.Load(gopenEnvUri); checker.NonNil(err) {
+		err = errors.New("Error load Gopen envs from uri:", gopenEnvUri, "err:", err)
+	}
+
+	return err
+}
+
+func (p provider) reloadEnvs() (err error) {
 	gopenEnvUri := p.buildEnvUri()
 
 	if err = godotenv.Overload(gopenEnvUri); checker.NonNil(err) {
@@ -335,9 +345,17 @@ func (p provider) removeRuntimeJson() error {
 }
 
 func (p provider) buildEnvUri() string {
-	return fmt.Sprintf("./gopen/%s/.env", os.Getenv("ENV"))
+	path := fmt.Sprintf("./gopen/%s/.env", os.Getenv("ENV"))
+	if _, err := os.Stat(path); checker.IsNil(err) {
+		return path
+	}
+	return "./gopen/.env"
 }
 
 func (p provider) buildJsonUri() string {
-	return fmt.Sprintf("./gopen/%s/.json", os.Getenv("ENV"))
+	path := fmt.Sprintf("./gopen/%s/.json", os.Getenv("ENV"))
+	if _, err := os.Stat(path); checker.IsNil(err) {
+		return path
+	}
+	return "./gopen/.json"
 }
