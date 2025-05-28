@@ -44,13 +44,10 @@ func NewRedisStore(address, password string) domain.Store {
 }
 
 func (r redisStore) Set(ctx context.Context, key string, cacheResponse *vo.CacheResponse) error {
-	span, _ := apm.StartSpan(ctx, "Write", "cache")
-	if checker.NonNil(span) {
-		span.Context.SetLabel("cache", "GLOBAL")
-		span.Context.SetLabel("key", key)
+	span, ctx := apm.StartSpan(ctx, "global.write", "cache")
+	defer span.End()
 
-		defer span.End()
-	}
+	span.Context.SetLabel("key", key)
 
 	b64, err := compressor.ToGzipBase64WithErr(cacheResponse)
 	if checker.NonNil(err) {
@@ -65,14 +62,10 @@ func (r redisStore) Del(ctx context.Context, key string) error {
 }
 
 func (r redisStore) Get(ctx context.Context, key string) (*vo.CacheResponse, error) {
-	span, _ := apm.StartSpan(ctx, "Read", "cache")
-	if checker.NonNil(span) {
-		span.Context.SetLabel("cache", "GLOBAL")
-		span.Context.SetLabel("key", key)
+	span, ctx := apm.StartSpan(ctx, "global.read", "cache")
+	defer span.End()
 
-		defer span.End()
-	}
-
+	span.Context.SetLabel("key", key)
 	span.Context.SetLabel("cache", "GLOBAL")
 	span.Context.SetLabel("key", key)
 

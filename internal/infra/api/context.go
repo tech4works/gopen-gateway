@@ -57,7 +57,7 @@ func newContext(gin *gin.Context, gopen *vo.Gopen, endpoint *vo.Endpoint) app.Co
 }
 
 func buildHTTPRequest(gin *gin.Context) *vo.HTTPRequest {
-	gin.Request.Header.Add(mapper.XForwardedFor, gin.ClientIP())
+	gin.Request.Header.Set(mapper.XForwardedFor, gin.ClientIP())
 	header := vo.NewHeader(gin.Request.Header)
 
 	query := vo.NewQuery(gin.Request.URL.Query())

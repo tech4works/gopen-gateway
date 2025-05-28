@@ -42,14 +42,12 @@ func NewClient(sqs *sqs.Client, sns *sns.Client) app.PublisherClient {
 }
 
 func (c client) Publish(ctx context.Context, publisher *vo.Publisher, message *vo.Message) error {
-	span, _ := apm.StartSpan(ctx, "Publish", "publisher")
-	if checker.NonNil(span) {
-		span.Context.SetLabel("provider", publisher.Provider())
-		span.Context.SetLabel("url", publisher.Reference())
-		span.Context.SetLabel("message", message.Body())
+	span, ctx := apm.StartSpan(ctx, "messaging.publish", "publisher")
+	defer span.End()
 
-		defer span.End()
-	}
+	span.Context.SetLabel("provider", publisher.Provider())
+	span.Context.SetLabel("url", publisher.Reference())
+	span.Context.SetLabel("message", message.Body())
 
 	switch publisher.Provider() {
 	case enum.PublisherProviderAwsSqs:

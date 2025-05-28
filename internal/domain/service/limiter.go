@@ -81,10 +81,10 @@ func (s *limiterService) AllowSize(request *vo.HTTPRequest, limiter vo.Limiter) 
 		return nil
 	}
 
-	bodyBuffer := request.Body().Buffer()
-	readCloser := http.MaxBytesReader(nil, io.NopCloser(bodyBuffer), int64(maxBodySize))
+	reader := http.MaxBytesReader(nil, io.NopCloser(request.Body().Buffer()), int64(maxBodySize))
+	defer reader.Close()
 
-	_, err := io.ReadAll(readCloser)
+	_, err := io.ReadAll(reader)
 	if checker.NonNil(err) {
 		return mapper.NewErrPayloadTooLarge(maxBodySize.String())
 	}

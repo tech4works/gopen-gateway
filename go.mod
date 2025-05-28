@@ -36,11 +36,12 @@ require (
 	github.com/tidwall/gjson v1.18.0
 	github.com/tidwall/sjson v1.2.5
 	github.com/xeipuuv/gojsonschema v1.2.0
+	go.elastic.co/apm/module/apmgin/v2 v2.7.0
 	go.elastic.co/apm/module/apmhttp/v2 v2.7.0
 	go.elastic.co/apm/v2 v2.7.0
 	golang.ngrok.com/ngrok v1.13.0
-	golang.org/x/net v0.38.0
-	golang.org/x/time v0.5.0
+	golang.org/x/net v0.40.0
+	golang.org/x/time v0.11.0
 )
 
 require (
@@ -98,11 +99,11 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.ngrok.com/muxado/v2 v2.0.1 // indirect
 	golang.org/x/arch v0.8.0 // indirect
-	golang.org/x/crypto v0.36.0 // indirect
-	golang.org/x/sync v0.12.0 // indirect
-	golang.org/x/sys v0.31.0 // indirect
-	golang.org/x/term v0.30.0 // indirect
-	golang.org/x/text v0.23.0 // indirect
+	golang.org/x/crypto v0.38.0 // indirect
+	golang.org/x/sync v0.14.0 // indirect
+	golang.org/x/sys v0.33.0 // indirect
+	golang.org/x/term v0.32.0 // indirect
+	golang.org/x/text v0.25.0 // indirect
 	google.golang.org/protobuf v1.35.1 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect

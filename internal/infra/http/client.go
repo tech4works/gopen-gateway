@@ -24,17 +24,19 @@ import (
 	"github.com/tech4works/gopen-gateway/internal/domain/mapper"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
 	"go.elastic.co/apm/module/apmhttp/v2"
-	"go.elastic.co/apm/v2"
 	"io"
 	net "net/http"
 	"time"
 )
 
 type client struct {
+	net *net.Client
 }
 
 func NewClient() app.HTTPClient {
-	return client{}
+	return client{
+		net: apmhttp.WrapClient(&net.Client{}),
+	}
 }
 
 func (c client) MakeRequest(ctx context.Context, request *vo.HTTPBackendRequest) (*net.Response, error) {
@@ -42,14 +44,7 @@ func (c client) MakeRequest(ctx context.Context, request *vo.HTTPBackendRequest)
 	if checker.NonNil(err) {
 		return nil, err
 	}
-
-	netClient := &net.Client{}
-	tx := apm.TransactionFromContext(ctx)
-	if checker.NonNil(tx) {
-		netClient.Transport = apmhttp.WrapRoundTripper(net.DefaultTransport)
-	}
-
-	return netClient.Do(httpRequest)
+	return c.net.Do(httpRequest)
 }
 
 func (c client) buildNetHTTPRequest(ctx context.Context, request *vo.HTTPBackendRequest) (*net.Request, error) {
@@ -57,7 +52,7 @@ func (c client) buildNetHTTPRequest(ctx context.Context, request *vo.HTTPBackend
 	if request.HasBody() {
 		body = io.NopCloser(request.Body().Buffer())
 	}
-	netReq, err := net.NewRequestWithContext(ctx, request.Method(), request.Url(), body)
+	httpRequest, err := net.NewRequestWithContext(ctx, request.Method(), request.Url(), body)
 	if checker.NonNil(err) {
 		return nil, err
 	}
@@ -72,8 +67,8 @@ func (c client) buildNetHTTPRequest(ctx context.Context, request *vo.HTTPBackend
 		httpHeader.Set(mapper.XGopenTimeout, converter.ToString(remaining.Milliseconds()))
 	}
 
-	netReq.Header = httpHeader
-	netReq.URL.RawQuery = query.Encode()
+	httpRequest.Header = httpHeader
+	httpRequest.URL.RawQuery = query.Encode()
 
-	return apmhttp.RequestWithContext(ctx, netReq), nil
+	return httpRequest, nil
 }

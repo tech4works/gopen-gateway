@@ -40,6 +40,7 @@ import (
 	"github.com/tech4works/gopen-gateway/internal/infra/nomenclature"
 	"github.com/tech4works/gopen-gateway/internal/infra/publisher"
 	"github.com/xeipuuv/gojsonschema"
+	"go.elastic.co/apm/v2"
 	"os"
 	"regexp"
 	"strings"
@@ -85,6 +86,8 @@ func (p provider) Init() *dto.Gopen {
 
 	os.Setenv("ELASTIC_APM_ENVIRONMENT", os.Getenv("ENV"))
 	os.Setenv("ELASTIC_APM_SERVICE_VERSION", gopen.Version)
+
+	apm.DefaultTracer().SetLogger(log.NewAPM())
 
 	return gopen
 }

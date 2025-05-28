@@ -31,7 +31,6 @@ import (
 	domainFactory "github.com/tech4works/gopen-gateway/internal/domain/factory"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
 	"github.com/tech4works/gopen-gateway/internal/domain/service"
-	"go.elastic.co/apm/module/apmhttp/v2"
 	"golang.ngrok.com/ngrok"
 	"golang.ngrok.com/ngrok/config"
 	"net"
@@ -136,7 +135,7 @@ func (h *http) ListenAndServe() {
 	h.buildRoutes()
 
 	h.net = &nethttp.Server{
-		Handler: apmhttp.Wrap(h.router.Engine()),
+		Handler: h.router.Engine(),
 	}
 
 	var listener net.Listener

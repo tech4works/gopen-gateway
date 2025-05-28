@@ -43,13 +43,10 @@ func NewMemoryStore() domain.Store {
 }
 
 func (m memoryStore) Set(ctx context.Context, key string, cacheResponse *vo.CacheResponse) error {
-	span, _ := apm.StartSpan(ctx, "Write", "cache")
-	if checker.NonNil(span) {
-		span.Context.SetLabel("cache", "GLOBAL")
-		span.Context.SetLabel("key", key)
+	span, ctx := apm.StartSpan(ctx, "local.write", "cache")
+	defer span.End()
 
-		defer span.End()
-	}
+	span.Context.SetLabel("key", key)
 
 	b64, err := compressor.ToGzipBase64WithErr(cacheResponse)
 	if checker.NonNil(err) {
@@ -64,13 +61,10 @@ func (m memoryStore) Del(_ context.Context, key string) error {
 }
 
 func (m memoryStore) Get(ctx context.Context, key string) (*vo.CacheResponse, error) {
-	span, _ := apm.StartSpan(ctx, "Read", "cache")
-	if checker.NonNil(span) {
-		span.Context.SetLabel("cache", "LOCAL")
-		span.Context.SetLabel("key", key)
+	span, ctx := apm.StartSpan(ctx, "local.read", "cache")
+	defer span.End()
 
-		defer span.End()
-	}
+	span.Context.SetLabel("key", key)
 
 	value, err := m.ttlCache.Get(key)
 	if errors.Is(err, ttlcache.ErrNotFound) {

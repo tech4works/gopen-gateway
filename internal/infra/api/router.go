@@ -20,6 +20,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/tech4works/gopen-gateway/internal/app"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
+	"go.elastic.co/apm/module/apmgin/v2"
+	"go.elastic.co/apm/module/apmhttp/v2"
 	"net/http"
 )
 
@@ -29,7 +31,9 @@ type router struct {
 
 func NewRouter() app.Router {
 	gin.SetMode(gin.ReleaseMode)
+
 	engine := gin.New()
+	engine.Use(apmgin.Middleware(engine))
 
 	return router{
 		engine: engine,
@@ -37,7 +41,7 @@ func NewRouter() app.Router {
 }
 
 func (r router) Engine() http.Handler {
-	return r.engine
+	return apmhttp.Wrap(r.engine)
 }
 
 func (r router) Handle(gopen *vo.Gopen, endpoint *vo.Endpoint, handles ...app.HandlerFunc) {

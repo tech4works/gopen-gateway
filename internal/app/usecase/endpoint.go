@@ -115,23 +115,23 @@ func (e endpointUseCase) makeConcurrentBackendRequest(
 }
 
 func (e endpointUseCase) makeBackendRequest(
-	ctx context.Context,
+	parent context.Context,
 	executeData dto.ExecuteEndpoint,
 	backend *vo.Backend,
 	httpBackendRequest *vo.HTTPBackendRequest,
 ) *vo.HTTPBackendResponse {
-	timeout, ok := ctx.Deadline()
+	timeout, ok := parent.Deadline()
 	if !ok {
 		return e.httpBackendFactory.BuildTemporaryResponseByErr(executeData.Endpoint, context.DeadlineExceeded)
 	}
 
-	requestCtx, cancel := context.WithTimeout(context.Background(), time.Until(timeout))
+	ctx, cancel := context.WithTimeout(parent, time.Until(timeout))
 	defer cancel()
 
 	e.backendLog.PrintRequest(executeData, backend, httpBackendRequest)
 
 	startTime := time.Now()
-	httpResponse, err := e.httpClient.MakeRequest(requestCtx, httpBackendRequest)
+	httpResponse, err := e.httpClient.MakeRequest(ctx, httpBackendRequest)
 	duration := time.Since(startTime)
 
 	var httpBackendResponse *vo.HTTPBackendResponse
@@ -180,11 +180,10 @@ func (e endpointUseCase) checkAbortBackendResponse(endpoint *vo.Endpoint, respon
 
 func (e endpointUseCase) buildHTTPBackendRequest(ctx context.Context, executeData dto.ExecuteEndpoint, backend *vo.Backend,
 	history *vo.History) *vo.HTTPBackendRequest {
-	span, _ := apm.StartSpan(ctx, "Backend request", "factory")
-	if checker.NonNil(span) {
-		span.Context.SetLabel("transformations", backend.CountRequestDataTransforms())
-		defer span.End()
-	}
+	span, ctx := apm.StartSpan(ctx, "backend.request", "factory")
+	defer span.End()
+
+	span.Context.SetLabel("transformations", backend.CountRequestDataTransforms())
 
 	httpBackendRequest, errs := e.httpBackendFactory.BuildRequest(backend, executeData.Request, history)
 	for _, err := range errs {
@@ -226,10 +225,8 @@ func (e endpointUseCase) buildHTTPResponse(ctx context.Context, executeData dto.
 
 func (e endpointUseCase) filterHistory(ctx context.Context, executeData dto.ExecuteEndpoint, history *vo.History,
 ) *vo.History {
-	span, _ := apm.StartSpan(ctx, "Response", "factory")
-	if checker.NonNil(span) {
-		defer span.End()
-	}
+	span, ctx := apm.StartSpan(ctx, "endpoint.response", "factory")
+	defer span.End()
 
 	var backends []*vo.Backend
 	var requests []*vo.HTTPBackendRequest
