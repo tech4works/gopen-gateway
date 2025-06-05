@@ -358,7 +358,7 @@
     },
     "publisher-reference": {
       "type": "string",
-      "pattern": "^(arn:aws:sns:[a-z0-9-]+:\\d{12}:[A-Za-z0-9-_]+|https://sqs\\.[a-z0-9-]+\\.amazonaws\\.com/\\d{12}/[A-Za-z0-9-_]+)$"
+      "pattern": "^(arn:aws:sns:[a-z0-9-]+:\\d{12}:[A-Za-z0-9-_]+|https://sqs\\.[a-z0-9-]+\\.amazonaws\\.com/\\d{12}/[A-Za-z0-9-_]+|\\$[A-Z]+\\w*_*?)$"
     },
     "limiter": {
       "type": "object",
@@ -426,11 +426,11 @@
         "omit-empty": {
           "type": "boolean"
         },
-        "header-mapper": {
-          "$ref": "#/definitions/header-mapper"
-        },
         "body-mapper": {
           "$ref": "#/definitions/body-mapper"
+        },
+        "body-projection": {
+          "$ref": "#/definitions/body-projection"
         },
         "content-type": {
           "$ref": "#/definitions/content-type"
