@@ -21,7 +21,6 @@ import (
 	"github.com/tech4works/gopen-gateway/internal/app"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
 	"go.elastic.co/apm/module/apmgin/v2"
-	"go.elastic.co/apm/module/apmhttp/v2"
 	"net/http"
 )
 
@@ -41,7 +40,7 @@ func NewRouter() app.Router {
 }
 
 func (r router) Engine() http.Handler {
-	return apmhttp.Wrap(r.engine)
+	return r.engine
 }
 
 func (r router) Handle(gopen *vo.Gopen, endpoint *vo.Endpoint, handles ...app.HandlerFunc) {
