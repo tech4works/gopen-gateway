@@ -358,8 +358,7 @@
     },
     "publisher-reference": {
       "type": "string",
-      "pattern": "^(arn:aws:sns:[a-z0-9-]+:\\d{12}:[A-Za-z0-9-_]+|https://sqs\\.[a-z0-9-]+\\.amazonaws\\.com/\\d{12}/[A-Za-z0-9-_]+|\\$[A-Z]+\\w*_*?)$"
-    },
+      "pattern": "^(arn:aws:sns:[a-z0-9-]+:\\d{12}:[A-Za-z0-9-_]+|https:\\/\\/sqs\\.[a-z0-9-]+\\.amazonaws\\.com\\/\\d{12}\\/[A-Za-z0-9-_]+(?:\\.fifo)?|\\$[A-Z]+\\w*_*?)$"    },
     "publisher-group-id": {
       "type": "string"
     },
