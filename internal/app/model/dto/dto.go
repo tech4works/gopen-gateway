@@ -133,9 +133,12 @@ type Backend struct {
 }
 
 type Publisher struct {
-	Comment   string                 `json:"@comment,omitempty"`
-	Provider  enum.PublisherProvider `json:"provider,omitempty"`
-	Reference string                 `json:"reference,omitempty"`
+	Comment         string                 `json:"@comment,omitempty"`
+	Provider        enum.PublisherProvider `json:"provider,omitempty"`
+	Reference       string                 `json:"reference,omitempty"`
+	GroupID         string                 `json:"group-id,omitempty"`
+	DeduplicationID string                 `json:"deduplication-id,omitempty"`
+	Delay           vo.Duration            `json:"delay,omitempty"`
 }
 
 type BackendRequest struct {

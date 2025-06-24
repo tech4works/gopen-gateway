@@ -20,6 +20,7 @@ import (
 	"context"
 	berrors "errors"
 	"github.com/tech4works/checker"
+	"github.com/tech4works/errors"
 	"github.com/tech4works/gopen-gateway/internal/app"
 	"github.com/tech4works/gopen-gateway/internal/app/model/dto"
 	"github.com/tech4works/gopen-gateway/internal/domain/factory"
@@ -33,6 +34,7 @@ import (
 type endpointUseCase struct {
 	httpBackendFactory  factory.HTTPBackend
 	httpResponseFactory factory.HTTPResponse
+	messageFactory      factory.Message
 	httpClient          app.HTTPClient
 	publishClient       app.PublisherClient
 	endpointLog         app.EndpointLog
@@ -47,6 +49,7 @@ type Endpoint interface {
 func NewEndpoint(
 	backendFactory factory.HTTPBackend,
 	responseFactory factory.HTTPResponse,
+	messageFactory factory.Message,
 	httpClient app.HTTPClient,
 	publishClient app.PublisherClient,
 	endpointLog app.EndpointLog,
@@ -56,6 +59,7 @@ func NewEndpoint(
 	return endpointUseCase{
 		httpBackendFactory:  backendFactory,
 		httpResponseFactory: responseFactory,
+		messageFactory:      messageFactory,
 		httpClient:          httpClient,
 		publishClient:       publishClient,
 		endpointLog:         endpointLog,
@@ -83,7 +87,7 @@ func (e endpointUseCase) Execute(ctx context.Context, executeData dto.ExecuteEnd
 		}
 	}
 
-	err := e.executePublishers(ctx, executeData)
+	err := e.executePublishers(ctx, executeData, history)
 	if checker.NonNil(err) {
 		return e.httpResponseFactory.BuildErrorResponse(executeData.Endpoint, err)
 	}
@@ -248,27 +252,23 @@ func (e endpointUseCase) filterHistory(ctx context.Context, executeData dto.Exec
 	return vo.NewHistory(backends, requests, responses)
 }
 
-func (e endpointUseCase) executePublishers(ctx context.Context, executeData dto.ExecuteEndpoint) error {
+func (e endpointUseCase) executePublishers(ctx context.Context, executeData dto.ExecuteEndpoint, history *vo.History) error {
 	if !executeData.Endpoint.HasPublishers() {
+		return nil
+	} else if !executeData.Request.HasBody() {
+		e.endpointLog.PrintWarn(executeData, "Ignore publishers because request body is empty!")
 		return nil
 	}
 
-	if executeData.Request.HasBody() {
-		// todo: add edition flow of message sending
-		body, err := executeData.Request.Body().String()
+	for _, publisher := range executeData.Endpoint.Publishers() {
+		message, errs := e.messageFactory.Build(executeData.Request, history, &publisher)
+		if checker.IsNotEmpty(errs) {
+			return errors.Join(errs, ", ")
+		}
+		err := e.publish(ctx, executeData, &publisher, message)
 		if checker.NonNil(err) {
 			return err
 		}
-		message := vo.NewMessage(body)
-
-		for _, publisher := range executeData.Endpoint.Publishers() {
-			err = e.publish(ctx, executeData, &publisher, &message)
-			if checker.NonNil(err) {
-				return err
-			}
-		}
-	} else {
-		e.endpointLog.PrintWarn(executeData, "Ignore publishers because request body is empty!")
 	}
 
 	return nil

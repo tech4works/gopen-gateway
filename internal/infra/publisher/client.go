@@ -64,8 +64,11 @@ func (c client) publishSQS(ctx context.Context, publisher *vo.Publisher, message
 		return errors.New("SQS client not configuration. Please check your configuration.")
 	}
 	_, err := c.sqs.SendMessage(ctx, &sqs.SendMessageInput{
-		MessageBody: converter.ToPointer(message.Body()),
-		QueueUrl:    converter.ToPointer(publisher.Reference()),
+		MessageBody:            converter.ToPointer(message.Body()),
+		QueueUrl:               converter.ToPointer(publisher.Reference()),
+		DelaySeconds:           int32(message.Delay().Time().Seconds()),
+		MessageDeduplicationId: message.DeduplicationID(),
+		MessageGroupId:         message.GroupID(),
 	})
 	return err
 }
@@ -75,8 +78,10 @@ func (c client) publishSNS(ctx context.Context, publisher *vo.Publisher, message
 		return errors.New("SNS client not configuration. Please check your configuration.")
 	}
 	_, err := c.sns.Publish(ctx, &sns.PublishInput{
-		Message:  converter.ToPointer(message.Body()),
-		TopicArn: converter.ToPointer(publisher.Reference()),
+		Message:                converter.ToPointer(message.Body()),
+		MessageDeduplicationId: message.DeduplicationID(),
+		MessageGroupId:         message.GroupID(),
+		TopicArn:               converter.ToPointer(publisher.Reference()),
 	})
 	return err
 }

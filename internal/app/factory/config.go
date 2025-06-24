@@ -237,7 +237,8 @@ func buildBackends(middlewares map[string]dto.Backend, endpoint dto.Endpoint) []
 func buildPublishers(endpoint dto.Endpoint) []vo.Publisher {
 	var result []vo.Publisher
 	for _, publisher := range endpoint.Publishers {
-		result = append(result, vo.NewPublisher(publisher.Provider, publisher.Reference))
+		result = append(result, vo.NewPublisher(publisher.Provider, publisher.Reference, publisher.GroupID,
+			publisher.DeduplicationID, publisher.Delay))
 	}
 	return result
 }

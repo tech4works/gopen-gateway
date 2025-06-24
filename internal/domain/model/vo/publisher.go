@@ -16,17 +16,26 @@
 
 package vo
 
-import "github.com/tech4works/gopen-gateway/internal/domain/model/enum"
+import (
+	"github.com/tech4works/checker"
+	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
+)
 
 type Publisher struct {
-	provider  enum.PublisherProvider
-	reference string
+	provider        enum.PublisherProvider
+	reference       string
+	groupID         string
+	deduplicationID string
+	delay           Duration
 }
 
-func NewPublisher(provider enum.PublisherProvider, reference string) Publisher {
+func NewPublisher(provider enum.PublisherProvider, reference, groupID, deduplicationID string, delay Duration) Publisher {
 	return Publisher{
-		provider:  provider,
-		reference: reference,
+		provider:        provider,
+		reference:       reference,
+		groupID:         groupID,
+		deduplicationID: deduplicationID,
+		delay:           delay,
 	}
 }
 
@@ -36,4 +45,20 @@ func (p Publisher) Provider() enum.PublisherProvider {
 
 func (p Publisher) Reference() string {
 	return p.reference
+}
+
+func (p Publisher) GroupID() string {
+	return p.groupID
+}
+
+func (p Publisher) DeduplicationID() string {
+	return p.deduplicationID
+}
+
+func (p Publisher) Delay() Duration {
+	return p.delay
+}
+
+func (p Publisher) HasGroupID() bool {
+	return checker.IsNotEmpty(p.groupID)
 }

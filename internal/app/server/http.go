@@ -92,10 +92,11 @@ func New(
 		modifierService, omitterService, nomenclatureService, contentService, aggregatorService)
 	httpResponseFactory := domainFactory.NewHTTPResponse(aggregatorService, omitterService, mapperService,
 		projectorService, nomenclatureService, contentService, httpBackendFactory)
+	messageFactory := domainFactory.NewMessage(dynamicValueService)
 
 	log.PrintInfo("Building use cases...")
-	endpointUseCase := usecase.NewEndpoint(httpBackendFactory, httpResponseFactory, httpClient, publisherClient,
-		endpointLog, backendLog, publisherLog)
+	endpointUseCase := usecase.NewEndpoint(httpBackendFactory, httpResponseFactory, messageFactory, httpClient,
+		publisherClient, endpointLog, backendLog, publisherLog)
 
 	log.PrintInfo("Building middlewares...")
 	panicRecoveryMiddleware := middleware.NewPanicRecovery(middlewareLog)

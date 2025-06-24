@@ -360,6 +360,15 @@
       "type": "string",
       "pattern": "^(arn:aws:sns:[a-z0-9-]+:\\d{12}:[A-Za-z0-9-_]+|https://sqs\\.[a-z0-9-]+\\.amazonaws\\.com/\\d{12}/[A-Za-z0-9-_]+|\\$[A-Z]+\\w*_*?)$"
     },
+    "publisher-group-id": {
+      "type": "string"
+    },
+    "publisher-deduplication-id": {
+      "type": "string"
+    },
+    "publisher-delay": {
+      "$ref": "#/definitions/duration"
+    },
     "limiter": {
       "type": "object",
       "properties": {
@@ -940,6 +949,15 @@
         },
         "reference": {
           "$ref": "#/definitions/publisher-reference"
+        },
+        "group-id": {
+          "$ref": "#/definitions/publisher-group-id"
+        },
+        "deduplication-id": {
+          "$ref": "#/definitions/publisher-deduplication-id"
+        },
+        "delay": {
+          "$ref": "#/definitions/publisher-delay"
         }
       },
       "required": [
