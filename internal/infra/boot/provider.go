@@ -20,6 +20,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"regexp"
+	"strings"
+	"time"
+
 	aws "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/sns"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
@@ -41,10 +46,6 @@ import (
 	"github.com/tech4works/gopen-gateway/internal/infra/publisher"
 	"github.com/xeipuuv/gojsonschema"
 	"go.elastic.co/apm/v2"
-	"os"
-	"regexp"
-	"strings"
-	"time"
 )
 
 const runtimeFolder = "./runtime"
@@ -244,7 +245,7 @@ func (p provider) initWatcher(oldGopen *dto.Gopen, oldServer server.HTTP) (*fsno
 func (p provider) loadEnvs() (err error) {
 	gopenEnvUri := p.buildEnvUri()
 
-	if err = godotenv.Load(gopenEnvUri); checker.NonNil(err) {
+	if err = godotenv.Load(gopenEnvUri); checker.NonNil(err) && !os.IsNotExist(err) {
 		err = errors.New("Error load Gopen envs from uri:", gopenEnvUri, "err:", err)
 	}
 
