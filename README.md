@@ -1,6 +1,6 @@
 <img src="assets/logo.png" alt="">
 
-[![Project status](https://img.shields.io/badge/version-v1.1.1-orange.svg)](https://github.com/tech4works/gopen-gateway/releases/tag/v1.1.1)
+[![Project status](https://img.shields.io/badge/version-v1.1.2-orange.svg)](https://github.com/tech4works/gopen-gateway/releases/tag/v1.1.2)
 [![GitHub](https://badgen.net/badge/icon/base?icon=github&label)](https://github.com/tech4works/gopen-gateway-base)
 [![Playground](https://img.shields.io/badge/%F0%9F%8F%90-playground-9900cc.svg)](https://github.com/tech4works/gopen-gateway-playground)
 [![Docker](https://badgen.net/badge/icon/docker?icon=docker&label)](https://hub.docker.com/r/tech4works/gopen-gateway)
@@ -91,6 +91,8 @@ e ainda otimizará o seu desenvolvimento, veja abaixo todos os recursos disponí
 - Rastreamento distribuído utilizando Elastic APM, Dashboard personalizado no Kibana, e logs bem estruturados com
   informações relevantes de configuração e acessos à API.
 
+- Publicação de eventos para AWS SNS, SQS.
+
 # Documentação
 
 Para entender como funciona, precisamos explicar primeiro a estrutura dos ambientes dinâmicos que GOPEN aceita para sua
@@ -118,21 +120,6 @@ Na estrutura do projeto, em sua raiz precisará ter uma pasta chamada "gopen" e 
 contendo os nomes dos seus ambientes, você pode dar o nome que quiser, essa pasta precisará ter pelo menos o arquivo
 ".json" de configuração da API Gateway, ficará mais o menos assim, por exemplo:
 
-### Projeto GO
-
-    gopen-gateway
-    | - cmd
-    | - internal
-    | - gopen
-      | - dev
-      |   - .json
-      |   - .env
-      | - prd
-      |   - .json
-      |   - .env
-
-### Projeto usando imagem docker
-
     nome-do-seu-projeto
     | - docker-compose.yml
     | - gopen
@@ -141,11 +128,18 @@ contendo os nomes dos seus ambientes, você pode dar o nome que quiser, essa pas
       |   - .env
       | - prd
       |   - .json
-      |   - .env
+
+Outra opção que podemos trabalhar é inutilizar essas pastas por ambiente, funcionará de uma forma mais simples, exemplo:
+
+    nome-do-seu-projeto
+    | - docker-compose.yml
+    | - gopen
+      | - .json
+      | - .env // optional
 
 ## JSON de configuração
 
-Com base nesse arquivo JSON de configuração obtido através da variável de ambiente [ENV](#env) informada,
+Com base nesse arquivo JSON de configuração obtido informada,
 a aplicação terá seus endpoints e suas regras definidas, veja abaixo todos os campos possíveis e seus conceitos e
 regras:
 
@@ -198,6 +192,12 @@ regras:
         - [omit-empty](#endpointresponseomit-empty)
     - [beforewares](#endpointbeforewares)
     - [afterwares](#endpointafterwares)
+    - [publishers](#endpointpublishers)
+        - [@comment](#endpointpublishercomment)
+        - [provider](#endpointpublisherprovider)
+        - [reference](#endpointpublisherreference)
+        - [group-id](#endpointpublishergroup-id)
+        - [deduplication-id](#endpointpublisherdeduplication-id)
     - [backends](#endpointbackends)
         - [@comment](#endpointbackendcomment)
         - [hosts](#endpointbackendhosts)
@@ -811,10 +811,35 @@ em string da posição a ser executada estiver configurada no campo [middlewares
 executado o
 backend configurado no mesmo, caso contrário, irá ignorar a posição apenas imprimindo um log de atenção.
 
+### endpoint.publishers
+
+Campo opcional, do tipo lista de objeto, responsável pela execução de publicações de eventos para um provedor de 
+mensageria.
+
+### endpoint.publisher.@comment
+
+Campo opcional, do tipo string, campo livre para anotações.
+
+### endpoint.publisher.provider
+
+Campo obrigatório, do tipo string, podendo ter os valores AWS/SNS, AWS/SQS. É responsável pelo provedor de mensageria
+que irá receber as publicações.
+
+### endpoint.publisher.reference
+
+Campo obrigatório, do tipo string, indica qual a referência do Tópico ou Fila.
+
+### endpoint.publisher.group-id
+
+Campo obrigatório, do tipo string, indica qual o grupo de mensagem.
+
+### endpoint.publisher.deduplication-id
+
+Campo obrigatório, do tipo string, identificador usado para detectar mensagens duplicadas.
+
 ### endpoint.backends
 
-Campo obrigatório, do tipo lista de objeto, responsável pela execução principal do endpoint é uma lista que indica todos
-os serviços necessários para que o endpoint execute e retorne a resposta esperada.
+Campo opcional, do tipo lista de objeto, responsável pela execução de serviços externos do endpoint.
 
 ### endpoint.backend.@comment
 
@@ -2630,7 +2655,8 @@ cabeçalho respondidos pelos backends configurados no endpoint, indepêndente da
 Também são adicionados até quatro campos no cabeçalho veja abaixo sobre os mesmos:
 
 - `X-Gopen-Timeout`: Enviado na requisição ao backend, ele contém o tempo restante para o processamento em
-  milissegundos, com o mesmo dá para implementar um contexto com timeout linear nos seus microserviços, evitando vazamento
+  milissegundos, com o mesmo dá para implementar um contexto com timeout linear nos seus microserviços, evitando
+  vazamento
   de processos, já que após esse tempo a API Gateway retornara [504 (Gateway Timeout)](#504-gateway-timeout).
 
 
