@@ -18,12 +18,13 @@ package factory
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/tech4works/checker"
 	"github.com/tech4works/errors"
 	"github.com/tech4works/gopen-gateway/internal/app/model/dto"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
-	"strings"
 )
 
 func BuildGopen(gopen *dto.Gopen) *vo.Gopen {
@@ -237,8 +238,16 @@ func buildBackends(middlewares map[string]dto.Backend, endpoint dto.Endpoint) []
 func buildPublishers(endpoint dto.Endpoint) []vo.Publisher {
 	var result []vo.Publisher
 	for _, publisher := range endpoint.Publishers {
-		result = append(result, vo.NewPublisher(publisher.Provider, publisher.Reference, publisher.GroupID,
-			publisher.DeduplicationID, publisher.Delay))
+		result = append(result, vo.NewPublisher(
+			publisher.Provider,
+			publisher.Reference,
+			publisher.GroupID,
+			publisher.DeduplicationID,
+			publisher.Delay,
+			publisher.BodyMapper,
+			publisher.BodyProjection,
+			buildModifiers(publisher.BodyModifiers),
+		))
 	}
 	return result
 }

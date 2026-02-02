@@ -19,6 +19,10 @@ package server
 import (
 	"context"
 	"fmt"
+	"net"
+	nethttp "net/http"
+	"os"
+
 	"github.com/tech4works/checker"
 	"github.com/tech4works/converter"
 	"github.com/tech4works/gopen-gateway/internal/app"
@@ -33,9 +37,6 @@ import (
 	"github.com/tech4works/gopen-gateway/internal/domain/service"
 	"golang.ngrok.com/ngrok"
 	"golang.ngrok.com/ngrok/config"
-	"net"
-	nethttp "net/http"
-	"os"
 )
 
 type http struct {
@@ -92,7 +93,7 @@ func New(
 		modifierService, omitterService, nomenclatureService, contentService, aggregatorService)
 	httpResponseFactory := domainFactory.NewHTTPResponse(aggregatorService, omitterService, mapperService,
 		projectorService, nomenclatureService, contentService, httpBackendFactory)
-	messageFactory := domainFactory.NewMessage(dynamicValueService)
+	messageFactory := domainFactory.NewMessage(dynamicValueService, mapperService, projectorService, modifierService)
 
 	log.PrintInfo("Building use cases...")
 	endpointUseCase := usecase.NewEndpoint(httpBackendFactory, httpResponseFactory, messageFactory, httpClient,

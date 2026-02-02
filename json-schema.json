@@ -957,6 +957,19 @@
         },
         "delay": {
           "$ref": "#/definitions/publisher-delay"
+        },
+        "body-mapper": {
+          "$ref": "#/definitions/body-mapper"
+        },
+        "body-projection": {
+          "$ref": "#/definitions/projection"
+        },
+        "body-modifiers": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/request-modifier"
+          }
         }
       },
       "required": [

@@ -17,9 +17,10 @@
 package dto
 
 import (
+	"time"
+
 	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
-	"time"
 )
 
 type Gopen struct {
@@ -139,6 +140,9 @@ type Publisher struct {
 	GroupID         string                 `json:"group-id,omitempty"`
 	DeduplicationID string                 `json:"deduplication-id,omitempty"`
 	Delay           vo.Duration            `json:"delay,omitempty"`
+	BodyMapper      *vo.Mapper             `json:"body-mapper,omitempty"`
+	BodyProjection  *vo.Projection         `json:"body-projection,omitempty"`
+	BodyModifiers   []Modifier             `json:"body-modifiers,omitempty"`
 }
 
 type BackendRequest struct {

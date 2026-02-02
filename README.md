@@ -1,6 +1,6 @@
 <img src="assets/logo.png" alt="">
 
-[![Project status](https://img.shields.io/badge/version-v1.1.2-orange.svg)](https://github.com/tech4works/gopen-gateway/releases/tag/v1.1.2)
+[![Project status](https://img.shields.io/badge/version-v1.1.3-orange.svg)](https://github.com/tech4works/gopen-gateway/releases/tag/v1.1.3)
 [![GitHub](https://badgen.net/badge/icon/base?icon=github&label)](https://github.com/tech4works/gopen-gateway-base)
 [![Playground](https://img.shields.io/badge/%F0%9F%8F%90-playground-9900cc.svg)](https://github.com/tech4works/gopen-gateway-playground)
 [![Docker](https://badgen.net/badge/icon/docker?icon=docker&label)](https://hub.docker.com/r/tech4works/gopen-gateway)
@@ -198,6 +198,8 @@ regras:
         - [reference](#endpointpublisherreference)
         - [group-id](#endpointpublishergroup-id)
         - [deduplication-id](#endpointpublisherdeduplication-id)
+        - [body-mapper](#endpointpublisherbody-mapper)
+        - [body-projection](#endpointpublisherbody-projection)
     - [backends](#endpointbackends)
         - [@comment](#endpointbackendcomment)
         - [hosts](#endpointbackendhosts)
@@ -837,6 +839,198 @@ Campo obrigatório, do tipo string, indica qual o grupo de mensagem.
 
 Campo obrigatório, do tipo string, identificador usado para detectar mensagens duplicadas.
 
+### endpoint.publisher.body-mapper
+
+Campo opcional, do tipo mapa chave-valor string, é responsável por mapear os campos do corpo JSON da mensagem,
+fazendo um de/para do nome do campo atual para o nome desejado, veja o exemplo:
+
+Corpo atual da mensagem vindo da requisição:
+
+````json
+{
+  "id": 1,
+  "type": "order.created",
+  "dateCreated": "2024-06-12 16:45:03",
+  "payment": {
+    "object":"payment",
+    "id":"pay_080225913252",
+    "dateCreated":"2021-01-01",
+    "customer":"cus_G7Dvo4iphUNk",
+    "subscription":"sub_VXJBYgP2u0eO",
+    "installment":"2765d086-c7c5-5cca-898a-4262d212587c",
+    "paymentLink":"123517639363",
+    "dueDate":"2021-01-01"
+  }
+}
+````
+
+Configuração do body-mapper:
+
+```json
+{
+  "id": "id",
+  "event": "type",
+  "createdAt": "dateCreated",
+  "data": "payment"
+}
+```
+
+Resultado:
+
+```json
+{
+  "id": 1,
+  "event": "order.created",
+  "createdAt": "2024-06-12 16:45:03",
+  "data": {
+    "object":"payment",
+    "id":"pay_080225913252",
+    "dateCreated":"2021-01-01",
+    "customer":"cus_G7Dvo4iphUNk",
+    "subscription":"sub_VXJBYgP2u0eO",
+    "installment":"2765d086-c7c5-5cca-898a-4262d212587c",
+    "paymentLink":"123517639363",
+    "dueDate":"2021-01-01"
+  }
+}
+```
+
+### endpoint.publisher.body-projection
+
+Campo opcional, do tipo objeto, é responsável por customizar o envio dos campos do corpo JSON da mensagem ao
+publicá-la.
+
+**Valores aceitos para os campos**
+
+- `-1`: Significa que você deseja remover o campo indicado.
+- `1`: Significa que você deseja manter o campo indicado.
+
+**Exemplo**
+
+Corpo atual:
+
+```json
+{
+  "id": 1,
+  "type": "order.created",
+  "dateCreated": "2024-06-12 16:45:03",
+  "apiKey": "XXXXX",
+  "payment": {
+    "object":"payment",
+    "id":"pay_080225913252",
+    "dateCreated":"2021-01-01",
+    "customer":"cus_G7Dvo4iphUNk",
+    "subscription":"sub_VXJBYgP2u0eO",
+    "installment":"2765d086-c7c5-5cca-898a-4262d212587c",
+    "paymentLink":"123517639363",
+    "dueDate":"2021-01-01"
+  }
+}
+```
+
+Configuração do body-projection:
+
+````json
+{
+  "apiKey": -1,
+  "payment.object": -1,
+  "payment.customer": -1
+}
+````
+
+Resultado:
+
+```json
+{
+  "id": 1,
+  "type": "order.created",
+  "dateCreated": "2024-06-12 16:45:03",
+  "payment": {
+    "id":"pay_080225913252",
+    "dateCreated":"2021-01-01",
+    "subscription":"sub_VXJBYgP2u0eO",
+    "installment":"2765d086-c7c5-5cca-898a-4262d212587c",
+    "paymentLink":"123517639363",
+    "dueDate":"2021-01-01"
+  }
+}
+```
+
+### endpoint.publisher.body-modifiers
+
+Campo opcional, do tipo lista de objeto, valor padrão é vazio, responsável pelas modificações do corpo da
+mensagem ao publicá-la.
+
+### endpoint.publisher.body-modifier.@comment
+
+Campo opcional, do tipo string, campo livre para anotações.
+
+### endpoint.publisher.body-modifier.action
+
+Campo obrigatório, do tipo string, responsável pela ação a ser tomada na modificação do corpo da requisição.
+
+**Valores aceitos se o corpo for do tipo JSON**
+
+- `ADD`: Adiciona a chave informada no campo [body.key](#endpointpublisherbody-modifierkey) caso não exista, e
+  agrega o valor informado no campo [body.value](#endpointbackendrequestbody-modifiervalue).
+
+
+- `APD`: Acrescenta o valor informado no campo [body.value](#endpointpublisherbody-modifiervalue) caso a chave
+  informada no campo [body.key](#endpointbackendrequestbody-modifierkey) exista.
+
+
+- `SET`: Defini o valor da chave informada no campo [body.key](#endpointpublisherbody-modifierkey) pelo valor
+  passado no campo [body.value](#endpointbackendrequestbody-modifiervalue).
+
+
+- `RPL`: Substitui o valor da chave informada no campo [body.key](#endpointpublisherbody-modifierkey) pelo valor
+  passado no campo [body.value](#endpointbackendrequestbody-modifiervalue) caso exista.
+
+
+- `REN`: Renomeia a chave informada no campo [body.key](#endpointpublisherbody-modifierkey) pelo valor passado no
+  campo [body.value](#endpointbackendrequestbody-modifiervalue) caso exista.
+
+
+- `DEL`: Remove a chave informada no campo [body.key](#endpointpublisherbody-modifierkey) caso exista.
+
+**Valores aceitos se o corpo for TEXTO**
+
+- `ADD`: Agrega o valor informado no campo [body.value](#endpointpublisherbody-modifiervalue) ao texto.
+
+
+- `APD`: Acrescenta o valor informado no campo [body.value](#endpointpublisherbody-modifiervalue) caso body não for
+  vazio.
+
+
+- `RPL`: Irá substituir todos os valores semelhantes à chave informada no
+  campo [body.key](#endpointpublisherbody-modifierkey) pelo valor passado no
+  campo [body.value](#endpointpublisherbody-modifiervalue).
+
+
+- `DEL`: Remove todos os valores semelhantes à chave informada no
+  campo [body.key](#endpointpublisherbody-modifierkey).
+
+### endpoint.publisher.body-modifier.key
+
+Campo obrigatório, do tipo string, utilizado para indicar qual chave do corpo da mensagem deve ser modificada.
+
+> ⚠️ **IMPORTANTE**
+>
+> Se torna opcional se seu body for do tipo TEXTO e [body.action](#endpointpublisherbody-modifieraction) tiver o
+> valor `ADD`.
+
+### endpoint.publisher.body-modifier.value
+
+Campo obrigatório, do tipo string, utilizado como valor a ser usado para modificar a chave indicada no
+campo [body.key](#endpointpublisherbody-modifierkey).
+
+Temos possibilidades de utilização de [valores dinâmicos](#valores-dinâmicos-para-modificação),
+e de [variáveis de ambiente](#variáveis-de-ambiente) para esse campo.
+
+> ⚠️ **IMPORTANTE**
+>
+> Se torna opcional apenas se [body.action](#endpointpublisherbody-modifieraction) tiver o valor `DEL`.
+
 ### endpoint.backends
 
 Campo opcional, do tipo lista de objeto, responsável pela execução de serviços externos do endpoint.
@@ -1218,7 +1412,7 @@ Content-Length: 620
 
 ### endpoint.backend.request.query-projection
 
-Campo opcional, do tipo objeto, é responsável por customizar o envio de dos parâmetros de busca da requisição ao serviço
+Campo opcional, do tipo objeto, é responsável por customizar o envio dos parâmetros de busca da requisição ao serviço
 backend.
 
 **Valores aceitos para os campos**
@@ -1250,7 +1444,7 @@ Resultado:
 
 ### endpoint.backend.request.body-projection
 
-Campo opcional, do tipo objeto, é responsável por customizar o envio de dos campos do corpo JSON da requisição ao
+Campo opcional, do tipo objeto, é responsável por customizar o envio dos campos do corpo JSON da requisição ao
 serviço backend.
 
 **Valores aceitos para os campos**
@@ -1519,7 +1713,7 @@ Campo obrigatório, do tipo string, responsável pela ação a ser tomada na mod
 
 ### endpoint.backend.request.body-modifier.key
 
-Campo obrigatório, do tipo string, utilizado para indicar qual chave do cabeçalho deve ser modificada.
+Campo obrigatório, do tipo string, utilizado para indicar qual chave do corpo da requisição deve ser modificada.
 
 > ⚠️ **IMPORTANTE**
 >
@@ -1742,7 +1936,7 @@ Content-Length: 620
 
 ### endpoint.backend.response.body-projection
 
-Campo opcional, do tipo objeto, é responsável por customizar o envio de dos campos do corpo JSON da resposta do
+Campo opcional, do tipo objeto, é responsável por customizar o envio dos campos do corpo JSON da resposta do
 serviço backend.
 
 **Valores aceitos para os campos**
@@ -1899,7 +2093,7 @@ Campo obrigatório, do tipo string, responsável pela ação a ser tomada na mod
 
 ### endpoint.backend.response.body-modifier.key
 
-Campo obrigatório, do tipo string, utilizado para indicar qual chave do cabeçalho deve ser modificada.
+Campo obrigatório, do tipo string, utilizado para indicar qual chave do corpo da requisição deve ser modificada.
 
 > ⚠️ **IMPORTANTE**
 >

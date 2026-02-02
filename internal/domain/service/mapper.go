@@ -17,12 +17,13 @@
 package service
 
 import (
+	"strings"
+
 	"github.com/tech4works/checker"
 	"github.com/tech4works/converter"
 	"github.com/tech4works/gopen-gateway/internal/domain"
-	mapper2 "github.com/tech4works/gopen-gateway/internal/domain/mapper"
+	domainMapper "github.com/tech4works/gopen-gateway/internal/domain/mapper"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
-	"strings"
 )
 
 type mapperService struct {
@@ -48,7 +49,7 @@ func (m mapperService) MapHeader(header vo.Header, mapper *vo.Mapper) vo.Header 
 
 	mappedHeader := map[string][]string{}
 	for _, key := range header.Keys() {
-		if mapper2.IsNotHeaderMandatoryKey(key) && mapper.Exists(key) {
+		if domainMapper.IsNotHeaderMandatoryKey(key) && mapper.Exists(key) {
 			mappedHeader[mapper.Get(key)] = header.GetAll(key)
 		} else {
 			mappedHeader[key] = header.GetAll(key)

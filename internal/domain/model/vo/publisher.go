@@ -27,15 +27,30 @@ type Publisher struct {
 	groupID         string
 	deduplicationID string
 	delay           Duration
+	bodyMapper      *Mapper
+	bodyProjection  *Projection
+	bodyModifiers   []Modifier
 }
 
-func NewPublisher(provider enum.PublisherProvider, reference, groupID, deduplicationID string, delay Duration) Publisher {
+func NewPublisher(
+	provider enum.PublisherProvider,
+	reference,
+	groupID,
+	deduplicationID string,
+	delay Duration,
+	bodyMapper *Mapper,
+	bodyProjection *Projection,
+	bodyModifiers []Modifier,
+) Publisher {
 	return Publisher{
 		provider:        provider,
 		reference:       reference,
 		groupID:         groupID,
 		deduplicationID: deduplicationID,
 		delay:           delay,
+		bodyMapper:      bodyMapper,
+		bodyProjection:  bodyProjection,
+		bodyModifiers:   bodyModifiers,
 	}
 }
 
@@ -57,6 +72,18 @@ func (p Publisher) DeduplicationID() string {
 
 func (p Publisher) Delay() Duration {
 	return p.delay
+}
+
+func (p Publisher) BodyMapper() *Mapper {
+	return p.bodyMapper
+}
+
+func (p Publisher) BodyProjection() *Projection {
+	return p.bodyProjection
+}
+
+func (p Publisher) BodyModifiers() []Modifier {
+	return p.bodyModifiers
 }
 
 func (p Publisher) HasGroupID() bool {

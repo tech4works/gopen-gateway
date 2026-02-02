@@ -18,6 +18,11 @@ package factory
 
 import (
 	"bytes"
+	"io"
+	"math/rand"
+	"net/http"
+	"time"
+
 	"github.com/tech4works/checker"
 	"github.com/tech4works/converter"
 	"github.com/tech4works/errors"
@@ -26,10 +31,6 @@ import (
 	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
 	"github.com/tech4works/gopen-gateway/internal/domain/service"
-	"io"
-	"math/rand"
-	"net/http"
-	"time"
 )
 
 type httpBackendFactory struct {

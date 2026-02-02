@@ -19,6 +19,9 @@ package usecase
 import (
 	"context"
 	berrors "errors"
+	"net/url"
+	"time"
+
 	"github.com/tech4works/checker"
 	"github.com/tech4works/errors"
 	"github.com/tech4works/gopen-gateway/internal/app"
@@ -27,8 +30,6 @@ import (
 	"github.com/tech4works/gopen-gateway/internal/domain/mapper"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
 	"go.elastic.co/apm/v2"
-	"net/url"
-	"time"
 )
 
 type endpointUseCase struct {
@@ -203,8 +204,8 @@ func (e endpointUseCase) buildHTTPBackendResponse(executeData dto.ExecuteEndpoin
 		return httpBackendResponse
 	}
 
-	httpBackendResponse, errors := e.httpBackendFactory.BuildResponse(backend, httpBackendResponse, executeData.Request, history)
-	for _, err := range errors {
+	httpBackendResponse, errs := e.httpBackendFactory.BuildResponse(backend, httpBackendResponse, executeData.Request, history)
+	for _, err := range errs {
 		e.backendLog.PrintWarn(executeData, backend, httpBackendRequest, err)
 	}
 
