@@ -17,9 +17,10 @@
 package main
 
 import (
-	"github.com/tech4works/gopen-gateway/internal/infra/boot"
 	"os"
 	"os/signal"
+
+	"github.com/tech4works/gopen-gateway/internal/infra/boot"
 )
 
 func main() {

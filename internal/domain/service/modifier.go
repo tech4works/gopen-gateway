@@ -18,57 +18,150 @@ package service
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/tech4works/checker"
 	"github.com/tech4works/converter"
+	"github.com/tech4works/errors"
 	"github.com/tech4works/gopen-gateway/internal/domain"
 	"github.com/tech4works/gopen-gateway/internal/domain/mapper"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
-	"strings"
 )
 
 type modifierService struct {
-	jsonPath domain.JSONPath
+	jsonPath            domain.JSONPath
+	dynamicValueService DynamicValue
 }
 
 type Modifier interface {
-	ModifyUrlPath(urlPath vo.URLPath, action enum.ModifierAction, key, value string) (vo.URLPath, error)
-	ModifyHeader(header vo.Header, action enum.ModifierAction, key string, value []string) (vo.Header, error)
-	ModifyQuery(query vo.Query, action enum.ModifierAction, key string, values []string) (vo.Query, error)
-	ModifyBody(body *vo.Body, action enum.ModifierAction, key string, value string) (*vo.Body, error)
+	ExecuteURLPathModifiers(modifier []vo.Modifier, urlPath vo.URLPath, request *vo.HTTPRequest, history *vo.History) (vo.URLPath, []error)
+	ExecuteHeaderModifiers(modifier []vo.Modifier, header vo.Header, request *vo.HTTPRequest, history *vo.History) (vo.Header, []error)
+	ExecuteQueryModifiers(modifier []vo.Modifier, query vo.Query, request *vo.HTTPRequest, history *vo.History) (vo.Query, []error)
+	ExecuteBodyModifiers(modifiers []vo.Modifier, body *vo.Body, request *vo.HTTPRequest, history *vo.History) (*vo.Body, []error)
+
+	ModifyURLPath(modifier *vo.Modifier, urlPath vo.URLPath, request *vo.HTTPRequest, history *vo.History) (vo.URLPath, error)
+	ModifyHeader(modifier *vo.Modifier, header vo.Header, request *vo.HTTPRequest, history *vo.History) (vo.Header, error)
+	ModifyQuery(modifier *vo.Modifier, query vo.Query, request *vo.HTTPRequest, history *vo.History) (vo.Query, error)
+	ModifyBody(modifier *vo.Modifier, body *vo.Body, request *vo.HTTPRequest, history *vo.History) (*vo.Body, error)
 }
 
-func NewModifier(jsonPath domain.JSONPath) Modifier {
+func NewModifier(jsonPath domain.JSONPath, dynamicValueService DynamicValue) Modifier {
 	return modifierService{
-		jsonPath: jsonPath,
+		jsonPath:            jsonPath,
+		dynamicValueService: dynamicValueService,
 	}
 }
 
-func (s modifierService) ModifyUrlPath(urlPath vo.URLPath, action enum.ModifierAction, key, value string) (
-	vo.URLPath, error) {
+func (s modifierService) ExecuteBodyModifiers(modifiers []vo.Modifier, body *vo.Body, request *vo.HTTPRequest,
+	history *vo.History) (*vo.Body, []error) {
+	var errs []error
+	var err error
+
+	for _, modifier := range modifiers {
+		body, err = s.ModifyBody(&modifier, body, request, history)
+		if checker.NonNil(err) {
+			errs = append(errs, err)
+		}
+	}
+	return body, errs
+}
+
+func (s modifierService) ExecuteURLPathModifiers(modifiers []vo.Modifier, urlPath vo.URLPath, request *vo.HTTPRequest,
+	history *vo.History) (vo.URLPath, []error) {
+	var errs []error
+	var err error
+
+	for _, modifier := range modifiers {
+		urlPath, err = s.ModifyURLPath(&modifier, urlPath, request, history)
+		if checker.NonNil(err) {
+			errs = append(errs, err)
+		}
+	}
+	return urlPath, errs
+}
+
+func (s modifierService) ExecuteHeaderModifiers(modifiers []vo.Modifier, header vo.Header, request *vo.HTTPRequest,
+	history *vo.History) (vo.Header, []error) {
+	var errs []error
+	var err error
+
+	for _, modifier := range modifiers {
+		header, err = s.ModifyHeader(&modifier, header, request, history)
+		if checker.NonNil(err) {
+			errs = append(errs, err)
+		}
+	}
+	return header, errs
+}
+
+func (s modifierService) ExecuteQueryModifiers(modifiers []vo.Modifier, query vo.Query, request *vo.HTTPRequest,
+	history *vo.History) (vo.Query, []error) {
+	var errs []error
+	var err error
+
+	for _, modifier := range modifiers {
+		query, err = s.ModifyQuery(&modifier, query, request, history)
+		if checker.NonNil(err) {
+			errs = append(errs, err)
+		}
+	}
+	return query, errs
+}
+
+func (s modifierService) ModifyURLPath(modifier *vo.Modifier, urlPath vo.URLPath, request *vo.HTTPRequest,
+	history *vo.History) (vo.URLPath, error) {
+	shouldRun, err := s.evalModifierGuards("url path", modifier, request, history)
+	if checker.NonNil(err) {
+		return urlPath, err
+	} else if !shouldRun {
+		return urlPath, nil
+	}
+
+	action := modifier.Action()
+	key := modifier.Key()
+	value, errs := s.dynamicValueService.Get(modifier.Value(), request, history)
+	if checker.IsNotEmpty(errs) {
+		return urlPath, errors.Inherit(errors.Join(errs, ", "), "failed to get dynamic value for url path modifier")
+	}
+
 	switch action {
 	case enum.ModifierActionSet:
-		return s.setUrlPath(urlPath, key, value)
+		return s.setURLPath(urlPath, key, value)
 	case enum.ModifierActionRpl:
-		return s.replaceUrlPath(urlPath, key, value)
+		return s.replaceURLPath(urlPath, key, value)
 	case enum.ModifierActionDel:
-		return s.deleteUrlPath(urlPath, key)
+		return s.deleteURLPath(urlPath, key)
 	default:
 		return urlPath, mapper.NewErrInvalidAction("params", action)
 	}
 }
 
-func (s modifierService) ModifyHeader(header vo.Header, action enum.ModifierAction, key string, value []string) (
-	vo.Header, error) {
+func (s modifierService) ModifyHeader(modifier *vo.Modifier, header vo.Header, request *vo.HTTPRequest,
+	history *vo.History) (vo.Header, error) {
+	shouldRun, err := s.evalModifierGuards("header", modifier, request, history)
+	if checker.NonNil(err) {
+		return header, err
+	} else if !shouldRun {
+		return header, nil
+	}
+
+	action := modifier.Action()
+	key := modifier.Key()
+	values, errs := s.dynamicValueService.GetAsSliceOfString(modifier.Value(), request, history)
+	if checker.IsNotEmpty(errs) {
+		return header, errors.Inherit(errors.Join(errs, ", "), "failed to get dynamic value for header modifier")
+	}
+
 	switch action {
 	case enum.ModifierActionAdd:
-		return s.addHeader(header, key, value)
+		return s.addHeader(header, key, values)
 	case enum.ModifierActionApd:
-		return s.appendHeader(header, key, value)
+		return s.appendHeader(header, key, values)
 	case enum.ModifierActionSet:
-		return s.setHeader(header, key, value)
+		return s.setHeader(header, key, values)
 	case enum.ModifierActionRpl:
-		return s.replaceHeader(header, key, value)
+		return s.replaceHeader(header, key, values)
 	case enum.ModifierActionDel:
 		return s.deleteHeader(header, key)
 	default:
@@ -76,8 +169,22 @@ func (s modifierService) ModifyHeader(header vo.Header, action enum.ModifierActi
 	}
 }
 
-func (s modifierService) ModifyQuery(query vo.Query, action enum.ModifierAction, key string, values []string) (
-	vo.Query, error) {
+func (s modifierService) ModifyQuery(modifier *vo.Modifier, query vo.Query, request *vo.HTTPRequest, history *vo.History,
+) (vo.Query, error) {
+	shouldRun, err := s.evalModifierGuards("query", modifier, request, history)
+	if checker.NonNil(err) {
+		return query, err
+	} else if !shouldRun {
+		return query, nil
+	}
+
+	action := modifier.Action()
+	key := modifier.Key()
+	values, errs := s.dynamicValueService.GetAsSliceOfString(modifier.Value(), request, history)
+	if checker.IsNotEmpty(errs) {
+		return query, errors.Inherit(errors.Join(errs, ", "), "failed to get dynamic value for query modifier")
+	}
+
 	switch action {
 	case enum.ModifierActionAdd:
 		return s.addQuery(query, key, values)
@@ -94,9 +201,24 @@ func (s modifierService) ModifyQuery(query vo.Query, action enum.ModifierAction,
 	}
 }
 
-func (s modifierService) ModifyBody(body *vo.Body, action enum.ModifierAction, key string, value string) (*vo.Body, error) {
+func (s modifierService) ModifyBody(modifier *vo.Modifier, body *vo.Body, request *vo.HTTPRequest, history *vo.History,
+) (*vo.Body, error) {
 	if checker.IsNil(body) {
 		return nil, nil
+	}
+
+	shouldRun, err := s.evalModifierGuards("body", modifier, request, history)
+	if checker.NonNil(err) {
+		return body, err
+	} else if !shouldRun {
+		return body, nil
+	}
+
+	action := modifier.Action()
+	key := modifier.Key()
+	value, dynamicValueErrs := s.dynamicValueService.Get(modifier.Value(), request, history)
+	if checker.IsNotEmpty(dynamicValueErrs) {
+		return body, errors.Inherit(errors.Join(dynamicValueErrs, ", "), "failed to get dynamic value for body modifier")
 	}
 
 	switch action {
@@ -115,6 +237,15 @@ func (s modifierService) ModifyBody(body *vo.Body, action enum.ModifierAction, k
 	}
 }
 
+func (s modifierService) evalModifierGuards(kind string, modifier *vo.Modifier, request *vo.HTTPRequest, history *vo.History,
+) (bool, error) {
+	shouldRun, _, errs := s.dynamicValueService.EvalGuards(modifier.OnlyIf(), modifier.IgnoreIf(), request, history)
+	if checker.IsNotEmpty(errs) {
+		return false, errors.Inherit(errors.Join(errs, ", "), fmt.Sprintf("failed to evaluate guard for %s modifier", kind))
+	}
+	return shouldRun, nil
+}
+
 func (s modifierService) validateKey(key string) error {
 	if checker.IsEmpty(key) {
 		return mapper.NewErrEmptyKey()
@@ -129,7 +260,7 @@ func (s modifierService) validateValue(value any) error {
 	return nil
 }
 
-func (s modifierService) setUrlPath(urlPath vo.URLPath, key, value string) (vo.URLPath, error) {
+func (s modifierService) setURLPath(urlPath vo.URLPath, key, value string) (vo.URLPath, error) {
 	if err := s.validateKey(key); checker.NonNil(err) {
 		return urlPath, err
 	} else if err = s.validateValue(value); checker.NonNil(err) {
@@ -147,7 +278,7 @@ func (s modifierService) setUrlPath(urlPath vo.URLPath, key, value string) (vo.U
 	return vo.NewURLPath(path, paramValues), nil
 }
 
-func (s modifierService) replaceUrlPath(urlPath vo.URLPath, key, value string) (vo.URLPath, error) {
+func (s modifierService) replaceURLPath(urlPath vo.URLPath, key, value string) (vo.URLPath, error) {
 	if err := s.validateKey(key); checker.NonNil(err) {
 		return urlPath, err
 	} else if err = s.validateValue(value); checker.NonNil(err) {
@@ -156,10 +287,10 @@ func (s modifierService) replaceUrlPath(urlPath vo.URLPath, key, value string) (
 		return urlPath, nil
 	}
 
-	return s.setUrlPath(urlPath, key, value)
+	return s.setURLPath(urlPath, key, value)
 }
 
-func (s modifierService) deleteUrlPath(urlPath vo.URLPath, key string) (vo.URLPath, error) {
+func (s modifierService) deleteURLPath(urlPath vo.URLPath, key string) (vo.URLPath, error) {
 	if err := s.validateKey(key); checker.NonNil(err) {
 		return urlPath, err
 	}

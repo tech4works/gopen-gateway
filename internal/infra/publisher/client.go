@@ -18,12 +18,16 @@ package publisher
 
 import (
 	"context"
+
 	"github.com/aws/aws-sdk-go-v2/service/sns"
+	snstypes "github.com/aws/aws-sdk-go-v2/service/sns/types"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
+	sqstypes "github.com/aws/aws-sdk-go-v2/service/sqs/types"
 	"github.com/tech4works/checker"
 	"github.com/tech4works/converter"
 	"github.com/tech4works/errors"
 	"github.com/tech4works/gopen-gateway/internal/app"
+	"github.com/tech4works/gopen-gateway/internal/app/model/publisher"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
 	"go.elastic.co/apm/v2"
@@ -41,47 +45,91 @@ func NewClient(sqs *sqs.Client, sns *sns.Client) app.PublisherClient {
 	}
 }
 
-func (c client) Publish(ctx context.Context, publisher *vo.Publisher, message *vo.Message) error {
+func (c client) Publish(ctx context.Context, request *vo.PublisherBackendRequest) (*publisher.Response, error) {
 	span, ctx := apm.StartSpan(ctx, "messaging.publish", "publisher")
 	defer span.End()
 
-	span.Context.SetLabel("provider", publisher.Provider())
-	span.Context.SetLabel("url", publisher.Reference())
-	span.Context.SetLabel("message", message.Body())
+	span.Context.SetLabel("provider", request.Provider())
+	span.Context.SetLabel("url", request.Path())
+	span.Context.SetLabel("message", request.Body())
 
-	switch publisher.Provider() {
+	switch request.Provider() {
 	case enum.PublisherProviderAwsSqs:
-		return c.publishSQS(ctx, publisher, message)
+		return c.publishSQS(ctx, request)
 	case enum.PublisherProviderAwsSns:
-		return c.publishSNS(ctx, publisher, message)
+		return c.publishSNS(ctx, request)
 	default:
-		return errors.Newf("Provider %s not supported", publisher.Provider())
+		return nil, errors.Newf("Provider %s not supported", request.Provider())
 	}
 }
 
-func (c client) publishSQS(ctx context.Context, publisher *vo.Publisher, message *vo.Message) error {
+func (c client) publishSQS(ctx context.Context, request *vo.PublisherBackendRequest) (*publisher.Response, error) {
 	if checker.IsNil(c.sqs) {
-		return errors.New("SQS client not configuration. Please check your configuration.")
+		return nil, errors.New("SQS client not configuration. Please check your configuration.")
 	}
-	_, err := c.sqs.SendMessage(ctx, &sqs.SendMessageInput{
-		MessageBody:            converter.ToPointer(message.Body()),
-		QueueUrl:               converter.ToPointer(publisher.Reference()),
-		DelaySeconds:           int32(message.Delay().Time().Seconds()),
-		MessageDeduplicationId: message.DeduplicationID(),
-		MessageGroupId:         message.GroupID(),
+
+	messageAttributes := make(map[string]sqstypes.MessageAttributeValue, len(request.Attributes()))
+	for key, attribute := range request.Attributes() {
+		messageAttributes[key] = sqstypes.MessageAttributeValue{
+			DataType:    converter.ToPointer(attribute.DataType()),
+			StringValue: converter.ToPointer(attribute.Value()),
+		}
+	}
+
+	out, err := c.sqs.SendMessage(ctx, &sqs.SendMessageInput{
+		MessageBody:            converter.ToPointer(request.Body()),
+		QueueUrl:               converter.ToPointer(request.Path()),
+		DelaySeconds:           int32(request.Delay().Time().Seconds()),
+		MessageAttributes:      messageAttributes,
+		MessageDeduplicationId: request.DeduplicationID(),
+		MessageGroupId:         request.GroupID(),
 	})
-	return err
+	if checker.NonNil(err) {
+		return nil, err
+	}
+
+	return &publisher.Response{
+		OK: checker.IsNotNilOrEmpty(out.MessageId),
+		Body: &publisher.Body{
+			Path:             request.Path(),
+			Provider:         request.Provider().String(),
+			MessageID:        *out.MessageId,
+			SequentialNumber: *out.SequenceNumber,
+		},
+	}, nil
 }
 
-func (c client) publishSNS(ctx context.Context, publisher *vo.Publisher, message *vo.Message) error {
+func (c client) publishSNS(ctx context.Context, request *vo.PublisherBackendRequest) (*publisher.Response, error) {
 	if checker.IsNil(c.sns) {
-		return errors.New("SNS client not configuration. Please check your configuration.")
+		return nil, errors.New("SNS client not configuration. Please check your configuration.")
 	}
-	_, err := c.sns.Publish(ctx, &sns.PublishInput{
-		Message:                converter.ToPointer(message.Body()),
-		MessageDeduplicationId: message.DeduplicationID(),
-		MessageGroupId:         message.GroupID(),
-		TopicArn:               converter.ToPointer(publisher.Reference()),
+
+	messageAttributes := make(map[string]snstypes.MessageAttributeValue, len(request.Attributes()))
+	for key, attribute := range request.Attributes() {
+		messageAttributes[key] = snstypes.MessageAttributeValue{
+			DataType:    converter.ToPointer(attribute.DataType()),
+			StringValue: converter.ToPointer(attribute.Value()),
+		}
+	}
+
+	out, err := c.sns.Publish(ctx, &sns.PublishInput{
+		TopicArn:               converter.ToPointer(request.Path()),
+		Message:                converter.ToPointer(request.Body()),
+		MessageDeduplicationId: request.DeduplicationID(),
+		MessageGroupId:         request.GroupID(),
+		MessageAttributes:      messageAttributes,
 	})
-	return err
+	if checker.NonNil(err) {
+		return nil, err
+	}
+
+	return &publisher.Response{
+		OK: checker.IsNotNilOrEmpty(out.MessageId),
+		Body: &publisher.Body{
+			Path:             request.Path(),
+			Provider:         request.Provider().String(),
+			MessageID:        *out.MessageId,
+			SequentialNumber: *out.SequenceNumber,
+		},
+	}, nil
 }

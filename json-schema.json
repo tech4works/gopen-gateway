@@ -1,35 +1,11 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Gopen Schema",
+  "type": "object",
   "definitions": {
     "url": {
       "type": "string",
       "pattern": "^(?:https?:\\/\\/)?((?:[a-zA-Z\\d](?:[a-zA-Z\\d-]{0,200}[a-zA-Z\\d])?\\.)+[a-zA-Z]{2,}|(?:[a-zA-Z\\d-]{1,63})|(?:\\d{1,3}\\.){3}\\d{1,3}|host\\.docker\\.internal|\\$[a-zA-Z_][a-zA-Z\\d_]*)?(?::\\d+)?$"
-    },
-    "proxy": {
-      "type": "object",
-      "properties": {
-        "provider": {
-          "type": "string",
-          "enum": [
-            "NGROK"
-          ]
-        },
-        "token": {
-          "type": "string"
-        },
-        "domains": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        }
-      },
-      "required": [
-        "provider",
-        "token"
-      ],
-      "additionalProperties": false
     },
     "byte-unit": {
       "type": "string",
@@ -39,9 +15,24 @@
       "type": "string",
       "pattern": "^(?:\\d+(?:\\.\\d+)?(?:h|m|s|ms|us|ns)|\\$[A-Za-z_][A-Za-z_0-9]*)$"
     },
+    "only-if": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "ignore-if": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
     "path": {
-      "type": "string",
-      "pattern": "^(?:/([^/\\s]*)+(/[^/\\s]+)*|\\$[A-Za-z_][A-Za-z_0-9]*)$"
+      "type": "string"
     },
     "http-method": {
       "type": "string",
@@ -52,14 +43,6 @@
         "DELETE",
         "GET"
       ]
-    },
-    "http-header-key": {
-      "type": "string",
-      "pattern": "^[a-zA-Z0-9!#$%&'*+-.^_|~]+$"
-    },
-    "http-query-key": {
-      "type": "string",
-      "pattern": "^[a-zA-Z0-9\\-._~]+$"
     },
     "json-path": {
       "type": "string",
@@ -93,166 +76,60 @@
         "NONE"
       ]
     },
-    "request-modifier": {
+    "backend-kind": {
+      "type": "string",
+      "enum": [
+        "HTTP",
+        "PUBLISHER"
+      ]
+    },
+    "template-merge": {
+      "type": "string",
+      "enum": [
+        "BASE",
+        "FULL"
+      ]
+    },
+    "template": {
       "type": "object",
       "properties": {
-        "action": {
+        "path": {
           "type": "string",
-          "enum": [
-            "ADD",
-            "APD",
-            "SET",
-            "RPL",
-            "DEL"
-          ]
+          "minLength": 1
         },
-        "propagate": {
-          "type": "boolean"
-        },
-        "key": {
-          "type": "string"
-        },
-        "value": {
-          "type": "string"
+        "merge": {
+          "$ref": "#/definitions/template-merge"
         }
       },
-      "if": {
-        "properties": {
-          "action": {
-            "const": "DEL"
+      "required": [
+        "path"
+      ],
+      "additionalProperties": false
+    },
+    "proxy": {
+      "type": "object",
+      "properties": {
+        "provider": {
+          "type": "string",
+          "enum": [
+            "NGROK"
+          ]
+        },
+        "token": {
+          "type": "string"
+        },
+        "domains": {
+          "type": "array",
+          "items": {
+            "type": "string"
           }
         }
       },
-      "then": {
-        "required": [
-          "action",
-          "key"
-        ]
-      },
-      "else": {
-        "required": [
-          "action",
-          "key",
-          "value"
-        ]
-      }
-    },
-    "param-modifier": {
-      "type": "object",
-      "properties": {
-        "action": {
-          "type": "string",
-          "enum": [
-            "SET",
-            "RPL",
-            "DEL"
-          ]
-        },
-        "propagate": {
-          "type": "boolean"
-        },
-        "key": {
-          "type": "string"
-        },
-        "value": {
-          "type": "string"
-        }
-      },
-      "if": {
-        "properties": {
-          "action": {
-            "const": "DEL"
-          }
-        }
-      },
-      "then": {
-        "required": [
-          "action",
-          "key"
-        ]
-      },
-      "else": {
-        "required": [
-          "action",
-          "key",
-          "value"
-        ]
-      }
-    },
-    "response-modifier": {
-      "type": "object",
-      "properties": {
-        "action": {
-          "type": "string",
-          "enum": [
-            "ADD",
-            "APD",
-            "SET",
-            "RPL",
-            "DEL"
-          ]
-        },
-        "key": {
-          "type": "string"
-        },
-        "value": {
-          "type": "string"
-        }
-      },
-      "if": {
-        "properties": {
-          "action": {
-            "const": "DEL"
-          }
-        }
-      },
-      "then": {
-        "required": [
-          "action",
-          "key"
-        ]
-      },
-      "else": {
-        "required": [
-          "action",
-          "key",
-          "value"
-        ]
-      }
-    },
-    "projection": {
-      "type": "object",
-      "minProperties": 1,
-      "additionalProperties": {
-        "type": "integer",
-        "minimum": 0,
-        "maximum": 1
-      }
-    },
-    "mapper": {
-      "type": "object",
-      "minProperties": 1,
-      "additionalProperties": {
-        "$ref": "#/definitions/json-path"
-      }
-    },
-    "header-mapper": {
-      "$ref": "#/definitions/mapper"
-    },
-    "query-mapper": {
-      "$ref": "#/definitions/mapper"
-    },
-    "body-mapper": {
-      "$ref": "#/definitions/mapper"
-    },
-    "header-projection": {
-      "$ref": "#/definitions/projection"
-    },
-    "query-projection": {
-      "$ref": "#/definitions/projection"
-    },
-    "body-projection": {
-      "$ref": "#/definitions/projection"
+      "required": [
+        "provider",
+        "token"
+      ],
+      "additionalProperties": false
     },
     "store": {
       "type": "object",
@@ -349,27 +226,25 @@
       ],
       "additionalProperties": false
     },
-    "publisher-provider": {
-      "type": "string",
-      "enum": [
-        "AWS/SQS",
-        "AWS/SNS"
-      ]
-    },
-    "publisher-reference": {
-      "type": "string"
-    },
-    "publisher-group-id": {
-      "type": "string"
-    },
-    "publisher-deduplication-id": {
-      "type": "string"
-    },
-    "publisher-delay": {
-      "$ref": "#/definitions/duration"
+    "limiter-rate": {
+      "type": "object",
+      "properties": {
+        "capacity": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "every": {
+          "$ref": "#/definitions/duration"
+        }
+      },
+      "required": [
+        "capacity"
+      ],
+      "additionalProperties": false
     },
     "limiter": {
       "type": "object",
+      "minProperties": 1,
       "properties": {
         "max-header-size": {
           "$ref": "#/definitions/byte-unit"
@@ -381,25 +256,33 @@
           "$ref": "#/definitions/byte-unit"
         },
         "rate": {
-          "type": "object",
-          "properties": {
-            "capacity": {
-              "type": "number",
-              "minimum": 1
-            },
-            "every": {
-              "$ref": "#/definitions/duration"
-            }
-          },
-          "required": [
-            "capacity"
-          ]
+          "$ref": "#/definitions/limiter-rate"
+        }
+      },
+      "additionalProperties": false
+    },
+    "endpoint-limiter": {
+      "type": "object",
+      "minProperties": 1,
+      "properties": {
+        "max-header-size": {
+          "$ref": "#/definitions/byte-unit"
+        },
+        "max-body-size": {
+          "$ref": "#/definitions/byte-unit"
+        },
+        "max-multipart-memory-size": {
+          "$ref": "#/definitions/byte-unit"
+        },
+        "rate": {
+          "$ref": "#/definitions/limiter-rate"
         }
       },
       "additionalProperties": false
     },
     "security-cors": {
       "type": "object",
+      "minProperties": 1,
       "properties": {
         "allow-origins": {
           "type": "array",
@@ -422,23 +305,394 @@
       },
       "additionalProperties": false
     },
-    "endpoint-response": {
+    "request-modifier": {
       "type": "object",
       "properties": {
         "@comment": {
           "type": "string"
         },
-        "aggregate": {
+        "only-if": {
+          "$ref": "#/definitions/only-if"
+        },
+        "ignore-if": {
+          "$ref": "#/definitions/ignore-if"
+        },
+        "action": {
+          "type": "string",
+          "enum": [
+            "ADD",
+            "APD",
+            "SET",
+            "RPL",
+            "DEL"
+          ]
+        },
+        "propagate": {
+          "type": "boolean"
+        },
+        "key": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        }
+      },
+      "if": {
+        "properties": {
+          "action": {
+            "const": "DEL"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "action",
+          "key"
+        ]
+      },
+      "else": {
+        "required": [
+          "action",
+          "key",
+          "value"
+        ]
+      },
+      "additionalProperties": false
+    },
+    "param-modifier": {
+      "type": "object",
+      "properties": {
+        "@comment": {
+          "type": "string"
+        },
+        "only-if": {
+          "$ref": "#/definitions/only-if"
+        },
+        "ignore-if": {
+          "$ref": "#/definitions/ignore-if"
+        },
+        "action": {
+          "type": "string",
+          "enum": [
+            "SET",
+            "RPL",
+            "DEL"
+          ]
+        },
+        "propagate": {
+          "type": "boolean"
+        },
+        "key": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        }
+      },
+      "if": {
+        "properties": {
+          "action": {
+            "const": "DEL"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "action",
+          "key"
+        ]
+      },
+      "else": {
+        "required": [
+          "action",
+          "key",
+          "value"
+        ]
+      },
+      "additionalProperties": false
+    },
+    "response-modifier": {
+      "type": "object",
+      "properties": {
+        "@comment": {
+          "type": "string"
+        },
+        "only-if": {
+          "$ref": "#/definitions/only-if"
+        },
+        "ignore-if": {
+          "$ref": "#/definitions/ignore-if"
+        },
+        "action": {
+          "type": "string",
+          "enum": [
+            "ADD",
+            "APD",
+            "SET",
+            "RPL",
+            "DEL"
+          ]
+        },
+        "key": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        }
+      },
+      "if": {
+        "properties": {
+          "action": {
+            "const": "DEL"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "action",
+          "key"
+        ]
+      },
+      "else": {
+        "required": [
+          "action",
+          "key",
+          "value"
+        ]
+      },
+      "additionalProperties": false
+    },
+    "publisher-modifier": {
+      "type": "object",
+      "properties": {
+        "@comment": {
+          "type": "string"
+        },
+        "only-if": {
+          "$ref": "#/definitions/only-if"
+        },
+        "ignore-if": {
+          "$ref": "#/definitions/ignore-if"
+        },
+        "action": {
+          "type": "string",
+          "enum": [
+            "ADD",
+            "APD",
+            "SET",
+            "RPL",
+            "DEL"
+          ]
+        },
+        "key": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        }
+      },
+      "if": {
+        "properties": {
+          "action": {
+            "const": "DEL"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "action",
+          "key"
+        ]
+      },
+      "else": {
+        "required": [
+          "action",
+          "key",
+          "value"
+        ]
+      },
+      "additionalProperties": false
+    },
+    "projector": {
+      "type": "object",
+      "properties": {
+        "@comment": {
+          "type": "string"
+        },
+        "only-if": {
+          "$ref": "#/definitions/only-if"
+        },
+        "ignore-if": {
+          "$ref": "#/definitions/ignore-if"
+        },
+        "project": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1
+          }
+        }
+      },
+      "required": [
+        "project"
+      ],
+      "additionalProperties": false
+    },
+    "mapper": {
+      "type": "object",
+      "properties": {
+        "@comment": {
+          "type": "string"
+        },
+        "only-if": {
+          "$ref": "#/definitions/only-if"
+        },
+        "ignore-if": {
+          "$ref": "#/definitions/ignore-if"
+        },
+        "map": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "$ref": "#/definitions/json-path"
+          }
+        }
+      },
+      "required": [
+        "map"
+      ],
+      "additionalProperties": false
+    },
+    "backend-request-header": {
+      "type": "object",
+      "properties": {
+        "@comment": {
+          "type": "string"
+        },
+        "omit": {
+          "type": "boolean"
+        },
+        "mapper": {
+          "$ref": "#/definitions/mapper"
+        },
+        "projector": {
+          "$ref": "#/definitions/projector"
+        },
+        "modifiers": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/request-modifier"
+          }
+        }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "omit"
+          ]
+        },
+        {
+          "required": [
+            "mapper"
+          ]
+        },
+        {
+          "required": [
+            "projector"
+          ]
+        },
+        {
+          "required": [
+            "modifiers"
+          ]
+        }
+      ],
+      "additionalProperties": false
+    },
+    "backend-request-param": {
+      "type": "object",
+      "properties": {
+        "@comment": {
+          "type": "string"
+        },
+        "modifiers": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/param-modifier"
+          }
+        }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "modifiers"
+          ]
+        }
+      ],
+      "additionalProperties": false
+    },
+    "backend-request-query": {
+      "type": "object",
+      "properties": {
+        "@comment": {
+          "type": "string"
+        },
+        "omit": {
+          "type": "boolean"
+        },
+        "mapper": {
+          "$ref": "#/definitions/mapper"
+        },
+        "projector": {
+          "$ref": "#/definitions/projector"
+        },
+        "modifiers": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/request-modifier"
+          }
+        }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "omit"
+          ]
+        },
+        {
+          "required": [
+            "mapper"
+          ]
+        },
+        {
+          "required": [
+            "projector"
+          ]
+        },
+        {
+          "required": [
+            "modifiers"
+          ]
+        }
+      ],
+      "additionalProperties": false
+    },
+    "backend-request-body": {
+      "type": "object",
+      "properties": {
+        "@comment": {
+          "type": "string"
+        },
+        "omit": {
           "type": "boolean"
         },
         "omit-empty": {
           "type": "boolean"
-        },
-        "body-mapper": {
-          "$ref": "#/definitions/body-mapper"
-        },
-        "body-projection": {
-          "$ref": "#/definitions/body-projection"
         },
         "content-type": {
           "$ref": "#/definitions/content-type"
@@ -448,72 +702,62 @@
         },
         "nomenclature": {
           "$ref": "#/definitions/nomenclature"
-        }
-      },
-      "additionalProperties": false
-    },
-    "endpoint": {
-      "type": "object",
-      "properties": {
-        "@comment": {
-          "type": "string"
         },
-        "path": {
-          "$ref": "#/definitions/path"
+        "mapper": {
+          "$ref": "#/definitions/mapper"
         },
-        "method": {
-          "$ref": "#/definitions/http-method"
+        "projector": {
+          "$ref": "#/definitions/projector"
         },
-        "timeout": {
-          "$ref": "#/definitions/duration"
-        },
-        "cache": {
-          "$ref": "#/definitions/endpoint-cache"
-        },
-        "limiter": {
-          "$ref": "#/definitions/limiter"
-        },
-        "abort-if-status-codes": {
-          "type": "array",
-          "items": {
-            "type": "integer",
-            "minimum": 100,
-            "maximum": 599
-          }
-        },
-        "response": {
-          "$ref": "#/definitions/endpoint-response"
-        },
-        "beforewares": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "afterwares": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "backends": {
+        "modifiers": {
           "type": "array",
           "minItems": 1,
           "items": {
-            "$ref": "#/definitions/backend"
-          }
-        },
-        "publishers": {
-          "type": "array",
-          "minItems": 1,
-          "items": {
-            "$ref": "#/definitions/publisher"
+            "$ref": "#/definitions/request-modifier"
           }
         }
       },
-      "required": [
-        "path",
-        "method"
+      "anyOf": [
+        {
+          "required": [
+            "omit"
+          ]
+        },
+        {
+          "required": [
+            "omit-empty"
+          ]
+        },
+        {
+          "required": [
+            "content-type"
+          ]
+        },
+        {
+          "required": [
+            "content-encoding"
+          ]
+        },
+        {
+          "required": [
+            "nomenclature"
+          ]
+        },
+        {
+          "required": [
+            "mapper"
+          ]
+        },
+        {
+          "required": [
+            "projector"
+          ]
+        },
+        {
+          "required": [
+            "modifiers"
+          ]
+        }
       ],
       "additionalProperties": false
     },
@@ -523,164 +767,164 @@
         "@comment": {
           "type": "string"
         },
+        "continue-on-error": {
+          "type": "boolean"
+        },
         "concurrent": {
           "type": "integer",
-          "minimum": 2,
-          "maximum": 10
+          "minimum": 1
         },
-        "omit-header": {
+        "async": {
           "type": "boolean"
         },
-        "omit-query": {
+        "header": {
+          "$ref": "#/definitions/backend-request-header"
+        },
+        "param": {
+          "$ref": "#/definitions/backend-request-param"
+        },
+        "query": {
+          "$ref": "#/definitions/backend-request-query"
+        },
+        "body": {
+          "$ref": "#/definitions/backend-request-body"
+        }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "concurrent"
+          ]
+        },
+        {
+          "required": [
+            "async"
+          ]
+        },
+        {
+          "required": [
+            "header"
+          ]
+        },
+        {
+          "required": [
+            "param"
+          ]
+        },
+        {
+          "required": [
+            "query"
+          ]
+        },
+        {
+          "required": [
+            "body"
+          ]
+        }
+      ],
+      "additionalProperties": false
+    },
+    "backend-response-header": {
+      "type": "object",
+      "properties": {
+        "@comment": {
+          "type": "string"
+        },
+        "omit": {
           "type": "boolean"
         },
-        "omit-body": {
-          "type": "boolean"
+        "mapper": {
+          "$ref": "#/definitions/mapper"
         },
-        "content-type": {
-          "$ref": "#/definitions/content-type"
+        "projector": {
+          "$ref": "#/definitions/projector"
         },
-        "content-encoding": {
-          "$ref": "#/definitions/content-encoding"
-        },
-        "nomenclature": {
-          "$ref": "#/definitions/nomenclature"
-        },
-        "omit-empty": {
-          "type": "boolean"
-        },
-        "header-mapper": {
-          "$ref": "#/definitions/header-mapper"
-        },
-        "query-mapper": {
-          "$ref": "#/definitions/query-mapper"
-        },
-        "body-mapper": {
-          "$ref": "#/definitions/body-mapper"
-        },
-        "header-projection": {
-          "$ref": "#/definitions/header-projection"
-        },
-        "query-projection": {
-          "$ref": "#/definitions/query-projection"
-        },
-        "body-projection": {
-          "$ref": "#/definitions/body-projection"
-        },
-        "header-modifiers": {
+        "modifiers": {
           "type": "array",
           "minItems": 1,
           "items": {
-            "$ref": "#/definitions/request-modifier"
-          }
-        },
-        "param-modifiers": {
-          "type": "array",
-          "minItems": 1,
-          "items": {
-            "$ref": "#/definitions/param-modifier"
-          }
-        },
-        "query-modifiers": {
-          "type": "array",
-          "minItems": 1,
-          "items": {
-            "$ref": "#/definitions/request-modifier"
-          }
-        },
-        "body-modifiers": {
-          "type": "array",
-          "minItems": 1,
-          "items": {
-            "$ref": "#/definitions/request-modifier"
+            "$ref": "#/definitions/response-modifier"
           }
         }
       },
-      "dependencies": {
-        "omit-header": {
-          "not": {
-            "anyOf": [
-              {
-                "required": [
-                  "header-mapper"
-                ]
-              },
-              {
-                "required": [
-                  "header-projection"
-                ]
-              },
-              {
-                "required": [
-                  "header-modifiers"
-                ]
-              }
-            ]
-          }
+      "anyOf": [
+        {
+          "required": [
+            "omit"
+          ]
         },
-        "omit-query": {
-          "not": {
-            "anyOf": [
-              {
-                "required": [
-                  "query-mapper"
-                ]
-              },
-              {
-                "required": [
-                  "query-projection"
-                ]
-              },
-              {
-                "required": [
-                  "query-modifiers"
-                ]
-              }
-            ]
-          }
+        {
+          "required": [
+            "mapper"
+          ]
         },
-        "omit-body": {
-          "not": {
-            "anyOf": [
-              {
-                "required": [
-                  "content-type"
-                ]
-              },
-              {
-                "required": [
-                  "content-encoding"
-                ]
-              },
-              {
-                "required": [
-                  "nomenclature"
-                ]
-              },
-              {
-                "required": [
-                  "omit-empty"
-                ]
-              },
-              {
-                "required": [
-                  "body-mapper"
-                ]
-              },
-              {
-                "required": [
-                  "body-projection"
-                ]
-              },
-              {
-                "required": [
-                  "body-modifiers"
-                ]
-              }
-            ]
+        {
+          "required": [
+            "projector"
+          ]
+        },
+        {
+          "required": [
+            "modifiers"
+          ]
+        }
+      ],
+      "additionalProperties": false
+    },
+    "backend-response-body": {
+      "type": "object",
+      "properties": {
+        "@comment": {
+          "type": "string"
+        },
+        "omit": {
+          "type": "boolean"
+        },
+        "group": {
+          "type": "string",
+          "minLength": 1
+        },
+        "mapper": {
+          "$ref": "#/definitions/mapper"
+        },
+        "projector": {
+          "$ref": "#/definitions/projector"
+        },
+        "modifiers": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/response-modifier"
           }
         }
       },
+      "anyOf": [
+        {
+          "required": [
+            "omit"
+          ]
+        },
+        {
+          "required": [
+            "group"
+          ]
+        },
+        {
+          "required": [
+            "mapper"
+          ]
+        },
+        {
+          "required": [
+            "projector"
+          ]
+        },
+        {
+          "required": [
+            "modifiers"
+          ]
+        }
+      ],
       "additionalProperties": false
     },
     "backend-response": {
@@ -689,196 +933,237 @@
         "@comment": {
           "type": "string"
         },
+        "continue-on-error": {
+          "type": "boolean"
+        },
         "omit": {
           "type": "boolean"
         },
-        "omit-header": {
-          "type": "boolean"
+        "header": {
+          "$ref": "#/definitions/backend-response-header"
         },
-        "omit-body": {
-          "type": "boolean"
-        },
-        "group": {
-          "type": "string",
-          "minLength": 1
-        },
-        "header-mapper": {
-          "$ref": "#/definitions/header-mapper"
-        },
-        "body-mapper": {
-          "$ref": "#/definitions/body-mapper"
-        },
-        "header-projection": {
-          "$ref": "#/definitions/header-projection"
-        },
-        "body-projection": {
-          "$ref": "#/definitions/body-projection"
-        },
-        "header-modifiers": {
-          "type": "array",
-          "minItems": 1,
-          "items": {
-            "$ref": "#/definitions/response-modifier"
-          }
-        },
-        "body-modifiers": {
-          "type": "array",
-          "minItems": 1,
-          "items": {
-            "$ref": "#/definitions/response-modifier"
-          }
+        "body": {
+          "$ref": "#/definitions/backend-response-body"
         }
       },
-      "dependencies": {
-        "omit": {
-          "oneOf": [
-            {
-              "properties": {
-                "omit": {
-                  "enum": [
-                    false
-                  ]
-                }
-              },
-              "required": [
-                "omit"
-              ]
-            },
-            {
-              "not": {
-                "anyOf": [
-                  {
-                    "required": [
-                      "omit-header"
-                    ]
-                  },
-                  {
-                    "required": [
-                      "omit-body"
-                    ]
-                  },
-                  {
-                    "required": [
-                      "group"
-                    ]
-                  },
-                  {
-                    "required": [
-                      "header-mapper"
-                    ]
-                  },
-                  {
-                    "required": [
-                      "body-mapper"
-                    ]
-                  },
-                  {
-                    "required": [
-                      "header-projection"
-                    ]
-                  },
-                  {
-                    "required": [
-                      "body-projection"
-                    ]
-                  },
-                  {
-                    "required": [
-                      "header-modifiers"
-                    ]
-                  },
-                  {
-                    "required": [
-                      "body-modifiers"
-                    ]
-                  }
-                ]
-              }
-            }
+      "anyOf": [
+        {
+          "required": [
+            "omit"
           ]
         },
-        "omit-body": {
-          "oneOf": [
-            {
-              "properties": {
-                "omit-body": {
-                  "enum": [
-                    false
-                  ]
-                }
-              },
-              "required": [
-                "omit-body"
-              ]
-            },
-            {
-              "not": {
-                "anyOf": [
-                  {
-                    "required": [
-                      "body-mapper"
-                    ]
-                  },
-                  {
-                    "required": [
-                      "body-projection"
-                    ]
-                  },
-                  {
-                    "required": [
-                      "body-modifiers"
-                    ]
-                  }
-                ]
-              }
-            }
+        {
+          "required": [
+            "header"
           ]
         },
-        "omit-header": {
-          "oneOf": [
-            {
-              "properties": {
-                "omit-header": {
-                  "enum": [
-                    false
-                  ]
-                }
-              },
-              "required": [
-                "omit-header"
-              ]
-            },
-            {
-              "not": {
-                "anyOf": [
-                  {
-                    "required": [
-                      "header-mapper"
-                    ]
-                  },
-                  {
-                    "required": [
-                      "header-projection"
-                    ]
-                  },
-                  {
-                    "required": [
-                      "header-modifiers"
-                    ]
-                  }
-                ]
-              }
-            }
+        {
+          "required": [
+            "body"
           ]
         }
-      },
+      ],
       "additionalProperties": false
     },
-    "backend": {
+    "middleware-backend-propagate": {
       "type": "object",
       "properties": {
         "@comment": {
           "type": "string"
+        },
+        "continue-on-error": {
+          "type": "boolean"
+        },
+        "header": {
+          "$ref": "#/definitions/backend-request-header"
+        },
+        "param": {
+          "$ref": "#/definitions/backend-request-param"
+        },
+        "query": {
+          "$ref": "#/definitions/backend-request-query"
+        },
+        "body": {
+          "$ref": "#/definitions/backend-request-body"
+        }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "header"
+          ]
+        },
+        {
+          "required": [
+            "param"
+          ]
+        },
+        {
+          "required": [
+            "query"
+          ]
+        },
+        {
+          "required": [
+            "body"
+          ]
+        }
+      ],
+      "additionalProperties": false
+    },
+    "publisher-provider": {
+      "type": "string",
+      "enum": [
+        "AWS/SQS",
+        "AWS/SNS"
+      ]
+    },
+    "publisher-message-attribute": {
+      "type": "object",
+      "properties": {
+        "data-type": {
+          "type": "string",
+          "enum": [
+            "String",
+            "Number",
+            "Binary"
+          ]
+        },
+        "value": {
+          "type": "string"
+        }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "data-type"
+          ]
+        },
+        {
+          "required": [
+            "value"
+          ]
+        }
+      ],
+      "additionalProperties": false
+    },
+    "publisher-message-body": {
+      "type": "object",
+      "properties": {
+        "@comment": {
+          "type": "string"
+        },
+        "omit-empty": {
+          "type": "boolean"
+        },
+        "mapper": {
+          "$ref": "#/definitions/mapper"
+        },
+        "projector": {
+          "$ref": "#/definitions/projector"
+        },
+        "modifiers": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/publisher-modifier"
+          }
+        }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "omit-empty"
+          ]
+        },
+        {
+          "required": [
+            "mapper"
+          ]
+        },
+        {
+          "required": [
+            "projector"
+          ]
+        },
+        {
+          "required": [
+            "modifiers"
+          ]
+        }
+      ],
+      "additionalProperties": false
+    },
+    "publisher-message": {
+      "type": "object",
+      "properties": {
+        "@comment": {
+          "type": "string"
+        },
+        "continue-on-error": {
+          "type": "boolean"
+        },
+        "only-if": {
+          "$ref": "#/definitions/only-if"
+        },
+        "ignore-if": {
+          "$ref": "#/definitions/ignore-if"
+        },
+        "attributes": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/publisher-message-attribute"
+          }
+        },
+        "body": {
+          "$ref": "#/definitions/publisher-message-body"
+        }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "attributes"
+          ]
+        },
+        {
+          "required": [
+            "body"
+          ]
+        }
+      ],
+      "additionalProperties": false
+    },
+    "backend-base": {
+      "type": "object",
+      "properties": {
+        "@comment": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "dependencies": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "only-if": {
+          "$ref": "#/definitions/only-if"
+        },
+        "ignore-if": {
+          "$ref": "#/definitions/ignore-if"
+        },
+        "kind": {
+          "$ref": "#/definitions/backend-kind"
+        },
+        "template": {
+          "$ref": "#/definitions/template"
+        },
+        "async": {
+          "type": "boolean"
         },
         "hosts": {
           "type": "array",
@@ -898,27 +1183,483 @@
         },
         "response": {
           "$ref": "#/definitions/backend-response"
+        },
+        "propagate": {
+          "$ref": "#/definitions/middleware-backend-propagate"
+        },
+        "provider": {
+          "$ref": "#/definitions/publisher-provider"
+        },
+        "group-id": {
+          "type": "string"
+        },
+        "deduplication-id": {
+          "type": "string"
+        },
+        "delay": {
+          "$ref": "#/definitions/duration"
+        },
+        "message": {
+          "$ref": "#/definitions/publisher-message"
         }
       },
-      "required": [
-        "hosts",
-        "path",
-        "method"
-      ],
       "additionalProperties": false
     },
+    "backend-normal": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/backend-base"
+        },
+        {
+          "if": {
+            "required": [
+              "template"
+            ]
+          },
+          "then": {
+            "not": {
+              "required": [
+                "id"
+              ]
+            }
+          }
+        },
+        {
+          "not": {
+            "required": [
+              "propagate"
+            ]
+          }
+        },
+        {
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "kind": {
+                    "const": "HTTP"
+                  }
+                },
+                "required": [
+                  "kind"
+                ]
+              },
+              "then": {
+                "not": {
+                  "anyOf": [
+                    {
+                      "required": [
+                        "provider"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "group-id"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "deduplication-id"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "delay"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "message"
+                      ]
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "kind": {
+                    "const": "PUBLISHER"
+                  }
+                },
+                "required": [
+                  "kind"
+                ]
+              },
+              "then": {
+                "not": {
+                  "anyOf": [
+                    {
+                      "required": [
+                        "hosts"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "method"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "request"
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "anyOf": [
+            {
+              "required": [
+                "template"
+              ]
+            },
+            {
+              "properties": {
+                "kind": {
+                  "const": "HTTP"
+                }
+              },
+              "required": [
+                "kind",
+                "hosts",
+                "path",
+                "method"
+              ]
+            },
+            {
+              "properties": {
+                "kind": {
+                  "const": "PUBLISHER"
+                }
+              },
+              "required": [
+                "kind",
+                "provider",
+                "path"
+              ]
+            }
+          ]
+        }
+      ]
+    },
     "backend-middleware": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/backend-base"
+        },
+        {
+          "if": {
+            "required": [
+              "template"
+            ]
+          },
+          "then": {
+            "not": {
+              "required": [
+                "id"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "PUBLISHER"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "not": {
+              "required": [
+                "propagate"
+              ]
+            }
+          }
+        },
+        {
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "kind": {
+                    "const": "HTTP"
+                  }
+                },
+                "required": [
+                  "kind"
+                ]
+              },
+              "then": {
+                "not": {
+                  "anyOf": [
+                    {
+                      "required": [
+                        "provider"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "group-id"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "deduplication-id"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "delay"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "message"
+                      ]
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "kind": {
+                    "const": "PUBLISHER"
+                  }
+                },
+                "required": [
+                  "kind"
+                ]
+              },
+              "then": {
+                "not": {
+                  "anyOf": [
+                    {
+                      "required": [
+                        "hosts"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "method"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "request"
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "anyOf": [
+            {
+              "required": [
+                "template"
+              ]
+            },
+            {
+              "properties": {
+                "kind": {
+                  "const": "HTTP"
+                }
+              },
+              "required": [
+                "kind",
+                "hosts",
+                "path",
+                "method"
+              ]
+            },
+            {
+              "properties": {
+                "kind": {
+                  "const": "PUBLISHER"
+                }
+              },
+              "required": [
+                "kind",
+                "provider",
+                "path"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "templates": {
       "type": "object",
       "properties": {
         "@comment": {
           "type": "string"
         },
-        "hosts": {
-          "type": "array",
-          "minItems": 1,
-          "items": {
-            "$ref": "#/definitions/url"
+        "beforewares": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "$ref": "#/definitions/backend-middleware"
           }
+        },
+        "backends": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "$ref": "#/definitions/backend-normal"
+          }
+        },
+        "afterwares": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "$ref": "#/definitions/backend-middleware"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "endpoint-response-header": {
+      "type": "object",
+      "properties": {
+        "@comment": {
+          "type": "string"
+        },
+        "mapper": {
+          "$ref": "#/definitions/mapper"
+        },
+        "projector": {
+          "$ref": "#/definitions/projector"
+        }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "mapper"
+          ]
+        },
+        {
+          "required": [
+            "projector"
+          ]
+        }
+      ],
+      "additionalProperties": false
+    },
+    "endpoint-response-body": {
+      "type": "object",
+      "properties": {
+        "@comment": {
+          "type": "string"
+        },
+        "aggregate": {
+          "type": "boolean"
+        },
+        "omit-empty": {
+          "type": "boolean"
+        },
+        "content-type": {
+          "$ref": "#/definitions/content-type"
+        },
+        "content-encoding": {
+          "$ref": "#/definitions/content-encoding"
+        },
+        "nomenclature": {
+          "$ref": "#/definitions/nomenclature"
+        },
+        "mapper": {
+          "$ref": "#/definitions/mapper"
+        },
+        "projector": {
+          "$ref": "#/definitions/projector"
+        }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "aggregate"
+          ]
+        },
+        {
+          "required": [
+            "omit-empty"
+          ]
+        },
+        {
+          "required": [
+            "content-type"
+          ]
+        },
+        {
+          "required": [
+            "content-encoding"
+          ]
+        },
+        {
+          "required": [
+            "nomenclature"
+          ]
+        },
+        {
+          "required": [
+            "mapper"
+          ]
+        },
+        {
+          "required": [
+            "projector"
+          ]
+        }
+      ],
+      "additionalProperties": false
+    },
+    "endpoint-response": {
+      "type": "object",
+      "properties": {
+        "@comment": {
+          "type": "string"
+        },
+        "continue-on-error": {
+          "type": "boolean"
+        },
+        "header": {
+          "$ref": "#/definitions/endpoint-response-header"
+        },
+        "body": {
+          "$ref": "#/definitions/endpoint-response-body"
+        }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "header"
+          ]
+        },
+        {
+          "required": [
+            "body"
+          ]
+        }
+      ],
+      "additionalProperties": false
+    },
+    "endpoint": {
+      "type": "object",
+      "properties": {
+        "@comment": {
+          "type": "string"
         },
         "path": {
           "$ref": "#/definitions/path"
@@ -926,60 +1667,56 @@
         "method": {
           "$ref": "#/definitions/http-method"
         },
-        "request": {
-          "$ref": "#/definitions/backend-request"
-        }
-      },
-      "required": [
-        "hosts",
-        "path",
-        "method"
-      ],
-      "additionalProperties": false
-    },
-    "publisher": {
-      "type": "object",
-      "properties": {
-        "@comment": {
-          "type": "string"
+        "timeout": {
+          "$ref": "#/definitions/duration"
         },
-        "provider": {
-          "$ref": "#/definitions/publisher-provider"
+        "limiter": {
+          "$ref": "#/definitions/endpoint-limiter"
         },
-        "reference": {
-          "$ref": "#/definitions/publisher-reference"
+        "cache": {
+          "$ref": "#/definitions/endpoint-cache"
         },
-        "group-id": {
-          "$ref": "#/definitions/publisher-group-id"
+        "abort-if-http-status-codes": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 100,
+            "maximum": 599
+          }
         },
-        "deduplication-id": {
-          "$ref": "#/definitions/publisher-deduplication-id"
+        "response": {
+          "$ref": "#/definitions/endpoint-response"
         },
-        "delay": {
-          "$ref": "#/definitions/publisher-delay"
+        "parallelism": {
+          "type": "boolean"
         },
-        "body-mapper": {
-          "$ref": "#/definitions/body-mapper"
+        "beforewares": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/backend-middleware"
+          }
         },
-        "body-projection": {
-          "$ref": "#/definitions/projection"
-        },
-        "body-modifiers": {
+        "backends": {
           "type": "array",
           "minItems": 1,
           "items": {
-            "$ref": "#/definitions/request-modifier"
+            "$ref": "#/definitions/backend-normal"
+          }
+        },
+        "afterwares": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/backend-middleware"
           }
         }
       },
       "required": [
-        "provider",
-        "reference"
+        "path",
+        "method"
       ],
       "additionalProperties": false
     }
   },
-  "type": "object",
   "properties": {
     "$schema": {
       "type": "string"
@@ -990,11 +1727,11 @@
     "version": {
       "type": "string"
     },
-    "proxy": {
-      "$ref": "#/definitions/proxy"
-    },
     "hot-reload": {
       "type": "boolean"
+    },
+    "proxy": {
+      "$ref": "#/definitions/proxy"
     },
     "store": {
       "$ref": "#/definitions/store"
@@ -1011,18 +1748,19 @@
     "security-cors": {
       "$ref": "#/definitions/security-cors"
     },
-    "middlewares": {
-      "type": "object",
-      "additionalProperties": {
-        "$ref": "#/definitions/backend-middleware"
-      }
+    "templates": {
+      "$ref": "#/definitions/templates"
     },
     "endpoints": {
       "type": "array",
+      "minItems": 1,
       "items": {
         "$ref": "#/definitions/endpoint"
       }
     }
   },
+  "required": [
+    "endpoints"
+  ],
   "additionalProperties": false
 }

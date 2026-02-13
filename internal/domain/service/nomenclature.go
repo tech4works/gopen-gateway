@@ -30,7 +30,7 @@ type nomenclatureService struct {
 }
 
 type Nomenclature interface {
-	ToCase(body *vo.Body, nomenclature enum.Nomenclature) (*vo.Body, []error)
+	ToCase(nomenclature enum.Nomenclature, body *vo.Body) (*vo.Body, []error)
 }
 
 func NewNomenclature(jsonPath domain.JSONPath, nomenclature domain.Nomenclature) Nomenclature {
@@ -40,8 +40,10 @@ func NewNomenclature(jsonPath domain.JSONPath, nomenclature domain.Nomenclature)
 	}
 }
 
-func (n nomenclatureService) ToCase(body *vo.Body, nomenclature enum.Nomenclature) (*vo.Body, []error) {
-	if body.ContentType().IsNotJSON() {
+func (n nomenclatureService) ToCase(nomenclature enum.Nomenclature, body *vo.Body) (*vo.Body, []error) {
+	if !nomenclature.IsEnumValid() {
+		return body, nil
+	} else if body.ContentType().IsNotJSON() {
 		return body, nil
 	}
 

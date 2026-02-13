@@ -24,17 +24,17 @@ import (
 )
 
 type Gopen struct {
-	Comment      string             `json:"@comment,omitempty"`
-	Version      string             `json:"version,omitempty"`
-	HotReload    bool               `json:"hot-reload,omitempty"`
-	Proxy        *Proxy             `json:"proxy,omitempty"`
-	Store        *Store             `json:"store,omitempty"`
-	Timeout      vo.Duration        `json:"timeout,omitempty"`
-	Cache        *Cache             `json:"cache,omitempty"`
-	Limiter      *Limiter           `json:"limiter,omitempty"`
-	SecurityCors *SecurityCors      `json:"security-cors,omitempty"`
-	Middlewares  map[string]Backend `json:"middlewares,omitempty"`
-	Endpoints    []Endpoint         `json:"endpoints,omitempty"`
+	Comment      string        `json:"@comment,omitempty"`
+	Version      string        `json:"version,omitempty"`
+	HotReload    bool          `json:"hot-reload,omitempty"`
+	Proxy        *Proxy        `json:"proxy,omitempty"`
+	Store        *Store        `json:"store,omitempty"`
+	Timeout      vo.Duration   `json:"timeout,omitempty"`
+	Cache        *Cache        `json:"cache,omitempty"`
+	Limiter      *Limiter      `json:"limiter,omitempty"`
+	SecurityCors *SecurityCors `json:"security-cors,omitempty"`
+	Templates    *Templates    `json:"templates,omitempty"`
+	Endpoints    []Endpoint    `json:"endpoints,omitempty"`
 }
 
 type Proxy struct {
@@ -94,94 +94,228 @@ type SecurityCors struct {
 	AllowHeaders []string `json:"allow-headers"`
 }
 
-type Middlewares map[string]Backend
+type Templates struct {
+	Comment     string             `json:"@comment,omitempty"`
+	Beforewares map[string]Backend `json:"beforewares,omitempty"`
+	Backends    map[string]Backend `json:"backends,omitempty"`
+	Afterwares  map[string]Backend `json:"afterwares,omitempty"`
+}
+
+type Template struct {
+	Path  string             `json:"path,omitempty"`
+	Merge enum.TemplateMerge `json:"merge,omitempty"`
+}
 
 type Endpoint struct {
-	Comment            string            `json:"@comment,omitempty"`
-	Path               string            `json:"path,omitempty"`
-	Method             string            `json:"method,omitempty"`
-	Timeout            vo.Duration       `json:"timeout,omitempty"`
-	Limiter            *EndpointLimiter  `json:"limiter,omitempty"`
-	Cache              *EndpointCache    `json:"cache,omitempty"`
-	AbortIfStatusCodes *[]int            `json:"abort-if-status-codes,omitempty"`
-	Response           *EndpointResponse `json:"response,omitempty"`
-	Beforewares        []string          `json:"beforewares,omitempty"`
-	Afterwares         []string          `json:"afterwares,omitempty"`
-	Backends           []Backend         `json:"backends,omitempty"`
-	Publishers         []Publisher       `json:"publishers,omitempty"`
+	Comment                string            `json:"@comment,omitempty"`
+	Path                   string            `json:"path,omitempty"`
+	Method                 string            `json:"method,omitempty"`
+	Timeout                vo.Duration       `json:"timeout,omitempty"`
+	Limiter                *EndpointLimiter  `json:"limiter,omitempty"`
+	Cache                  *EndpointCache    `json:"cache,omitempty"`
+	AbortIfHTPPStatusCodes *[]int            `json:"abort-if-http-status-codes,omitempty"`
+	Parallelism            bool              `json:"parallelism,omitempty"`
+	Beforewares            []Backend         `json:"beforewares,omitempty"`
+	Backends               []Backend         `json:"backends,omitempty"`
+	Afterwares             []Backend         `json:"afterwares,omitempty"`
+	Response               *EndpointResponse `json:"response,omitempty"`
 }
 
 type EndpointResponse struct {
-	Comment          string               `json:"@comment,omitempty"`
-	Aggregate        bool                 `json:"aggregate,omitempty"`
-	OmitEmpty        bool                 `json:"omit-empty,omitempty"`
-	HeaderMapper     *vo.Mapper           `json:"header-mapper,omitempty"`
-	BodyMapper       *vo.Mapper           `json:"body-mapper,omitempty"`
-	HeaderProjection *vo.Projection       `json:"header-projection,omitempty"`
-	BodyProjection   *vo.Projection       `json:"body-projection,omitempty"`
-	ContentType      enum.ContentType     `json:"content-type,omitempty"`
-	ContentEncoding  enum.ContentEncoding `json:"content-encoding,omitempty"`
-	Nomenclature     enum.Nomenclature    `json:"nomenclature,omitempty"`
+	Comment         string                  `json:"@comment,omitempty"`
+	ContinueOnError bool                    `json:"continue-on-error,omitempty"`
+	Header          *EndpointResponseHeader `json:"header,omitempty"`
+	Body            *EndpointResponseBody   `json:"body,omitempty"`
+}
+
+type EndpointResponseHeader struct {
+	Comment   string     `json:"@comment,omitempty"`
+	Mapper    *Mapper    `json:"mapper,omitempty"`
+	Projector *Projector `json:"projector,omitempty"`
+}
+
+type EndpointResponseBody struct {
+	Comment         string               `json:"@comment,omitempty"`
+	Aggregate       bool                 `json:"aggregate,omitempty"`
+	OmitEmpty       bool                 `json:"omit-empty,omitempty"`
+	ContentType     enum.ContentType     `json:"content-type,omitempty"`
+	ContentEncoding enum.ContentEncoding `json:"content-encoding,omitempty"`
+	Nomenclature    enum.Nomenclature    `json:"nomenclature,omitempty"`
+	Mapper          *Mapper              `json:"mapper,omitempty"`
+	Projector       *Projector           `json:"projector,omitempty"`
 }
 
 type Backend struct {
-	Comment  string           `json:"@comment,omitempty"`
-	Hosts    []string         `json:"hosts,omitempty"`
-	Path     string           `json:"path,omitempty"`
-	Method   string           `json:"method,omitempty"`
-	Request  *BackendRequest  `json:"request,omitempty"`
-	Response *BackendResponse `json:"response,omitempty"`
+	Comment string `json:"@comment,omitempty"`
+
+	// id do backend dentro do endpoint (usado para dependencies, debug, etc).
+	// - Em templates: será preenchido automaticamente com a chave do template (template.path).
+	// - Em endpoint (backend bruto): se omitido, será preenchido automaticamente com o path (backend.path).
+	ID string `json:"id,omitempty"`
+
+	Dependencies []string `json:"dependencies,omitempty"`
+
+	OnlyIf   []string `json:"only-if,omitempty"`
+	IgnoreIf []string `json:"ignore-if,omitempty"`
+
+	Kind     enum.BackendKind `json:"kind,omitempty"`
+	Template *Template        `json:"template,omitempty"`
+
+	Async *bool `json:"async,omitempty"`
+
+	// ---- HTTP ----
+	Hosts     []string          `json:"hosts,omitempty"`
+	Path      string            `json:"path,omitempty"`
+	Method    string            `json:"method,omitempty"`
+	Request   *BackendRequest   `json:"request,omitempty"`
+	Response  *BackendResponse  `json:"response,omitempty"`
+	Propagate *BackendPropagate `json:"propagate,omitempty"`
+
+	// ---- PUBLISHER ----
+	Provider        enum.PublisherProvider `json:"provider,omitempty"`
+	GroupID         string                 `json:"group-id,omitempty"`
+	DeduplicationID string                 `json:"deduplication-id,omitempty"`
+	Delay           vo.Duration            `json:"delay,omitempty"`
+	Message         *PublisherMessage      `json:"message,omitempty"`
+}
+
+type BackendRequest struct {
+	Comment         string                `json:"@comment,omitempty"`
+	ContinueOnError *bool                 `json:"continue-on-error,omitempty"`
+	Concurrent      int                   `json:"concurrent,omitempty"`
+	Async           *bool                 `json:"async,omitempty"`
+	Header          *BackendRequestHeader `json:"header,omitempty"`
+	Param           *BackendRequestParam  `json:"param,omitempty"`
+	Query           *BackendRequestQuery  `json:"query,omitempty"`
+	Body            *BackendRequestBody   `json:"body,omitempty"`
+}
+
+type BackendPropagate struct {
+	Comment         string                `json:"@comment,omitempty"`
+	ContinueOnError *bool                 `json:"continue-on-error,omitempty"`
+	Header          *BackendRequestHeader `json:"header,omitempty"`
+	Param           *BackendRequestParam  `json:"param,omitempty"`
+	Query           *BackendRequestQuery  `json:"query,omitempty"`
+	Body            *BackendRequestBody   `json:"body,omitempty"`
+}
+
+type BackendPropagateRequest struct {
+	Header *BackendRequestHeader `json:"header,omitempty"`
+	Param  *BackendRequestParam  `json:"param,omitempty"`
+	Query  *BackendRequestQuery  `json:"query,omitempty"`
+	Body   *BackendRequestBody   `json:"body,omitempty"`
+}
+
+type BackendRequestHeader struct {
+	Comment   string     `json:"@comment,omitempty"`
+	Omit      bool       `json:"omit,omitempty"`
+	Mapper    *Mapper    `json:"mapper,omitempty"`
+	Projector *Projector `json:"projector,omitempty"`
+	Modifiers []Modifier `json:"modifiers,omitempty"`
+}
+
+type BackendRequestParam struct {
+	Comment   string     `json:"@comment,omitempty"`
+	Modifiers []Modifier `json:"modifiers,omitempty"`
+}
+
+type BackendRequestQuery struct {
+	Comment   string     `json:"@comment,omitempty"`
+	Omit      bool       `json:"omit,omitempty"`
+	Mapper    *Mapper    `json:"mapper,omitempty"`
+	Projector *Projector `json:"projector,omitempty"`
+	Modifiers []Modifier `json:"modifiers,omitempty"`
+}
+
+type BackendRequestBody struct {
+	Comment         string               `json:"@comment,omitempty"`
+	Omit            bool                 `json:"omit,omitempty"`
+	OmitEmpty       bool                 `json:"omit-empty,omitempty"`
+	ContentType     enum.ContentType     `json:"content-type,omitempty"`
+	ContentEncoding enum.ContentEncoding `json:"content-encoding,omitempty"`
+	Nomenclature    enum.Nomenclature    `json:"nomenclature,omitempty"`
+	Mapper          *Mapper              `json:"mapper,omitempty"`
+	Projector       *Projector           `json:"projector,omitempty"`
+	Modifiers       []Modifier           `json:"modifiers,omitempty"`
+}
+
+type BackendResponse struct {
+	Comment         string                 `json:"@comment,omitempty"`
+	ContinueOnError bool                   `json:"continue-on-error,omitempty"`
+	Omit            bool                   `json:"omit,omitempty"`
+	Header          *BackendResponseHeader `json:"header,omitempty"`
+	Body            *BackendResponseBody   `json:"body,omitempty"`
+}
+
+type BackendResponseHeader struct {
+	Comment   string     `json:"@comment,omitempty"`
+	Omit      bool       `json:"omit,omitempty"`
+	Mapper    *Mapper    `json:"mapper,omitempty"`
+	Projector *Projector `json:"projector,omitempty"`
+	Modifiers []Modifier `json:"modifiers,omitempty"`
+}
+
+type BackendResponseBody struct {
+	Comment   string     `json:"@comment,omitempty"`
+	Omit      bool       `json:"omit,omitempty"`
+	Group     string     `json:"group,omitempty"`
+	Mapper    *Mapper    `json:"mapper,omitempty"`
+	Projector *Projector `json:"projector,omitempty"`
+	Modifiers []Modifier `json:"modifiers,omitempty"`
 }
 
 type Publisher struct {
 	Comment         string                 `json:"@comment,omitempty"`
+	OnlyIf          []string               `json:"only-if,omitempty"`
+	IgnoreIf        []string               `json:"ignore-if,omitempty"`
 	Provider        enum.PublisherProvider `json:"provider,omitempty"`
 	Reference       string                 `json:"reference,omitempty"`
 	GroupID         string                 `json:"group-id,omitempty"`
 	DeduplicationID string                 `json:"deduplication-id,omitempty"`
 	Delay           vo.Duration            `json:"delay,omitempty"`
-	BodyMapper      *vo.Mapper             `json:"body-mapper,omitempty"`
-	BodyProjection  *vo.Projection         `json:"body-projection,omitempty"`
-	BodyModifiers   []Modifier             `json:"body-modifiers,omitempty"`
+	Async           *bool                  `json:"async,omitempty"`
+	Message         *PublisherMessage      `json:"message,omitempty"`
 }
 
-type BackendRequest struct {
-	Comment          string               `json:"@comment,omitempty"`
-	Concurrent       int                  `json:"concurrent,omitempty"`
-	OmitHeader       bool                 `json:"omit-header,omitempty"`
-	OmitQuery        bool                 `json:"omit-query,omitempty"`
-	OmitBody         bool                 `json:"omit-body,omitempty"`
-	ContentType      enum.ContentType     `json:"content-type,omitempty"`
-	ContentEncoding  enum.ContentEncoding `json:"content-encoding,omitempty"`
-	Nomenclature     enum.Nomenclature    `json:"nomenclature,omitempty"`
-	OmitEmpty        bool                 `json:"omit-empty,omitempty"`
-	HeaderMapper     *vo.Mapper           `json:"header-mapper,omitempty"`
-	QueryMapper      *vo.Mapper           `json:"query-mapper,omitempty"`
-	BodyMapper       *vo.Mapper           `json:"body-mapper,omitempty"`
-	HeaderProjection *vo.Projection       `json:"header-projection,omitempty"`
-	QueryProjection  *vo.Projection       `json:"query-projection,omitempty"`
-	BodyProjection   *vo.Projection       `json:"body-projection,omitempty"`
-	HeaderModifiers  []Modifier           `json:"header-modifiers,omitempty"`
-	ParamModifiers   []Modifier           `json:"param-modifiers,omitempty"`
-	QueryModifiers   []Modifier           `json:"query-modifiers,omitempty"`
-	BodyModifiers    []Modifier           `json:"body-modifiers,omitempty"`
+type PublisherMessage struct {
+	Comment         string                               `json:"@comment,omitempty"`
+	ContinueOnError bool                                 `json:"continue-on-error,omitempty"`
+	OnlyIf          []string                             `json:"only-if,omitempty"`
+	IgnoreIf        []string                             `json:"ignore-if,omitempty"`
+	Attributes      map[string]PublisherMessageAttribute `json:"attributes,omitempty"`
+	Body            *PublisherMessageBody                `json:"body,omitempty"`
 }
 
-type BackendResponse struct {
-	Comment          string         `json:"@comment,omitempty"`
-	Omit             bool           `json:"omit,omitempty"`
-	OmitHeader       bool           `json:"omit-header,omitempty"`
-	OmitBody         bool           `json:"omit-body,omitempty"`
-	Group            string         `json:"group,omitempty"`
-	HeaderMapper     *vo.Mapper     `json:"header-mapper,omitempty"`
-	BodyMapper       *vo.Mapper     `json:"body-mapper,omitempty"`
-	HeaderProjection *vo.Projection `json:"header-projection,omitempty"`
-	BodyProjection   *vo.Projection `json:"body-projection,omitempty"`
-	HeaderModifiers  []Modifier     `json:"header-modifiers,omitempty"`
-	BodyModifiers    []Modifier     `json:"body-modifiers,omitempty"`
+type PublisherMessageBody struct {
+	OmitEmpty bool       `json:"omit-empty,omitempty"`
+	Mapper    *Mapper    `json:"mapper,omitempty"`
+	Projector *Projector `json:"projector,omitempty"`
+	Modifiers []Modifier `json:"modifiers,omitempty"`
+}
+
+type PublisherMessageAttribute struct {
+	DataType string `json:"data-type,omitempty"`
+	Value    string `json:"value,omitempty"`
+}
+
+type Mapper struct {
+	Comment  string   `json:"@comment,omitempty"`
+	OnlyIf   []string `json:"only-if,omitempty"`
+	IgnoreIf []string `json:"ignore-if,omitempty"`
+	Map      vo.Map   `json:"map,omitempty"`
+}
+
+type Projector struct {
+	Comment  string     `json:"@comment,omitempty"`
+	OnlyIf   []string   `json:"only-if,omitempty"`
+	IgnoreIf []string   `json:"ignore-if,omitempty"`
+	Project  vo.Project `json:"project,omitempty"`
 }
 
 type Modifier struct {
+	Comment   string              `json:"@comment,omitempty"`
+	OnlyIf    []string            `json:"only-if,omitempty"`
+	IgnoreIf  []string            `json:"ignore-if,omitempty"`
 	Action    enum.ModifierAction `json:"action,omitempty"`
 	Propagate bool                `json:"propagate,omitempty"`
 	Key       string              `json:"key,omitempty"`
@@ -189,6 +323,7 @@ type Modifier struct {
 }
 
 type ErrorBody struct {
+	ID        string    `json:"id,omitempty"`
 	File      string    `json:"file"`
 	Line      int       `json:"line"`
 	Endpoint  string    `json:"endpoint"`

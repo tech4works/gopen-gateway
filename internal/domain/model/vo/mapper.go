@@ -18,38 +18,65 @@ package vo
 
 import (
 	"fmt"
-	jsoniter "github.com/json-iterator/go"
-	"github.com/tech4works/checker"
 	"strconv"
 	"strings"
+
+	jsoniter "github.com/json-iterator/go"
+	"github.com/tech4works/checker"
 )
 
 type Mapper struct {
+	onlyIf   []string
+	ignoreIf []string
+	mMap     Map
+}
+
+type Map struct {
 	keys   []string
 	values map[string]string
 }
 
-func (m *Mapper) IsEmpty() bool {
+func NewMapper(onlyIf, ignoreIf []string, mMap Map) *Mapper {
+	return &Mapper{
+		onlyIf:   onlyIf,
+		ignoreIf: ignoreIf,
+		mMap:     mMap,
+	}
+}
+
+func (m Mapper) OnlyIf() []string {
+	return m.onlyIf
+}
+
+func (m Mapper) IgnoreIf() []string {
+	return m.ignoreIf
+}
+
+func (m Mapper) Map() *Map {
+	return &m.mMap
+}
+
+func (m *Map) IsEmpty() bool {
 	return checker.IsEmpty(m)
 }
 
-func (m *Mapper) IsNotEmpty() bool {
+func (m *Map) IsNotEmpty() bool {
 	return !m.IsEmpty()
 }
 
-func (m *Mapper) Exists(key string) bool {
+func (m *Map) Exists(key string) bool {
 	return checker.Contains(m.keys, key)
 }
 
-func (m *Mapper) Keys() []string {
+func (m *Map) Keys() []string {
 	return m.keys
 }
 
-func (m *Mapper) Get(key string) string {
+func (m *Map) Get(key string) string {
 	return m.values[key]
 }
 
-func (m *Mapper) UnmarshalJSON(data []byte) error {
+func (m *Map) UnmarshalJSON(data []byte) error {
 	if checker.IsEmpty(data) || checker.Equals(strings.TrimSpace(string(data)), "{}") {
 		return nil
 	}
@@ -67,7 +94,7 @@ func (m *Mapper) UnmarshalJSON(data []byte) error {
 	return iter.Error
 }
 
-func (m *Mapper) MarshalJSON() ([]byte, error) {
+func (m *Map) MarshalJSON() ([]byte, error) {
 	if m.IsEmpty() {
 		return []byte("null"), nil
 	}

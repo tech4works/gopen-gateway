@@ -17,13 +17,14 @@
 package service
 
 import (
+	"strconv"
+
 	"github.com/tech4works/checker"
 	"github.com/tech4works/compressor"
 	"github.com/tech4works/converter"
 	"github.com/tech4works/gopen-gateway/internal/domain"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
-	"strconv"
 )
 
 type contentService struct {
@@ -31,8 +32,8 @@ type contentService struct {
 }
 
 type Content interface {
-	ModifyBodyContentType(body *vo.Body, contentType enum.ContentType) (*vo.Body, error)
-	ModifyBodyContentEncoding(body *vo.Body, contentEncoding enum.ContentEncoding) (*vo.Body, error)
+	ModifyBodyContentType(contentType enum.ContentType, body *vo.Body) (*vo.Body, error)
+	ModifyBodyContentEncoding(contentEncoding enum.ContentEncoding, body *vo.Body) (*vo.Body, error)
 }
 
 func NewContent(converter domain.Converter) Content {
@@ -41,7 +42,7 @@ func NewContent(converter domain.Converter) Content {
 	}
 }
 
-func (c contentService) ModifyBodyContentType(body *vo.Body, contentType enum.ContentType) (*vo.Body, error) {
+func (c contentService) ModifyBodyContentType(contentType enum.ContentType, body *vo.Body) (*vo.Body, error) {
 	if !contentType.IsEnumValid() ||
 		body.ContentType().IsUnknown() ||
 		checker.Equals(body.ContentType().ToEnum(), contentType) {
@@ -61,8 +62,7 @@ func (c contentService) ModifyBodyContentType(body *vo.Body, contentType enum.Co
 	return vo.NewBodyWithContentType(httpContentType, buffer), nil
 }
 
-func (c contentService) ModifyBodyContentEncoding(body *vo.Body, contentEncoding enum.ContentEncoding) (*vo.Body,
-	error) {
+func (c contentService) ModifyBodyContentEncoding(contentEncoding enum.ContentEncoding, body *vo.Body) (*vo.Body, error) {
 	if !contentEncoding.IsEnumValid() || checker.EqualsIgnoreCase(body.ContentEncoding(), contentEncoding) {
 		return body, nil
 	}

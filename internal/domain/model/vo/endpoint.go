@@ -18,33 +18,43 @@ package vo
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/tech4works/checker"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
-	"time"
 )
 
 type Endpoint struct {
-	path               string
-	method             string
-	timeout            Duration
-	limiter            Limiter
-	cache              *Cache
-	abortIfStatusCodes *[]int
-	response           *EndpointResponse
-	backends           []Backend
-	publishers         []Publisher
+	path                   string
+	method                 string
+	timeout                Duration
+	limiter                Limiter
+	cache                  *Cache
+	abortIfHTTPStatusCodes *[]int
+	parallelism            bool
+	response               *EndpointResponse
+	backends               []Backend
 }
 
 type EndpointResponse struct {
-	aggregate        bool
-	omitEmpty        bool
-	headerMapper     *Mapper
-	bodyMapper       *Mapper
-	headerProjection *Projection
-	bodyProjection   *Projection
-	contentType      enum.ContentType
-	contentEncoding  enum.ContentEncoding
-	nomenclature     enum.Nomenclature
+	continueOnError bool
+	header          *EndpointResponseHeader
+	body            *EndpointResponseBody
+}
+
+type EndpointResponseHeader struct {
+	mapper    *Mapper
+	projector *Projector
+}
+
+type EndpointResponseBody struct {
+	aggregate       bool
+	omitEmpty       bool
+	contentType     enum.ContentType
+	contentEncoding enum.ContentEncoding
+	nomenclature    enum.Nomenclature
+	mapper          *Mapper
+	projector       *Projector
 }
 
 func NewEndpoint(
@@ -53,21 +63,21 @@ func NewEndpoint(
 	timeout Duration,
 	limiter Limiter,
 	cache *Cache,
-	abortIfStatusCodes *[]int,
+	abortIfHTTPStatusCodes *[]int,
+	parallelism bool,
 	response *EndpointResponse,
 	backends []Backend,
-	publishers []Publisher,
 ) Endpoint {
 	return Endpoint{
-		path:               path,
-		method:             method,
-		timeout:            timeout,
-		limiter:            limiter,
-		cache:              cache,
-		abortIfStatusCodes: abortIfStatusCodes,
-		response:           response,
-		backends:           backends,
-		publishers:         publishers,
+		path:                   path,
+		method:                 method,
+		timeout:                timeout,
+		limiter:                limiter,
+		cache:                  cache,
+		abortIfHTTPStatusCodes: abortIfHTTPStatusCodes,
+		parallelism:            parallelism,
+		response:               response,
+		backends:               backends,
 	}
 }
 
@@ -81,26 +91,41 @@ func NewEndpointStatic(path, method string) Endpoint {
 }
 
 func NewEndpointResponse(
+	continueOnError bool,
+	header *EndpointResponseHeader,
+	body *EndpointResponseBody,
+) *EndpointResponse {
+	return &EndpointResponse{
+		continueOnError: continueOnError,
+		header:          header,
+		body:            body,
+	}
+}
+
+func NewEndpointResponseHeader(mapper *Mapper, projector *Projector) *EndpointResponseHeader {
+	return &EndpointResponseHeader{
+		mapper:    mapper,
+		projector: projector,
+	}
+}
+
+func NewEndpointResponseBody(
 	aggregate bool,
 	omitEmpty bool,
-	headerMapper *Mapper,
-	bodyMapper *Mapper,
-	headerProjection *Projection,
-	bodyProjection *Projection,
 	contentType enum.ContentType,
 	contentEncoding enum.ContentEncoding,
 	nomenclature enum.Nomenclature,
-) *EndpointResponse {
-	return &EndpointResponse{
-		aggregate:        aggregate,
-		omitEmpty:        omitEmpty,
-		headerMapper:     headerMapper,
-		bodyMapper:       bodyMapper,
-		headerProjection: headerProjection,
-		bodyProjection:   bodyProjection,
-		contentType:      contentType,
-		contentEncoding:  contentEncoding,
-		nomenclature:     nomenclature,
+	mapper *Mapper,
+	projector *Projector,
+) *EndpointResponseBody {
+	return &EndpointResponseBody{
+		aggregate:       aggregate,
+		omitEmpty:       omitEmpty,
+		contentType:     contentType,
+		contentEncoding: contentEncoding,
+		nomenclature:    nomenclature,
+		mapper:          mapper,
+		projector:       projector,
 	}
 }
 
@@ -131,10 +156,6 @@ func (e *Endpoint) Backends() []Backend {
 	return e.backends
 }
 
-func (e *Endpoint) Publishers() []Publisher {
-	return e.publishers
-}
-
 func (e *Endpoint) CountBeforewares() (count int) {
 	for _, backend := range e.backends {
 		if backend.IsBeforeware() {
@@ -162,26 +183,9 @@ func (e *Endpoint) CountBackends() (count int) {
 	return count
 }
 
-func (e *Endpoint) CountPublishers() (count int) {
-	for range e.publishers {
-		count++
-	}
-	return count
-}
-
-func (e *Endpoint) CountBackendsNonOmit() int {
-	count := 0
-	for _, backend := range e.Backends() {
-		if checker.IsNil(backend.Response()) || !backend.Response().Omit() {
-			count++
-		}
-	}
-	return count
-}
-
 func (e *Endpoint) CountAllDataTransforms() (count int) {
-	if checker.NonNil(e.Response()) {
-		count += e.Response().CountAllDataTransforms()
+	if e.HasResponse() && e.Response().HasBody() {
+		count += e.Response().Body().CountAllDataTransforms()
 	}
 	for _, backend := range e.backends {
 		count += backend.CountAllDataTransforms()
@@ -189,21 +193,25 @@ func (e *Endpoint) CountAllDataTransforms() (count int) {
 	return count
 }
 
-func (e *Endpoint) HasAbortStatusCodes() bool {
-	return checker.NonNil(e.abortIfStatusCodes)
+func (e *Endpoint) HasAbortIfHTTPStatusCodes() bool {
+	return checker.NonNil(e.abortIfHTTPStatusCodes)
 }
 
 func (e *Endpoint) Response() *EndpointResponse {
 	return e.response
 }
 
-func (e *Endpoint) AbortIfStatusCodes() *[]int {
-	return e.abortIfStatusCodes
+func (e *Endpoint) Parallelism() bool {
+	return e.parallelism
+}
+
+func (e *Endpoint) AbortIfHTTPStatusCodes() *[]int {
+	return e.abortIfHTTPStatusCodes
 }
 
 func (e *Endpoint) Resume() string {
-	return fmt.Sprintf("%s --> \"%s\" (beforeware:%v, afterware:%v, backends:%v, publishers: %v, transformations:%v)",
-		e.method, e.path, e.CountBeforewares(), e.CountAfterwares(), e.CountBackends(), e.CountPublishers(), e.CountAllDataTransforms())
+	return fmt.Sprintf("%s --> \"%s\" (beforeware:%v, backends:%v, afterware:%v, transformations:%v)",
+		e.method, e.path, e.CountBeforewares(), e.CountAfterwares(), e.CountBackends(), e.CountAllDataTransforms())
 }
 
 func (e *Endpoint) NoCache() bool {
@@ -214,59 +222,67 @@ func (e *Endpoint) HasResponse() bool {
 	return checker.NonNil(e.response)
 }
 
-func (e *Endpoint) HasPublishers() bool {
-	return checker.IsNotEmpty(e.publishers)
+func (e EndpointResponse) ContinueOnError() bool {
+	return e.continueOnError
 }
 
-func (e EndpointResponse) HasContentType() bool {
+func (e EndpointResponse) HasBody() bool {
+	return checker.NonNil(e.body)
+}
+
+func (e EndpointResponse) Body() *EndpointResponseBody {
+	return e.body
+}
+
+func (e EndpointResponseBody) HasContentType() bool {
 	return e.contentType.IsEnumValid()
 }
 
-func (e EndpointResponse) HasContentEncoding() bool {
+func (e EndpointResponseBody) HasContentEncoding() bool {
 	return e.contentEncoding.IsEnumValid()
 }
 
-func (e EndpointResponse) ContentType() enum.ContentType {
+func (e EndpointResponseBody) ContentType() enum.ContentType {
 	return e.contentType
 }
 
-func (e EndpointResponse) ContentEncoding() enum.ContentEncoding {
+func (e EndpointResponseBody) ContentEncoding() enum.ContentEncoding {
 	return e.contentEncoding
 }
 
-func (e EndpointResponse) Aggregate() bool {
+func (e EndpointResponseBody) Aggregate() bool {
 	return e.aggregate
 }
 
-func (e EndpointResponse) OmitEmpty() bool {
+func (e EndpointResponseBody) OmitEmpty() bool {
 	return e.omitEmpty
 }
 
-func (e EndpointResponse) HeaderMapper() *Mapper {
-	return e.headerMapper
+func (e EndpointResponseHeader) Mapper() *Mapper {
+	return e.mapper
 }
 
-func (e EndpointResponse) HeaderProjection() *Projection {
-	return e.headerProjection
+func (e EndpointResponseHeader) Projector() *Projector {
+	return e.projector
 }
 
-func (e EndpointResponse) BodyMapper() *Mapper {
-	return e.bodyMapper
+func (e EndpointResponseBody) Mapper() *Mapper {
+	return e.mapper
 }
 
-func (e EndpointResponse) BodyProjection() *Projection {
-	return e.bodyProjection
+func (e EndpointResponseBody) Projector() *Projector {
+	return e.projector
 }
 
-func (e EndpointResponse) HasNomenclature() bool {
+func (e EndpointResponseBody) HasNomenclature() bool {
 	return e.nomenclature.IsEnumValid()
 }
 
-func (e EndpointResponse) Nomenclature() enum.Nomenclature {
+func (e EndpointResponseBody) Nomenclature() enum.Nomenclature {
 	return e.nomenclature
 }
 
-func (e EndpointResponse) CountAllDataTransforms() (count int) {
+func (e EndpointResponseBody) CountAllDataTransforms() (count int) {
 	if e.Aggregate() {
 		count++
 	}

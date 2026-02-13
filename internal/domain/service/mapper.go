@@ -17,86 +17,123 @@
 package service
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/tech4works/checker"
 	"github.com/tech4works/converter"
+	"github.com/tech4works/errors"
 	"github.com/tech4works/gopen-gateway/internal/domain"
 	domainMapper "github.com/tech4works/gopen-gateway/internal/domain/mapper"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
 )
 
 type mapperService struct {
-	jsonPath domain.JSONPath
+	jsonPath            domain.JSONPath
+	dynamicValueService DynamicValue
 }
 
 type Mapper interface {
-	MapHeader(header vo.Header, mapper *vo.Mapper) vo.Header
-	MapQuery(query vo.Query, mapper *vo.Mapper) vo.Query
-	MapBody(body *vo.Body, mapper *vo.Mapper) (*vo.Body, []error)
+	MapHeader(mapper *vo.Mapper, header vo.Header, request *vo.HTTPRequest, history *vo.History) (vo.Header, error)
+	MapQuery(mapper *vo.Mapper, query vo.Query, request *vo.HTTPRequest, history *vo.History) (vo.Query, error)
+	MapBody(mapper *vo.Mapper, body *vo.Body, request *vo.HTTPRequest, history *vo.History) (*vo.Body, []error)
 }
 
-func NewMapper(jsonPath domain.JSONPath) Mapper {
+func NewMapper(jsonPath domain.JSONPath, dynamicValueService DynamicValue) Mapper {
 	return mapperService{
-		jsonPath: jsonPath,
+		jsonPath:            jsonPath,
+		dynamicValueService: dynamicValueService,
 	}
 }
 
-func (m mapperService) MapHeader(header vo.Header, mapper *vo.Mapper) vo.Header {
-	if checker.IsNil(mapper) || mapper.IsEmpty() {
-		return header
+func (m mapperService) MapHeader(mapper *vo.Mapper, header vo.Header, request *vo.HTTPRequest, history *vo.History,
+) (vo.Header, error) {
+	if checker.IsNil(mapper) || mapper.Map().IsEmpty() {
+		return header, nil
+	}
+
+	shouldRun, err := m.evalMapperGuards("header", mapper, request, history)
+	if checker.NonNil(err) {
+		return header, err
+	} else if !shouldRun {
+		return header, nil
 	}
 
 	mappedHeader := map[string][]string{}
 	for _, key := range header.Keys() {
-		if domainMapper.IsNotHeaderMandatoryKey(key) && mapper.Exists(key) {
-			mappedHeader[mapper.Get(key)] = header.GetAll(key)
+		if domainMapper.IsNotHeaderMandatoryKey(key) && mapper.Map().Exists(key) {
+			mappedHeader[mapper.Map().Get(key)] = header.GetAll(key)
 		} else {
 			mappedHeader[key] = header.GetAll(key)
 		}
 	}
 
-	return vo.NewHeader(mappedHeader)
+	return vo.NewHeader(mappedHeader), nil
 }
 
-func (m mapperService) MapQuery(query vo.Query, mapper *vo.Mapper) vo.Query {
-	if checker.IsNil(mapper) || mapper.IsEmpty() {
-		return query
+func (m mapperService) MapQuery(mapper *vo.Mapper, query vo.Query, request *vo.HTTPRequest, history *vo.History) (
+	vo.Query, error) {
+	if checker.IsNil(mapper) || mapper.Map().IsEmpty() {
+		return query, nil
+	}
+
+	shouldRun, err := m.evalMapperGuards("query", mapper, request, history)
+	if checker.NonNil(err) {
+		return query, err
+	} else if !shouldRun {
+		return query, nil
 	}
 
 	mappedQuery := map[string][]string{}
 	for _, key := range query.Keys() {
-		if mapper.Exists(key) {
-			mappedQuery[mapper.Get(key)] = query.GetAll(key)
+		if mapper.Map().Exists(key) {
+			mappedQuery[mapper.Map().Get(key)] = query.GetAll(key)
 		} else {
 			mappedQuery[key] = query.GetAll(key)
 		}
 	}
-	return vo.NewQuery(mappedQuery)
+	return vo.NewQuery(mappedQuery), nil
 }
 
-func (m mapperService) MapBody(body *vo.Body, mapper *vo.Mapper) (*vo.Body, []error) {
-	if checker.IsNil(mapper) || mapper.IsEmpty() || checker.IsNil(body) {
+func (m mapperService) MapBody(mapper *vo.Mapper, body *vo.Body, request *vo.HTTPRequest, history *vo.History,
+) (*vo.Body, []error) {
+	if checker.IsNil(mapper) || mapper.Map().IsEmpty() || checker.IsNil(body) {
+		return body, nil
+	}
+
+	shouldRun, err := m.evalMapperGuards("body", mapper, request, history)
+	if checker.NonNil(err) {
+		return body, []error{err}
+	} else if !shouldRun {
 		return body, nil
 	}
 
 	if body.ContentType().IsText() {
-		return m.mapBodyText(body, mapper)
+		return m.mapBodyText(mapper.Map(), body)
 	} else if body.ContentType().IsJSON() {
-		return m.mapBodyJson(body, mapper)
+		return m.mapBodyJson(mapper.Map(), body)
 	} else {
 		return body, nil
 	}
 }
 
-func (m mapperService) mapBodyText(body *vo.Body, mapper *vo.Mapper) (*vo.Body, []error) {
+func (m mapperService) evalMapperGuards(kind string, mapper *vo.Mapper, request *vo.HTTPRequest, history *vo.History) (
+	bool, error) {
+	shouldRun, _, errs := m.dynamicValueService.EvalGuards(mapper.OnlyIf(), mapper.IgnoreIf(), request, history)
+	if checker.IsNotEmpty(errs) {
+		return false, errors.Inherit(errors.Join(errs, ", "), fmt.Sprintf("failed to evaluate guard for %s mapper", kind))
+	}
+	return shouldRun, nil
+}
+
+func (m mapperService) mapBodyText(mMap *vo.Map, body *vo.Body) (*vo.Body, []error) {
 	mappedBody, err := body.String()
 	if checker.NonNil(err) {
 		return body, []error{err}
 	}
 
-	for _, key := range mapper.Keys() {
-		newKey := mapper.Get(key)
+	for _, key := range mMap.Keys() {
+		newKey := mMap.Get(key)
 		if checker.NotEquals(key, newKey) {
 			mappedBody = strings.ReplaceAll(mappedBody, key, newKey)
 		}
@@ -110,7 +147,7 @@ func (m mapperService) mapBodyText(body *vo.Body, mapper *vo.Mapper) (*vo.Body, 
 	return vo.NewBodyWithContentType(body.ContentType(), buffer), nil
 }
 
-func (m mapperService) mapBodyJson(body *vo.Body, mapper *vo.Mapper) (*vo.Body, []error) {
+func (m mapperService) mapBodyJson(mMap *vo.Map, body *vo.Body) (*vo.Body, []error) {
 	bodyStr, err := body.String()
 	if checker.NonNil(err) {
 		return body, []error{err}
@@ -121,9 +158,9 @@ func (m mapperService) mapBodyJson(body *vo.Body, mapper *vo.Mapper) (*vo.Body, 
 
 	parsedJson := m.jsonPath.Parse(bodyStr)
 	if parsedJson.IsArray() {
-		mappedBodyStr, errs = m.mapBodyJsonArray(parsedJson, mapper)
+		mappedBodyStr, errs = m.mapBodyJsonArray(mMap, parsedJson)
 	} else {
-		mappedBodyStr, errs = m.mapBodyJsonObject(parsedJson, mapper)
+		mappedBodyStr, errs = m.mapBodyJsonObject(mMap, parsedJson)
 	}
 	if checker.IsNotEmpty(errs) {
 		return body, errs
@@ -137,7 +174,7 @@ func (m mapperService) mapBodyJson(body *vo.Body, mapper *vo.Mapper) (*vo.Body, 
 	return vo.NewBodyWithContentType(body.ContentType(), buffer), nil
 }
 
-func (m mapperService) mapBodyJsonArray(jsonArray domain.JSONValue, mapper *vo.Mapper) (string, []error) {
+func (m mapperService) mapBodyJsonArray(mMap *vo.Map, jsonArray domain.JSONValue) (string, []error) {
 	var mappedArray = "[]"
 	var errs []error
 
@@ -145,14 +182,14 @@ func (m mapperService) mapBodyJsonArray(jsonArray domain.JSONValue, mapper *vo.M
 		var newMappedArray string
 		var err error
 		if value.IsObject() {
-			childObject, childErrs := m.mapBodyJsonObject(value, mapper)
+			childObject, childErrs := m.mapBodyJsonObject(mMap, value)
 			if checker.IsNotEmpty(childErrs) {
 				errs = append(errs, childErrs...)
 				return true
 			}
 			newMappedArray, err = m.jsonPath.AppendOnArray(mappedArray, childObject)
 		} else if value.IsArray() {
-			childArray, childErrs := m.mapBodyJsonArray(value, mapper)
+			childArray, childErrs := m.mapBodyJsonArray(mMap, value)
 			if checker.IsNotEmpty(childErrs) {
 				errs = append(errs, childErrs...)
 				return true
@@ -174,12 +211,12 @@ func (m mapperService) mapBodyJsonArray(jsonArray domain.JSONValue, mapper *vo.M
 	return mappedArray, errs
 }
 
-func (m mapperService) mapBodyJsonObject(jsonObject domain.JSONValue, mapper *vo.Mapper) (string, []error) {
+func (m mapperService) mapBodyJsonObject(mMap *vo.Map, jsonObject domain.JSONValue) (string, []error) {
 	var mappedJson = jsonObject.Raw()
 	var errs []error
 
-	for _, key := range mapper.Keys() {
-		newKey := mapper.Get(key)
+	for _, key := range mMap.Keys() {
+		newKey := mMap.Get(key)
 		if checker.Equals(key, newKey) {
 			continue
 		}

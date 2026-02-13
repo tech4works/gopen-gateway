@@ -17,94 +17,92 @@
 package mapper
 
 import (
+	"time"
+
 	"github.com/tech4works/errors"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
-	"time"
 )
 
-const msgErrValueNotFound = "dynamic value not found by syntax: %s"
-const msgErrInvalidAction = "Invalid action modifier %s! action: %s"
-const msgErrEmptyKey = "Modifier empty key!"
-const msgErrEmptyValue = "Modifier empty value!"
-const msgErrIncompatibleBodyType = "Incompatible body type %s to modify!"
-const msgErrBadGateway = "bad gateway error:"
-const msgErrGatewayTimeout = "gateway timeout error:"
-const msgErrPayloadTooLarge = "payload too large error:"
-const msgErrHeaderTooLarge = "header too large error:"
-const msgErrTooManyRequests = "too many requests error:"
-const msgErrCacheNotFound = "cache not found"
-const msgErrConcurrentCanceled = "concurrent context canceled"
+const (
+	msgErrValueNotFound        = "dynamic value not found by syntax:"
+	msgErrInvalidAction        = "Invalid action modifier, action:"
+	msgErrEmptyKey             = "Modifier empty key!"
+	msgErrEmptyValue           = "Modifier empty value!"
+	msgErrIncompatibleBodyType = "Incompatible body type to modify:"
+	msgErrBadGateway           = "bad gateway error:"
+	msgErrGatewayTimeout       = "gateway timeout error:"
+	msgErrPayloadTooLarge      = "payload too large error:"
+	msgErrHeaderTooLarge       = "header too large error:"
+	msgErrTooManyRequests      = "too many requests error:"
+	msgErrCacheNotFound        = "cache not found"
+	msgErrConcurrentCanceled   = "concurrent context canceled"
+	msgErrMapperIgnored        = "mapper ignored by expression:"
+)
 
-var ErrBadGateway = errors.New(msgErrBadGateway)
-var ErrGatewayTimeout = errors.New(msgErrGatewayTimeout)
-var ErrPayloadTooLarge = errors.New(msgErrPayloadTooLarge)
-var ErrHeaderTooLarge = errors.New(msgErrHeaderTooLarge)
-var ErrTooManyRequests = errors.New(msgErrTooManyRequests)
-var ErrCacheNotFound = errors.New(msgErrCacheNotFound)
-var ErrValueNotFound = errors.New(msgErrValueNotFound)
-var ErrInvalidAction = errors.New(msgErrInvalidAction)
-var ErrEmptyKey = errors.New(msgErrEmptyKey)
-var ErrEmptyValue = errors.New(msgErrEmptyValue)
-var ErrIncompatibleBodyType = errors.New(msgErrIncompatibleBodyType)
-var ErrConcurrentCanceled = errors.New(msgErrConcurrentCanceled)
+var (
+	ErrBadGateway           = errors.New(msgErrBadGateway)
+	ErrGatewayTimeout       = errors.New(msgErrGatewayTimeout)
+	ErrPayloadTooLarge      = errors.New(msgErrPayloadTooLarge)
+	ErrHeaderTooLarge       = errors.New(msgErrHeaderTooLarge)
+	ErrTooManyRequests      = errors.New(msgErrTooManyRequests)
+	ErrCacheNotFound        = errors.New(msgErrCacheNotFound)
+	ErrValueNotFound        = errors.New(msgErrValueNotFound)
+	ErrInvalidAction        = errors.New(msgErrInvalidAction)
+	ErrEmptyKey             = errors.New(msgErrEmptyKey)
+	ErrEmptyValue           = errors.New(msgErrEmptyValue)
+	ErrIncompatibleBodyType = errors.New(msgErrIncompatibleBodyType)
+	ErrConcurrentCanceled   = errors.New(msgErrConcurrentCanceled)
+	ErrMapperIgnored        = errors.New(msgErrMapperIgnored)
+)
 
 func NewErrBadGateway(err error) error {
-	ErrBadGateway = errors.NewSkipCaller(2, msgErrBadGateway, err)
-	return ErrBadGateway
+	return errors.NewWithSkipCaller(2, msgErrBadGateway, err)
 }
 
 func NewErrGatewayTimeoutByErr(err error) error {
-	ErrGatewayTimeout = errors.NewSkipCaller(2, msgErrGatewayTimeout, err)
-	return ErrGatewayTimeout
+	return errors.NewWithSkipCaller(2, msgErrGatewayTimeout, err)
 }
 
 func NewErrConcurrentCanceled() error {
-	ErrConcurrentCanceled = errors.NewSkipCaller(2, msgErrConcurrentCanceled)
-	return ErrConcurrentCanceled
+	return errors.NewWithSkipCaller(2, msgErrConcurrentCanceled)
 }
 
 func NewErrPayloadTooLarge(limit string) error {
-	ErrPayloadTooLarge = errors.NewSkipCaller(2, msgErrPayloadTooLarge, "permitted limit is", limit)
-	return ErrPayloadTooLarge
+	return errors.NewWithSkipCaller(2, msgErrPayloadTooLarge, "permitted limit is", limit)
 }
 
 func NewErrHeaderTooLarge(limit string) error {
-	ErrHeaderTooLarge = errors.NewSkipCaller(2, msgErrHeaderTooLarge, "permitted limit is", limit)
-	return ErrHeaderTooLarge
+	return errors.NewWithSkipCaller(2, msgErrHeaderTooLarge, "permitted limit is", limit)
 }
 
 func NewErrTooManyRequests(capacity int, every time.Duration) error {
-	ErrTooManyRequests = errors.NewSkipCaller(2, msgErrTooManyRequests, "permitted limit is", capacity,
-		"every", every.String())
-	return ErrTooManyRequests
+	return errors.NewWithSkipCaller(2, msgErrTooManyRequests, "permitted limit is", capacity, "every", every.String())
 }
 
 func NewErrCacheNotFound() error {
-	ErrCacheNotFound = errors.NewSkipCaller(2, msgErrCacheNotFound)
-	return ErrCacheNotFound
+	return errors.NewWithSkipCaller(2, msgErrCacheNotFound)
 }
 
 func NewErrValueNotFound(syntax string) error {
-	ErrValueNotFound = errors.NewSkipCallerf(2, msgErrValueNotFound, syntax)
-	return ErrValueNotFound
+	return errors.NewWithSkipCaller(2, msgErrValueNotFound, syntax)
 }
 
 func NewErrInvalidAction(modifierName string, action enum.ModifierAction) error {
-	ErrInvalidAction = errors.NewSkipCallerf(2, msgErrInvalidAction, modifierName, action)
-	return ErrInvalidAction
+	return errors.NewWithSkipCaller(2, msgErrInvalidAction, modifierName, action)
 }
 
 func NewErrEmptyKey() error {
-	ErrEmptyKey = errors.NewSkipCallerf(2, msgErrEmptyKey)
-	return ErrEmptyKey
+	return errors.NewWithSkipCaller(2, msgErrEmptyKey)
 }
 
 func NewErrEmptyValue() error {
-	ErrEmptyValue = errors.NewSkipCaller(2, msgErrEmptyValue)
-	return ErrEmptyValue
+	return errors.NewWithSkipCaller(2, msgErrEmptyValue)
 }
 
 func NewErrIncompatibleBodyType(contentType string) error {
-	ErrIncompatibleBodyType = errors.NewSkipCallerf(2, msgErrIncompatibleBodyType, contentType)
-	return ErrIncompatibleBodyType
+	return errors.NewWithSkipCaller(2, msgErrIncompatibleBodyType, contentType)
+}
+
+func NewErrMapperIgnored(expression string) error {
+	return errors.NewWithSkipCaller(2, msgErrMapperIgnored, expression)
 }

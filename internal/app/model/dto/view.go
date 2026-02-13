@@ -22,7 +22,6 @@ type SettingView struct {
 	Founder      string `json:"founder,omitempty"`
 	Contributors int    `json:"contributors,omitempty"`
 	Endpoints    int    `json:"endpoints"`
-	Middlewares  int    `json:"middlewares"`
 	Backends     int    `json:"backends"`
 	Setting      Gopen  `json:"setting"`
 }

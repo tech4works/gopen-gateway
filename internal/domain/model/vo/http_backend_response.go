@@ -50,7 +50,11 @@ func (h *HTTPBackendResponse) Body() *Body {
 	return h.body
 }
 
-func (h *HTTPBackendResponse) Map() (any, error) {
+func (h *HTTPBackendResponse) HasBody() bool {
+	return checker.NonNil(h.body) && checker.IsGreaterThan(h.body.Size(), 0)
+}
+
+func (h *HTTPBackendResponse) Map() (map[string]any, error) {
 	var body any
 	if checker.NonNil(h.body) {
 		bodyMap, err := h.body.Map()
@@ -60,12 +64,8 @@ func (h *HTTPBackendResponse) Map() (any, error) {
 		body = bodyMap
 	}
 	return map[string]any{
-		"statusCode": h.statusCode,
-		"header":     h.header,
-		"body":       body,
+		"status-code": h.statusCode,
+		"header":      h.header,
+		"body":        body,
 	}, nil
-}
-
-func (h *HTTPBackendResponse) HasBody() bool {
-	return checker.NonNil(h.body)
 }

@@ -17,23 +17,51 @@
 package vo
 
 import (
+	"github.com/tech4works/checker"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
 )
 
 type Modifier struct {
+	ignoreIf  []string
+	onlyIf    []string
 	action    enum.ModifierAction
 	propagate bool
 	key       string
 	value     string
 }
 
-func NewModifier(action enum.ModifierAction, propagate bool, key, value string) Modifier {
+func NewModifier(
+	ignoreIf,
+	onlyIf []string,
+	action enum.ModifierAction,
+	propagate bool,
+	key,
+	value string,
+) Modifier {
 	return Modifier{
+		ignoreIf:  ignoreIf,
+		onlyIf:    onlyIf,
 		action:    action,
 		propagate: propagate,
 		key:       key,
 		value:     value,
 	}
+}
+
+func (m Modifier) HasOnlyIf() bool {
+	return checker.IsNotEmpty(m.onlyIf)
+}
+
+func (m Modifier) HasIgnoreIf() bool {
+	return checker.IsNotEmpty(m.ignoreIf)
+}
+
+func (m Modifier) OnlyIf() []string {
+	return m.onlyIf
+}
+
+func (m Modifier) IgnoreIf() []string {
+	return m.ignoreIf
 }
 
 func (m Modifier) Action() enum.ModifierAction {

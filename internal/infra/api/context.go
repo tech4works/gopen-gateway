@@ -19,6 +19,10 @@ package api
 import (
 	"bytes"
 	"fmt"
+	"io"
+	"sync"
+	"time"
+
 	"github.com/gin-gonic/gin"
 	"github.com/tech4works/checker"
 	"github.com/tech4works/converter"
@@ -29,9 +33,6 @@ import (
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
 	"go.elastic.co/apm/v2"
 	"golang.org/x/net/context"
-	"io"
-	"sync"
-	"time"
 )
 
 type Context struct {
@@ -159,7 +160,7 @@ func (c *Context) Write(response *vo.HTTPResponse) {
 func (c *Context) WriteError(code int, err error) {
 	statusCode := vo.NewStatusCode(code)
 
-	details := errors.Details(err)
+	details := errors.Wrap(err)
 	buffer := converter.ToBuffer(dto.ErrorBody{
 		File:      details.File(),
 		Line:      details.Line(),

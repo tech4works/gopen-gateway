@@ -123,7 +123,6 @@ func (p provider) Start(gopen *dto.Gopen) {
 	middlewareLog := log.NewMiddleware()
 	endpointLog := log.NewEndpoint()
 	backendLog := log.NewBackend()
-	publisherLog := log.NewPublisher()
 	httpLog := log.NewHTTPLog()
 
 	p.log.PrintInfo("Building server...")
@@ -135,7 +134,7 @@ func (p provider) Start(gopen *dto.Gopen) {
 	nNomenclature := nomenclature.New()
 
 	httpServer := server.New(gopen, p.log, router, httpClient, publisherClient, middlewareLog, endpointLog, backendLog,
-		publisherLog, httpLog, jsonPath, nConverter, store, nNomenclature)
+		httpLog, jsonPath, nConverter, store, nNomenclature)
 
 	if gopen.HotReload {
 		p.log.PrintInfo("Configuring watcher...")
@@ -166,7 +165,7 @@ func (p provider) Stop() {
 func (p provider) restart(oldGopen *dto.Gopen, oldServer server.HTTP) {
 	defer func() {
 		if r := recover(); checker.NonNil(r) {
-			errorDetails := errors.Details(r.(error))
+			errorDetails := errors.Wrap(r.(error))
 			p.log.PrintError("Error restart server:", errorDetails.Cause())
 
 			p.recovery(oldGopen)

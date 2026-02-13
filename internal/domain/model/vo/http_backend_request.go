@@ -18,6 +18,7 @@ package vo
 
 import (
 	"fmt"
+
 	"github.com/tech4works/checker"
 )
 
@@ -60,7 +61,7 @@ func (b *HTTPBackendRequest) FullPath() (r string) {
 	return
 }
 
-func (b *HTTPBackendRequest) Url() string {
+func (b *HTTPBackendRequest) URL() string {
 	return fmt.Sprint(b.host, b.path.String())
 }
 

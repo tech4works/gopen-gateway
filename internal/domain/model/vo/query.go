@@ -17,10 +17,12 @@
 package vo
 
 import (
-	"github.com/tech4works/converter"
 	"net/url"
 	"sort"
 	"strings"
+
+	"github.com/tech4works/checker"
+	"github.com/tech4works/converter"
 )
 
 type Query struct {
@@ -80,7 +82,7 @@ func (q Query) Encode() string {
 
 		keyEscaped := url.QueryEscape(key)
 		for _, value := range valueByKey {
-			if strBuilder.Len() > 0 {
+			if checker.IsGreaterThan(strBuilder.Len(), 0) {
 				strBuilder.WriteByte('&')
 			}
 			strBuilder.WriteString(keyEscaped)

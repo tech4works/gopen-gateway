@@ -18,10 +18,12 @@ package app
 
 import (
 	"context"
-	"github.com/tech4works/gopen-gateway/internal/app/model/dto"
-	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
 	"net/http"
 	"time"
+
+	"github.com/tech4works/gopen-gateway/internal/app/model/dto"
+	"github.com/tech4works/gopen-gateway/internal/app/model/publisher"
+	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
 )
 
 type Boot interface {
@@ -73,7 +75,7 @@ type HTTPClient interface {
 }
 
 type PublisherClient interface {
-	Publish(ctx context.Context, publisher *vo.Publisher, message *vo.Message) error
+	Publish(ctx context.Context, request *vo.PublisherBackendRequest) (*publisher.Response, error)
 }
 
 type HTTPLog interface {
@@ -100,16 +102,14 @@ type EndpointLog interface {
 }
 
 type BackendLog interface {
-	PrintRequest(executeData dto.ExecuteEndpoint, backend *vo.Backend, request *vo.HTTPBackendRequest)
-	PrintResponse(executeData dto.ExecuteEndpoint, backend *vo.Backend, request *vo.HTTPBackendRequest, response *vo.HTTPBackendResponse, duration time.Duration)
-	PrintInfof(executeData dto.ExecuteEndpoint, backend *vo.Backend, request *vo.HTTPBackendRequest, format string, msg ...any)
-	PrintInfo(executeData dto.ExecuteEndpoint, backend *vo.Backend, request *vo.HTTPBackendRequest, msg ...any)
-	PrintWarnf(executeData dto.ExecuteEndpoint, backend *vo.Backend, request *vo.HTTPBackendRequest, format string, msg ...any)
-	PrintWarn(executeData dto.ExecuteEndpoint, backend *vo.Backend, request *vo.HTTPBackendRequest, msg ...any)
-	PrintErrorf(executeData dto.ExecuteEndpoint, backend *vo.Backend, request *vo.HTTPBackendRequest, format string, msg ...any)
-	PrintError(executeData dto.ExecuteEndpoint, backend *vo.Backend, request *vo.HTTPBackendRequest, msg ...any)
-}
-
-type PublisherLog interface {
-	PrintRequest(executeData dto.ExecuteEndpoint, publisher *vo.Publisher, message *vo.Message)
+	PrintHTTPRequest(executeData dto.ExecuteEndpoint, backend *vo.Backend, request *vo.HTTPBackendRequest)
+	PrintHTTPResponse(executeData dto.ExecuteEndpoint, backend *vo.Backend, response *vo.HTTPBackendResponse, duration time.Duration)
+	PrintPublisherRequest(executeData dto.ExecuteEndpoint, backend *vo.Backend, request *vo.PublisherBackendRequest)
+	PrintPublisherResponse(executeData dto.ExecuteEndpoint, backend *vo.Backend, response *vo.PublisherBackendResponse, duration time.Duration)
+	PrintInfof(executeData dto.ExecuteEndpoint, backend *vo.Backend, format string, msg ...any)
+	PrintInfo(executeData dto.ExecuteEndpoint, backend *vo.Backend, msg ...any)
+	PrintWarnf(executeData dto.ExecuteEndpoint, backend *vo.Backend, format string, msg ...any)
+	PrintWarn(executeData dto.ExecuteEndpoint, backend *vo.Backend, msg ...any)
+	PrintErrorf(executeData dto.ExecuteEndpoint, backend *vo.Backend, format string, msg ...any)
+	PrintError(executeData dto.ExecuteEndpoint, backend *vo.Backend, msg ...any)
 }

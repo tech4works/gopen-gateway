@@ -18,6 +18,7 @@ package log
 
 import (
 	"fmt"
+
 	"github.com/tech4works/gopen-gateway/internal/app"
 )
 
@@ -59,7 +60,7 @@ func (e middlewareLog) prefix(ctx app.Context) string {
 	path := ctx.Endpoint().Path()
 	traceIDText := BuildTraceIDText(ctx.TraceID())
 
-	method := BuildMethodText(ctx.Endpoint().Method())
+	method := BuildTintText(ctx.Endpoint().Method())
 	url := BuildUriText(ctx.Request().URL())
 
 	return fmt.Sprintf("[%s | %s | %s |%s| %s]", path, ctx.ClientIP(), traceIDText, method, url)

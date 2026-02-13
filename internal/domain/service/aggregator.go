@@ -18,6 +18,7 @@ package service
 
 import (
 	"fmt"
+
 	"github.com/tech4works/checker"
 	"github.com/tech4works/converter"
 	"github.com/tech4works/gopen-gateway/internal/domain"
@@ -80,24 +81,27 @@ func (a aggregatorService) AggregateBodiesIntoSlice(history *vo.History) (*vo.Bo
 
 	var errs []error
 	for i := 0; i < history.Size(); i++ {
-		_, _, httpBackendResponse := history.Get(i)
-
-		newJsonStr := a.buildBodyDefaultForSlice(httpBackendResponse)
-
-		if !httpBackendResponse.HasBody() {
-			result, _ = a.jsonPath.AppendOnArray(result, newJsonStr)
+		backendResponse := history.GetBackendResponse(i)
+		if checker.IsNil(backendResponse) {
 			continue
 		}
 
-		raw, err := httpBackendResponse.Body().Raw()
+		defaultJSON := a.buildBodyDefaultForSlice(backendResponse)
+		if !backendResponse.HasBody() {
+			result, _ = a.jsonPath.AppendOnArray(result, defaultJSON)
+			continue
+		}
+
+		raw, err := backendResponse.Body().Raw()
 		if checker.NonNil(err) {
 			errs = append(errs, err)
 			continue
 		}
 
-		newJsonStr, mergeErrs := a.merge(i, newJsonStr, raw)
+		newJsonStr, mergeErrs := a.merge(i, defaultJSON, raw)
 		if checker.IsNotEmpty(mergeErrs) {
 			errs = append(errs, mergeErrs...)
+			result, _ = a.jsonPath.AppendOnArray(result, defaultJSON)
 			continue
 		}
 
@@ -112,12 +116,12 @@ func (a aggregatorService) AggregateBodies(history *vo.History) (*vo.Body, []err
 
 	var errs []error
 	for i := 0; i < history.Size(); i++ {
-		_, _, httpBackendResponse := history.Get(i)
-		if !httpBackendResponse.HasBody() {
+		backendResponse := history.GetBackendResponse(i)
+		if checker.IsNil(backendResponse) || !backendResponse.HasBody() {
 			continue
 		}
 
-		raw, err := httpBackendResponse.Body().Raw()
+		raw, err := backendResponse.Body().Raw()
 		if checker.NonNil(err) {
 			errs = append(errs, err)
 			continue
@@ -135,12 +139,10 @@ func (a aggregatorService) AggregateBodies(history *vo.History) (*vo.Body, []err
 	return a.buildBodyJson(result, errs)
 }
 
-func (a aggregatorService) buildBodyDefaultForSlice(httpBackendResponse *vo.HTTPBackendResponse) string {
-	code := httpBackendResponse.StatusCode()
-
+func (a aggregatorService) buildBodyDefaultForSlice(backendResponse vo.BackendPolymorphicResponse) string {
 	jsonStr := "{}"
-	jsonStr, _ = a.jsonPath.Set(jsonStr, "ok", converter.ToString(httpBackendResponse.OK()))
-	jsonStr, _ = a.jsonPath.Set(jsonStr, "code", code.String())
+	jsonStr, _ = a.jsonPath.Set(jsonStr, "ok", converter.ToString(backendResponse.OK()))
+	jsonStr, _ = a.jsonPath.Set(jsonStr, "code", backendResponse.StatusCode().String())
 
 	return jsonStr
 }

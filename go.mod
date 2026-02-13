@@ -28,11 +28,11 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/json-iterator/go v1.1.12
 	github.com/redis/go-redis/v9 v9.6.1
-	github.com/tech4works/checker v0.0.0-20240911203421-c147769a2a91
+	github.com/tech4works/checker v0.0.0-20260123192908-0c69913370b1
 	github.com/tech4works/compressor v0.0.0-20240807194218-7122652ffea0
-	github.com/tech4works/converter v0.0.0-20250402181645-42ec2d2861e8
+	github.com/tech4works/converter v0.0.0-20260209122059-fc8420b25f78
 	github.com/tech4works/decompressor v0.0.0-20240807211058-01326b21a00d
-	github.com/tech4works/errors v0.0.0-20240910214636-b4009dc24281
+	github.com/tech4works/errors v0.0.0-20260204170404-4d9f99b3e090
 	github.com/tidwall/gjson v1.18.0
 	github.com/tidwall/sjson v1.2.5
 	github.com/xeipuuv/gojsonschema v1.2.0

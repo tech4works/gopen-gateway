@@ -16,19 +16,17 @@
 
 package enum
 
-type ModifierScope string
-
 type ModifierAction string
 
 type Nomenclature string
 
-type BackendType string
+type BackendFlow string
 
-type BackendResponseApply string
+type BackendKind string
 
-type ProjectionType int
+type ProjectKind int
 
-type ProjectionValue int
+type ProjectValue int
 
 type ContentType string
 
@@ -40,10 +38,8 @@ type ProxyProvider string
 
 type PublisherProvider string
 
-const (
-	ModifierScopeRequest  ModifierScope = "REQUEST"
-	ModifierScopeResponse ModifierScope = "RESPONSE"
-)
+type TemplateMerge string
+
 const (
 	ModifierActionAdd ModifierAction = "ADD"
 	ModifierActionApd ModifierAction = "APD"
@@ -52,18 +48,22 @@ const (
 	ModifierActionDel ModifierAction = "DEL"
 )
 const (
-	ProjectionTypeAll       ProjectionType = iota
-	ProjectionTypeAddition  ProjectionType = iota
-	ProjectionTypeRejection ProjectionType = iota
+	ProjectKindAll       ProjectKind = iota
+	ProjectKindAddition  ProjectKind = iota
+	ProjectKindRejection ProjectKind = iota
 )
 const (
-	ProjectionValueAddition  ProjectionValue = 1
-	ProjectionValueRejection ProjectionValue = 0
+	ProjectValueAddition  ProjectValue = 1
+	ProjectValueRejection ProjectValue = 0
 )
 const (
-	BackendTypeNormal     BackendType = "BACKEND"
-	BackendTypeBeforeware BackendType = "BEFOREWARE"
-	BackendTypeAfterware  BackendType = "AFTERWARE"
+	BackendFlowNormal     BackendFlow = "NORMAL"
+	BackendFlowBeforeware BackendFlow = "BEFOREWARE"
+	BackendFlowAfterware  BackendFlow = "AFTERWARE"
+)
+const (
+	BackendKindHTTP      BackendKind = "HTTP"
+	BackendKindPublisher BackendKind = "PUBLISHER"
 )
 const (
 	NomenclatureCamel          Nomenclature = "CAMEL"
@@ -72,10 +72,6 @@ const (
 	NomenclatureScreamingSnake Nomenclature = "SCREAMING_SNAKE"
 	NomenclatureKebab          Nomenclature = "KEBAB"
 	NomenclatureScreamingKebab Nomenclature = "SCREAMING_KEBAB"
-)
-const (
-	BackendResponseApplyEarly BackendResponseApply = "EARLY"
-	BackendResponseApplyLate  BackendResponseApply = "LATE"
 )
 const (
 	ContentTypePlainText ContentType = "PLAIN_TEXT"
@@ -98,6 +94,22 @@ const (
 	PublisherProviderAwsSqs PublisherProvider = "AWS/SQS"
 	PublisherProviderAwsSns PublisherProvider = "AWS/SNS"
 )
+const (
+	TemplateMergeBase TemplateMerge = "BASE"
+	TemplateMergeFull TemplateMerge = "FULL"
+)
+
+func (p PublisherProvider) String() string {
+	return string(p)
+}
+
+func (p PublisherProvider) IsEnumValid() bool {
+	switch p {
+	case PublisherProviderAwsSqs, PublisherProviderAwsSns:
+		return true
+	}
+	return false
+}
 
 func (c ContentType) IsEnumValid() bool {
 	switch c {
@@ -132,22 +144,6 @@ func (n Nomenclature) IsEnumValid() bool {
 	return false
 }
 
-func (b BackendResponseApply) IsEnumValid() bool {
-	switch b {
-	case BackendResponseApplyEarly, BackendResponseApplyLate:
-		return true
-	}
-	return false
-}
-
-func (m ModifierScope) IsEnumValid() bool {
-	switch m {
-	case ModifierScopeRequest, ModifierScopeResponse:
-		return true
-	}
-	return false
-}
-
 func (m ModifierAction) IsEnumValid() bool {
 	switch m {
 	case ModifierActionSet, ModifierActionApd, ModifierActionRpl, ModifierActionAdd, ModifierActionDel:
@@ -156,18 +152,34 @@ func (m ModifierAction) IsEnumValid() bool {
 	return false
 }
 
-func (b BackendType) String() string {
+func (b BackendFlow) String() string {
 	return string(b)
 }
 
-func (b BackendType) Abbreviation() string {
+func (b BackendFlow) Abbreviation() string {
 	switch b {
-	case BackendTypeNormal:
+	case BackendFlowNormal:
 		return "BKD"
-	case BackendTypeBeforeware:
+	case BackendFlowBeforeware:
 		return "BFW"
-	case BackendTypeAfterware:
+	case BackendFlowAfterware:
 		return "AFW"
 	}
 	return ""
+}
+
+func (t TemplateMerge) IsEnumValid() bool {
+	switch t {
+	case TemplateMergeBase, TemplateMergeFull:
+		return true
+	}
+	return false
+}
+
+func (b BackendKind) IsEnumValid() bool {
+	switch b {
+	case BackendKindHTTP, BackendKindPublisher:
+		return true
+	}
+	return false
 }

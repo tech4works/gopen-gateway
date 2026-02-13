@@ -20,10 +20,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"strconv"
+
 	"github.com/tech4works/checker"
 	"github.com/tech4works/converter"
 	"github.com/tech4works/decompressor"
-	"strconv"
 )
 
 type Body struct {
@@ -98,6 +99,14 @@ func (b *Body) String() (string, error) {
 		return string(b.RawBytes()), err
 	}
 	return string(bs), nil
+}
+
+func (b *Body) CompactString() (string, error) {
+	bs, err := b.Bytes()
+	if checker.NonNil(err) {
+		bs = b.RawBytes()
+	}
+	return converter.ToCompactString(bs), err
 }
 
 func (b *Body) Raw() (string, error) {

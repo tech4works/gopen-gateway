@@ -18,27 +18,54 @@ package vo
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
+
 	jsoniter "github.com/json-iterator/go"
 	"github.com/tech4works/checker"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
-	"strconv"
-	"strings"
 )
 
-type Projection struct {
-	keys   []string
-	values map[string]enum.ProjectionValue
+type Projector struct {
+	onlyIf   []string
+	ignoreIf []string
+	project  Project
 }
 
-func (p *Projection) IsEmpty() bool {
+type Project struct {
+	keys   []string
+	values map[string]enum.ProjectValue
+}
+
+func NewProjector(onlyIf, ignoreIf []string, project Project) *Projector {
+	return &Projector{
+		onlyIf:   onlyIf,
+		ignoreIf: ignoreIf,
+		project:  project,
+	}
+}
+
+func (p Projector) OnlyIf() []string {
+	return p.onlyIf
+}
+
+func (p Projector) IgnoreIf() []string {
+	return p.ignoreIf
+}
+
+func (p Projector) Project() *Project {
+	return &p.project
+}
+
+func (p *Project) IsEmpty() bool {
 	return checker.IsEmpty(p.Keys())
 }
 
-func (p *Projection) Exists(key string) bool {
+func (p *Project) Exists(key string) bool {
 	return checker.Contains(p.keys, key)
 }
 
-func (p *Projection) ContainsNumericKey() bool {
+func (p *Project) ContainsNumericKey() bool {
 	for _, key := range p.keys {
 		if checker.IsNumeric(key) {
 			return true
@@ -47,49 +74,49 @@ func (p *Projection) ContainsNumericKey() bool {
 	return false
 }
 
-func (p *Projection) NotContainsNumericKey() bool {
+func (p *Project) NotContainsNumericKey() bool {
 	return !p.ContainsNumericKey()
 }
 
-func (p *Projection) Keys() []string {
+func (p *Project) Keys() []string {
 	return p.keys
 }
 
-func (p *Projection) Get(key string) enum.ProjectionValue {
+func (p *Project) Get(key string) enum.ProjectValue {
 	return p.values[key]
 }
 
-func (p *Projection) Type() enum.ProjectionType {
+func (p *Project) Kind() enum.ProjectKind {
 	addition := p.allAddition()
 	rejection := p.allRejection()
 	if addition && !rejection {
-		return enum.ProjectionTypeAddition
+		return enum.ProjectKindAddition
 	} else if rejection && !addition {
-		return enum.ProjectionTypeRejection
+		return enum.ProjectKindRejection
 	}
-	return enum.ProjectionTypeAll
+	return enum.ProjectKindAll
 }
 
-func (p *Projection) TypeNumeric() enum.ProjectionType {
+func (p *Project) NumericKind() enum.ProjectKind {
 	addition := p.allNumericAddition()
 	rejection := p.allNumericRejection()
 	if addition && !rejection {
-		return enum.ProjectionTypeAddition
+		return enum.ProjectKindAddition
 	} else if rejection && !addition {
-		return enum.ProjectionTypeRejection
+		return enum.ProjectKindRejection
 	}
-	return enum.ProjectionTypeAll
+	return enum.ProjectKindAll
 }
 
-func (p *Projection) IsAddition(key string) bool {
-	return p.Exists(key) && checker.Equals(p.Get(key), enum.ProjectionValueAddition)
+func (p *Project) IsAddition(key string) bool {
+	return p.Exists(key) && checker.Equals(p.Get(key), enum.ProjectValueAddition)
 }
 
-func (p *Projection) IsRejection(key string) bool {
-	return p.Exists(key) && checker.Equals(p.Get(key), enum.ProjectionValueRejection)
+func (p *Project) IsRejection(key string) bool {
+	return p.Exists(key) && checker.Equals(p.Get(key), enum.ProjectValueRejection)
 }
 
-func (p *Projection) UnmarshalJSON(data []byte) error {
+func (p *Project) UnmarshalJSON(data []byte) error {
 	if checker.IsEmpty(data) || checker.Equals(strings.TrimSpace(string(data)), "{}") {
 		return nil
 	}
@@ -97,16 +124,16 @@ func (p *Projection) UnmarshalJSON(data []byte) error {
 	iter := jsoniter.ParseString(jsoniter.ConfigFastest, string(data))
 
 	p.keys = []string{}
-	p.values = map[string]enum.ProjectionValue{}
+	p.values = map[string]enum.ProjectValue{}
 	for field := iter.ReadObject(); checker.IsNotEmpty(field); field = iter.ReadObject() {
 		p.keys = append(p.keys, field)
-		p.values[field] = enum.ProjectionValue(iter.ReadInt())
+		p.values[field] = enum.ProjectValue(iter.ReadInt())
 	}
 
 	return iter.Error
 }
 
-func (p *Projection) MarshalJSON() ([]byte, error) {
+func (p *Project) MarshalJSON() ([]byte, error) {
 	if p.IsEmpty() {
 		return []byte("null"), nil
 	}
@@ -120,36 +147,36 @@ func (p *Projection) MarshalJSON() ([]byte, error) {
 	return []byte(fmt.Sprintf("{%s}", strings.Join(data, ","))), nil
 }
 
-func (p *Projection) allAddition() bool {
+func (p *Project) allAddition() bool {
 	for _, key := range p.Keys() {
-		if checker.NotEquals(p.Get(key), enum.ProjectionValueAddition) {
+		if checker.NotEquals(p.Get(key), enum.ProjectValueAddition) {
 			return false
 		}
 	}
 	return true
 }
 
-func (p *Projection) allNumericAddition() bool {
+func (p *Project) allNumericAddition() bool {
 	for _, key := range p.Keys() {
-		if checker.IsNumeric(key) && checker.NotEquals(p.Get(key), enum.ProjectionValueAddition) {
+		if checker.IsNumeric(key) && checker.NotEquals(p.Get(key), enum.ProjectValueAddition) {
 			return false
 		}
 	}
 	return true
 }
 
-func (p *Projection) allRejection() bool {
+func (p *Project) allRejection() bool {
 	for _, key := range p.Keys() {
-		if checker.NotEquals(p.Get(key), enum.ProjectionValueRejection) {
+		if checker.NotEquals(p.Get(key), enum.ProjectValueRejection) {
 			return false
 		}
 	}
 	return true
 }
 
-func (p *Projection) allNumericRejection() bool {
+func (p *Project) allNumericRejection() bool {
 	for _, key := range p.Keys() {
-		if checker.IsNumeric(key) && checker.NotEquals(p.Get(key), enum.ProjectionValueRejection) {
+		if checker.IsNumeric(key) && checker.NotEquals(p.Get(key), enum.ProjectValueRejection) {
 			return false
 		}
 	}

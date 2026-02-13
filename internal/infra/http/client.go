@@ -18,15 +18,16 @@ package http
 
 import (
 	"context"
+	"io"
+	net "net/http"
+	"time"
+
 	"github.com/tech4works/checker"
 	"github.com/tech4works/converter"
 	"github.com/tech4works/gopen-gateway/internal/app"
 	"github.com/tech4works/gopen-gateway/internal/domain/mapper"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
 	"go.elastic.co/apm/module/apmhttp/v2"
-	"io"
-	net "net/http"
-	"time"
 )
 
 type client struct {
@@ -52,7 +53,7 @@ func (c client) buildNetHTTPRequest(ctx context.Context, request *vo.HTTPBackend
 	if request.HasBody() {
 		body = io.NopCloser(request.Body().Buffer())
 	}
-	httpRequest, err := net.NewRequestWithContext(ctx, request.Method(), request.Url(), body)
+	httpRequest, err := net.NewRequestWithContext(ctx, request.Method(), request.URL(), body)
 	if checker.NonNil(err) {
 		return nil, err
 	}

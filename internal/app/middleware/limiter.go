@@ -17,12 +17,13 @@
 package middleware
 
 import (
+	"net/http"
+
 	"github.com/tech4works/checker"
 	"github.com/tech4works/errors"
 	"github.com/tech4works/gopen-gateway/internal/app"
 	"github.com/tech4works/gopen-gateway/internal/domain/mapper"
 	"github.com/tech4works/gopen-gateway/internal/domain/service"
-	"net/http"
 )
 
 type limiterMiddleware struct {
@@ -47,9 +48,9 @@ func (l limiterMiddleware) Do(ctx app.Context) {
 	}
 
 	err = l.service.AllowSize(ctx.Request(), ctx.Endpoint().Limiter())
-	if errors.Contains(err, mapper.ErrPayloadTooLarge) {
+	if errors.Is(err, mapper.ErrPayloadTooLarge) {
 		ctx.WriteError(http.StatusRequestEntityTooLarge, err)
-	} else if errors.Contains(err, mapper.ErrHeaderTooLarge) {
+	} else if errors.Is(err, mapper.ErrHeaderTooLarge) {
 		ctx.WriteError(http.StatusRequestHeaderFieldsTooLarge, err)
 	} else {
 		ctx.Next()

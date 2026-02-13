@@ -18,10 +18,12 @@ package log
 
 import (
 	"fmt"
-	"github.com/tech4works/checker"
-	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
 	"net/http"
 	"strconv"
+
+	"github.com/tech4works/checker"
+	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
+	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
 )
 
 func BuildLevelText(lvl level) string {
@@ -36,8 +38,8 @@ func BuildTraceIDText(traceID string) string {
 	return traceID
 }
 
-func BuildMethodText(method string) string {
-	return fmt.Sprint(methodTextStyle(method), " ", method, " ", StyleReset)
+func BuildTintText(method string) string {
+	return fmt.Sprint(tintTextStyle(method), " ", method, " ", StyleReset)
 }
 
 func BuildUriText(uri string) string {
@@ -61,11 +63,11 @@ func statusCodeTextStyle(code int) string {
 	return StyleBold
 }
 
-func methodTextStyle(method string) string {
-	switch method {
+func tintTextStyle(s string) string {
+	switch s {
 	case http.MethodPost:
 		return fmt.Sprint(BackgroundYellow)
-	case http.MethodGet:
+	case http.MethodGet, enum.PublisherProviderAwsSns.String(), enum.PublisherProviderAwsSqs.String():
 		return fmt.Sprint(BackgroundBlue)
 	case http.MethodDelete:
 		return fmt.Sprint(BackgroundRed)

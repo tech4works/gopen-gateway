@@ -22,35 +22,91 @@ import (
 )
 
 type Publisher struct {
+	onlyIf          []string
+	ignoreIf        []string
 	provider        enum.PublisherProvider
-	reference       string
+	path            string
 	groupID         string
 	deduplicationID string
 	delay           Duration
-	bodyMapper      *Mapper
-	bodyProjection  *Projection
-	bodyModifiers   []Modifier
+	async           bool
+	message         *PublisherMessage
+}
+
+type PublisherMessage struct {
+	continueOnError bool
+	onlyIf          []string
+	ignoreIf        []string
+	attributes      map[string]PublisherMessageAttribute
+	body            *PublisherMessageBody
+}
+
+type PublisherMessageAttribute struct {
+	dataType string
+	value    string
+}
+
+type PublisherMessageBody struct {
+	omitEmpty bool
+	mapper    *Mapper
+	projector *Projector
+	modifiers []Modifier
 }
 
 func NewPublisher(
+	onlyIf,
+	ignoreIf []string,
 	provider enum.PublisherProvider,
-	reference,
+	path,
 	groupID,
 	deduplicationID string,
 	delay Duration,
-	bodyMapper *Mapper,
-	bodyProjection *Projection,
-	bodyModifiers []Modifier,
+	async bool,
+	message *PublisherMessage,
 ) Publisher {
 	return Publisher{
+		onlyIf:          onlyIf,
+		ignoreIf:        ignoreIf,
 		provider:        provider,
-		reference:       reference,
+		path:            path,
 		groupID:         groupID,
 		deduplicationID: deduplicationID,
 		delay:           delay,
-		bodyMapper:      bodyMapper,
-		bodyProjection:  bodyProjection,
-		bodyModifiers:   bodyModifiers,
+		async:           async,
+		message:         message,
+	}
+}
+
+func NewPublisherMessage(
+	continueOnError bool,
+	onlyIf,
+	ignoreIf []string,
+	attributes map[string]PublisherMessageAttribute,
+	body *PublisherMessageBody,
+) *PublisherMessage {
+	return &PublisherMessage{
+		continueOnError: continueOnError,
+		onlyIf:          onlyIf,
+		ignoreIf:        ignoreIf,
+		attributes:      attributes,
+		body:            body,
+	}
+}
+
+func NewPublisherMessageAttribute(dataType, value string) PublisherMessageAttribute {
+	return PublisherMessageAttribute{
+		dataType: dataType,
+		value:    value,
+	}
+}
+
+func NewPublisherMessageBody(omitEmpty bool, mapper *Mapper, projector *Projector, modifiers []Modifier,
+) *PublisherMessageBody {
+	return &PublisherMessageBody{
+		omitEmpty: omitEmpty,
+		mapper:    mapper,
+		projector: projector,
+		modifiers: modifiers,
 	}
 }
 
@@ -58,8 +114,16 @@ func (p Publisher) Provider() enum.PublisherProvider {
 	return p.provider
 }
 
-func (p Publisher) Reference() string {
-	return p.reference
+func (p Publisher) Path() string {
+	return p.path
+}
+
+func (p Publisher) OnlyIf() []string {
+	return p.onlyIf
+}
+
+func (p Publisher) IgnoreIf() []string {
+	return p.ignoreIf
 }
 
 func (p Publisher) GroupID() string {
@@ -74,18 +138,110 @@ func (p Publisher) Delay() Duration {
 	return p.delay
 }
 
-func (p Publisher) BodyMapper() *Mapper {
-	return p.bodyMapper
-}
-
-func (p Publisher) BodyProjection() *Projection {
-	return p.bodyProjection
-}
-
-func (p Publisher) BodyModifiers() []Modifier {
-	return p.bodyModifiers
-}
-
 func (p Publisher) HasGroupID() bool {
 	return checker.IsNotEmpty(p.groupID)
+}
+
+func (p Publisher) HasOnlyIf() bool {
+	return checker.IsNotEmpty(p.onlyIf)
+}
+
+func (p Publisher) HasIgnoreIf() bool {
+	return checker.IsNotEmpty(p.ignoreIf)
+}
+
+func (p Publisher) CountAllDataTransforms() (count int) {
+	if !p.HasMessage() {
+		return 0
+	}
+
+	if p.Message().HasBody() {
+		count += p.Message().Body().CountBodyDataTransforms()
+	}
+	if p.Message().HasAttributes() {
+		count += len(p.Message().Attributes())
+	}
+
+	return count
+}
+
+func (p Publisher) HasMessage() bool {
+	return checker.NonNil(p.message)
+}
+
+func (p Publisher) Message() *PublisherMessage {
+	return p.message
+}
+
+func (p Publisher) Async() bool {
+	return p.async
+}
+
+func (m PublisherMessage) ContinueOnError() bool {
+	return m.continueOnError
+}
+
+func (m PublisherMessage) HasBody() bool {
+	return checker.NonNil(m.body)
+}
+
+func (m PublisherMessage) Body() *PublisherMessageBody {
+	return m.body
+}
+
+func (m PublisherMessage) HasAttributes() bool {
+	return checker.IsNotNilOrEmpty(m.attributes)
+}
+
+func (m PublisherMessage) Attributes() map[string]PublisherMessageAttribute {
+	return m.attributes
+}
+
+func (a PublisherMessageAttribute) DataType() string {
+	return a.dataType
+}
+
+func (a PublisherMessageAttribute) Value() string {
+	return a.value
+}
+
+func (p PublisherMessageBody) HasMapper() bool {
+	return checker.NonNil(p.mapper)
+}
+
+func (p PublisherMessageBody) HasProjector() bool {
+	return checker.NonNil(p.projector)
+}
+
+func (p PublisherMessageBody) HasModifiers() bool {
+	return checker.IsNotEmpty(p.modifiers)
+}
+
+func (p PublisherMessageBody) OmitEmpty() bool {
+	return p.omitEmpty
+}
+
+func (p PublisherMessageBody) Mapper() *Mapper {
+	return p.mapper
+}
+
+func (p PublisherMessageBody) Projector() *Projector {
+	return p.projector
+}
+
+func (p PublisherMessageBody) Modifiers() []Modifier {
+	return p.modifiers
+}
+
+func (p PublisherMessageBody) CountBodyDataTransforms() (count int) {
+	if p.HasMapper() {
+		count += len(p.Mapper().Map().Keys())
+	}
+	if p.HasProjector() {
+		count += len(p.Projector().Project().Keys())
+	}
+	if p.HasModifiers() {
+		count += len(p.Modifiers())
+	}
+	return count
 }

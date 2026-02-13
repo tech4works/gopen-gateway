@@ -68,7 +68,6 @@ func New(
 	middlewareLog app.MiddlewareLog,
 	endpointLog app.EndpointLog,
 	backendLog app.BackendLog,
-	publisherLog app.PublisherLog,
 	httpLog app.HTTPLog,
 	jsonPath domain.JSONPath,
 	converter domain.Converter,
@@ -76,10 +75,10 @@ func New(
 	nomenclature domain.Nomenclature,
 ) HTTP {
 	log.PrintInfo("Building domain...")
-	mapperService := service.NewMapper(jsonPath)
-	projectorService := service.NewProjector(jsonPath)
 	dynamicValueService := service.NewDynamicValue(jsonPath)
-	modifierService := service.NewModifier(jsonPath)
+	mapperService := service.NewMapper(jsonPath, dynamicValueService)
+	projectorService := service.NewProjector(jsonPath, dynamicValueService)
+	modifierService := service.NewModifier(jsonPath, dynamicValueService)
 	omitterService := service.NewOmitter(jsonPath)
 	nomenclatureService := service.NewNomenclature(jsonPath, nomenclature)
 	contentService := service.NewContent(converter)
@@ -89,15 +88,14 @@ func New(
 	cacheService := service.NewCache(store)
 
 	log.PrintInfo("Building factories...")
-	httpBackendFactory := domainFactory.NewHTTPBackend(mapperService, projectorService, dynamicValueService,
+	httpBackendFactory := domainFactory.NewBackend(mapperService, projectorService, dynamicValueService,
 		modifierService, omitterService, nomenclatureService, contentService, aggregatorService)
 	httpResponseFactory := domainFactory.NewHTTPResponse(aggregatorService, omitterService, mapperService,
 		projectorService, nomenclatureService, contentService, httpBackendFactory)
-	messageFactory := domainFactory.NewMessage(dynamicValueService, mapperService, projectorService, modifierService)
 
 	log.PrintInfo("Building use cases...")
-	endpointUseCase := usecase.NewEndpoint(httpBackendFactory, httpResponseFactory, messageFactory, httpClient,
-		publisherClient, endpointLog, backendLog, publisherLog)
+	endpointUseCase := usecase.NewEndpoint(dynamicValueService, httpBackendFactory, httpResponseFactory, httpClient,
+		publisherClient, endpointLog, backendLog)
 
 	log.PrintInfo("Building middlewares...")
 	panicRecoveryMiddleware := middleware.NewPanicRecovery(middlewareLog)

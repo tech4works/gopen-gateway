@@ -17,15 +17,20 @@
 package vo
 
 import (
+	"net/http"
+	"strings"
+
 	"github.com/tech4works/checker"
 	"github.com/tech4works/converter"
 	"github.com/tech4works/gopen-gateway/internal/domain/mapper"
-	"net/http"
-	"strings"
 )
 
 type Header struct {
 	values map[string][]string
+}
+
+func NewEmptyHeader() Header {
+	return Header{values: map[string][]string{}}
 }
 
 func NewHeader(values map[string][]string) Header {

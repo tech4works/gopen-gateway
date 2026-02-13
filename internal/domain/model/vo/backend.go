@@ -21,173 +21,332 @@ import (
 	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
 )
 
+type BackendPolymorphicResponse interface {
+	OK() bool
+	StatusCode() StatusCode
+	Header() Header
+	HasBody() bool
+	Body() *Body
+	Map() (map[string]any, error)
+}
+
 type Backend struct {
-	kind     enum.BackendType
-	hosts    []string
-	path     string
-	method   string
-	request  *BackendRequest
-	response *BackendResponse
+	id              string
+	flow            enum.BackendFlow
+	continueOnError bool
+	onlyIf          []string
+	ignoreIf        []string
+	kind            enum.BackendKind
+	http            *HTTP
+	publisher       *Publisher
+	response        *BackendResponse
+}
+
+type HTTP struct {
+	hosts   []string
+	path    string
+	method  string
+	request *BackendRequest
 }
 
 type BackendRequest struct {
-	concurrent       int
-	omitHeader       bool
-	omitQuery        bool
-	omitBody         bool
-	contentType      enum.ContentType
-	contentEncoding  enum.ContentEncoding
-	nomenclature     enum.Nomenclature
-	omitEmpty        bool
-	headerMapper     *Mapper
-	queryMapper      *Mapper
-	bodyMapper       *Mapper
-	headerProjection *Projection
-	queryProjection  *Projection
-	bodyProjection   *Projection
-	headerModifiers  []Modifier
-	paramModifiers   []Modifier
-	queryModifiers   []Modifier
-	bodyModifiers    []Modifier
+	continueOnError bool
+	concurrent      int
+	async           bool
+	header          *BackendRequestHeader
+	param           *BackendRequestParam
+	query           *BackendRequestQuery
+	body            *BackendRequestBody
 }
 
 type BackendResponse struct {
-	omit             bool
-	omitHeader       bool
-	omitBody         bool
-	group            string
-	headerMapper     *Mapper
-	bodyMapper       *Mapper
-	headerProjection *Projection
-	bodyProjection   *Projection
-	headerModifiers  []Modifier
-	bodyModifiers    []Modifier
+	continueOnError bool
+	omit            bool
+	header          *BackendResponseHeader
+	body            *BackendResponseBody
 }
 
-func NewBackend(
-	kind enum.BackendType,
+type BackendResponseHeader struct {
+	omit      bool
+	mapper    *Mapper
+	projector *Projector
+	modifiers []Modifier
+}
+
+type BackendResponseBody struct {
+	omit      bool
+	group     string
+	mapper    *Mapper
+	projector *Projector
+	modifiers []Modifier
+}
+
+type BackendRequestHeader struct {
+	omit      bool
+	mapper    *Mapper
+	projector *Projector
+	modifiers []Modifier
+}
+
+type BackendRequestParam struct {
+	modifiers []Modifier
+}
+
+type BackendRequestQuery struct {
+	omit      bool
+	mapper    *Mapper
+	projector *Projector
+	modifiers []Modifier
+}
+
+type BackendRequestBody struct {
+	omit            bool
+	omitEmpty       bool
+	contentType     enum.ContentType
+	contentEncoding enum.ContentEncoding
+	nomenclature    enum.Nomenclature
+	mapper          *Mapper
+	projector       *Projector
+	modifiers       []Modifier
+}
+
+func NewBackendHTTP(
+	id string,
+	flow enum.BackendFlow,
+	onlyIf []string,
+	ignoreIf []string,
 	hosts []string,
-	path,
+	path string,
 	method string,
 	request *BackendRequest,
 	response *BackendResponse,
 ) Backend {
 	return Backend{
-		kind:     kind,
-		hosts:    hosts,
-		path:     path,
-		method:   method,
-		request:  request,
+		id:       id,
+		flow:     flow,
+		onlyIf:   onlyIf,
+		ignoreIf: ignoreIf,
+		kind:     enum.BackendKindHTTP,
+		http: &HTTP{
+			hosts:   hosts,
+			path:    path,
+			method:  method,
+			request: request,
+		},
 		response: response,
 	}
 }
 
-func NewBackendRequest(
-	concurrent int,
-	omitHeader,
-	omitQuery,
-	omitBody bool,
-	contentType enum.ContentType,
-	contentEncoding enum.ContentEncoding,
-	nomenclature enum.Nomenclature,
-	omitEmpty bool,
-	headerMapper,
-	queryMapper,
-	bodyMapper *Mapper,
-	headerProjection,
-	queryProjection,
-	bodyProjection *Projection,
-	headerModifiers,
-	paramModifiers,
-	queryModifiers,
-	bodyModifiers []Modifier,
-) *BackendRequest {
-	return &BackendRequest{
-		concurrent:       concurrent,
-		omitHeader:       omitHeader,
-		omitQuery:        omitQuery,
-		omitBody:         omitBody,
-		contentType:      contentType,
-		contentEncoding:  contentEncoding,
-		nomenclature:     nomenclature,
-		omitEmpty:        omitEmpty,
-		headerMapper:     headerMapper,
-		queryMapper:      queryMapper,
-		bodyMapper:       bodyMapper,
-		headerProjection: headerProjection,
-		queryProjection:  queryProjection,
-		bodyProjection:   bodyProjection,
-		headerModifiers:  headerModifiers,
-		paramModifiers:   paramModifiers,
-		queryModifiers:   queryModifiers,
-		bodyModifiers:    bodyModifiers,
+func NewBackendPublisher(
+	id string,
+	flow enum.BackendFlow,
+	onlyIf []string,
+	ignoreIf []string,
+	publisher Publisher,
+	response *BackendResponse,
+) Backend {
+	return Backend{
+		id:        id,
+		flow:      flow,
+		onlyIf:    onlyIf,
+		ignoreIf:  ignoreIf,
+		kind:      enum.BackendKindPublisher,
+		publisher: &publisher,
+		response:  response,
 	}
 }
 
-func NewBackendRequestOnlyModifiers(
-	headerModifiers,
-	paramModifiers,
-	queryModifiers,
-	bodyModifiers []Modifier,
+func NewBackendRequest(
+	continueOnError bool,
+	concurrent int,
+	async bool,
+	header *BackendRequestHeader,
+	param *BackendRequestParam,
+	query *BackendRequestQuery,
+	body *BackendRequestBody,
 ) *BackendRequest {
 	return &BackendRequest{
-		headerModifiers: headerModifiers,
-		paramModifiers:  paramModifiers,
-		queryModifiers:  queryModifiers,
-		bodyModifiers:   bodyModifiers,
+		continueOnError: continueOnError,
+		concurrent:      concurrent,
+		async:           async,
+		header:          header,
+		param:           param,
+		query:           query,
+		body:            body,
+	}
+}
+
+func NewBackendRequestHeader(
+	omit bool,
+	mapper *Mapper,
+	projector *Projector,
+	modifiers []Modifier,
+) *BackendRequestHeader {
+	return &BackendRequestHeader{
+		omit:      omit,
+		mapper:    mapper,
+		projector: projector,
+		modifiers: modifiers,
+	}
+}
+
+func NewBackendRequestParam(modifiers []Modifier) *BackendRequestParam {
+	return &BackendRequestParam{modifiers: modifiers}
+}
+
+func NewBackendRequestQuery(
+	omit bool,
+	mapper *Mapper,
+	projector *Projector,
+	modifiers []Modifier,
+) *BackendRequestQuery {
+	return &BackendRequestQuery{
+		omit:      omit,
+		mapper:    mapper,
+		projector: projector,
+		modifiers: modifiers,
+	}
+}
+
+func NewBackendRequestBody(
+	omit bool,
+	omitEmpty bool,
+	contentType enum.ContentType,
+	contentEncoding enum.ContentEncoding,
+	nomenclature enum.Nomenclature,
+	mapper *Mapper,
+	projector *Projector,
+	modifiers []Modifier,
+) *BackendRequestBody {
+	return &BackendRequestBody{
+		omit:            omit,
+		omitEmpty:       omitEmpty,
+		contentType:     contentType,
+		contentEncoding: contentEncoding,
+		nomenclature:    nomenclature,
+		mapper:          mapper,
+		projector:       projector,
+		modifiers:       modifiers,
 	}
 }
 
 func NewBackendResponse(
-	omit,
-	omitHeader,
-	omitBody bool,
-	group string,
-	headerMapper,
-	bodyMapper *Mapper,
-	headerProjection,
-	bodyProjection *Projection,
-	headerModifiers,
-	bodyModifiers []Modifier,
+	continueOnError,
+	omit bool,
+	header *BackendResponseHeader,
+	body *BackendResponseBody,
 ) *BackendResponse {
 	return &BackendResponse{
-		omit:             omit,
-		omitHeader:       omitHeader,
-		omitBody:         omitBody,
-		group:            group,
-		headerMapper:     headerMapper,
-		bodyMapper:       bodyMapper,
-		headerProjection: headerProjection,
-		bodyProjection:   bodyProjection,
-		headerModifiers:  headerModifiers,
-		bodyModifiers:    bodyModifiers,
+		continueOnError: continueOnError,
+		omit:            omit,
+		header:          header,
+		body:            body,
+	}
+}
+
+func NewBackendResponseHeader(
+	omit bool,
+	mapper *Mapper,
+	projector *Projector,
+	modifiers []Modifier,
+) *BackendResponseHeader {
+	return &BackendResponseHeader{
+		omit:      omit,
+		mapper:    mapper,
+		projector: projector,
+		modifiers: modifiers,
+	}
+}
+
+func NewBackendResponseBody(
+	omit bool,
+	group string,
+	mapper *Mapper,
+	projector *Projector,
+	modifiers []Modifier,
+) *BackendResponseBody {
+	return &BackendResponseBody{
+		omit:      omit,
+		group:     group,
+		mapper:    mapper,
+		projector: projector,
+		modifiers: modifiers,
 	}
 }
 
 func NewBackendResponseForMiddleware() *BackendResponse {
 	return &BackendResponse{
-		omit: true,
+		body: &BackendResponseBody{
+			omit: true,
+		},
 	}
 }
 
-func (b *Backend) Hosts() []string {
-	return b.hosts
+func (b *Backend) ID() string {
+	return b.id
 }
 
-func (b *Backend) Path() string {
-	return b.path
+func (b *Backend) OnlyIf() []string {
+	return b.onlyIf
 }
 
-func (b *Backend) Method() string {
-	return b.method
+func (b *Backend) IgnoreIf() []string {
+	return b.ignoreIf
 }
 
-func (b *Backend) HasRequest() bool {
-	return checker.NonNil(b.request)
+func (b *Backend) HTTP() *HTTP {
+	return b.http
 }
 
-func (b *Backend) Request() *BackendRequest {
-	return b.request
+func (b *Backend) Publisher() *Publisher {
+	return b.publisher
+}
+
+func (b *Backend) Kind() enum.BackendKind {
+	return b.kind
+}
+
+func (b *Backend) IsHTTP() bool {
+	return checker.Equals(b.kind, enum.BackendKindHTTP)
+}
+
+func (b *Backend) IsPublisher() bool {
+	return checker.Equals(b.kind, enum.BackendKindPublisher)
+}
+
+func (b *Backend) Async() bool {
+	if b.IsHTTP() {
+		if b.HTTP().HasRequest() {
+			return b.HTTP().Request().Async()
+		}
+		return false
+	}
+
+	if b.IsPublisher() {
+		return b.publisher.Async()
+	}
+
+	return false
+}
+
+func (b *Backend) IsBeforeware() bool {
+	return checker.Equals(b.flow, enum.BackendFlowBeforeware)
+}
+
+func (b *Backend) IsNormal() bool {
+	return checker.Equals(b.flow, enum.BackendFlowNormal)
+}
+
+func (b *Backend) IsAfterware() bool {
+	return checker.Equals(b.flow, enum.BackendFlowAfterware)
+}
+
+func (b *Backend) Flow() enum.BackendFlow {
+	return b.flow
+}
+
+func (b *Backend) IsMiddleware() bool {
+	return b.IsBeforeware() || b.IsAfterware()
 }
 
 func (b *Backend) HasResponse() bool {
@@ -198,279 +357,424 @@ func (b *Backend) Response() *BackendResponse {
 	return b.response
 }
 
-func (b *Backend) CountAllDataTransforms() (count int) {
-	if checker.NonNil(b.Request()) {
-		count += b.Request().CountAllDataTransforms()
-	}
-	if checker.NonNil(b.Response()) {
-		count += b.Response().CountAllDataTransforms()
-	}
-	return count
+func (b *HTTP) Hosts() []string {
+	return b.hosts
 }
 
-func (b *Backend) CountRequestDataTransforms() (count int) {
-	if checker.NonNil(b.Request()) {
+func (b *HTTP) Path() string {
+	return b.path
+}
+
+func (b *HTTP) Method() string {
+	return b.method
+}
+
+func (b *HTTP) HasRequest() bool {
+	return checker.NonNil(b.request)
+}
+
+func (b *HTTP) Request() *BackendRequest {
+	return b.request
+}
+
+func (b *HTTP) CountAllDataTransforms() (count int) {
+	if b.HasRequest() {
 		count += b.Request().CountAllDataTransforms()
 	}
 	return count
 }
 
 func (b *Backend) CountResponseDataTransforms() (count int) {
-	if checker.NonNil(b.Response()) {
+	if b.HasResponse() {
 		count += b.Response().CountAllDataTransforms()
 	}
 	return count
 }
 
-func (b *Backend) IsBeforeware() bool {
-	return checker.Equals(b.kind, enum.BackendTypeBeforeware)
+func (b *Backend) CountAllDataTransforms() (count int) {
+	switch b.Kind() {
+	case enum.BackendKindHTTP:
+		count += b.HTTP().CountAllDataTransforms()
+	case enum.BackendKindPublisher:
+		count += b.Publisher().CountAllDataTransforms()
+	}
+	count += b.CountResponseDataTransforms()
+	return count
 }
 
-func (b *Backend) IsNormal() bool {
-	return checker.Equals(b.kind, enum.BackendTypeNormal)
-}
-
-func (b *Backend) IsAfterware() bool {
-	return checker.Equals(b.kind, enum.BackendTypeAfterware)
-}
-
-func (b *Backend) Type() enum.BackendType {
-	return b.kind
-}
-
-func (b BackendRequest) IsConcurrent() bool {
+func (b *BackendRequest) IsConcurrent() bool {
 	return checker.IsGreaterThanOrEqual(b.concurrent, 2)
 }
 
-func (b BackendRequest) Concurrent() int {
+func (b *BackendRequest) Concurrent() int {
 	return b.concurrent
 }
 
-func (b BackendRequest) OmitHeader() bool {
-	return b.omitHeader
+func (b *BackendRequest) Async() bool {
+	return b.async
 }
 
-func (b BackendRequest) OmitQuery() bool {
-	return b.omitQuery
+func (b *BackendRequest) CountAllDataTransforms() (count int) {
+	if b.HasParam() {
+		count += b.Param().CountDataTransforms()
+	}
+	if b.HasQuery() {
+		count += b.Query().CountDataTransforms()
+	}
+	if b.HasHeader() {
+		count += b.Header().CountDataTransforms()
+
+	}
+	if b.HasBody() {
+		count += b.Body().CountDataTransforms()
+	}
+	return count
 }
 
-func (b BackendRequest) OmitBody() bool {
-	return b.omitBody
+func (b BackendRequestHeader) Omit() bool {
+	return b.omit
 }
 
-func (b BackendRequest) HasContentType() bool {
+func (b BackendRequestQuery) Omit() bool {
+	return b.omit
+}
+
+func (b BackendRequestBody) Omit() bool {
+	return b.omit
+}
+
+func (b BackendRequestBody) HasContentType() bool {
 	return b.contentType.IsEnumValid()
 }
 
-func (b BackendRequest) HasContentEncoding() bool {
+func (b BackendRequestBody) HasContentEncoding() bool {
 	return b.contentEncoding.IsEnumValid()
 }
 
-func (b BackendRequest) ContentType() enum.ContentType {
+func (b BackendRequestBody) ContentType() enum.ContentType {
 	return b.contentType
 }
 
-func (b BackendRequest) ContentEncoding() enum.ContentEncoding {
+func (b BackendRequestBody) ContentEncoding() enum.ContentEncoding {
 	return b.contentEncoding
 }
 
-func (b BackendRequest) HasNomenclature() bool {
+func (b BackendRequestBody) HasNomenclature() bool {
 	return b.nomenclature.IsEnumValid()
 }
 
-func (b BackendRequest) Nomenclature() enum.Nomenclature {
+func (b BackendRequestBody) Nomenclature() enum.Nomenclature {
 	return b.nomenclature
 }
 
-func (b BackendRequest) OmitEmpty() bool {
+func (b BackendRequestBody) OmitEmpty() bool {
 	return b.omitEmpty
 }
 
-func (b BackendRequest) HeaderMapper() *Mapper {
-	return b.headerMapper
+func (b BackendRequestHeader) Mapper() *Mapper {
+	return b.mapper
 }
 
-func (b BackendRequest) HeaderProjection() *Projection {
-	return b.headerProjection
+func (b BackendRequestHeader) Projector() *Projector {
+	return b.projector
 }
 
-func (b BackendRequest) HeaderModifiers() []Modifier {
-	return b.headerModifiers
+func (b BackendRequestHeader) Modifiers() []Modifier {
+	return b.modifiers
 }
 
-func (b BackendRequest) ParamModifiers() []Modifier {
-	return b.paramModifiers
+func (b BackendRequestParam) Modifiers() []Modifier {
+	return b.modifiers
 }
 
-func (b BackendRequest) QueryProjection() *Projection {
-	return b.queryProjection
+func (b BackendRequestQuery) Projector() *Projector {
+	return b.projector
 }
 
-func (b BackendRequest) QueryMapper() *Mapper {
-	return b.queryMapper
-
+func (b BackendRequestQuery) Modifiers() []Modifier {
+	return b.modifiers
 }
 
-func (b BackendRequest) QueryModifiers() []Modifier {
-	return b.queryModifiers
+func (b BackendRequestQuery) Mapper() *Mapper {
+	return b.mapper
 }
 
-func (b BackendRequest) BodyProjection() *Projection {
-	return b.bodyProjection
+func (b BackendRequestBody) Projector() *Projector {
+	return b.projector
 }
 
-func (b BackendRequest) BodyMapper() *Mapper {
-	return b.bodyMapper
+func (b BackendRequestBody) Mapper() *Mapper {
+	return b.mapper
 }
 
-func (b BackendRequest) BodyModifiers() []Modifier {
-	return b.bodyModifiers
+func (b BackendRequestBody) Modifiers() []Modifier {
+	return b.modifiers
 }
 
-func (b BackendRequest) CountAllDataTransforms() (count int) {
-	count += b.CountParamDataTransforms()
-	count += b.CountHeaderDataTransforms()
-	count += b.CountQueryDataTransforms()
-	count += b.CountBodyDataTransforms()
-	return count
-}
-
-func (b BackendRequest) CountQueryDataTransforms() (count int) {
-	if b.OmitQuery() {
-		return 1
-	}
-	if checker.NonNil(b.QueryMapper()) {
-		count += len(b.QueryMapper().Keys())
-	}
-	if checker.NonNil(b.QueryProjection()) {
-		count += len(b.QueryProjection().Keys())
-	}
-	if checker.NonNil(b.QueryModifiers()) {
-		count += len(b.QueryModifiers())
-	}
-	return count
-}
-
-func (b BackendRequest) CountHeaderDataTransforms() (count int) {
-	if b.OmitHeader() {
-		return 1
-	}
-	if checker.NonNil(b.HeaderMapper()) {
-		count += len(b.HeaderMapper().Keys())
-	}
-	if checker.NonNil(b.HeaderProjection()) {
-		count += len(b.HeaderProjection().Keys())
-	}
-	if checker.NonNil(b.HeaderModifiers()) {
-		count += len(b.HeaderModifiers())
-	}
-	return count
-}
-
-func (b BackendRequest) CountBodyDataTransforms() (count int) {
-	if b.OmitBody() {
-		return 1
-	}
-	if checker.NonNil(b.BodyMapper()) {
-		count += len(b.BodyMapper().Keys())
-	}
-	if checker.NonNil(b.BodyProjection()) {
-		count += len(b.BodyProjection().Keys())
-	}
-	if checker.NonNil(b.BodyModifiers()) {
-		count += len(b.BodyModifiers())
-	}
-	return count
-}
-
-func (b BackendRequest) CountParamDataTransforms() int {
-	if checker.NonNil(b.ParamModifiers()) {
-		return len(b.ParamModifiers())
+func (b BackendRequestParam) CountDataTransforms() int {
+	if b.HasModifiers() {
+		return len(b.Modifiers())
 	}
 	return 0
+}
+
+func (b BackendRequestParam) HasModifiers() bool {
+	return checker.IsNotEmpty(b.modifiers)
+}
+
+func (b BackendRequestQuery) CountDataTransforms() (count int) {
+	if b.Omit() {
+		return 1
+	}
+	if b.HasMapper() {
+		count += len(b.Mapper().Map().Keys())
+	}
+	if b.HasProjector() {
+		count += len(b.Projector().Project().Keys())
+	}
+	if b.HasModifiers() {
+		count += len(b.Modifiers())
+	}
+	return count
+}
+
+func (b BackendRequestQuery) HasMapper() bool {
+	return checker.NonNil(b.mapper)
+}
+
+func (b BackendRequestQuery) HasProjector() bool {
+	return checker.NonNil(b.projector)
+}
+
+func (b BackendRequestQuery) HasModifiers() bool {
+	return checker.IsNotEmpty(b.modifiers)
+}
+
+func (b BackendRequestHeader) CountDataTransforms() (count int) {
+	if b.Omit() {
+		return 1
+	}
+	if b.HasMapper() {
+		count += len(b.Mapper().Map().Keys())
+	}
+	if b.HasProjector() {
+		count += len(b.Projector().Project().Keys())
+	}
+	if b.HasModifiers() {
+		count += len(b.Modifiers())
+	}
+	return count
+}
+
+func (b BackendRequestHeader) HasMapper() bool {
+	return checker.NonNil(b.mapper)
+}
+
+func (b BackendRequestHeader) HasProjector() bool {
+	return checker.NonNil(b.projector)
+}
+
+func (b BackendRequestHeader) HasModifiers() bool {
+	return checker.IsNotEmpty(b.modifiers)
+}
+
+func (b BackendRequestBody) CountDataTransforms() (count int) {
+	if b.Omit() {
+		return 1
+	}
+	if b.HasMapper() {
+		count += len(b.Mapper().Map().Keys())
+	}
+	if b.HasProjector() {
+		count += len(b.Projector().Project().Keys())
+	}
+	if b.HasModifiers() {
+		count += len(b.Modifiers())
+	}
+	return count
+}
+
+func (b BackendRequestBody) HasMapper() bool {
+	return checker.NonNil(b.mapper)
+}
+
+func (b BackendRequestBody) HasProjector() bool {
+	return checker.NonNil(b.projector)
+}
+
+func (b BackendRequestBody) HasModifiers() bool {
+	return checker.IsNotEmpty(b.modifiers)
+}
+
+func (b BackendRequest) ContinueOnError() bool {
+	return b.continueOnError
+}
+
+func (b BackendRequest) HasParam() bool {
+	return checker.NonNil(b.param)
+}
+
+func (b BackendRequest) Param() *BackendRequestParam {
+	return b.param
+}
+
+func (b BackendRequest) HasQuery() bool {
+	return checker.NonNil(b.query)
+}
+
+func (b BackendRequest) Query() *BackendRequestQuery {
+	return b.query
+}
+
+func (b BackendRequest) HasHeader() bool {
+	return checker.NonNil(b.header)
+}
+
+func (b BackendRequest) Header() *BackendRequestHeader {
+	return b.header
+}
+
+func (b BackendRequest) HasBody() bool {
+	return checker.NonNil(b.body)
+}
+
+func (b BackendRequest) Body() *BackendRequestBody {
+	return b.body
+}
+
+func (b BackendRequest) HasDataTransforms() bool {
+	return checker.IsGreaterThan(b.CountAllDataTransforms(), 0)
+}
+
+func (b BackendResponse) ContinueOnError() bool {
+	return b.continueOnError
 }
 
 func (b BackendResponse) Omit() bool {
 	return b.omit
 }
 
-func (b BackendResponse) OmitHeader() bool {
-	return b.omitHeader
-}
-
-func (b BackendResponse) OmitBody() bool {
-	return b.omitBody
-}
-
-func (b BackendResponse) HeaderProjection() *Projection {
-	return b.headerProjection
-}
-
-func (b BackendResponse) HeaderMapper() *Mapper {
-	return b.headerMapper
-}
-
-func (b BackendResponse) HeaderModifiers() []Modifier {
-	return b.headerModifiers
-}
-
-func (b BackendResponse) BodyProjection() *Projection {
-	return b.bodyProjection
-}
-
-func (b BackendResponse) BodyMapper() *Mapper {
-	return b.bodyMapper
-}
-
-func (b BackendResponse) BodyModifiers() []Modifier {
-	return b.bodyModifiers
-}
-
-func (b BackendResponse) HasGroup() bool {
-	return checker.IsNotEmpty(b.group)
-}
-
-func (b BackendResponse) Group() string {
-	return b.group
-}
-
 func (b BackendResponse) CountAllDataTransforms() (count int) {
 	if b.Omit() {
 		return 1
 	}
-	count += b.CountHeaderDataTransforms()
-	count += b.CountBodyDataTransforms()
-	return count
-}
-
-func (b BackendResponse) CountHeaderDataTransforms() (count int) {
-	if b.OmitHeader() {
-		return 1
+	if b.HasHeader() {
+		count += b.Header().CountDataTransforms()
 	}
-	if checker.NonNil(b.HeaderMapper()) {
-		count += len(b.HeaderMapper().Keys())
-	}
-	if checker.NonNil(b.HeaderProjection()) {
-		count += len(b.HeaderProjection().Keys())
-	}
-	if checker.NonNil(b.HeaderModifiers()) {
-		count += len(b.HeaderModifiers())
+	if b.HasBody() {
+		count += b.Body().CountDataTransforms()
 	}
 	return count
 }
 
-func (b BackendResponse) CountBodyDataTransforms() (count int) {
-	if b.OmitBody() {
+func (b BackendResponse) HasHeader() bool {
+	return checker.NonNil(b.header)
+}
+
+func (b BackendResponse) Header() *BackendResponseHeader {
+	return b.header
+}
+
+func (b BackendResponse) HasBody() bool {
+	return checker.NonNil(b.body)
+}
+
+func (b BackendResponse) Body() *BackendResponseBody {
+	return b.body
+}
+
+func (b BackendResponseHeader) Omit() bool {
+	return b.omit
+}
+
+func (b BackendResponseBody) Omit() bool {
+	return b.omit
+}
+
+func (b BackendResponseHeader) Projector() *Projector {
+	return b.projector
+}
+
+func (b BackendResponseHeader) Mapper() *Mapper {
+	return b.mapper
+}
+
+func (b BackendResponseHeader) Modifiers() []Modifier {
+	return b.modifiers
+}
+
+func (b BackendResponseBody) Projector() *Projector {
+	return b.projector
+}
+
+func (b BackendResponseBody) Mapper() *Mapper {
+	return b.mapper
+}
+
+func (b BackendResponseBody) Modifiers() []Modifier {
+	return b.modifiers
+}
+
+func (b BackendResponseBody) HasGroup() bool {
+	return checker.IsNotEmpty(b.group)
+}
+
+func (b BackendResponseBody) Group() string {
+	return b.group
+}
+
+func (b BackendResponseHeader) CountDataTransforms() (count int) {
+	if b.Omit() {
 		return 1
 	}
-	if checker.NonNil(b.BodyMapper()) {
-		count += len(b.BodyMapper().Keys())
+	if b.HasMapper() {
+		count += len(b.Mapper().Map().Keys())
 	}
-	if checker.NonNil(b.BodyProjection()) {
-		count += len(b.BodyProjection().Keys())
+	if b.HasProjector() {
+		count += len(b.Projector().Project().Keys())
 	}
-	if checker.NonNil(b.BodyModifiers()) {
-		count += len(b.BodyModifiers())
+	if b.HasModifiers() {
+		count += len(b.Modifiers())
 	}
 	return count
+}
+
+func (b BackendResponseHeader) HasMapper() bool {
+	return checker.NonNil(b.mapper)
+}
+
+func (b BackendResponseHeader) HasProjector() bool {
+	return checker.NonNil(b.projector)
+}
+
+func (b BackendResponseHeader) HasModifiers() bool {
+	return checker.IsNotEmpty(b.modifiers)
+}
+
+func (b BackendResponseBody) CountDataTransforms() (count int) {
+	if b.Omit() {
+		return 1
+	}
+	if b.HasMapper() {
+		count += len(b.Mapper().Map().Keys())
+	}
+	if b.HasProjector() {
+		count += len(b.Projector().Project().Keys())
+	}
+	if b.HasModifiers() {
+		count += len(b.Modifiers())
+	}
+	return count
+}
+
+func (b BackendResponseBody) HasMapper() bool {
+	return checker.NonNil(b.mapper)
+}
+
+func (b BackendResponseBody) HasProjector() bool {
+	return checker.NonNil(b.projector)
+}
+
+func (b BackendResponseBody) HasModifiers() bool {
+	return checker.IsNotEmpty(b.modifiers)
 }

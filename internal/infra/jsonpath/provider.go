@@ -17,6 +17,8 @@
 package jsonpath
 
 import (
+	"strconv"
+
 	"github.com/tech4works/checker"
 	"github.com/tech4works/gopen-gateway/internal/domain"
 	"github.com/tidwall/gjson"
@@ -120,7 +122,11 @@ func aggregateValue(jsonValue gjson.Result, newValue string) string {
 func parseStringValueToRaw(value string) string {
 	parse := gjson.Parse(value)
 	if checker.Equals(parse.Type, gjson.Null) {
-		return "null"
+		if checker.IsEmpty(value) || checker.Equals(value, "null") {
+			return "null"
+		} else {
+			parse = gjson.Parse(strconv.Quote(value))
+		}
 	}
 	return parse.Raw
 }

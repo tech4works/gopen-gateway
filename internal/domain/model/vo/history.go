@@ -22,68 +22,146 @@ import (
 )
 
 type History struct {
-	backends  []*Backend
-	requests  []*HTTPBackendRequest
-	responses []*HTTPBackendResponse
+	backends           []*Backend
+	httpRequests       []*HTTPBackendRequest
+	httpResponses      []*HTTPBackendResponse
+	publisherRequests  []*PublisherBackendRequest
+	publisherResponses []*PublisherBackendResponse
 }
 
-func NewEmptyHistory() *History {
-	return &History{}
-}
-
-func NewHistory(backends []*Backend, requests []*HTTPBackendRequest, responses []*HTTPBackendResponse) *History {
+func NewHistoryWithSize(backendsSize int) *History {
 	return &History{
-		backends:  backends,
-		requests:  requests,
-		responses: responses,
+		backends:           make([]*Backend, backendsSize),
+		httpRequests:       make([]*HTTPBackendRequest, backendsSize),
+		httpResponses:      make([]*HTTPBackendResponse, backendsSize),
+		publisherRequests:  make([]*PublisherBackendRequest, backendsSize),
+		publisherResponses: make([]*PublisherBackendResponse, backendsSize),
 	}
 }
 
-func (h *History) Add(backend *Backend, request *HTTPBackendRequest, response *HTTPBackendResponse) *History {
+func (h *History) AddBackend(
+	i int,
+	backend *Backend,
+	httpRequest *HTTPBackendRequest,
+	httpResponse *HTTPBackendResponse,
+	publisherRequest *PublisherBackendRequest,
+	publisherResponse *PublisherBackendResponse,
+) *History {
+	nb := h.backends
+	nhr := h.httpRequests
+	nhs := h.httpResponses
+	npr := h.publisherRequests
+	nps := h.publisherResponses
+
+	nb[i] = backend
+	nhr[i] = httpRequest
+	nhs[i] = httpResponse
+	npr[i] = publisherRequest
+	nps[i] = publisherResponse
+
 	return &History{
-		backends:  append(h.backends, backend),
-		requests:  append(h.requests, request),
-		responses: append(h.responses, response),
+		backends:           nb,
+		httpRequests:       nhr,
+		httpResponses:      nhs,
+		publisherRequests:  npr,
+		publisherResponses: nps,
 	}
 }
 
-func (h *History) Get(i int) (*Backend, *HTTPBackendRequest, *HTTPBackendResponse) {
-	return h.backends[i], h.requests[i], h.responses[i]
+func (h *History) GetHTTPBackend(i int) (*Backend, *HTTPBackendRequest, *HTTPBackendResponse) {
+	return h.backends[i], h.httpRequests[i], h.httpResponses[i]
 }
 
-func (h *History) SingleResponse() bool {
-	return checker.Equals(h.Size(), 1)
+func (h *History) GetPublisherBackend(i int) (*Backend, *PublisherBackendRequest, *PublisherBackendResponse) {
+	return h.backends[i], h.publisherRequests[i], h.publisherResponses[i]
 }
 
-func (h *History) MultipleResponses() bool {
-	return checker.IsGreaterThan(h.Size(), 1)
+func (h *History) GetBackend(i int) (*Backend, *HTTPBackendRequest, *HTTPBackendResponse, *PublisherBackendRequest, *PublisherBackendResponse) {
+	return h.backends[i], h.httpRequests[i], h.httpResponses[i], h.publisherRequests[i], h.publisherResponses[i]
+}
+
+func (h *History) GetBackendResponse(i int) BackendPolymorphicResponse {
+	if checker.NonNil(h.httpResponses[i]) {
+		return h.httpResponses[i]
+	} else if checker.NonNil(h.publisherResponses[i]) {
+		return h.publisherResponses[i]
+	}
+	return nil
+}
+
+func (h *History) IsSingleResponse() bool {
+	return checker.Equals(h.NormalSize(), 1)
+}
+
+func (h *History) IsMultipleResponses() bool {
+	return checker.IsGreaterThan(h.NormalSize(), 1)
+}
+
+func (h *History) BackendResponseLastest() BackendPolymorphicResponse {
+	for i := h.Size() - 1; i >= 0; i-- {
+		if checker.NonNil(h.httpResponses[i]) {
+			return h.httpResponses[i]
+		} else if checker.NonNil(h.publisherResponses[i]) {
+			return h.publisherResponses[i]
+		}
+	}
+	return nil
 }
 
 func (h *History) Size() int {
-	return len(h.responses)
+	return len(h.backends)
 }
 
-func (h *History) Last() *HTTPBackendResponse {
-	return h.responses[len(h.responses)-1]
+func (h *History) NormalSize() int {
+	count := 0
+	for i := 0; i < h.Size(); i++ {
+		backend := h.backends[i]
+		if checker.IsNil(backend) || !backend.IsNormal() {
+			continue
+		}
+		count++
+	}
+	return count
 }
 
 func (h *History) AllOK() bool {
-	for _, httpBackendResponse := range h.responses {
-		if !httpBackendResponse.OK() {
+	for i := 0; i < h.Size(); i++ {
+		backendResponse := h.GetBackendResponse(i)
+		if checker.IsNil(backendResponse) {
+			continue
+		} else if !backendResponse.OK() {
 			return false
 		}
 	}
 	return true
 }
 
-func (h *History) Map() (string, error) {
-	var sliceOfMap []any
-	for _, response := range h.responses {
-		responseMap, err := response.Map()
+func (h *History) AllBackendsExecuted() bool {
+	for i := 0; i < h.Size(); i++ {
+		backendResponse := h.GetBackendResponse(i)
+		if checker.IsNil(backendResponse) {
+			return false
+		}
+	}
+	return true
+}
+
+func (h *History) ResponsesMap() (string, error) {
+	sliceOfMap := make([]any, h.Size())
+
+	for i := 0; i < h.Size(); i++ {
+		backendResponse := h.GetBackendResponse(i)
+		if checker.IsNil(backendResponse) {
+			continue
+		}
+
+		responseMap, err := backendResponse.Map()
 		if checker.NonNil(err) {
 			return "", err
 		}
-		sliceOfMap = append(sliceOfMap, responseMap)
+
+		sliceOfMap[i] = responseMap
 	}
+
 	return converter.ToStringWithErr(sliceOfMap)
 }

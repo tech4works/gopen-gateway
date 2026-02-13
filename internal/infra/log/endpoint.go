@@ -18,6 +18,7 @@ package log
 
 import (
 	"fmt"
+
 	"github.com/tech4works/gopen-gateway/internal/app"
 	"github.com/tech4works/gopen-gateway/internal/app/model/dto"
 )
@@ -60,7 +61,7 @@ func (e endpointLog) prefix(executeData dto.ExecuteEndpoint) string {
 	path := executeData.Endpoint.Path()
 	traceIDText := BuildTraceIDText(executeData.TraceID)
 
-	method := BuildMethodText(executeData.Endpoint.Method())
+	method := BuildTintText(executeData.Endpoint.Method())
 	url := BuildUriText(executeData.Request.URL())
 
 	return fmt.Sprintf("[%s | %s | %s |%s| %s]", path, executeData.ClientIP, traceIDText, method, url)
