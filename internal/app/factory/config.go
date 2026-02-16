@@ -248,9 +248,15 @@ func buildBackends(templates *dto.Templates, endpoint dto.Endpoint) []vo.Backend
 	var ps propagateState
 	var backendIndex int
 
+	seen := map[string]struct{}{}
+
 	consume := func(flow enum.BackendFlow, items []dto.Backend, allowParallelism bool) {
 		for _, b := range items {
 			effective := resolveBackendTemplate(b, templates)
+
+			validateBackendDependencies(endpoint, flow, backendIndex, effective, seen)
+			markBackendSeen(endpoint, flow, backendIndex, effective, seen)
+
 			result = append(result, buildBackendUnified(
 				effective,
 				flow,
@@ -267,6 +273,53 @@ func buildBackends(templates *dto.Templates, endpoint dto.Endpoint) []vo.Backend
 	consume(enum.BackendFlowAfterware, endpoint.Afterwares, false)
 
 	return result
+}
+
+func validateBackendDependencies(
+	endpoint dto.Endpoint,
+	flow enum.BackendFlow,
+	backendIndex int,
+	b dto.Backend,
+	seen map[string]struct{},
+) {
+	if checker.IsEmpty(b.Dependencies) {
+		return
+	}
+
+	var missing []string
+	for _, dep := range b.Dependencies {
+		dep = strings.TrimSpace(dep)
+		if checker.IsEmpty(dep) {
+			continue
+		}
+		if _, ok := seen[dep]; !ok {
+			missing = append(missing, dep)
+		}
+	}
+
+	if len(missing) > 0 {
+		panic(errors.Newf(
+			"dependencies not satisfied (endpoint=%s %s, flow=%s, index=%d, backend.id=%q). "+
+				"Missing (must appear BEFORE in the same endpoint): %s",
+			endpoint.Method,
+			endpoint.Path,
+			flow,
+			backendIndex,
+			b.ID,
+			strings.Join(missing, ", "),
+		))
+	}
+}
+
+func markBackendSeen(endpoint dto.Endpoint, flow enum.BackendFlow, backendIndex int, b dto.Backend, seen map[string]struct{}) {
+	if _, exists := seen[b.ID]; exists {
+		panic(errors.Newf(
+			"duplicate backend.id within the same endpoint (endpoint=%s %s, flow=%s, index=%d, backend.id=%q). "+
+				"The id must be unique per endpoint for dependencies to work correctly.",
+			endpoint.Method, endpoint.Path, flow, backendIndex, b.ID,
+		))
+	}
+	seen[b.ID] = struct{}{}
 }
 
 func buildBackendUnified(
