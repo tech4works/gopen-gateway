@@ -108,14 +108,12 @@ func (b backendLog) PrintError(executeData dto.ExecuteEndpoint, backend *vo.Back
 }
 
 func (b backendLog) prefix(executeData dto.ExecuteEndpoint, backend *vo.Backend) string {
-	var path string
-	var tintText string
+	id := backend.ID()
 
+	var tintText string
 	if backend.IsHTTP() {
-		path = backend.HTTP().Path()
 		tintText = backend.HTTP().Method()
 	} else if backend.IsPublisher() {
-		path = backend.Publisher().Path()
 		tintText = backend.Publisher().Provider().String()
 	}
 
@@ -123,5 +121,5 @@ func (b backendLog) prefix(executeData dto.ExecuteEndpoint, backend *vo.Backend)
 	ip := executeData.ClientIP
 	tintText = BuildTintText(tintText)
 
-	return fmt.Sprintf("[%s | %s | %s |%s]", path, ip, traceID, tintText)
+	return fmt.Sprintf("[%s | %s | %s |%s]", id, ip, traceID, tintText)
 }
