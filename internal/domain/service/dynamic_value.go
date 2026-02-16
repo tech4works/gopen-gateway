@@ -211,12 +211,14 @@ func (d dynamicValueService) replaceAllBoolExpressions(
 }
 
 func (d dynamicValueService) findAllBySyntax(value string) []string {
-	// Suporta:
 	// - token simples: #request.body.x
-	// - coalesce: #request.body.x || #request.query.x || #responses.0.body.x
+	// - responses por índice: #responses[0].body.x
+	// - responses por id:     #responses[ms-auth/v1/validate].body.x
+	// - id pode conter ":" (ex.: "id/asoaks/:id")
+	// - coalesce: #request.body.x || #request.query.x || #responses[0].body.x || #responses[...].body.x
 	//
 	// Observação: permite espaços em volta do operador.
-	regex := regexp.MustCompile(`\B#[a-zA-Z0-9_.\-\[\]]+(?:\s*\|\|\s*#[a-zA-Z0-9_.\-\[\]]+)+|\B#[a-zA-Z0-9_.\-\[\]]+`)
+	regex := regexp.MustCompile(`\B#[a-zA-Z0-9_.:\-/\[\]]+(?:\s*\|\|\s*#[a-zA-Z0-9_.:\-/\[\]]+)+|\B#[a-zA-Z0-9_.:\-/\[\]]+`)
 	return regex.FindAllString(value, -1)
 }
 
@@ -351,7 +353,8 @@ func (d dynamicValueService) getValueBySyntax(word string, request *vo.HTTPReque
 	return d.getSingleValueBySyntax(word, request, history)
 }
 
-func (d dynamicValueService) getSingleValueBySyntax(word string, request *vo.HTTPRequest, history *vo.History) (string, error) {
+func (d dynamicValueService) getSingleValueBySyntax(word string, request *vo.HTTPRequest, history *vo.History) (string,
+	error) {
 	cleanSintaxe := strings.ReplaceAll(word, "#", "")
 	dotSplit := strings.Split(cleanSintaxe, ".")
 	if checker.IsEmpty(dotSplit) {
@@ -385,19 +388,71 @@ func (d dynamicValueService) getRequestValueByJsonPath(jsonPath string, request 
 }
 
 func (d dynamicValueService) getResponseValueByJsonPath(jsonPath string, history *vo.History) (string, error) {
-	jsonPath = strings.Replace(jsonPath, "responses.", "", 1)
+	if strings.HasPrefix(jsonPath, "responses[") {
+		return d.getResponseValueByBracketJsonPath(jsonPath, history)
+	}
 
+	return "", errors.Newf("Invalid responses syntax! use #responses[<index|id>].<path> (key: #%s)", jsonPath)
+}
+
+func (d dynamicValueService) getResponseValueByBracketJsonPath(jsonPath string, history *vo.History) (string, error) {
+	closeIndex := strings.Index(jsonPath, "]")
+	if checker.IsLengthLessThan(closeIndex, 0) {
+		return "", errors.Newf("Invalid responses[<index|id>] syntax (missing ']')! key: %s", jsonPath)
+	}
+
+	key := strings.TrimSpace(jsonPath[len("responses["):closeIndex])
+	if checker.IsEmpty(key) {
+		return "", errors.Newf("Invalid responses[<index|id>] syntax (empty key)! key: %s", jsonPath)
+	}
+
+	rest := jsonPath[closeIndex+1:]
+	if strings.HasPrefix(rest, ".") {
+		rest = rest[1:]
+	}
+
+	if converter.CouldBeInt(key) {
+		return d.getResponseValueByIndex(key, rest, history)
+	}
+	return d.getResponseValueByID(key, rest, history)
+}
+
+func (d dynamicValueService) getResponseValueByIndex(index string, rest string, history *vo.History) (string, error) {
 	jsonResponses, err := history.ResponsesMap()
 	if checker.NonNil(err) {
 		return "", err
 	}
 
-	result := d.jsonPath.Get(jsonResponses, jsonPath)
+	lookupPath := index
+	if checker.IsNotEmpty(rest) {
+		lookupPath = index + "." + rest
+	}
+
+	result := d.jsonPath.Get(jsonResponses, lookupPath)
 	if result.Exists() && checker.IsNotEmpty(result.String()) {
 		return result.String(), nil
 	}
 
-	return "", mapper.NewErrValueNotFound(jsonPath)
+	return "", mapper.NewErrValueNotFound("responses[" + index + "]." + rest)
+}
+
+func (d dynamicValueService) getResponseValueByID(id string, rest string, history *vo.History) (string, error) {
+	jsonResponses, err := history.ResponsesMapByID()
+	if checker.NonNil(err) {
+		return "", err
+	}
+
+	lookupPath := id
+	if checker.IsNotEmpty(rest) {
+		lookupPath = id + "." + rest
+	}
+
+	result := d.jsonPath.Get(jsonResponses, lookupPath)
+	if result.Exists() && checker.IsNotEmpty(result.String()) {
+		return result.String(), nil
+	}
+
+	return "", mapper.NewErrValueNotFound("responses[" + id + "]." + rest)
 }
 
 func (d dynamicValueService) evalBoolExpr(expr string, request *vo.HTTPRequest, history *vo.History) (bool, []error) {

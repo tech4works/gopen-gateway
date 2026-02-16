@@ -165,3 +165,28 @@ func (h *History) ResponsesMap() (string, error) {
 
 	return converter.ToStringWithErr(sliceOfMap)
 }
+
+func (h *History) ResponsesMapByID() (string, error) {
+	byID := make(map[string]any, h.Size())
+
+	for i := 0; i < h.Size(); i++ {
+		backend := h.backends[i]
+		if checker.IsNil(backend) || checker.IsEmpty(backend.ID()) {
+			continue
+		}
+
+		backendResponse := h.GetBackendResponse(i)
+		if checker.IsNil(backendResponse) {
+			continue
+		}
+
+		responseMap, err := backendResponse.Map()
+		if checker.NonNil(err) {
+			return "", err
+		}
+
+		byID[backend.ID()] = responseMap
+	}
+
+	return converter.ToStringWithErr(byID)
+}

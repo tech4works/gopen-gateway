@@ -254,6 +254,7 @@ func buildBackends(templates *dto.Templates, endpoint dto.Endpoint) []vo.Backend
 		for _, b := range items {
 			effective := resolveBackendTemplate(b, templates)
 
+			validateBackendID(endpoint, flow, backendIndex, effective)
 			validateBackendDependencies(endpoint, flow, backendIndex, effective, seen)
 			markBackendSeen(endpoint, flow, backendIndex, effective, seen)
 
@@ -273,6 +274,16 @@ func buildBackends(templates *dto.Templates, endpoint dto.Endpoint) []vo.Backend
 	consume(enum.BackendFlowAfterware, endpoint.Afterwares, false)
 
 	return result
+}
+
+func validateBackendID(endpoint dto.Endpoint, flow enum.BackendFlow, backendIndex int, b dto.Backend) {
+	if checker.IsEmpty(b.ID) {
+		panic(errors.Newf(
+			"backend has empty id after resolution (endpoint=%s %s, flow=%s, index=%d). "+
+				"For templates, id must be template.path. For raw backends, default id is backend.path (must be non-empty).",
+			endpoint.Method, endpoint.Path, flow, backendIndex,
+		))
+	}
 }
 
 func validateBackendDependencies(
@@ -1132,7 +1143,7 @@ func rewriteResponseRef(value string, backendIndex int) string {
 	if !strings.Contains(value, prefix) {
 		return value
 	}
-	return strings.ReplaceAll(value, prefix, fmt.Sprintf("#responses.%d.", backendIndex))
+	return strings.ReplaceAll(value, prefix, fmt.Sprintf("#responses[%d].", backendIndex))
 }
 
 func onlyPropagate(in []dto.Modifier) []dto.Modifier {
