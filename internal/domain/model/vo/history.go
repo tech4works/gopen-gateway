@@ -80,6 +80,10 @@ func (h *History) GetBackend(i int) (*Backend, *HTTPBackendRequest, *HTTPBackend
 	return h.backends[i], h.httpRequests[i], h.httpResponses[i], h.publisherRequests[i], h.publisherResponses[i]
 }
 
+func (h *History) GetBackendID(i int) string {
+	return h.backends[i].ID()
+}
+
 func (h *History) GetBackendResponse(i int) BackendPolymorphicResponse {
 	if checker.NonNil(h.httpResponses[i]) {
 		return h.httpResponses[i]
@@ -98,7 +102,7 @@ func (h *History) IsMultipleResponses() bool {
 }
 
 func (h *History) BackendResponseLastest() BackendPolymorphicResponse {
-	for i := h.Size() - 1; i >= 0; i-- {
+	for i := h.Size() - 1; checker.IsGreaterThanOrEqual(i, 0); i-- {
 		if checker.NonNil(h.httpResponses[i]) {
 			return h.httpResponses[i]
 		} else if checker.NonNil(h.publisherResponses[i]) {
@@ -114,7 +118,7 @@ func (h *History) Size() int {
 
 func (h *History) NormalSize() int {
 	count := 0
-	for i := 0; i < h.Size(); i++ {
+	for i := 0; checker.IsLessThan(i, h.Size()); i++ {
 		backend := h.backends[i]
 		if checker.IsNil(backend) || !backend.IsNormal() {
 			continue
@@ -125,7 +129,7 @@ func (h *History) NormalSize() int {
 }
 
 func (h *History) AllOK() bool {
-	for i := 0; i < h.Size(); i++ {
+	for i := 0; checker.IsLessThan(i, h.Size()); i++ {
 		backendResponse := h.GetBackendResponse(i)
 		if checker.IsNil(backendResponse) {
 			continue
@@ -137,7 +141,7 @@ func (h *History) AllOK() bool {
 }
 
 func (h *History) AllBackendsExecuted() bool {
-	for i := 0; i < h.Size(); i++ {
+	for i := 0; checker.IsLessThan(i, h.Size()); i++ {
 		backendResponse := h.GetBackendResponse(i)
 		if checker.IsNil(backendResponse) {
 			return false
@@ -149,7 +153,7 @@ func (h *History) AllBackendsExecuted() bool {
 func (h *History) ResponsesMap() (string, error) {
 	sliceOfMap := make([]any, h.Size())
 
-	for i := 0; i < h.Size(); i++ {
+	for i := 0; checker.IsLessThan(i, h.Size()); i++ {
 		backendResponse := h.GetBackendResponse(i)
 		if checker.IsNil(backendResponse) {
 			continue
@@ -169,7 +173,7 @@ func (h *History) ResponsesMap() (string, error) {
 func (h *History) ResponsesMapByID() (string, error) {
 	byID := make(map[string]any, h.Size())
 
-	for i := 0; i < h.Size(); i++ {
+	for i := 0; checker.IsLessThan(i, h.Size()); i++ {
 		backend := h.backends[i]
 		if checker.IsNil(backend) || checker.IsEmpty(backend.ID()) {
 			continue

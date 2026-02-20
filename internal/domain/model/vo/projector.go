@@ -116,6 +116,10 @@ func (p *Project) IsRejection(key string) bool {
 	return p.Exists(key) && checker.Equals(p.Get(key), enum.ProjectValueRejection)
 }
 
+func (p *Project) IsAllRejection() bool {
+	return checker.Equals(p.Kind(), enum.ProjectKindRejection)
+}
+
 func (p *Project) UnmarshalJSON(data []byte) error {
 	if checker.IsEmpty(data) || checker.Equals(strings.TrimSpace(string(data)), "{}") {
 		return nil

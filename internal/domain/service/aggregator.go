@@ -17,10 +17,9 @@
 package service
 
 import (
-	"fmt"
-
 	"github.com/tech4works/checker"
 	"github.com/tech4works/converter"
+	"github.com/tech4works/errors"
 	"github.com/tech4works/gopen-gateway/internal/domain"
 	"github.com/tech4works/gopen-gateway/internal/domain/mapper"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
@@ -31,8 +30,8 @@ type aggregatorService struct {
 }
 
 type Aggregator interface {
-	AggregateHeaders(base, value vo.Header) vo.Header
-	AggregateBodyToKey(key string, value *vo.Body) (*vo.Body, error)
+	AggregateHeaders(base, header vo.Header) vo.Header
+	AggregateBodyToKey(key string, body *vo.Body) (*vo.Body, error)
 	AggregateBodiesIntoSlice(history *vo.History) (*vo.Body, []error)
 	AggregateBodies(history *vo.History) (*vo.Body, []error)
 }
@@ -53,24 +52,24 @@ func (a aggregatorService) AggregateHeaders(base, value vo.Header) vo.Header {
 	return vo.NewHeader(aggregated)
 }
 
-func (a aggregatorService) AggregateBodyToKey(key string, value *vo.Body) (*vo.Body, error) {
-	if checker.IsEmpty(key) || value.ContentType().IsNotJSON() || checker.IsNil(value) {
-		return value, nil
+func (a aggregatorService) AggregateBodyToKey(key string, body *vo.Body) (*vo.Body, error) {
+	if checker.IsEmpty(key) || body.ContentType().IsNotJSON() || checker.IsNil(body) {
+		return body, nil
 	}
 
-	raw, err := value.Raw()
+	raw, err := body.Raw()
 	if checker.NonNil(err) {
-		return value, err
+		return body, errors.Inheritf(err, "aggregator failed: op=raw key=%s", key)
 	}
 
 	jsonValue, err := a.jsonPath.Set("{}", key, raw)
 	if checker.NonNil(err) {
-		return value, err
+		return body, errors.Inheritf(err, "aggregator failed: op=set key=%s", key)
 	}
 
 	buffer, err := converter.ToBufferWithErr(jsonValue)
 	if checker.NonNil(err) {
-		return value, err
+		return body, errors.Inheritf(err, "aggregator failed: op=buffer key=%s", key)
 	}
 
 	return vo.NewBodyWithContentType(vo.NewContentTypeJson(), buffer), nil
@@ -80,32 +79,66 @@ func (a aggregatorService) AggregateBodiesIntoSlice(history *vo.History) (*vo.Bo
 	result := "[]"
 
 	var errs []error
-	for i := 0; i < history.Size(); i++ {
+	for i := 0; checker.IsLessThan(i, history.Size()); i++ {
 		backendResponse := history.GetBackendResponse(i)
 		if checker.IsNil(backendResponse) {
 			continue
 		}
 
+		var err error
+		var raw string
+
+		backendID := history.GetBackendID(i)
 		defaultJSON := a.buildBodyDefaultForSlice(backendResponse)
+
 		if !backendResponse.HasBody() {
-			result, _ = a.jsonPath.AppendOnArray(result, defaultJSON)
+			result, err = a.jsonPath.AppendOnArray(result, defaultJSON)
+			if checker.NonNil(err) {
+				errs = append(errs, errors.Inheritf(
+					err, "aggregator failed: op=append-default idx=%d backend=%s", i, backendID))
+			}
 			continue
 		}
 
-		raw, err := backendResponse.Body().Raw()
+		raw, err = backendResponse.Body().Raw()
 		if checker.NonNil(err) {
-			errs = append(errs, err)
+			errs = append(errs, errors.Inheritf(err,
+				"aggregator failed: op=raw idx=%d backend=%s", i, backendID))
+
+			result, err = a.jsonPath.AppendOnArray(result, defaultJSON)
+			if checker.NonNil(err) {
+				errs = append(errs, errors.Inheritf(err,
+					"aggregator failed: op=append-default idx=%d backend=%s", i, backendID))
+			}
 			continue
 		}
 
-		newJsonStr, mergeErrs := a.merge(i, defaultJSON, raw)
+		newJsonStr, mergeErrs := a.merge(defaultJSON, backendID, raw)
 		if checker.IsNotEmpty(mergeErrs) {
-			errs = append(errs, mergeErrs...)
-			result, _ = a.jsonPath.AppendOnArray(result, defaultJSON)
+			for _, me := range mergeErrs {
+				errs = append(errs, errors.Inheritf(me, "aggregator failed: op=merge idx=%d backend=%s", i, backendID))
+			}
+
+			result, err = a.jsonPath.AppendOnArray(result, defaultJSON)
+			if checker.NonNil(err) {
+				errs = append(errs, errors.Inheritf(err, "aggregator failed: op=append-default idx=%d backend=%s",
+					i, backendID))
+			}
 			continue
 		}
 
-		result, _ = a.jsonPath.AppendOnArray(result, newJsonStr)
+		result, err = a.jsonPath.AppendOnArray(result, newJsonStr)
+		if checker.NonNil(err) {
+			errs = append(errs, errors.Inheritf(err, "aggregator failed: op=append-merged idx=%d backend=%s",
+				i, backendID))
+
+			result, err = a.jsonPath.AppendOnArray(result, defaultJSON)
+
+			if checker.NonNil(err) {
+				errs = append(errs, errors.Inheritf(err, "aggregator failed: op=append-default idx=%d backend=%s",
+					i, backendID))
+			}
+		}
 	}
 
 	return a.buildBodyJson(result, errs)
@@ -115,21 +148,27 @@ func (a aggregatorService) AggregateBodies(history *vo.History) (*vo.Body, []err
 	result := "{}"
 
 	var errs []error
-	for i := 0; i < history.Size(); i++ {
+	for i := 0; checker.IsLessThan(i, history.Size()); i++ {
 		backendResponse := history.GetBackendResponse(i)
 		if checker.IsNil(backendResponse) || !backendResponse.HasBody() {
 			continue
 		}
+		var err error
+		var raw string
 
-		raw, err := backendResponse.Body().Raw()
+		backendID := history.GetBackendID(i)
+
+		raw, err = backendResponse.Body().Raw()
 		if checker.NonNil(err) {
-			errs = append(errs, err)
+			errs = append(errs, errors.Inheritf(err, "aggregator failed: op=raw idx=%d backend=%s", i, backendID))
 			continue
 		}
 
-		newJsonStr, mergeErrs := a.merge(i, result, raw)
+		newJsonStr, mergeErrs := a.merge(result, backendID, raw)
 		if checker.IsNotEmpty(mergeErrs) {
-			errs = append(errs, mergeErrs...)
+			for _, me := range mergeErrs {
+				errs = append(errs, errors.Inheritf(me, "aggregator failed: op=merge idx=%d backend=%s", i, backendID))
+			}
 			continue
 		}
 
@@ -147,17 +186,17 @@ func (a aggregatorService) buildBodyDefaultForSlice(backendResponse vo.BackendPo
 	return jsonStr
 }
 
-func (a aggregatorService) merge(i int, jsonStr, raw string) (string, []error) {
+func (a aggregatorService) merge(jsonStr, key, raw string) (string, []error) {
 	if checker.IsNotJSON(raw) || checker.IsSlice(raw) {
-		return a.mergeJSONByKey(i, jsonStr, raw)
+		return a.mergeJSONInKey(jsonStr, key, raw)
 	}
 	return a.mergeJSON(jsonStr, raw)
 }
 
-func (a aggregatorService) mergeJSONByKey(i int, jsonStr, raw string) (string, []error) {
-	newJsonStr, err := a.jsonPath.Set(jsonStr, fmt.Sprintf("backend%v", i), raw)
+func (a aggregatorService) mergeJSONInKey(jsonStr, key, raw string) (string, []error) {
+	newJsonStr, err := a.jsonPath.Set(jsonStr, key, raw)
 	if checker.NonNil(err) {
-		return jsonStr, []error{err}
+		return jsonStr, errors.InheritAsSlicef(err, "aggregator failed: op=set backendKey=%s", key)
 	}
 	return newJsonStr, nil
 }
@@ -170,7 +209,7 @@ func (a aggregatorService) mergeJSON(jsonStr, raw string) (string, []error) {
 	a.jsonPath.Parse(raw).ForEach(func(key string, value domain.JSONValue) bool {
 		newResult, err := a.jsonPath.Add(result, key, value.Raw())
 		if checker.NonNil(err) {
-			errs = append(errs, err)
+			errs = append(errs, errors.Inheritf(err, "aggregator failed: op=add path=%s", key))
 			return true
 		}
 		result = newResult
@@ -183,8 +222,7 @@ func (a aggregatorService) mergeJSON(jsonStr, raw string) (string, []error) {
 func (a aggregatorService) buildBodyJson(result string, errs []error) (*vo.Body, []error) {
 	buffer, err := converter.ToBufferWithErr(result)
 	if checker.NonNil(err) {
-		errs = append(errs, err)
-		return nil, errs
+		return nil, append(errs, errors.Inherit(err, "aggregator failed: op=buffer"))
 	}
 
 	return vo.NewBodyWithContentType(vo.NewContentTypeJson(), buffer), errs

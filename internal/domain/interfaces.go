@@ -51,6 +51,7 @@ type JSONValue interface {
 	Raw() string
 	String() string
 	Interface() any
+	Type() string
 }
 
 type Nomenclature interface {

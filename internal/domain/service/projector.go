@@ -17,14 +17,11 @@
 package service
 
 import (
-	"fmt"
-
 	"github.com/tech4works/checker"
 	"github.com/tech4works/converter"
 	"github.com/tech4works/errors"
 	"github.com/tech4works/gopen-gateway/internal/domain"
 	"github.com/tech4works/gopen-gateway/internal/domain/mapper"
-	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
 )
 
@@ -59,7 +56,7 @@ func (s projectorService) ProjectHeader(projector *vo.Projector, header vo.Heade
 		return header, nil
 	}
 
-	if checker.Equals(projector.Project().Kind(), enum.ProjectKindRejection) {
+	if projector.Project().IsAllRejection() {
 		return s.projectRejectionHeader(projector.Project(), header)
 	} else {
 		return s.projectAdditionHeader(projector.Project(), header)
@@ -79,7 +76,7 @@ func (s projectorService) ProjectQuery(projector *vo.Projector, query vo.Query, 
 		return query, nil
 	}
 
-	if checker.Equals(projector.Project().Kind(), enum.ProjectValueRejection) {
+	if projector.Project().IsAllRejection() {
 		return s.projectRejectionQuery(projector.Project(), query)
 	} else {
 		return s.projectAdditionQuery(projector.Project(), query)
@@ -94,14 +91,14 @@ func (s projectorService) ProjectBody(projector *vo.Projector, body *vo.Body, re
 
 	shouldRun, err := s.evalProjectorGuards("body", projector, request, history)
 	if checker.NonNil(err) {
-		return body, []error{err}
+		return body, converter.ToSlice(err)
 	} else if !shouldRun {
 		return body, nil
 	}
 
 	bodyStr, err := body.String()
 	if checker.NonNil(err) {
-		return body, []error{err}
+		return body, errors.InheritAsSlice(err, "body projector: failed to stringify body")
 	}
 
 	var projectedBody string
@@ -113,23 +110,20 @@ func (s projectorService) ProjectBody(projector *vo.Projector, body *vo.Body, re
 	} else {
 		projectedBody, errs = s.projectBodyJsonObject(projector.Project(), parsedJson)
 	}
-	if checker.IsNotEmpty(errs) {
-		return body, errs
-	}
 
 	buffer, err := converter.ToBufferWithErr(projectedBody)
 	if checker.NonNil(err) {
-		return body, []error{err}
+		return body, append(errs, errors.Inherit(err, "body projector: failed to build buffer from projected body"))
 	}
 
-	return vo.NewBodyWithContentType(body.ContentType(), buffer), nil
+	return vo.NewBodyWithContentType(body.ContentType(), buffer), errs
 }
 
 func (s projectorService) evalProjectorGuards(kind string, projector *vo.Projector, request *vo.HTTPRequest,
 	history *vo.History) (bool, error) {
 	shouldRun, _, errs := s.dynamicValueService.EvalGuards(projector.OnlyIf(), projector.IgnoreIf(), request, history)
 	if checker.IsNotEmpty(errs) {
-		return false, errors.Inherit(errors.Join(errs, ", "), fmt.Sprintf("failed to evaluate guard for %s projector", kind))
+		return false, errors.JoinInheritf(errs, ", ", "failed to evaluate guard for %s projector", kind)
 	}
 	return shouldRun, nil
 }
@@ -175,7 +169,7 @@ func (s projectorService) projectAdditionQuery(project *vo.Project, query vo.Que
 }
 
 func (s projectorService) projectBodyJsonObject(project *vo.Project, jsonObject domain.JSONValue) (string, []error) {
-	if checker.Equals(project.Kind(), enum.ProjectKindRejection) {
+	if project.IsAllRejection() {
 		return s.projectRejectionBodyJsonObject(project, jsonObject)
 	}
 	return s.projectionAdditionBodyJsonObject(project, jsonObject)
@@ -198,7 +192,7 @@ func (s projectorService) projectionAdditionBodyJsonObject(project *vo.Project, 
 
 		newProjectedJson, err := s.jsonPath.Set(projectedJson, key, jsonValue.Raw())
 		if checker.NonNil(err) {
-			errs = append(errs, err)
+			errs = append(errs, errors.Inheritf(err, "body projector: op=set mode=addition path=%s", key))
 			continue
 		}
 
@@ -216,9 +210,10 @@ func (s projectorService) projectRejectionBodyJsonObject(project *vo.Project, js
 	for _, key := range project.Keys() {
 		newProjectionJson, err := s.jsonPath.Delete(projectionJson, key)
 		if checker.NonNil(err) {
-			errs = append(errs, err)
+			errs = append(errs, errors.Inherit(err, "body projector: op=delete mode=rejection path=%s", key))
 			continue
 		}
+
 		projectionJson = newProjectionJson
 	}
 
@@ -228,12 +223,12 @@ func (s projectorService) projectRejectionBodyJsonObject(project *vo.Project, js
 func (s projectorService) projectBodyJsonArray(project *vo.Project, jsonArray domain.JSONValue) (string, []error) {
 	projectedArray, errs := s.projectBodyJsonArrayNormalKeys(project, jsonArray)
 	if checker.IsNotEmpty(errs) {
-		return "", errs
+		return projectedArray, errs
 	}
 
 	projectedArray, errs = s.projectBodyJsonArrayNumericKeys(project, projectedArray)
 	if checker.IsNotEmpty(errs) {
-		return "", errs
+		return projectedArray, errs
 	}
 
 	return projectedArray, errs
@@ -250,14 +245,18 @@ func (s projectorService) projectBodyJsonArrayNormalKeys(project *vo.Project, js
 		if value.IsObject() {
 			childObject, childErrs := s.projectBodyJsonObject(project, value)
 			if checker.IsNotEmpty(childErrs) {
-				errs = append(errs, childErrs...)
+				for _, ce := range childErrs {
+					errs = append(errs, errors.Inheritf(ce, "body projector array normal keys with child object: array idx=%s", key))
+				}
 				return true
 			}
 			newProjectedArray, err = s.jsonPath.AppendOnArray(projectedArray, childObject)
 		} else if value.IsArray() {
 			childArray, childErrs := s.projectBodyJsonArray(project, value)
 			if checker.IsNotEmpty(childErrs) {
-				errs = append(errs, childErrs...)
+				for _, ce := range childErrs {
+					errs = append(errs, errors.Inheritf(ce, "body projector array normal keys with child array: array idx=%s", key))
+				}
 				return true
 			}
 			newProjectedArray, err = s.jsonPath.AppendOnArray(projectedArray, childArray)
@@ -266,7 +265,7 @@ func (s projectorService) projectBodyJsonArrayNormalKeys(project *vo.Project, js
 		}
 
 		if checker.NonNil(err) {
-			errs = append(errs, err)
+			errs = append(errs, errors.Inheritf(err, "body projector: op=append array idx=%s", key))
 			return true
 		}
 
@@ -280,7 +279,7 @@ func (s projectorService) projectBodyJsonArrayNormalKeys(project *vo.Project, js
 func (s projectorService) projectBodyJsonArrayNumericKeys(project *vo.Project, projectedArray string) (string, []error) {
 	if project.NotContainsNumericKey() {
 		return projectedArray, nil
-	} else if checker.Equals(project.NumericKind(), enum.ProjectKindRejection) {
+	} else if project.IsAllRejection() {
 		return s.projectRejectionBodyJsonArray(project, projectedArray)
 	} else {
 		return s.projectAdditionBodyJsonArray(project, projectedArray)
@@ -298,7 +297,7 @@ func (s projectorService) projectRejectionBodyJsonArray(project *vo.Project, pro
 
 		newProjectedArray, err := s.jsonPath.AppendOnArray(projectedArray, value.Raw())
 		if checker.NonNil(err) {
-			errs = append(errs, err)
+			errs = append(errs, errors.Inheritf(err, "body projector: op=append mode=rejection numericKey=%s", key))
 			return true
 		}
 
@@ -326,7 +325,7 @@ func (s projectorService) projectAdditionBodyJsonArray(project *vo.Project, proj
 
 		newProjectedArray, err := s.jsonPath.AppendOnArray(projectedArray, jsonValue.Raw())
 		if checker.NonNil(err) {
-			errs = append(errs, err)
+			errs = append(errs, errors.Inheritf(err, "body projector: op=append mode=addition numericKey=%s", key))
 			continue
 		}
 

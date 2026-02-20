@@ -137,9 +137,7 @@ func (e endpointUseCase) executeAllBackends(
 			safeSendBackendResult(seqCtx, "executeBackend.runAsync", asyncDoneCh, func() backendExecResult {
 				httpReq, httpResp, pubReq, pubResp, err := e.executeBackend(seqCtx, executeData, &backend, history)
 
-				if checker.IsNil(err) &&
-					checker.NonNil(httpResp) &&
-					e.checkAbortBackendResponse(executeData.Endpoint, httpResp) {
+				if e.shouldBackendAbort(executeData.Endpoint, httpResp, pubResp, err) {
 					select {
 					case abortCh <- backendExecResult{
 						i:        i,
@@ -175,13 +173,13 @@ func (e endpointUseCase) executeAllBackends(
 
 		history = history.AddBackend(i, &backend, httpReq, httpResp, pubReq, pubResp)
 
-		if checker.NonNil(httpResp) && e.checkAbortBackendResponse(executeData.Endpoint, httpResp) {
+		if e.shouldBackendAbort(executeData.Endpoint, httpResp, pubResp, err) {
 			cancel()
 			return history, true, nil
 		}
 	}
 
-	for completed := 0; completed < pendingAsync; {
+	for completed := 0; checker.IsLessThan(completed, pendingAsync); {
 		select {
 		case r := <-abortCh:
 			history = history.AddBackend(r.i, &r.backend, r.httpReq, r.httpResp, r.pubReq, r.pubResp)
@@ -212,11 +210,8 @@ func (e endpointUseCase) executeBackend(
 		history,
 	)
 	if checker.IsNotEmpty(errs) {
-		return nil, nil, nil, nil, errors.Inheritf(
-			errors.Join(errs, ", "),
-			"failed to evaluate guard for backend kind=%v",
-			backend.Kind(),
-		)
+		return nil, nil, nil, nil, errors.JoinInheritf(errs, ", ", "failed to evaluate guard for backend kind=%v",
+			backend.Kind())
 	} else if !shouldRun {
 		e.backendLog.PrintWarn(executeData, backend, "backend ignored by expression:", reason)
 		return nil, nil, nil, nil, nil
@@ -281,7 +276,7 @@ func (e endpointUseCase) makeConcurrentBackendHTTPRequest(
 	defer cancel()
 
 	responseChan := make(chan *vo.HTTPBackendResponse)
-	for i := 0; i < backend.HTTP().Request().Concurrent(); i++ {
+	for i := 0; checker.IsLessThan(i, backend.HTTP().Request().Concurrent()); i++ {
 		go func() {
 			httpBackendResponse := e.makeBackendHTTPRequest(concurrentCtx, executeData, backend, request)
 			responseChan <- httpBackendResponse
@@ -334,12 +329,12 @@ func (e endpointUseCase) treatHTTPClientErr(err error) error {
 	var urlErr *url.Error
 	berrors.As(err, &urlErr)
 	if berrors.Is(urlErr.Err, context.Canceled) {
-		return mapper.NewErrConcurrentCanceled()
+		return mapper.NewErrBackendConcurrentCancelled()
 	} else if urlErr.Timeout() {
-		return mapper.NewErrGatewayTimeoutByErr(err)
+		return mapper.NewErrBackendGatewayTimeout(err)
+	} else {
+		return mapper.NewErrBackendBadGateway(err)
 	}
-
-	return mapper.NewErrBadGateway(err)
 }
 
 func (e endpointUseCase) makeBackendPublisherRequest(
@@ -372,16 +367,36 @@ func (e endpointUseCase) treatPublisherClientErr(err error) error {
 	}
 
 	if berrors.Is(err, context.Canceled) {
-		return mapper.NewErrConcurrentCanceled()
+		return mapper.NewErrBackendConcurrentCancelled()
 	}
 
 	return err
 }
 
-func (e endpointUseCase) checkAbortBackendResponse(endpoint *vo.Endpoint, response *vo.HTTPBackendResponse) bool {
-	statusCode := response.StatusCode()
-	return (endpoint.HasAbortIfHTTPStatusCodes() && checker.Contains(endpoint.AbortIfHTTPStatusCodes(), statusCode.Code())) ||
-		(!endpoint.HasAbortIfHTTPStatusCodes() && statusCode.Failed())
+func (e endpointUseCase) shouldBackendAbort(
+	endpoint *vo.Endpoint,
+	httpResp *vo.HTTPBackendResponse,
+	pubResp *vo.PublisherBackendResponse,
+	err error,
+) bool {
+	if checker.NonNil(err) {
+		return true
+	} else if checker.IsNil(httpResp) || checker.IsNil(pubResp) {
+		return false
+	}
+
+	var status vo.StatusCode
+	if checker.NonNil(httpResp) {
+		status = httpResp.StatusCode()
+	} else {
+		status = httpResp.StatusCode()
+	}
+
+	if endpoint.HasAbortIfStatusCodes() {
+		return checker.Contains(endpoint.AbortIfStatusCodes(), status.Code())
+	}
+
+	return status.Failed()
 }
 
 func (e endpointUseCase) buildHTTPBackendRequest(
@@ -407,8 +422,9 @@ func (e endpointUseCase) buildHTTPBackendRequest(
 		return httpBackendRequest, nil
 	}
 
-	return httpBackendRequest, errors.Inheritf(
-		errors.Join(errs, ", "),
+	return httpBackendRequest, errors.JoinInheritf(
+		errs,
+		", ",
 		"failed to build backend request (endpoint=%s method=%s path=%s)",
 		executeData.Endpoint.Path(),
 		backend.HTTP().Method(),
@@ -443,8 +459,8 @@ func (e endpointUseCase) buildFinalHTTPBackendResponse(
 		return finalHTTPBackendResponse, nil
 	}
 
-	return finalHTTPBackendResponse, errors.Inheritf(
-		errors.Join(errs, ", "),
+	return finalHTTPBackendResponse, errors.JoinInheritf(
+		errs, ", ",
 		"failed to build final backend response (endpoint=%s method=%s path=%s)",
 		executeData.Endpoint.Path(),
 		backend.HTTP().Method(),
@@ -477,11 +493,11 @@ func (e endpointUseCase) buildFinalPublisherBackendResponse(
 		return finalPublisherResponse, nil
 	}
 
-	return finalPublisherResponse, errors.Inheritf(
-		errors.Join(errs, ", "),
-		"failed to build final backend publisher response (endpoint=%s provider=%s path=%s)",
+	return finalPublisherResponse, errors.JoinInheritf(
+		errs, ", ",
+		"failed to build final backend publisher response (endpoint=%s broker=%s path=%s)",
 		executeData.Endpoint.Path(),
-		backend.Publisher().Provider(),
+		backend.Publisher().Broker(),
 		backend.Publisher().Path(),
 	)
 }
@@ -506,8 +522,8 @@ func (e endpointUseCase) buildHTTPResponse(ctx context.Context, executeData dto.
 		return httpResponse
 	}
 
-	return e.httpResponseFactory.BuildErrorResponse(executeData.Endpoint, errors.Inheritf(
-		errors.Join(errs, ", "),
+	return e.httpResponseFactory.BuildErrorResponse(executeData.Endpoint, errors.JoinInheritf(
+		errs, ", ",
 		"failed to build endpoint response (method=%s path=%s)",
 		executeData.Endpoint.Method(),
 		executeData.Endpoint.Path(),
@@ -515,7 +531,7 @@ func (e endpointUseCase) buildHTTPResponse(ctx context.Context, executeData dto.
 }
 
 func (e endpointUseCase) filterHistory(executeData dto.ExecuteEndpoint, history *vo.History) (*vo.History, error) {
-	for i := 0; i < history.Size(); i++ {
+	for i := 0; checker.IsLessThan(i, history.Size()); i++ {
 		backend, httpReq, tempHTTPRes, pubReq, tmpPubRes := history.GetBackend(i)
 		if checker.IsNil(backend) {
 			continue
@@ -557,7 +573,7 @@ func safeSendBackendResult(
 		var r backendExecResult
 
 		defer func() {
-			if rec := recover(); rec != nil {
+			if rec := recover(); checker.NonNil(rec) {
 				r.err = panicAsError(ctx, where, rec)
 			}
 			select {
@@ -593,11 +609,11 @@ func (e endpointUseCase) buildPublisherRequest(
 		return publisherRequest, nil
 	}
 
-	return publisherRequest, errors.Inheritf(
-		errors.Join(errs, ", "),
-		"failed to build publisher request (endpoint=%s provider=%s path=%s)",
+	return publisherRequest, errors.JoinInheritf(
+		errs, ", ",
+		"failed to build publisher request (endpoint=%s broker=%s path=%s)",
 		executeData.Endpoint.Path(),
-		backend.Publisher().Provider(),
+		backend.Publisher().Broker(),
 		backend.Publisher().Path(),
 	)
 }

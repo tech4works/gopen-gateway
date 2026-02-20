@@ -17,92 +17,123 @@
 package mapper
 
 import (
+	"fmt"
 	"time"
 
+	"github.com/tech4works/checker"
 	"github.com/tech4works/errors"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
 )
 
 const (
-	msgErrValueNotFound        = "dynamic value not found by syntax:"
-	msgErrInvalidAction        = "Invalid action modifier, action:"
-	msgErrEmptyKey             = "Modifier empty key!"
-	msgErrEmptyValue           = "Modifier empty value!"
-	msgErrIncompatibleBodyType = "Incompatible body type to modify:"
-	msgErrBadGateway           = "bad gateway error:"
-	msgErrGatewayTimeout       = "gateway timeout error:"
-	msgErrPayloadTooLarge      = "payload too large error:"
-	msgErrHeaderTooLarge       = "header too large error:"
-	msgErrTooManyRequests      = "too many requests error:"
-	msgErrCacheNotFound        = "cache not found"
-	msgErrConcurrentCanceled   = "concurrent context canceled"
-	msgErrMapperIgnored        = "mapper ignored by expression:"
+	codeErrDynamicValueNotFound         = "DYNAMIC_VALUE_NOT_FOUND"
+	codeErrModifierActionNotImplemented = "MODIFIER_ACTION_NOT_IMPLEMENTED"
+	codeErrModifierIncompatibleBodyType = "MODIFIER_INCOMPATIBLE_BODY_TYPE"
+	codeErrLimiterHeaderTooLarge        = "HEADER_TOO_LARGE"
+	codeErrLimiterPayloadTooLarge       = "PAYLOAD_TOO_LARGE"
+	codeErrLimiterTooManyRequests       = "TOO_MANY_REQUESTS"
+	codeErrCacheNotFound                = "CACHE_NOT_FOUND"
+	codeErrBackendConcurrentCancelled   = "BACKEND_CONCURRENT_CANCELLED"
+	codeErrBackendBadGateway            = "BACKEND_BAD_GATEWAY"
+	codeErrBackendGatewayTimeout        = "BACKEND_GATEWAY_TIMEOUT"
+	codeErrJSONPathNotModified          = "JSON_PATH_NOT_MODIFIED"
+)
+
+const (
+	msgErrDynamicValueNotFound         = "dynamic-value failed: value not found by syntax=%s"
+	msgErrModifierActionNotImplemented = "modifier failed: op=modify kind=%s action=%s not implemented"
+	msgErrModifierIncompatibleBodyType = "modifier failed: op=%s incompatible body content-type=%s to modify"
+	msgErrLimiterHeaderTooLarge        = "limiter failed: header too large error permitted=%s"
+	msgErrLimiterPayloadTooLarge       = "limiter failed: payload too large error permitted=%s"
+	msgErrLimiterTooManyRequests       = "limiter failed: too many requests error permitted=%s every=%s"
+	msgErrCacheNotFound                = "cache failed: not found by key=%s"
+	msgErrBackendConcurrentCancelled   = "backend failed: concurrent context cancelled"
+	msgErrBackendBadGateway            = "backend failed: bad gateway err=%s"
+	msgErrBackendGatewayTimeout        = "backend failed: gateway timeout err=%s"
+	msgErrJSONPathNotModified          = "jsonpath failed: op=%s not modified %s"
 )
 
 var (
-	ErrBadGateway           = errors.New(msgErrBadGateway)
-	ErrGatewayTimeout       = errors.New(msgErrGatewayTimeout)
-	ErrPayloadTooLarge      = errors.New(msgErrPayloadTooLarge)
-	ErrHeaderTooLarge       = errors.New(msgErrHeaderTooLarge)
-	ErrTooManyRequests      = errors.New(msgErrTooManyRequests)
-	ErrCacheNotFound        = errors.New(msgErrCacheNotFound)
-	ErrValueNotFound        = errors.New(msgErrValueNotFound)
-	ErrInvalidAction        = errors.New(msgErrInvalidAction)
-	ErrEmptyKey             = errors.New(msgErrEmptyKey)
-	ErrEmptyValue           = errors.New(msgErrEmptyValue)
-	ErrIncompatibleBodyType = errors.New(msgErrIncompatibleBodyType)
-	ErrConcurrentCanceled   = errors.New(msgErrConcurrentCanceled)
-	ErrMapperIgnored        = errors.New(msgErrMapperIgnored)
+	ErrDynamicValueNotFound         = errors.TargetWithCode(codeErrDynamicValueNotFound)
+	ErrModifierActionNotImplemented = errors.TargetWithCode(codeErrModifierActionNotImplemented)
+	ErrModifierIncompatibleBodyType = errors.TargetWithCode(codeErrModifierIncompatibleBodyType)
+	ErrCacheNotFound                = errors.TargetWithCode(codeErrCacheNotFound)
+	ErrBackendConcurrentCancelled   = errors.TargetWithCode(codeErrBackendConcurrentCancelled)
+	ErrLimiterHeaderTooLarge        = errors.TargetWithCode(codeErrLimiterHeaderTooLarge)
+	ErrLimiterPayloadTooLarge       = errors.TargetWithCode(codeErrLimiterPayloadTooLarge)
+	ErrLimiterTooManyRequests       = errors.TargetWithCode(codeErrLimiterTooManyRequests)
+	ErrBackendBadGateway            = errors.TargetWithCode(codeErrBackendBadGateway)
+	ErrBackendGatewayTimeout        = errors.TargetWithCode(codeErrBackendGatewayTimeout)
+	ErrJSONNotModified              = errors.TargetWithCode(codeErrJSONPathNotModified)
 )
 
-func NewErrBadGateway(err error) error {
-	return errors.NewWithSkipCaller(2, msgErrBadGateway, err)
+func NewErrDynamicValueNotFound(syntax string) error {
+	return errors.NewWithSkipCallerAndCodef(
+		2,
+		codeErrDynamicValueNotFound,
+		msgErrDynamicValueNotFound,
+		syntax,
+	)
 }
 
-func NewErrGatewayTimeoutByErr(err error) error {
-	return errors.NewWithSkipCaller(2, msgErrGatewayTimeout, err)
+func NewErrModifierActionNotImplemented(kind string, action enum.ModifierAction) error {
+	return errors.NewWithSkipCallerAndCodef(
+		2,
+		codeErrModifierActionNotImplemented,
+		msgErrModifierActionNotImplemented,
+		kind,
+		action,
+	)
 }
 
-func NewErrConcurrentCanceled() error {
-	return errors.NewWithSkipCaller(2, msgErrConcurrentCanceled)
+func NewErrModifierIncompatibleBodyType(op, contentType string) error {
+	return errors.NewWithSkipCallerAndCodef(
+		2,
+		codeErrModifierIncompatibleBodyType,
+		msgErrModifierIncompatibleBodyType,
+		op,
+		contentType,
+	)
 }
 
-func NewErrPayloadTooLarge(limit string) error {
-	return errors.NewWithSkipCaller(2, msgErrPayloadTooLarge, "permitted limit is", limit)
+func NewErrLimiterPayloadTooLarge(limit string) error {
+	return errors.NewWithSkipCallerAndCodef(2, codeErrLimiterPayloadTooLarge, msgErrLimiterPayloadTooLarge, limit)
 }
 
-func NewErrHeaderTooLarge(limit string) error {
-	return errors.NewWithSkipCaller(2, msgErrHeaderTooLarge, "permitted limit is", limit)
+func NewErrLimiterHeaderTooLarge(limit string) error {
+	return errors.NewWithSkipCallerAndCodef(2, codeErrLimiterHeaderTooLarge, msgErrLimiterHeaderTooLarge, limit)
 }
 
-func NewErrTooManyRequests(capacity int, every time.Duration) error {
-	return errors.NewWithSkipCaller(2, msgErrTooManyRequests, "permitted limit is", capacity, "every", every.String())
+func NewErrLimiterTooManyRequests(capacity int, every time.Duration) error {
+	return errors.NewWithSkipCaller(
+		2,
+		codeErrLimiterTooManyRequests,
+		msgErrLimiterTooManyRequests,
+		capacity,
+		every.String(),
+	)
 }
 
-func NewErrCacheNotFound() error {
-	return errors.NewWithSkipCaller(2, msgErrCacheNotFound)
+func NewErrCacheNotFound(key string) error {
+	return errors.NewWithSkipCallerAndCodef(2, codeErrCacheNotFound, msgErrCacheNotFound, key)
 }
 
-func NewErrValueNotFound(syntax string) error {
-	return errors.NewWithSkipCaller(2, msgErrValueNotFound, syntax)
+func NewErrBackendConcurrentCancelled() error {
+	return errors.NewWithSkipCallerAndCode(2, codeErrBackendConcurrentCancelled, msgErrBackendConcurrentCancelled)
 }
 
-func NewErrInvalidAction(modifierName string, action enum.ModifierAction) error {
-	return errors.NewWithSkipCaller(2, msgErrInvalidAction, modifierName, action)
+func NewErrBackendBadGateway(err error) error {
+	return errors.NewWithSkipCallerAndCodef(2, codeErrBackendBadGateway, msgErrBackendBadGateway, err)
 }
 
-func NewErrEmptyKey() error {
-	return errors.NewWithSkipCaller(2, msgErrEmptyKey)
+func NewErrBackendGatewayTimeout(err error) error {
+	return errors.NewWithSkipCallerAndCodef(2, codeErrBackendGatewayTimeout, msgErrBackendGatewayTimeout, err)
 }
 
-func NewErrEmptyValue() error {
-	return errors.NewWithSkipCaller(2, msgErrEmptyValue)
-}
-
-func NewErrIncompatibleBodyType(contentType string) error {
-	return errors.NewWithSkipCaller(2, msgErrIncompatibleBodyType, contentType)
-}
-
-func NewErrMapperIgnored(expression string) error {
-	return errors.NewWithSkipCaller(2, msgErrMapperIgnored, expression)
+func NewErrJSONNotModified(op, path, value string) error {
+	msg := fmt.Sprintf("path: %s", path)
+	if checker.IsNotEmpty(value) {
+		msg += fmt.Sprintf(" value: %s", value)
+	}
+	return errors.NewWithSkipCallerAndCodef(2, codeErrJSONPathNotModified, msgErrJSONPathNotModified, op, msg)
 }

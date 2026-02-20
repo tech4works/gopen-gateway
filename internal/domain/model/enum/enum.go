@@ -36,9 +36,13 @@ type CacheControl string
 
 type ProxyProvider string
 
-type PublisherProvider string
+type BackendBroker string
 
 type TemplateMerge string
+
+type EnrichTargetOnMissing string
+
+type EnrichTargetPolicy string
 
 const (
 	ModifierActionAdd ModifierAction = "ADD"
@@ -91,21 +95,47 @@ const (
 	ProxyProviderNgrok ProxyProvider = "NGROK"
 )
 const (
-	PublisherProviderAwsSqs PublisherProvider = "AWS/SQS"
-	PublisherProviderAwsSns PublisherProvider = "AWS/SNS"
+	BackendBrokerAwsSqs BackendBroker = "AWS/SQS"
+	BackendBrokerAwsSns BackendBroker = "AWS/SNS"
 )
 const (
 	TemplateMergeBase TemplateMerge = "BASE"
 	TemplateMergeFull TemplateMerge = "FULL"
 )
+const (
+	EnrichTargetOnMissingNull  EnrichTargetOnMissing = "NULL"
+	EnrichTargetOnMissingOmit  EnrichTargetOnMissing = "OMIT"
+	EnrichTargetOnMissingError EnrichTargetOnMissing = "ERROR"
+)
+const (
+	EnrichTargetKeyKeep         EnrichTargetPolicy = "KEEP"
+	EnrichTargetKeyDropOnEnrich EnrichTargetPolicy = "DROP_ON_ENRICH"
+	EnrichTargetKeyDropAlways   EnrichTargetPolicy = "DROP_ALWAYS"
+)
 
-func (p PublisherProvider) String() string {
+func (p BackendBroker) String() string {
 	return string(p)
 }
 
-func (p PublisherProvider) IsEnumValid() bool {
+func (p BackendBroker) IsEnumValid() bool {
 	switch p {
-	case PublisherProviderAwsSqs, PublisherProviderAwsSns:
+	case BackendBrokerAwsSqs, BackendBrokerAwsSns:
+		return true
+	}
+	return false
+}
+
+func (e EnrichTargetOnMissing) IsEnumValid() bool {
+	switch e {
+	case EnrichTargetOnMissingNull, EnrichTargetOnMissingOmit, EnrichTargetOnMissingError:
+		return true
+	}
+	return false
+}
+
+func (e EnrichTargetPolicy) IsEnumValid() bool {
+	switch e {
+	case EnrichTargetKeyKeep, EnrichTargetKeyDropOnEnrich, EnrichTargetKeyDropAlways:
 		return true
 	}
 	return false

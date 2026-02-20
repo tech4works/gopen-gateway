@@ -169,7 +169,7 @@ func (h httpResponseFactory) buildHeaderByHistory(body *vo.Body, history *vo.His
 
 	header := vo.NewHeader(mapHeader)
 
-	for i := 0; i < history.Size(); i++ {
+	for i := 0; checker.IsLessThan(i, history.Size()); i++ {
 		backendResponse := history.GetBackendResponse(i)
 		if checker.IsNil(backendResponse) {
 			continue
@@ -189,7 +189,7 @@ func (h httpResponseFactory) buildBodyFromMultipleResponses(endpoint *vo.Endpoin
 
 func (h httpResponseFactory) buildStatusCodeFromMultipleResponses(history *vo.History) vo.StatusCode {
 	statusCodes := make(map[vo.StatusCode]int)
-	for i := 0; i < history.Size(); i++ {
+	for i := 0; checker.IsLessThan(i, history.Size()); i++ {
 		backendResponse := history.GetBackendResponse(i)
 		if checker.IsNil(backendResponse) {
 			continue

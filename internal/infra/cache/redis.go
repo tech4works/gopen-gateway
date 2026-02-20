@@ -18,6 +18,7 @@ package cache
 
 import (
 	"context"
+
 	"github.com/redis/go-redis/v9"
 	"github.com/tech4works/checker"
 	"github.com/tech4works/compressor"
@@ -71,7 +72,7 @@ func (r redisStore) Get(ctx context.Context, key string) (*vo.CacheResponse, err
 
 	cacheGzipBase64, err := r.client.Get(ctx, key).Result()
 	if errors.Is(err, redis.Nil) {
-		return nil, mapper.NewErrCacheNotFound()
+		return nil, mapper.NewErrCacheNotFound(key)
 	} else if checker.NonNil(err) {
 		return nil, err
 	}

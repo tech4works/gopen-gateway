@@ -18,6 +18,7 @@ package log
 
 import (
 	"fmt"
+
 	"github.com/tech4works/checker"
 )
 

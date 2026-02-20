@@ -19,6 +19,7 @@ package service
 import (
 	"github.com/tech4works/checker"
 	"github.com/tech4works/converter"
+	"github.com/tech4works/errors"
 	"github.com/tech4works/gopen-gateway/internal/domain"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
@@ -40,64 +41,64 @@ func NewNomenclature(jsonPath domain.JSONPath, nomenclature domain.Nomenclature)
 	}
 }
 
-func (n nomenclatureService) ToCase(nomenclature enum.Nomenclature, body *vo.Body) (*vo.Body, []error) {
-	if !nomenclature.IsEnumValid() {
+func (n nomenclatureService) ToCase(nm enum.Nomenclature, body *vo.Body) (*vo.Body, []error) {
+	if !nm.IsEnumValid() {
 		return body, nil
-	} else if body.ContentType().IsNotJSON() {
+	} else if checker.IsNil(body) || body.ContentType().IsNotJSON() {
 		return body, nil
 	}
 
 	raw, err := body.Raw()
 	if checker.NonNil(err) {
-		return body, []error{err}
+		return body, errors.InheritAsSlicef(err, "nomenclature failed: op=raw case=%s", nm)
 	}
 
-	jsonStr, errs := n.convertKeysToCase(raw, nomenclature)
-	if checker.IsNotEmpty(errs) {
-		return body, errs
-	}
+	jsonStr, errs := n.convertKeysToCase(raw, nm)
 
 	buffer, err := converter.ToBufferWithErr(jsonStr)
 	if checker.NonNil(err) {
-		return body, []error{err}
+		return body, append(errs, errors.Inheritf(err, "nomenclature failed: op=buffer case=%s", nm))
 	}
 
-	return vo.NewBodyWithContentType(body.ContentType(), buffer), nil
+	return vo.NewBodyWithContentType(body.ContentType(), buffer), errs
 }
 
-func (n nomenclatureService) convertKeysToCase(jsonStr string, nomenclature enum.Nomenclature) (string, []error) {
-	jsonValue := n.jsonPath.Parse(jsonStr)
+func (n nomenclatureService) convertKeysToCase(raw string, nm enum.Nomenclature) (string, []error) {
+	root := n.jsonPath.Parse(raw)
 
-	var result = "{}"
-	if jsonValue.IsArray() {
+	result := "{}"
+	if root.IsArray() {
 		result = "[]"
 	}
-	var errs []error
 
-	jsonValue.ForEach(func(key string, value domain.JSONValue) bool {
-		var newResult string
+	var allErrs []error
+	root.ForEach(func(key string, value domain.JSONValue) bool {
 		var err error
 
-		newKey := n.nomenclature.Parse(nomenclature, key)
-		if value.IsObject() || value.IsArray() {
-			childJson, childErrs := n.convertKeysToCase(value.Raw(), nomenclature)
-			if checker.IsNotEmpty(childErrs) {
-				errs = append(errs, childErrs...)
-				return true
-			}
-			newResult, err = n.jsonPath.Set(result, newKey, childJson)
-		} else {
-			newResult, err = n.jsonPath.Set(result, newKey, value.Raw())
+		newKey := n.nomenclature.Parse(nm, key)
+
+		valueResolved, errs := n.resolveValueIfDeepJSON(value, nm)
+		if checker.IsNotEmpty(errs) {
+			allErrs = append(allErrs, errs...)
 		}
 
+		result, err = n.jsonPath.Set(result, newKey, valueResolved)
 		if checker.NonNil(err) {
-			errs = append(errs, err)
-			return true
+			allErrs = append(allErrs, errors.Inheritf(err, "nomenclature failed: op=set case=%s key=%s newKey=%s type=%s",
+				nm, key, newKey, value.Type()))
 		}
 
-		result = newResult
 		return true
 	})
+	return result, allErrs
+}
 
-	return result, errs
+func (n nomenclatureService) resolveValueIfDeepJSON(value domain.JSONValue, nm enum.Nomenclature) (string, []error) {
+	raw := value.Raw()
+
+	if value.IsObject() || value.IsArray() {
+		return n.convertKeysToCase(raw, nm)
+	}
+
+	return raw, nil
 }

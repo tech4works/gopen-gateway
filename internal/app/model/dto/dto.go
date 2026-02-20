@@ -30,9 +30,9 @@ type Gopen struct {
 	Proxy        *Proxy        `json:"proxy,omitempty"`
 	Store        *Store        `json:"store,omitempty"`
 	Timeout      vo.Duration   `json:"timeout,omitempty"`
-	Cache        *Cache        `json:"cache,omitempty"`
-	Limiter      *Limiter      `json:"limiter,omitempty"`
 	SecurityCors *SecurityCors `json:"security-cors,omitempty"`
+	Limiter      *Limiter      `json:"limiter,omitempty"`
+	Cache        *Cache        `json:"cache,omitempty"`
 	Templates    *Templates    `json:"templates,omitempty"`
 	Endpoints    []Endpoint    `json:"endpoints,omitempty"`
 }
@@ -76,19 +76,27 @@ type Limiter struct {
 	Rate                   *Rate     `json:"rate,omitempty"`
 }
 
+type EndpointLimiter struct {
+	Enabled                bool      `json:"enabled"`
+	MaxHeaderSize          *vo.Bytes `json:"max-header-size,omitempty"`
+	MaxBodySize            *vo.Bytes `json:"max-body-size,omitempty"`
+	MaxMultipartMemorySize *vo.Bytes `json:"max-multipart-memory-size,omitempty"`
+	Rate                   *Rate     `json:"rate,omitempty"`
+}
+
 type Rate struct {
 	Capacity *int         `json:"capacity,omitempty"`
 	Every    *vo.Duration `json:"every,omitempty"`
 }
 
-type EndpointLimiter struct {
-	MaxHeaderSize          vo.Bytes `json:"max-header-size,omitempty"`
-	MaxBodySize            vo.Bytes `json:"max-body-size,omitempty"`
-	MaxMultipartMemorySize vo.Bytes `json:"max-multipart-memory-size,omitempty"`
-	Rate                   *Rate    `json:"rate,omitempty"`
+type SecurityCors struct {
+	AllowOrigins []string `json:"allow-origins"`
+	AllowMethods []string `json:"allow-methods"`
+	AllowHeaders []string `json:"allow-headers"`
 }
 
-type SecurityCors struct {
+type EndpointSecurityCors struct {
+	Enabled      bool     `json:"enabled"`
 	AllowOrigins []string `json:"allow-origins"`
 	AllowMethods []string `json:"allow-methods"`
 	AllowHeaders []string `json:"allow-headers"`
@@ -107,18 +115,19 @@ type Template struct {
 }
 
 type Endpoint struct {
-	Comment                string            `json:"@comment,omitempty"`
-	Path                   string            `json:"path,omitempty"`
-	Method                 string            `json:"method,omitempty"`
-	Timeout                vo.Duration       `json:"timeout,omitempty"`
-	Limiter                *EndpointLimiter  `json:"limiter,omitempty"`
-	Cache                  *EndpointCache    `json:"cache,omitempty"`
-	AbortIfHTPPStatusCodes *[]int            `json:"abort-if-http-status-codes,omitempty"`
-	Parallelism            bool              `json:"parallelism,omitempty"`
-	Beforewares            []Backend         `json:"beforewares,omitempty"`
-	Backends               []Backend         `json:"backends,omitempty"`
-	Afterwares             []Backend         `json:"afterwares,omitempty"`
-	Response               *EndpointResponse `json:"response,omitempty"`
+	Comment            string                `json:"@comment,omitempty"`
+	Path               string                `json:"path,omitempty"`
+	Method             string                `json:"method,omitempty"`
+	Timeout            vo.Duration           `json:"timeout,omitempty"`
+	SecurityCors       *EndpointSecurityCors `json:"security-cors,omitempty"`
+	Limiter            *EndpointLimiter      `json:"limiter,omitempty"`
+	Cache              *EndpointCache        `json:"cache,omitempty"`
+	AbortIfStatusCodes *[]int                `json:"abort-if-status-codes,omitempty"`
+	Parallelism        bool                  `json:"parallelism,omitempty"`
+	Beforewares        []Backend             `json:"beforewares,omitempty"`
+	Backends           []Backend             `json:"backends,omitempty"`
+	Afterwares         []Backend             `json:"afterwares,omitempty"`
+	Response           *EndpointResponse     `json:"response,omitempty"`
 }
 
 type EndpointResponse struct {
@@ -161,22 +170,23 @@ type Backend struct {
 	Kind     enum.BackendKind `json:"kind,omitempty"`
 	Template *Template        `json:"template,omitempty"`
 
-	Async *bool `json:"async,omitempty"`
+	Async  *bool              `json:"async,omitempty"`
+	Broker enum.BackendBroker `json:"broker,omitempty"`
 
 	// ---- HTTP ----
 	Hosts     []string          `json:"hosts,omitempty"`
 	Path      string            `json:"path,omitempty"`
 	Method    string            `json:"method,omitempty"`
 	Request   *BackendRequest   `json:"request,omitempty"`
-	Response  *BackendResponse  `json:"response,omitempty"`
 	Propagate *BackendPropagate `json:"propagate,omitempty"`
 
 	// ---- PUBLISHER ----
-	Provider        enum.PublisherProvider `json:"provider,omitempty"`
-	GroupID         string                 `json:"group-id,omitempty"`
-	DeduplicationID string                 `json:"deduplication-id,omitempty"`
-	Delay           vo.Duration            `json:"delay,omitempty"`
-	Message         *PublisherMessage      `json:"message,omitempty"`
+	GroupID         string            `json:"group-id,omitempty"`
+	DeduplicationID string            `json:"deduplication-id,omitempty"`
+	Delay           vo.Duration       `json:"delay,omitempty"`
+	Message         *PublisherMessage `json:"message,omitempty"`
+
+	Response *BackendResponse `json:"response,omitempty"`
 }
 
 type BackendRequest struct {
@@ -197,13 +207,6 @@ type BackendPropagate struct {
 	Param           *BackendRequestParam  `json:"param,omitempty"`
 	Query           *BackendRequestQuery  `json:"query,omitempty"`
 	Body            *BackendRequestBody   `json:"body,omitempty"`
-}
-
-type BackendPropagateRequest struct {
-	Header *BackendRequestHeader `json:"header,omitempty"`
-	Param  *BackendRequestParam  `json:"param,omitempty"`
-	Query  *BackendRequestQuery  `json:"query,omitempty"`
-	Body   *BackendRequestBody   `json:"body,omitempty"`
 }
 
 type BackendRequestHeader struct {
@@ -262,19 +265,7 @@ type BackendResponseBody struct {
 	Mapper    *Mapper    `json:"mapper,omitempty"`
 	Projector *Projector `json:"projector,omitempty"`
 	Modifiers []Modifier `json:"modifiers,omitempty"`
-}
-
-type Publisher struct {
-	Comment         string                 `json:"@comment,omitempty"`
-	OnlyIf          []string               `json:"only-if,omitempty"`
-	IgnoreIf        []string               `json:"ignore-if,omitempty"`
-	Provider        enum.PublisherProvider `json:"provider,omitempty"`
-	Reference       string                 `json:"reference,omitempty"`
-	GroupID         string                 `json:"group-id,omitempty"`
-	DeduplicationID string                 `json:"deduplication-id,omitempty"`
-	Delay           vo.Duration            `json:"delay,omitempty"`
-	Async           *bool                  `json:"async,omitempty"`
-	Message         *PublisherMessage      `json:"message,omitempty"`
+	Enrichers []Enricher `json:"enrichers,omitempty"`
 }
 
 type PublisherMessage struct {
@@ -320,6 +311,27 @@ type Modifier struct {
 	Propagate bool                `json:"propagate,omitempty"`
 	Key       string              `json:"key,omitempty"`
 	Value     string              `json:"value,omitempty"`
+}
+
+type Enricher struct {
+	Comment  string         `json:"@comment,omitempty"`
+	OnlyIf   []string       `json:"only-if,omitempty"`
+	IgnoreIf []string       `json:"ignore-if,omitempty"`
+	Source   EnricherSource `json:"source,omitempty"`
+	Target   EnricherTarget `json:"target,omitempty"`
+}
+
+type EnricherSource struct {
+	Path string `json:"path,omitempty"`
+	Key  string `json:"key,omitempty"`
+}
+
+type EnricherTarget struct {
+	Policy    enum.EnrichTargetPolicy    `json:"policy,omitempty"`
+	Path      string                     `json:"path,omitempty"`
+	Key       string                     `json:"key,omitempty"`
+	As        string                     `json:"as,omitempty"`
+	OnMissing enum.EnrichTargetOnMissing `json:"on-missing,omitempty"`
 }
 
 type ErrorBody struct {

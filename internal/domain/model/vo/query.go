@@ -57,7 +57,7 @@ func (q Query) Length() int {
 }
 
 func (q Query) IsEmpty() bool {
-	return q.Length() == 0
+	return checker.Equals(q.Length(), 0)
 }
 
 func (q Query) Keys() (ss []string) {

@@ -18,11 +18,12 @@ package vo
 
 import (
 	"fmt"
-	"github.com/tech4works/checker"
-	"github.com/tech4works/errors"
 	"math"
 	"regexp"
 	"strconv"
+
+	"github.com/tech4works/checker"
+	"github.com/tech4works/errors"
 )
 
 var unitMap = map[string]float64{
@@ -48,7 +49,7 @@ func NewBytesWithErr(bytesUnit string) (Bytes, error) {
 	regex := regexp.MustCompile(`^(\d+)\s?(\w+)?$`)
 	match := regex.FindAllStringSubmatch(bytesUnit, -1)
 
-	if len(match) == 0 || len(match[0]) < 3 {
+	if checker.IsEmpty(match) || checker.IsLengthLessThan(match[0], 3) {
 		return 0, errors.Newf("Error byte unit mal formated")
 	}
 

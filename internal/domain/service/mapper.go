@@ -17,7 +17,6 @@
 package service
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/tech4works/checker"
@@ -121,7 +120,7 @@ func (m mapperService) evalMapperGuards(kind string, mapper *vo.Mapper, request 
 	bool, error) {
 	shouldRun, _, errs := m.dynamicValueService.EvalGuards(mapper.OnlyIf(), mapper.IgnoreIf(), request, history)
 	if checker.IsNotEmpty(errs) {
-		return false, errors.Inherit(errors.Join(errs, ", "), fmt.Sprintf("failed to evaluate guard for %s mapper", kind))
+		return false, errors.JoinInheritf(errs, ", ", "failed to evaluate guard for %s mapper", kind)
 	}
 	return shouldRun, nil
 }
@@ -129,7 +128,7 @@ func (m mapperService) evalMapperGuards(kind string, mapper *vo.Mapper, request 
 func (m mapperService) mapBodyText(mMap *vo.Map, body *vo.Body) (*vo.Body, []error) {
 	mappedBody, err := body.String()
 	if checker.NonNil(err) {
-		return body, []error{err}
+		return body, []error{errors.Inherit(err, "body mapper text: failed to stringify body")}
 	}
 
 	for _, key := range mMap.Keys() {
@@ -141,7 +140,7 @@ func (m mapperService) mapBodyText(mMap *vo.Map, body *vo.Body) (*vo.Body, []err
 
 	buffer, err := converter.ToBufferWithErr(mappedBody)
 	if checker.NonNil(err) {
-		return body, []error{err}
+		return body, []error{errors.Inherit(err, "body mapper text: failed to build buffer from mapped body")}
 	}
 
 	return vo.NewBodyWithContentType(body.ContentType(), buffer), nil
@@ -150,7 +149,7 @@ func (m mapperService) mapBodyText(mMap *vo.Map, body *vo.Body) (*vo.Body, []err
 func (m mapperService) mapBodyJson(mMap *vo.Map, body *vo.Body) (*vo.Body, []error) {
 	bodyStr, err := body.String()
 	if checker.NonNil(err) {
-		return body, []error{err}
+		return body, []error{errors.Inherit(err, "body mapper json: failed to stringify body")}
 	}
 
 	var mappedBodyStr string
@@ -162,13 +161,10 @@ func (m mapperService) mapBodyJson(mMap *vo.Map, body *vo.Body) (*vo.Body, []err
 	} else {
 		mappedBodyStr, errs = m.mapBodyJsonObject(mMap, parsedJson)
 	}
-	if checker.IsNotEmpty(errs) {
-		return body, errs
-	}
 
 	buffer, err := converter.ToBufferWithErr(mappedBodyStr)
 	if checker.NonNil(err) {
-		return body, []error{err}
+		return body, append(errs, errors.Inherit(err, "body mapper json: failed to build buffer from mapped body"))
 	}
 
 	return vo.NewBodyWithContentType(body.ContentType(), buffer), nil
@@ -184,14 +180,18 @@ func (m mapperService) mapBodyJsonArray(mMap *vo.Map, jsonArray domain.JSONValue
 		if value.IsObject() {
 			childObject, childErrs := m.mapBodyJsonObject(mMap, value)
 			if checker.IsNotEmpty(childErrs) {
-				errs = append(errs, childErrs...)
+				for _, ce := range childErrs {
+					errs = append(errs, errors.Inheritf(ce, "body mapper json array: child object idx=%s", key))
+				}
 				return true
 			}
 			newMappedArray, err = m.jsonPath.AppendOnArray(mappedArray, childObject)
 		} else if value.IsArray() {
 			childArray, childErrs := m.mapBodyJsonArray(mMap, value)
 			if checker.IsNotEmpty(childErrs) {
-				errs = append(errs, childErrs...)
+				for _, ce := range childErrs {
+					errs = append(errs, errors.Inheritf(ce, "body mapper json array: child array idx=%s", key))
+				}
 				return true
 			}
 			newMappedArray, err = m.jsonPath.AppendOnArray(mappedArray, childArray)
@@ -200,7 +200,7 @@ func (m mapperService) mapBodyJsonArray(mMap *vo.Map, jsonArray domain.JSONValue
 		}
 
 		if checker.NonNil(err) {
-			errs = append(errs, err)
+			errs = append(errs, errors.Inheritf(err, "body mapper json array: op=append idx=%s", key))
 			return true
 		}
 
@@ -220,6 +220,7 @@ func (m mapperService) mapBodyJsonObject(mMap *vo.Map, jsonObject domain.JSONVal
 		if checker.Equals(key, newKey) {
 			continue
 		}
+
 		jsonValue := jsonObject.Get(key)
 		if jsonValue.NotExists() {
 			continue
@@ -227,13 +228,13 @@ func (m mapperService) mapBodyJsonObject(mMap *vo.Map, jsonObject domain.JSONVal
 
 		newMappedJson, err := m.jsonPath.Set(mappedJson, newKey, jsonValue.Raw())
 		if checker.NonNil(err) {
-			errs = append(errs, err)
+			errs = append(errs, errors.Inheritf(err, "body mapper json object: op=set from=%s to=%s", key, newKey))
 			continue
 		}
 
 		newMappedJson, err = m.jsonPath.Delete(newMappedJson, key)
 		if checker.NonNil(err) {
-			errs = append(errs, err)
+			errs = append(errs, errors.Inherit(err, "body mapper json object: op=delete from=%s to=%s", key, newKey))
 			continue
 		}
 

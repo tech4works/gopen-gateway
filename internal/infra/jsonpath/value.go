@@ -72,3 +72,7 @@ func (v value) String() string {
 func (v value) Interface() any {
 	return v.result.Value()
 }
+
+func (v value) Type() string {
+	return v.result.Type.String()
+}

@@ -49,17 +49,17 @@ func (c client) Publish(ctx context.Context, request *vo.PublisherBackendRequest
 	span, ctx := apm.StartSpan(ctx, "messaging.publish", "publisher")
 	defer span.End()
 
-	span.Context.SetLabel("provider", request.Provider())
+	span.Context.SetLabel("broker", request.Broker())
 	span.Context.SetLabel("url", request.Path())
 	span.Context.SetLabel("message", request.Body())
 
-	switch request.Provider() {
-	case enum.PublisherProviderAwsSqs:
+	switch request.Broker() {
+	case enum.BackendBrokerAwsSqs:
 		return c.publishSQS(ctx, request)
-	case enum.PublisherProviderAwsSns:
+	case enum.BackendBrokerAwsSns:
 		return c.publishSNS(ctx, request)
 	default:
-		return nil, errors.Newf("Provider %s not supported", request.Provider())
+		return nil, errors.Newf("Broker %s not supported", request.Broker())
 	}
 }
 
@@ -92,7 +92,7 @@ func (c client) publishSQS(ctx context.Context, request *vo.PublisherBackendRequ
 		OK: checker.IsNotNilOrEmpty(out.MessageId),
 		Body: &publisher.Body{
 			Path:             request.Path(),
-			Provider:         request.Provider().String(),
+			Provider:         request.Broker().String(),
 			MessageID:        *out.MessageId,
 			SequentialNumber: *out.SequenceNumber,
 		},
@@ -127,7 +127,7 @@ func (c client) publishSNS(ctx context.Context, request *vo.PublisherBackendRequ
 		OK: checker.IsNotNilOrEmpty(out.MessageId),
 		Body: &publisher.Body{
 			Path:             request.Path(),
-			Provider:         request.Provider().String(),
+			Provider:         request.Broker().String(),
 			MessageID:        *out.MessageId,
 			SequentialNumber: *out.SequenceNumber,
 		},

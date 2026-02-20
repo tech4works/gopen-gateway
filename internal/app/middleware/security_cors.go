@@ -17,10 +17,11 @@
 package middleware
 
 import (
+	"net/http"
+
 	"github.com/tech4works/checker"
 	"github.com/tech4works/gopen-gateway/internal/app"
 	"github.com/tech4works/gopen-gateway/internal/domain/service"
-	"net/http"
 )
 
 type securityCorsMiddleware struct {
@@ -38,16 +39,13 @@ func NewSecurityCors(service service.SecurityCors) SecurityCors {
 }
 
 func (s securityCorsMiddleware) Do(ctx app.Context) {
-	if !ctx.Gopen().HasSecurityCors() {
-		ctx.Next()
-	} else if err := s.service.ValidateOrigin(ctx.Gopen().SecurityCors(), ctx.Request()); checker.NonNil(err) {
+	if err := s.service.ValidateOrigin(ctx.Endpoint().SecurityCors(), ctx.Request()); checker.NonNil(err) {
 		ctx.WriteError(http.StatusForbidden, err)
-	} else if err = s.service.ValidateMethod(ctx.Gopen().SecurityCors(), ctx.Request()); checker.NonNil(err) {
+	} else if err = s.service.ValidateMethod(ctx.Endpoint().SecurityCors(), ctx.Request()); checker.NonNil(err) {
 		ctx.WriteError(http.StatusForbidden, err)
-	} else if err = s.service.ValidateHeaders(ctx.Gopen().SecurityCors(), ctx.Request()); checker.NonNil(err) {
+	} else if err = s.service.ValidateHeaders(ctx.Endpoint().SecurityCors(), ctx.Request()); checker.NonNil(err) {
 		ctx.WriteError(http.StatusForbidden, err)
 	} else {
 		ctx.Next()
 	}
-
 }

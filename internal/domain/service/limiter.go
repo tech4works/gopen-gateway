@@ -17,13 +17,14 @@
 package service
 
 import (
+	"io"
+	"net/http"
+	"sync"
+
 	"github.com/tech4works/checker"
 	"github.com/tech4works/gopen-gateway/internal/domain/mapper"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
 	timerate "golang.org/x/time/rate"
-	"io"
-	"net/http"
-	"sync"
 )
 
 type limiterService struct {
@@ -60,7 +61,7 @@ func (s *limiterService) AllowRate(request *vo.HTTPRequest, rate vo.Rate) (err e
 	}
 
 	if !rateLimiter.Allow() {
-		err = mapper.NewErrTooManyRequests(rate.Capacity(), rate.EveryTime())
+		err = mapper.NewErrLimiterTooManyRequests(rate.Capacity(), rate.EveryTime())
 	}
 
 	return err
@@ -69,7 +70,7 @@ func (s *limiterService) AllowRate(request *vo.HTTPRequest, rate vo.Rate) (err e
 func (s *limiterService) AllowSize(request *vo.HTTPRequest, limiter vo.Limiter) error {
 	maxHeaderSize := limiter.MaxHeaderSize()
 	if checker.IsGreaterThan(request.Header().Size(), maxHeaderSize) {
-		return mapper.NewErrHeaderTooLarge(maxHeaderSize.String())
+		return mapper.NewErrLimiterHeaderTooLarge(maxHeaderSize.String())
 	}
 
 	maxBodySize := limiter.MaxBodySize()
@@ -86,7 +87,7 @@ func (s *limiterService) AllowSize(request *vo.HTTPRequest, limiter vo.Limiter) 
 
 	_, err := io.ReadAll(reader)
 	if checker.NonNil(err) {
-		return mapper.NewErrPayloadTooLarge(maxBodySize.String())
+		return mapper.NewErrLimiterPayloadTooLarge(maxBodySize.String())
 	}
 
 	return nil

@@ -35,9 +35,9 @@ type modifierService struct {
 }
 
 type Modifier interface {
-	ExecuteURLPathModifiers(modifier []vo.Modifier, urlPath vo.URLPath, request *vo.HTTPRequest, history *vo.History) (vo.URLPath, []error)
-	ExecuteHeaderModifiers(modifier []vo.Modifier, header vo.Header, request *vo.HTTPRequest, history *vo.History) (vo.Header, []error)
-	ExecuteQueryModifiers(modifier []vo.Modifier, query vo.Query, request *vo.HTTPRequest, history *vo.History) (vo.Query, []error)
+	ExecuteURLPathModifiers(modifiers []vo.Modifier, urlPath vo.URLPath, request *vo.HTTPRequest, history *vo.History) (vo.URLPath, []error)
+	ExecuteHeaderModifiers(modifiers []vo.Modifier, header vo.Header, request *vo.HTTPRequest, history *vo.History) (vo.Header, []error)
+	ExecuteQueryModifiers(modifiers []vo.Modifier, query vo.Query, request *vo.HTTPRequest, history *vo.History) (vo.Query, []error)
 	ExecuteBodyModifiers(modifiers []vo.Modifier, body *vo.Body, request *vo.HTTPRequest, history *vo.History) (*vo.Body, []error)
 
 	ModifyURLPath(modifier *vo.Modifier, urlPath vo.URLPath, request *vo.HTTPRequest, history *vo.History) (vo.URLPath, error)
@@ -55,65 +55,76 @@ func NewModifier(jsonPath domain.JSONPath, dynamicValueService DynamicValue) Mod
 
 func (s modifierService) ExecuteBodyModifiers(modifiers []vo.Modifier, body *vo.Body, request *vo.HTTPRequest,
 	history *vo.History) (*vo.Body, []error) {
-	var errs []error
-	var err error
-
+	var allErrs []error
 	for _, modifier := range modifiers {
+		var err error
+
 		body, err = s.ModifyBody(&modifier, body, request, history)
 		if checker.NonNil(err) {
-			errs = append(errs, err)
+			allErrs = append(allErrs, errors.Inheritf(err, "modifier failed: op=execute kind=body action=%s key=%s value=%s",
+				modifier.Action(), modifier.Key(), modifier.Value()))
 		}
 	}
-	return body, errs
+
+	return body, allErrs
 }
 
 func (s modifierService) ExecuteURLPathModifiers(modifiers []vo.Modifier, urlPath vo.URLPath, request *vo.HTTPRequest,
 	history *vo.History) (vo.URLPath, []error) {
-	var errs []error
-	var err error
+	var allErrs []error
 
 	for _, modifier := range modifiers {
+		var err error
+
 		urlPath, err = s.ModifyURLPath(&modifier, urlPath, request, history)
 		if checker.NonNil(err) {
-			errs = append(errs, err)
+			allErrs = append(allErrs, errors.Inheritf(err, "modifier failed: op=execute kind=url-path action=%s key=%s value=%s",
+				modifier.Action(), modifier.Key(), modifier.Value()))
 		}
 	}
-	return urlPath, errs
+
+	return urlPath, allErrs
 }
 
 func (s modifierService) ExecuteHeaderModifiers(modifiers []vo.Modifier, header vo.Header, request *vo.HTTPRequest,
 	history *vo.History) (vo.Header, []error) {
-	var errs []error
-	var err error
+	var allErrs []error
 
 	for _, modifier := range modifiers {
+		var err error
+
 		header, err = s.ModifyHeader(&modifier, header, request, history)
 		if checker.NonNil(err) {
-			errs = append(errs, err)
+			allErrs = append(allErrs, errors.Inheritf(err, "modifier failed: op=execute kind=header action=%s key=%s value=%s",
+				modifier.Action(), modifier.Key(), modifier.Value()))
 		}
 	}
-	return header, errs
+
+	return header, allErrs
 }
 
 func (s modifierService) ExecuteQueryModifiers(modifiers []vo.Modifier, query vo.Query, request *vo.HTTPRequest,
 	history *vo.History) (vo.Query, []error) {
-	var errs []error
-	var err error
+	var allErrs []error
 
 	for _, modifier := range modifiers {
+		var err error
+
 		query, err = s.ModifyQuery(&modifier, query, request, history)
 		if checker.NonNil(err) {
-			errs = append(errs, err)
+			allErrs = append(allErrs, errors.Inheritf(err, "modifier failed: op=execute kind=query action=%s key=%s value=%s",
+				modifier.Action(), modifier.Key(), modifier.Value()))
 		}
 	}
-	return query, errs
+
+	return query, allErrs
 }
 
 func (s modifierService) ModifyURLPath(modifier *vo.Modifier, urlPath vo.URLPath, request *vo.HTTPRequest,
 	history *vo.History) (vo.URLPath, error) {
 	shouldRun, err := s.evalModifierGuards("url path", modifier, request, history)
 	if checker.NonNil(err) {
-		return urlPath, err
+		return urlPath, s.wrapModifierErr("url-path", "eval-guards", modifier, err, "")
 	} else if !shouldRun {
 		return urlPath, nil
 	}
@@ -122,7 +133,7 @@ func (s modifierService) ModifyURLPath(modifier *vo.Modifier, urlPath vo.URLPath
 	key := modifier.Key()
 	value, errs := s.dynamicValueService.Get(modifier.Value(), request, history)
 	if checker.IsNotEmpty(errs) {
-		return urlPath, errors.Inherit(errors.Join(errs, ", "), "failed to get dynamic value for url path modifier")
+		return urlPath, s.joinDynamicValueErr("url-path", modifier, errs)
 	}
 
 	switch action {
@@ -133,7 +144,7 @@ func (s modifierService) ModifyURLPath(modifier *vo.Modifier, urlPath vo.URLPath
 	case enum.ModifierActionDel:
 		return s.deleteURLPath(urlPath, key)
 	default:
-		return urlPath, mapper.NewErrInvalidAction("params", action)
+		return urlPath, mapper.NewErrModifierActionNotImplemented("url-path", action)
 	}
 }
 
@@ -141,7 +152,7 @@ func (s modifierService) ModifyHeader(modifier *vo.Modifier, header vo.Header, r
 	history *vo.History) (vo.Header, error) {
 	shouldRun, err := s.evalModifierGuards("header", modifier, request, history)
 	if checker.NonNil(err) {
-		return header, err
+		return header, s.wrapModifierErr("header", "eval-guards", modifier, err, "")
 	} else if !shouldRun {
 		return header, nil
 	}
@@ -150,7 +161,7 @@ func (s modifierService) ModifyHeader(modifier *vo.Modifier, header vo.Header, r
 	key := modifier.Key()
 	values, errs := s.dynamicValueService.GetAsSliceOfString(modifier.Value(), request, history)
 	if checker.IsNotEmpty(errs) {
-		return header, errors.Inherit(errors.Join(errs, ", "), "failed to get dynamic value for header modifier")
+		return header, s.joinDynamicValueErr("header", modifier, errs)
 	}
 
 	switch action {
@@ -165,7 +176,7 @@ func (s modifierService) ModifyHeader(modifier *vo.Modifier, header vo.Header, r
 	case enum.ModifierActionDel:
 		return s.deleteHeader(header, key)
 	default:
-		return header, mapper.NewErrInvalidAction("header", action)
+		return header, mapper.NewErrModifierActionNotImplemented("header", action)
 	}
 }
 
@@ -173,7 +184,7 @@ func (s modifierService) ModifyQuery(modifier *vo.Modifier, query vo.Query, requ
 ) (vo.Query, error) {
 	shouldRun, err := s.evalModifierGuards("query", modifier, request, history)
 	if checker.NonNil(err) {
-		return query, err
+		return query, s.wrapModifierErr("query", "eval-guards", modifier, err, "")
 	} else if !shouldRun {
 		return query, nil
 	}
@@ -182,7 +193,7 @@ func (s modifierService) ModifyQuery(modifier *vo.Modifier, query vo.Query, requ
 	key := modifier.Key()
 	values, errs := s.dynamicValueService.GetAsSliceOfString(modifier.Value(), request, history)
 	if checker.IsNotEmpty(errs) {
-		return query, errors.Inherit(errors.Join(errs, ", "), "failed to get dynamic value for query modifier")
+		return query, s.joinDynamicValueErr("query", modifier, errs)
 	}
 
 	switch action {
@@ -197,7 +208,7 @@ func (s modifierService) ModifyQuery(modifier *vo.Modifier, query vo.Query, requ
 	case enum.ModifierActionDel:
 		return s.deleteQuery(query, key)
 	default:
-		return query, mapper.NewErrInvalidAction("query", action)
+		return query, mapper.NewErrModifierActionNotImplemented("query", action)
 	}
 }
 
@@ -209,16 +220,16 @@ func (s modifierService) ModifyBody(modifier *vo.Modifier, body *vo.Body, reques
 
 	shouldRun, err := s.evalModifierGuards("body", modifier, request, history)
 	if checker.NonNil(err) {
-		return body, err
+		return body, s.wrapModifierErr("body", "eval-guards", modifier, err, "")
 	} else if !shouldRun {
 		return body, nil
 	}
 
 	action := modifier.Action()
 	key := modifier.Key()
-	value, dynamicValueErrs := s.dynamicValueService.Get(modifier.Value(), request, history)
-	if checker.IsNotEmpty(dynamicValueErrs) {
-		return body, errors.Inherit(errors.Join(dynamicValueErrs, ", "), "failed to get dynamic value for body modifier")
+	value, errs := s.dynamicValueService.Get(modifier.Value(), request, history)
+	if checker.IsNotEmpty(errs) {
+		return body, s.joinDynamicValueErr("body", modifier, errs)
 	}
 
 	switch action {
@@ -233,7 +244,7 @@ func (s modifierService) ModifyBody(modifier *vo.Modifier, body *vo.Body, reques
 	case enum.ModifierActionDel:
 		return s.deleteBody(body, key)
 	default:
-		return body, mapper.NewErrInvalidAction("body", action)
+		return body, mapper.NewErrModifierActionNotImplemented("body", action)
 	}
 }
 
@@ -241,32 +252,13 @@ func (s modifierService) evalModifierGuards(kind string, modifier *vo.Modifier, 
 ) (bool, error) {
 	shouldRun, _, errs := s.dynamicValueService.EvalGuards(modifier.OnlyIf(), modifier.IgnoreIf(), request, history)
 	if checker.IsNotEmpty(errs) {
-		return false, errors.Inherit(errors.Join(errs, ", "), fmt.Sprintf("failed to evaluate guard for %s modifier", kind))
+		return false, errors.JoinInheritf(errs, ", ", "modifier failed: op=eval-guards kind=%s action=%s key=%s",
+			kind, modifier.Action(), modifier.Key())
 	}
 	return shouldRun, nil
 }
 
-func (s modifierService) validateKey(key string) error {
-	if checker.IsEmpty(key) {
-		return mapper.NewErrEmptyKey()
-	}
-	return nil
-}
-
-func (s modifierService) validateValue(value any) error {
-	if checker.IsEmpty(value) {
-		return mapper.NewErrEmptyValue()
-	}
-	return nil
-}
-
 func (s modifierService) setURLPath(urlPath vo.URLPath, key, value string) (vo.URLPath, error) {
-	if err := s.validateKey(key); checker.NonNil(err) {
-		return urlPath, err
-	} else if err = s.validateValue(value); checker.NonNil(err) {
-		return urlPath, err
-	}
-
 	path := urlPath.Raw()
 	paramValues := urlPath.Params().Copy()
 
@@ -279,11 +271,7 @@ func (s modifierService) setURLPath(urlPath vo.URLPath, key, value string) (vo.U
 }
 
 func (s modifierService) replaceURLPath(urlPath vo.URLPath, key, value string) (vo.URLPath, error) {
-	if err := s.validateKey(key); checker.NonNil(err) {
-		return urlPath, err
-	} else if err = s.validateValue(value); checker.NonNil(err) {
-		return urlPath, err
-	} else if urlPath.NotExists(key) {
+	if urlPath.NotExists(key) {
 		return urlPath, nil
 	}
 
@@ -291,10 +279,6 @@ func (s modifierService) replaceURLPath(urlPath vo.URLPath, key, value string) (
 }
 
 func (s modifierService) deleteURLPath(urlPath vo.URLPath, key string) (vo.URLPath, error) {
-	if err := s.validateKey(key); checker.NonNil(err) {
-		return urlPath, err
-	}
-
 	path := strings.ReplaceAll(urlPath.Raw(), fmt.Sprintf("/:%s", key), "")
 
 	paramValues := urlPath.Params().Copy()
@@ -304,11 +288,7 @@ func (s modifierService) deleteURLPath(urlPath vo.URLPath, key string) (vo.URLPa
 }
 
 func (s modifierService) addHeader(header vo.Header, key string, value []string) (vo.Header, error) {
-	if err := s.validateKey(key); checker.NonNil(err) {
-		return header, err
-	} else if err = s.validateValue(value); checker.NonNil(err) {
-		return header, err
-	} else if mapper.IsHeaderMandatoryKey(key) {
+	if mapper.IsHeaderMandatoryKey(key) {
 		return header, nil
 	}
 
@@ -319,11 +299,7 @@ func (s modifierService) addHeader(header vo.Header, key string, value []string)
 }
 
 func (s modifierService) appendHeader(header vo.Header, key string, value []string) (vo.Header, error) {
-	if err := s.validateKey(key); checker.NonNil(err) {
-		return header, err
-	} else if err = s.validateValue(value); checker.NonNil(err) {
-		return header, err
-	} else if mapper.IsHeaderMandatoryKey(key) || header.NotExists(key) {
+	if mapper.IsHeaderMandatoryKey(key) || header.NotExists(key) {
 		return header, nil
 	}
 
@@ -334,11 +310,7 @@ func (s modifierService) appendHeader(header vo.Header, key string, value []stri
 }
 
 func (s modifierService) setHeader(header vo.Header, key string, value []string) (vo.Header, error) {
-	if err := s.validateKey(key); checker.NonNil(err) {
-		return header, err
-	} else if err = s.validateValue(value); checker.NonNil(err) {
-		return header, err
-	} else if mapper.IsHeaderMandatoryKey(key) {
+	if mapper.IsHeaderMandatoryKey(key) {
 		return header, nil
 	}
 
@@ -349,11 +321,7 @@ func (s modifierService) setHeader(header vo.Header, key string, value []string)
 }
 
 func (s modifierService) replaceHeader(header vo.Header, key string, value []string) (vo.Header, error) {
-	if err := s.validateKey(key); checker.NonNil(err) {
-		return header, err
-	} else if err = s.validateValue(value); checker.NonNil(err) {
-		return header, err
-	} else if mapper.IsHeaderMandatoryKey(key) || header.NotExists(key) {
+	if mapper.IsHeaderMandatoryKey(key) || header.NotExists(key) {
 		return header, nil
 	}
 
@@ -361,9 +329,7 @@ func (s modifierService) replaceHeader(header vo.Header, key string, value []str
 }
 
 func (s modifierService) deleteHeader(header vo.Header, key string) (vo.Header, error) {
-	if err := s.validateKey(key); checker.NonNil(err) {
-		return header, err
-	} else if mapper.IsHeaderMandatoryKey(key) {
+	if mapper.IsHeaderMandatoryKey(key) {
 		return header, nil
 	}
 
@@ -374,12 +340,6 @@ func (s modifierService) deleteHeader(header vo.Header, key string) (vo.Header, 
 }
 
 func (s modifierService) addQuery(query vo.Query, key string, value []string) (vo.Query, error) {
-	if err := s.validateKey(key); checker.NonNil(err) {
-		return query, err
-	} else if err = s.validateValue(value); checker.NonNil(err) {
-		return query, err
-	}
-
 	values := query.Copy()
 	values[key] = append(query.GetAll(key), value...)
 
@@ -387,11 +347,7 @@ func (s modifierService) addQuery(query vo.Query, key string, value []string) (v
 }
 
 func (s modifierService) appendQuery(query vo.Query, key string, value []string) (vo.Query, error) {
-	if err := s.validateKey(key); checker.NonNil(err) {
-		return query, err
-	} else if err = s.validateValue(value); checker.NonNil(err) {
-		return query, err
-	} else if query.NotExists(key) {
+	if query.NotExists(key) {
 		return query, nil
 	}
 
@@ -402,12 +358,6 @@ func (s modifierService) appendQuery(query vo.Query, key string, value []string)
 }
 
 func (s modifierService) setQuery(query vo.Query, key string, value []string) (vo.Query, error) {
-	if err := s.validateKey(key); checker.NonNil(err) {
-		return query, err
-	} else if err = s.validateValue(value); checker.NonNil(err) {
-		return query, err
-	}
-
 	values := query.Copy()
 	values[key] = value
 
@@ -415,11 +365,7 @@ func (s modifierService) setQuery(query vo.Query, key string, value []string) (v
 }
 
 func (s modifierService) replaceQuery(query vo.Query, key string, value []string) (vo.Query, error) {
-	if err := s.validateKey(key); checker.NonNil(err) {
-		return query, err
-	} else if err = s.validateValue(value); checker.NonNil(err) {
-		return query, err
-	} else if query.NotExists(key) {
+	if query.NotExists(key) {
 		return query, nil
 	}
 
@@ -427,11 +373,8 @@ func (s modifierService) replaceQuery(query vo.Query, key string, value []string
 }
 
 func (s modifierService) deleteQuery(query vo.Query, key string) (vo.Query, error) {
-	if err := s.validateKey(key); checker.NonNil(err) {
-		return query, err
-	}
-
 	values := query.Copy()
+
 	delete(values, key)
 
 	return vo.NewQuery(values), nil
@@ -442,15 +385,12 @@ func (s modifierService) addBody(body *vo.Body, key, value string) (*vo.Body, er
 		return s.addBodyText(body, value)
 	} else if body.ContentType().IsJSON() {
 		return s.addBodyJson(body, key, value)
+	} else {
+		return body, mapper.NewErrModifierIncompatibleBodyType("add-body", body.ContentType().String())
 	}
-	return body, mapper.NewErrIncompatibleBodyType(body.ContentType().String())
 }
 
 func (s modifierService) addBodyText(body *vo.Body, value string) (*vo.Body, error) {
-	if err := s.validateValue(value); checker.NonNil(err) {
-		return body, err
-	}
-
 	bodyStr, err := body.String()
 	if checker.NonNil(err) {
 		return body, err
@@ -461,12 +401,6 @@ func (s modifierService) addBodyText(body *vo.Body, value string) (*vo.Body, err
 }
 
 func (s modifierService) addBodyJson(body *vo.Body, key, value string) (*vo.Body, error) {
-	if err := s.validateKey(key); checker.NonNil(err) {
-		return body, err
-	} else if err = s.validateValue(value); checker.NonNil(err) {
-		return body, err
-	}
-
 	bodyRaw, err := body.Raw()
 	if checker.NonNil(err) {
 		return body, err
@@ -486,14 +420,10 @@ func (s modifierService) appendBody(body *vo.Body, key, value string) (*vo.Body,
 	} else if body.ContentType().IsJSON() {
 		return s.appendBodyJson(body, key, value)
 	}
-	return body, mapper.NewErrIncompatibleBodyType(body.ContentType().String())
+	return body, mapper.NewErrModifierIncompatibleBodyType("append-body", body.ContentType().String())
 }
 
 func (s modifierService) appendBodyText(body *vo.Body, value string) (*vo.Body, error) {
-	if err := s.validateValue(value); checker.NonNil(err) {
-		return body, err
-	}
-
 	bodyStr, err := body.String()
 	if checker.NonNil(err) {
 		return body, err
@@ -504,12 +434,6 @@ func (s modifierService) appendBodyText(body *vo.Body, value string) (*vo.Body, 
 }
 
 func (s modifierService) appendBodyJson(body *vo.Body, key, value string) (*vo.Body, error) {
-	if err := s.validateKey(key); checker.NonNil(err) {
-		return body, err
-	} else if err = s.validateValue(value); checker.NonNil(err) {
-		return body, err
-	}
-
 	bodyRaw, err := body.Raw()
 	if checker.NonNil(err) {
 		return body, err
@@ -533,24 +457,14 @@ func (s modifierService) setBody(body *vo.Body, key, value string) (*vo.Body, er
 	} else if body.ContentType().IsJSON() {
 		return s.setBodyJson(body, key, value)
 	}
-	return body, mapper.NewErrIncompatibleBodyType(body.ContentType().String())
+	return body, mapper.NewErrModifierIncompatibleBodyType("set-body", body.ContentType().String())
 }
 
 func (s modifierService) setBodyText(body *vo.Body, value string) (*vo.Body, error) {
-	if err := s.validateValue(value); checker.NonNil(err) {
-		return body, err
-	}
-
 	return s.newBodyByString(body, value)
 }
 
 func (s modifierService) setBodyJson(body *vo.Body, key, value string) (*vo.Body, error) {
-	if err := s.validateKey(key); checker.NonNil(err) {
-		return body, err
-	} else if err = s.validateValue(value); checker.NonNil(err) {
-		return body, err
-	}
-
 	bodyRaw, err := body.Raw()
 	if checker.NonNil(err) {
 		return body, err
@@ -569,17 +483,12 @@ func (s modifierService) replaceBody(body *vo.Body, key, value string) (*vo.Body
 		return s.replaceBodyText(body, key, value)
 	} else if body.ContentType().IsJSON() {
 		return s.replaceBodyJson(body, key, value)
+	} else {
+		return body, mapper.NewErrModifierIncompatibleBodyType("replace-body", body.ContentType().String())
 	}
-	return body, mapper.NewErrIncompatibleBodyType(body.ContentType().String())
 }
 
 func (s modifierService) replaceBodyText(body *vo.Body, key, value string) (*vo.Body, error) {
-	if err := s.validateKey(key); checker.NonNil(err) {
-		return body, err
-	} else if err = s.validateValue(value); checker.NonNil(err) {
-		return body, err
-	}
-
 	bodyStr, err := body.String()
 	if checker.NonNil(err) {
 		return body, err
@@ -590,12 +499,6 @@ func (s modifierService) replaceBodyText(body *vo.Body, key, value string) (*vo.
 }
 
 func (s modifierService) replaceBodyJson(body *vo.Body, key, value string) (*vo.Body, error) {
-	if err := s.validateKey(key); checker.NonNil(err) {
-		return body, err
-	} else if err = s.validateValue(value); checker.NonNil(err) {
-		return body, err
-	}
-
 	bodyRaw, err := body.Raw()
 	if checker.NonNil(err) {
 		return body, err
@@ -619,14 +522,10 @@ func (s modifierService) deleteBody(body *vo.Body, key string) (*vo.Body, error)
 	} else if body.ContentType().IsJSON() {
 		return s.deleteBodyJson(body, key)
 	}
-	return body, mapper.NewErrIncompatibleBodyType(body.ContentType().String())
+	return body, mapper.NewErrModifierIncompatibleBodyType("delete-body", body.ContentType().String())
 }
 
 func (s modifierService) deleteBodyText(body *vo.Body, key string) (*vo.Body, error) {
-	if err := s.validateKey(key); checker.NonNil(err) {
-		return body, err
-	}
-
 	bodyStr, err := body.String()
 	if checker.NonNil(err) {
 		return body, err
@@ -637,10 +536,6 @@ func (s modifierService) deleteBodyText(body *vo.Body, key string) (*vo.Body, er
 }
 
 func (s modifierService) deleteBodyJson(body *vo.Body, key string) (*vo.Body, error) {
-	if err := s.validateKey(key); checker.NonNil(err) {
-		return body, err
-	}
-
 	bodyRaw, err := body.Raw()
 	if checker.NonNil(err) {
 		return body, err
@@ -661,4 +556,33 @@ func (s modifierService) newBodyByString(body *vo.Body, modifiedBodyJson string)
 	}
 
 	return vo.NewBodyWithContentType(body.ContentType(), buffer), nil
+}
+
+func (s modifierService) wrapModifierErr(kind, op string, modifier *vo.Modifier, err error, format string, args ...any) error {
+	if checker.IsNil(err) {
+		return nil
+	}
+
+	base := fmt.Sprintf(
+		"modifier failed: op=%s kind=%s action=%s key=%s",
+		op,
+		kind,
+		modifier.Action(),
+		modifier.Key(),
+	)
+
+	if checker.IsNotEmpty(format) {
+		base = fmt.Sprintf("%s %s", base, fmt.Sprintf(format, args...))
+	}
+
+	return errors.Inheritf(err, base)
+}
+
+func (s modifierService) joinDynamicValueErr(kind string, modifier *vo.Modifier, errs []error) error {
+	if checker.IsEmpty(errs) {
+		return nil
+	}
+
+	return errors.JoinInheritf(errs, ", ", "modifier failed: op=resolve-dynamic-value kind=%s action=%s key=%s value=%s",
+		kind, modifier.Action(), modifier.Key(), modifier.Value())
 }

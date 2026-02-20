@@ -25,15 +25,15 @@ import (
 )
 
 type Endpoint struct {
-	path                   string
-	method                 string
-	timeout                Duration
-	limiter                Limiter
-	cache                  *Cache
-	abortIfHTTPStatusCodes *[]int
-	parallelism            bool
-	response               *EndpointResponse
-	backends               []Backend
+	path               string
+	method             string
+	timeout            Duration
+	securityCors       SecurityCors
+	limiter            Limiter
+	cache              *Cache
+	abortIfStatusCodes *[]int
+	backends           []Backend
+	response           *EndpointResponse
 }
 
 type EndpointResponse struct {
@@ -61,23 +61,23 @@ func NewEndpoint(
 	path,
 	method string,
 	timeout Duration,
+	securityCors SecurityCors,
 	limiter Limiter,
 	cache *Cache,
-	abortIfHTTPStatusCodes *[]int,
-	parallelism bool,
-	response *EndpointResponse,
+	abortIfStatusCodes *[]int,
 	backends []Backend,
+	response *EndpointResponse,
 ) Endpoint {
 	return Endpoint{
-		path:                   path,
-		method:                 method,
-		timeout:                timeout,
-		limiter:                limiter,
-		cache:                  cache,
-		abortIfHTTPStatusCodes: abortIfHTTPStatusCodes,
-		parallelism:            parallelism,
-		response:               response,
-		backends:               backends,
+		path:               path,
+		method:             method,
+		timeout:            timeout,
+		securityCors:       securityCors,
+		limiter:            limiter,
+		cache:              cache,
+		abortIfStatusCodes: abortIfStatusCodes,
+		backends:           backends,
+		response:           response,
 	}
 }
 
@@ -144,6 +144,10 @@ func (e *Endpoint) Timeout() Duration {
 	return NewDuration(30 * time.Second)
 }
 
+func (e *Endpoint) SecurityCors() SecurityCors {
+	return e.securityCors
+}
+
 func (e *Endpoint) Limiter() Limiter {
 	return e.limiter
 }
@@ -193,20 +197,16 @@ func (e *Endpoint) CountAllDataTransforms() (count int) {
 	return count
 }
 
-func (e *Endpoint) HasAbortIfHTTPStatusCodes() bool {
-	return checker.NonNil(e.abortIfHTTPStatusCodes)
+func (e *Endpoint) HasAbortIfStatusCodes() bool {
+	return checker.NonNil(e.abortIfStatusCodes)
 }
 
 func (e *Endpoint) Response() *EndpointResponse {
 	return e.response
 }
 
-func (e *Endpoint) Parallelism() bool {
-	return e.parallelism
-}
-
-func (e *Endpoint) AbortIfHTTPStatusCodes() *[]int {
-	return e.abortIfHTTPStatusCodes
+func (e *Endpoint) AbortIfStatusCodes() *[]int {
+	return e.abortIfStatusCodes
 }
 
 func (e *Endpoint) Resume() string {

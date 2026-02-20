@@ -114,7 +114,7 @@ func (b backendLog) prefix(executeData dto.ExecuteEndpoint, backend *vo.Backend)
 	if backend.IsHTTP() {
 		tintText = backend.HTTP().Method()
 	} else if backend.IsPublisher() {
-		tintText = backend.Publisher().Provider().String()
+		tintText = backend.Publisher().Broker().String()
 	}
 
 	traceID := BuildTraceIDText(executeData.TraceID)

@@ -21,16 +21,14 @@ import (
 )
 
 type Gopen struct {
-	proxy        *Proxy
-	securityCors *SecurityCors
-	endpoints    []Endpoint
+	proxy     *Proxy
+	endpoints []Endpoint
 }
 
-func NewGopen(proxy *Proxy, securityCors *SecurityCors, endpoints []Endpoint) *Gopen {
+func NewGopen(proxy *Proxy, endpoints []Endpoint) *Gopen {
 	return &Gopen{
-		proxy:        proxy,
-		securityCors: securityCors,
-		endpoints:    endpoints,
+		proxy:     proxy,
+		endpoints: endpoints,
 	}
 }
 
@@ -40,14 +38,6 @@ func (g Gopen) Proxy() *Proxy {
 
 func (g Gopen) HasProxy() bool {
 	return checker.NonNil(g.proxy)
-}
-
-func (g Gopen) SecurityCors() *SecurityCors {
-	return g.securityCors
-}
-
-func (g Gopen) HasSecurityCors() bool {
-	return checker.NonNil(g.securityCors)
 }
 
 func (g Gopen) Endpoints() []Endpoint {

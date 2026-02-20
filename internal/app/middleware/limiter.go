@@ -48,9 +48,9 @@ func (l limiterMiddleware) Do(ctx app.Context) {
 	}
 
 	err = l.service.AllowSize(ctx.Request(), ctx.Endpoint().Limiter())
-	if errors.Is(err, mapper.ErrPayloadTooLarge) {
+	if errors.Is(err, mapper.ErrLimiterPayloadTooLarge) {
 		ctx.WriteError(http.StatusRequestEntityTooLarge, err)
-	} else if errors.Is(err, mapper.ErrHeaderTooLarge) {
+	} else if errors.Is(err, mapper.ErrLimiterHeaderTooLarge) {
 		ctx.WriteError(http.StatusRequestHeaderFieldsTooLarge, err)
 	} else {
 		ctx.Next()

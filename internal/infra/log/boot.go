@@ -18,6 +18,7 @@ package log
 
 import (
 	"fmt"
+
 	"github.com/tech4works/gopen-gateway/internal/app"
 )
 
@@ -41,7 +42,7 @@ func (l bootLog) PrintLogo() {
 ##    ##  ##     ## ##        ##       ##   ###
  ######    #######  ##        ######## ##    ##
 -----------------------------------------------
-Best open source API Gateway!            v1.1.0
+Best open source API Gateway!            v2.0.0
 -----------------------------------------------
 2024 • Tech4Works.
 

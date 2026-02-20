@@ -18,6 +18,7 @@ package cache
 
 import (
 	"context"
+
 	"github.com/jellydator/ttlcache/v2"
 	"github.com/tech4works/checker"
 	"github.com/tech4works/compressor"
@@ -68,7 +69,7 @@ func (m memoryStore) Get(ctx context.Context, key string) (*vo.CacheResponse, er
 
 	value, err := m.ttlCache.Get(key)
 	if errors.Is(err, ttlcache.ErrNotFound) {
-		return nil, mapper.NewErrCacheNotFound()
+		return nil, mapper.NewErrCacheNotFound(key)
 	} else if checker.NonNil(err) {
 		return nil, err
 	}

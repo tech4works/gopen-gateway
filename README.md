@@ -1,22 +1,17 @@
 <img src="assets/logo.png" alt="">
 
-[![Project status](https://img.shields.io/badge/version-v1.1.3-orange.svg)](https://github.com/tech4works/gopen-gateway/releases/tag/v1.1.3)
-[![GitHub](https://badgen.net/badge/icon/base?icon=github&label)](https://github.com/tech4works/gopen-gateway-base)
+[![Project status](https://img.shields.io/badge/version-v2.0.0-gree.svg)](https://github.com/tech4works/gopen-gateway/releases/tag/v2.0.0)
 [![Playground](https://img.shields.io/badge/%F0%9F%8F%90-playground-9900cc.svg)](https://github.com/tech4works/gopen-gateway-playground)
 [![Docker](https://badgen.net/badge/icon/docker?icon=docker&label)](https://hub.docker.com/r/tech4works/gopen-gateway)
-[![TODOs](https://img.shields.io/badge/TODOs-2-red.svg?style=flat)](https://github.com/tech4works/gopen-gateway)
 [![Go Report Card](https://goreportcard.com/badge/github.com/tech4works/gopen-gateway)](https://goreportcard.com/report/github.com/tech4works/gopen-gateway)
-[![GoDoc](https://godoc.org/github/tech4works/gopen-gateway?status.svg)](https://pkg.go.dev/github.com/tech4works/gopen-gateway/helper)
 [![GitHub go.mod Go version of a Go module](https://img.shields.io/github/go-mod/go-version/tech4works/gopen-gateway)](https://github.com/tech4works/gopen-gateway/blob/main/go.mod)
+[![GoDoc](https://godoc.org/github/tech4works/gopen-gateway?status.svg)](https://pkg.go.dev/github.com/tech4works/gopen-gateway/helper)
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Ftech4works%2Fgopen-gateway.svg?type=small)](https://app.fossa.com/projects/git%2Bgithub.com%2Ftech4works%2Fgopen-gateway?ref=badge_small)
 
-[//]: # (![United States]&#40;https://raw.githubusercontent.com/stevenrskelton/flag-icon/master/png/16/country-4x3/us.png&#41;)
-
-[//]: # ([Inglês]&#40;https://github.com/tech4works/gopen-gateway/blob/main/README.en.md&#41; |)
-
-[//]: # (![Spain]&#40;https://raw.githubusercontent.com/stevenrskelton/flag-icon/master/png/16/country-4x3/es.png&#41;)
-
-[//]: # ([Espanhol]&#40;https://github.com/tech4works/gopen-gateway/blob/main/README.es.md&#41;)
+![United States](https://raw.githubusercontent.com/stevenrskelton/flag-icon/master/png/16/country-4x3/us.png)
+[Inglês](https://github.com/tech4works/gopen-gateway/blob/main/README.en.md) |
+![Spain](https://raw.githubusercontent.com/stevenrskelton/flag-icon/master/png/16/country-4x3/es.png)
+[Espanhol](https://github.com/tech4works/gopen-gateway/blob/main/README.es.md)
 
 O projeto GOPEN foi criado no intuito de ajudar os desenvolvedores a terem uma API Gateway robusta e de fácil manuseio,
 com a oportunidade de atuar em melhorias agregando a comunidade, e o mais importante, sem gastar nada.
@@ -26,61 +21,63 @@ para uma aplicação, induzindo-o a fazer o upgrade.
 Com essa nova API Gateway você não precisará equilibrar pratos para economizar na sua infraestrutura e arquitetura,
 e ainda otimizará o seu desenvolvimento, veja abaixo todos os recursos disponíveis:
 
-- Json de configuração simplificado para múltiplos ambientes.
+- Json de configuração e ENVs simplificado para múltiplos ambientes.
 
 
-- Configuração rápida de variáveis de ambiente.
+- Timeout granular, com uma configuração padrão, mas podendo especificar para cada endpoint.
 
 
-- Execução via docker com hot reload de configuração opcional.
+- Cache granular local ou global utilizando Redis, com estratégia e condição para o armazenamento customizável para cada
+  endpoint.
 
 
-- Timeout granular, com uma configuração padrão para todos os endpoints, mas podendo especificar para cada endpoint.
-
-
-- Cache granular, com estratégia e condição para o armazenamento customizável.
-
-
-- Armazenamento de cache local ou global utilizando Redis.
-
-
-- Limitador de uso e de carga granular, com uma configuração padrão para todos os endpoints, mas podendo especificar
-  para cada endpoint.
+- Limitador de uso e de carga granular, com uma configuração padrão, mas podendo especificar para cada endpoint.
 
 
 - Segurança de CORS com validações de origens, método HTTP e headers.
 
 
-- Timeout linear, enviando o tempo restante para processamento num cabeçalho de requisição.
+- Criação de templates de beforewares, backends, afterwares.
+  Evitando duplicidade nas configurações e otimizando o uso nos endpoints.
 
 
-- Múltiplos middlewares, para serem usados posteriormente no endpoint caso necessário.
+- Processamento de múltiplos tipos de backends por endpoint:
+    - **HTTP**: Requisição direta a um serviço de API.
+    - **PUBLISHER**: Publicação de mensagem em filas ou tópicos.
 
 
-- Filtragem personalizada de envio de Headers, Query e Body para os backends do endpoint.
-
-
-- Processamento de múltiplos backends por endpoint.
+- Processe de forma paralela todos os backends do seu endpoint caso configurado.
 
 
 - Aborte o processo de execução dos backends pelo código de status de forma personalizada.
 
 
-- Chamadas concorrentes ao backend caso configurado.
+- Chamadas concorrentes ao backend **HTTP** caso configurado.
 
 
-- Customize sua requisição e resposta do backend utilizando nossos recursos:
-    - Omita informações.
-    - Mapeamento. (Header, Query e Body)
-    - Projeção. (Header, Query e Body)
-    - Personalização da nomenclatura do body.
-    - Personalização do tipo do conteúdo do body.
-    - Comprima o body de requisição usando GZIP ou DEFLATE.
-    - Modificadores, são pontos e ações especificas para modificar algum conteúdo de requisição ou resposta.
-    - Agrupe o body de resposta em um campo específico informado.
+- Propagação de mudança nas requisições futuras a partir de uma resposta do middleware (beforeware).
 
 
-- Customize sua resposta de endpoint utilizando nossos recursos:
+- Customização completa de requisição e resposta para o seu backend:
+    - **HTTP**
+        - Omita informações.
+        - Mapeamento. (Header, Query e Body)
+        - Projeção. (Header, Query e Body)
+        - Personalização da nomenclatura do body.
+        - Personalização do tipo do conteúdo do body.
+        - Comprima o body de requisição usando GZIP ou DEFLATE.
+        - Modificadores, pontos e ações especificas para modificar algum conteúdo específico. (Header, Query, Param,
+          Body)
+        - Agrupe o body de resposta num campo específico informado.
+    - **PUBLISHER**
+        - Omita informações vazias. (Body)
+        - Mapeamento. (Body)
+        - Projeção. (Body)
+        - Modificadores, pontos e ações especificas para modificar algum conteúdo. (Body)
+        - Construa os atributos de mensagem a partir de informacoes de requisição e respostas.
+
+
+- Customização completa de resposta de endpoint:
     - Omita informações vazias do body.
     - Agregue múltiplas respostas dos backends.
     - Personalização do tipo do body.
@@ -89,32 +86,56 @@ e ainda otimizará o seu desenvolvimento, veja abaixo todos os recursos disponí
 
 
 - Rastreamento distribuído utilizando Elastic APM, Dashboard personalizado no Kibana, e logs bem estruturados com
-  informações relevantes de configuração e acessos à API.
+  informações relevantes de configuração e acessos à
+  API ([exemplo](https://github.com/tech4works/gopen-gateway-playground)).
 
-- Publicação de eventos para AWS SNS, SQS.
+# 📖 Documentação
 
-# Documentação
+- [🧠 Como funciona?](#-como-funciona)
+- [💡 Principais funcionalidades](#-como-funciona)
+- [⚙️ Configuração](#-configuração)
+    - [⚠️ Variáveis de ambiente](#variáveis-de-ambiente)
+        - [🚪 PORT](#-port)
+        - [📄 ENV](#-env)
+    - [🗂️ Estrutura de pastas](#-estrutura-de-pastas)
+    - [🛠️ JSON](#-json)
+        - [👀 Exemplo](#-exemplo)
+        - [📚 Tipos customizados](#-tipos-customizados)
+        - [🌎 Configuração Global](#-configuração-global)
+        - [📡 Endpoint](#-endpoint)
+        - [🤖 Backend](#-backend)
 
-Para entender como funciona, precisamos explicar primeiro a estrutura dos ambientes dinâmicos que GOPEN aceita para sua
-configuração e variáveis de ambiente, então vamos lá!
+## ⚙️ Configuração
 
-## Variáveis de ambiente
+<details>
+<summary><strong style="color: steelblue">Expandir conteúdo</strong></summary>
+
+### ⚠️ Variáveis de ambiente
+
+<details>
+<summary><strong style="color: steelblue">Expandir conteúdo</strong></summary>
 
 Independente de como irá utilizar a API Gateway, ela exige duas variáveis de ambiente que são:
 
-### PORT
+#### 🚪 PORT
 
-Porta aonde sua API Gateway irá ouvir e servir.
+Porta aonde a sua API Gateway irá ouvir e servir.
 
 Exemplo: **8080**
 
-### ENV
+#### 📄 ENV
 
-Qual ambiente sua API Gateway irá atuar.
+Qual ambiente sua API Gateway irá atuar (necessario apenas se [estrutura de pastas](#estrutura-de-pastas)
+tiverem referenciado seus ambientes).
 
 Exemplo: **dev**
 
-## Estrutura de pastas
+</details>
+
+### 🗂️ Estrutura de pastas
+
+<details>
+<summary><strong style="color: steelblue">Expandir conteúdo</strong></summary>
 
 Na estrutura do projeto, em sua raiz precisará ter uma pasta chamada "gopen" e dentro dela precisa ter as pastas
 contendo os nomes dos seus ambientes, você pode dar o nome que quiser, essa pasta precisará ter pelo menos o arquivo
@@ -125,7 +146,7 @@ contendo os nomes dos seus ambientes, você pode dar o nome que quiser, essa pas
     | - gopen
       | - dev
       |   - .json
-      |   - .env
+      |   - .env // optional
       | - prd
       |   - .json
 
@@ -137,912 +158,581 @@ Outra opção que podemos trabalhar é inutilizar essas pastas por ambiente, fun
       | - .json
       | - .env // optional
 
-## JSON de configuração
+</details>
+
+### 🛠️ JSON
 
 Com base nesse arquivo JSON de configuração obtido informada,
-a aplicação terá seus endpoints e suas regras definidas, veja abaixo todos os campos possíveis e seus conceitos e
-regras:
+a aplicação terá os seus endpoints e a suas regras definidas, veja abaixo todos os campos possíveis e os seus conceitos
+e regras:
 
-### Sumário
+#### 👀 Exemplo
 
-- [$schema](#schema)
-- [@comment](#comment)
-- [version](#version)
-- [hot-reload](#hot-reload)
-- [store](#store)
-- [timeout](#timeout)
-- [cache](#cache)
-    - [duration](#cacheduration)
-    - [strategy-headers](#cachestrategy-headers)
-    - [only-if-methods](#cacheonly-if-methods)
-    - [only-if-status-codes](#cacheonly-if-status-codes)
-    - [allow-cache-control](#cacheallow-cache-control)
-- [limiter](#limiter)
-    - [max-header-size](#limitermax-header-size)
-    - [max-body-size](#limitermax-body-size)
-    - [max-multipart-memory-size](#limitermax-multipart-memory-size)
-    - [rate](#limiterrate)
-        - [capacity](#limiterratecapacity)
-        - [every](#limiterrateevery)
-- [security-cors](#security-cors)
-    - [allow-origins](#security-corsallow-origins)
-    - [allow-methods](#security-corsallow-methods)
-    - [allow-headers](#security-corsallow-headers)
-- [middlewares](#middlewares)
-- [endpoints](#endpoints)
-    - [@comment](#endpointcomment)
-    - [path](#endpointpath)
-    - [method](#endpointmethod)
-    - [timeout](#endpointtimeout)
-    - [cache](#endpointcache)
-        - [enabled](#endpointcacheenabled)
-        - [ignore-query](#endpointcacheignore-query)
-        - [duration](#endpointcacheduration)
-        - [strategy-headers](#endpointcachestrategy-headers)
-        - [only-if-status-codes](#endpointcacheonly-if-status-codes)
-        - [allow-cache-control](#endpointcacheallow-cache-control)
-    - [limiter](#endpointlimiter)
-    - [abort-if-status-codes](#endpointabort-if-status-codes)
-    - [response](#endpointresponse)
-        - [@comment](#endpointresponsecomment)
-        - [aggregate](#endpointresponseaggregate)
-        - [content-type](#endpointresponsecontent-type)
-        - [content-encoding](#endpointresponsecontent-encoding)
-        - [nomenclature](#endpointresponsenomenclature)
-        - [omit-empty](#endpointresponseomit-empty)
-    - [beforewares](#endpointbeforewares)
-    - [afterwares](#endpointafterwares)
-    - [publishers](#endpointpublishers)
-        - [@comment](#endpointpublishercomment)
-        - [provider](#endpointpublisherprovider)
-        - [reference](#endpointpublisherreference)
-        - [group-id](#endpointpublishergroup-id)
-        - [deduplication-id](#endpointpublisherdeduplication-id)
-        - [body-mapper](#endpointpublisherbody-mapper)
-        - [body-projection](#endpointpublisherbody-projection)
-    - [backends](#endpointbackends)
-        - [@comment](#endpointbackendcomment)
-        - [hosts](#endpointbackendhosts)
-        - [path](#endpointbackendpath)
-        - [method](#endpointbackendmethod)
-        - [request](#endpointbackendrequest)
-            - [@comment](#endpointbackendrequestcomment)
-            - [concurrent](#endpointbackendrequestconcurrent)
-            - [omit-header](#endpointbackendrequestomit-header)
-            - [omit-query](#endpointbackendrequestomit-query)
-            - [omit-body](#endpointbackendrequestomit-body)
-            - [content-type](#endpointbackendrequestcontent-type)
-            - [content-encoding](#endpointbackendrequestcontent-encoding)
-            - [nomenclature](#endpointbackendrequestnomenclature)
-            - [omit-empty](#endpointbackendrequestomit-empty)
-            - [header-mapper](#endpointbackendrequestheader-mapper)
-            - [query-mapper](#endpointbackendrequestquery-mapper)
-            - [body-mapper](#endpointbackendrequestbody-mapper)
-            - [header-projection](#endpointbackendrequestheader-projection)
-            - [query-projection](#endpointbackendrequestquery-projection)
-            - [body-projection](#endpointbackendrequestbody-projection)
-            - [header-modifiers](#endpointbackendrequestheader-modifiers)
-                - [@comment](#endpointbackendrequestheader-modifiercomment)
-                - [action](#endpointbackendrequestheader-modifieraction)
-                - [key](#endpointbackendrequestheader-modifierkey)
-                - [value](#endpointbackendrequestheader-modifiervalue)
-                - [propagate](#endpointbackendrequestheader-modifierpropagate)
-            - [param-modifiers](#endpointbackendrequestparam-modifiers)
-                - [@comment](#endpointbackendrequestparam-modifiercomment)
-                - [action](#endpointbackendrequestparam-modifieraction)
-                - [key](#endpointbackendrequestparam-modifierkey)
-                - [value](#endpointbackendrequestparam-modifiervalue)
-                - [propagate](#endpointbackendrequestparam-modifierpropagate)
-            - [query-modifiers](#endpointbackendrequestquery-modifiers)
-                - [@comment](#endpointbackendrequestquery-modifiercomment)
-                - [action](#endpointbackendrequestquery-modifieraction)
-                - [key](#endpointbackendrequestquery-modifierkey)
-                - [value](#endpointbackendrequestquery-modifiervalue)
-                - [propagate](#endpointbackendrequestquery-modifierpropagate)
-            - [body-modifiers](#endpointbackendrequestbody-modifiers)
-                - [@comment](#endpointbackendrequestbody-modifiercomment)
-                - [action](#endpointbackendrequestbody-modifieraction)
-                - [key](#endpointbackendrequestbody-modifierkey)
-                - [value](#endpointbackendrequestbody-modifiervalue)
-                - [propagate](#endpointbackendrequestbody-modifierpropagate)
-        - [response](#endpointbackendresponse)
-            - [@comment](#endpointbackendresponsecomment)
-            - [omit](#endpointbackendresponseomit)
-            - [omit-header](#endpointbackendresponseomit-header)
-            - [omit-body](#endpointbackendresponseomit-body)
-            - [header-mapper](#endpointbackendresponseheader-mapper)
-            - [body-mapper](#endpointbackendresponsebody-mapper)
-            - [header-projection](#endpointbackendresponseheader-projection)
-            - [body-projection](#endpointbackendresponsebody-projection)
-            - [header-modifiers](#endpointbackendresponseheader-modifiers)
-                - [@comment](#endpointbackendresponseheader-modifiercomment)
-                - [action](#endpointbackendresponseheader-modifieraction)
-                - [key](#endpointbackendresponseheader-modifierkey)
-                - [value](#endpointbackendresponseheader-modifiervalue)
-            - [body-modifiers](#endpointbackendresponsebody-modifiers)
-                - [@comment](#endpointbackendresponsebody-modifiercomment)
-                - [action](#endpointbackendresponsebody-modifieraction)
-                - [key](#endpointbackendresponsebody-modifierkey)
-                - [value](#endpointbackendresponsebody-modifiervalue)
+<details>
+<summary><strong style="color: steelblue">Expandir conteúdo</strong></summary>
 
-### $schema
+Abaixo adicionamos um JSON de exemplo com todas as possibilidades possíveis de configuração.
 
-Campo opcional, para o auxílio na escrita e regras do próprio JSON de configuração, podendo ser ultima versão:
+```json
+```
 
-      https://raw.githubusercontent.com/tech4works/gopen-gateway/main/json-schema.json
+</details>
 
-Ou uma versão específica:
+#### 📚 Tipos customizados
 
-      https://raw.githubusercontent.com/tech4works/gopen-gateway/v1.0.0/json-schema.json
+<details>
+<summary><strong style="color: steelblue">Expandir conteúdo</strong></summary>
 
-### @comment
+Estes tipos são utilizados ao longo da configuração para padronizar valores aceitos.
 
-Campo opcional, do tipo string, livre para anotações.
+##### 🔹 duration
 
-### version
+<details>
+<summary><strong style="color: steelblue">Expandir conteúdo</strong></summary>
 
-Campo opcional, do tipo string, usado para controle de versão e também usado no retorno do endpoint
-estático [/version](#version-1).
+Representa um tempo no formato número/unidade.
 
-### hot-reload
+| Propriedade | Valor                                      | 
+|-------------|--------------------------------------------|
+| Tipo base   | `string`                                   |
+| Formato     | `<number><unit>`                           |
+| Regex       | `^(?:\d+(?:\.\d+)?(?:h\|m\|s\|ms\|us\|ns)` |
 
-Campo opcional, do tipo booleano, o valor padrão é `false`, é utilizado para o carregamento automático quando
-houver alguma alteração no arquivo .json e .env na pasta do ambiente selecionado.
-
-### store
-
-Campo opcional, do tipo objeto, o valor padrão é o armazenamento local em cache, caso seja informado, o campo `redis`
-passa a ser obrigatório e o campo `address` também.
-
-> ⚠️ **IMPORTANTE**
->
-> Caso utilize o armazenamento global de cache, o Redis, é indicado que os valores de endereço e senha sejam preenchidos
-> utilizando variável de ambiente, como no exemplo acima.
-
-### timeout
-
-Campo opcional, do tipo string, o valor padrão é `30s`, esse campo é responsável pelo tempo máximo de duração do
-processamento de cada requisição.
-
-Caso a requisição ultrapasse esse tempo informado, á API Gateway irá abortar todas as transações em andamento e
-retornará o código de status `504 (Gateway Timeout)`.
-Veja mais sobre esse retorno [clicando aqui](#504-gateway-timeout).
-
-**Valores aceitos**
-
-- s para segundos
-- m para minutos
-- h para horas
-- ms para milissegundos
-- us (ou µs) para microssegundos
-- ns para nanossegundos
-
-**Exemplos**
-
-- 10s
-- 5ms
-- 1h30m
-- 1.5h
-
-> ⚠️ **IMPORTANTE**
->
-> Caso seja informado no [endpoint.timeout](#endpointtimeout), damos prioridade ao valor informado do endpoint,
-> caso contrário, seguiremos com o valor informado ou padrão desse campo, na raiz do JSON de configuração.
-
-### cache
-
-Campo opcional, é responsável pela configuração global de cache, caso o endpoint em específico informe o campo
-[endpoint.cache.enabled](#endpointcacheenabled) com o valor `true` apenas, ele irá herdar os outros valores do mesmo
-para sí.
-
-O valor do cache é apenas gravado 1 vez a cada X duração informada no campo `duration`.
-
-Os campos [only-if-status-codes](#cacheonly-if-status-codes) e [only-if-methods](#cacheonly-if-methods) são utilizados
-para verificar se naquele endpoint habilitado a ter cache, pode ser lido e escrito o cache com base no método HTTP e
-código de status de resposta, veja mais sobre eles abaixo.
-
-Caso a resposta não seja "fresca", ou seja, foi respondida pelo cache, o header `X-Gopen-Cache` terá o valor `true`
-caso contrário, o valor será `false`.
-
-> ⚠️ **IMPORTANTE**
->
-> Caso o objeto seja informado na estrutura do [endpoint.cache](#endpointcache), damos prioridade aos valores informados
-> lá, caso contrário, seguiremos com os valores informados nesse campo.
-
-### cache.duration
-
-Campo obrigatório, do tipo string, indica o tempo que o cache irá durar.
-
-**Valores aceitos**:
-
-- s para segundos
-- m para minutos
-- h para horas
-- ms para milissegundos
-- us (ou µs) para microssegundos
-- ns para nanossegundos
-
-**Exemplos**
-
-- 1h
-- 15.5ms
-- 1h30m
-- 1.5m
-
-### cache.strategy-headers
-
-Campo opcional, do tipo lista de string, é utilizado para definir a estratégia da chave do cache a partir dos headers
-informados.
-
-O valor padrão de chave de cache é pela url e método HTTP da requisição tornando-o um cache global
-por endpoint, caso informado os cabeçalhos a serem usados na estrátegia eles são agregados nos valores padrões de
-chave, por exemplo, vamos utilizar o campo `X-Forwarded-For` e o `Device` do cabeçalho, o valor final da chave
-ficaria:
-
-     GET:/users/find/479976139:177.130.228.66:95D4AF55-733D-46D7-86B9-7EF7D6634EBC
-
-A descrição da lógica por trás dessa chave é:
-
-     método:url:X-Forwarded-For:Device
-
-Sem a estrátegia preenchida, a lógica padrão fica assim:
-
-     método:url
-
-Então o valor padrão para esse endpoint fica assim sem a estrátegia preenchida:
-
-     GET:/users/find/479976139
-
-Nesse exemplo tornamos o cache antes global para o endpoint em espécifico, passa a ser por cliente!
-Lembrando que isso é um exemplo simples, você pode ter a estrátegia que quiser com base no header de sua aplicação.
-
-### cache.only-if-methods
-
-Campo opcional, do tipo lista de string, é responsável por decidir se irá ler e gravar o cache do endpoint
-(que está habilitado a ter cache) pelo método HTTP informado.
-
-O valor padrão é apenas o método HTTP `GET`, caso informada vazia, qualquer método HTTP será aceito.
-
-### cache.only-if-status-codes
-
-Campo opcional, do tipo lista de inteiro, é responsável por decidir se irá gravar o cache do endpoint
-(que está habilitado a ter cache) pelo código de status HTTP de resposta do mesmo.
-
-O valor padrão é uma lista de códigos de status HTTP de sucessos reconhecidos, caso informada vazia,
-qualquer código de status HTTP de resposta será aceito.
-
-### cache.allow-cache-control
-
-Campo opcional, do tipo booleano, é responsável por considerar ou não o header de requisição `Cache-Control` para tomada
-de decisão se irá gravar ou ler o cache.
-
-O valor padrão é `false`, caso seja informado como `true` a API Gateway irá considerar o header `Cache-Control` seguindo
-as regras a seguir a partir do valor informado na requisição ou na resposta dos backends:
-
-**no-cache**
-
-Esse valor é apenas considerado no header da requisição, caso informado desconsideramos a leitura do cache
-e seguimos com o processo normal para obter a resposta "fresca".
-
-**no-store**
-
-Esse valor é considerado apenas na resposta escrita por seus backends, caso informado não gravamos o
-cache.
-
-### limiter
-
-Campo opcional, do tipo objeto, é responsável pelas regras de limitação da API Gateway, seja de tamanho ou taxa,
-os valores padrões variam de campo a campo, veja:
-
-### limiter.max-header-size
-
-Campo opcional, do tipo string, o valor padrão é `1MB`, é responsável por limitar o tamanho do cabeçalho de requisição.
-
-Caso o tamanho do cabeçalho ultrapasse o valor informado, a API Gateway irá abortar a requisição com o código de
-status `431 (Request header fields too large)`.
-Veja mais sobre esse retorno [clicando aqui](#431-request-header-fields-too-large).
-
-**Valores aceitos**
-
-- B para Byte
-- KB para KiloByte
-- MB para Megabyte
-- GB para Gigabyte
-- TB para Terabyte
-- PB para Petabyte
-- EB para Exabyte
-- ZB para Zettabyte
-- YB para Yottabyte
-
-**Exemplos**
-
-- 1B
-- 50KB
-- 5MB
-- 1.5GB
-
-### limiter.max-body-size
-
-Campo opcional, do tipo string, o valor padrão é `3MB`, é responsável por limitar o tamanho do corpo da requisição.
-
-Caso o tamanho do corpo ultrapasse o valor informado, a API Gateway irá abortar a requisição com o código de status
-`413 (Request entity too large)`.
-
-**Valores aceitos**
-
-- B para Byte
-- KB para KiloByte
-- MB para Megabyte
-- GB para Gigabyte
-- TB para Terabyte
-- PB para Petabyte
-- EB para Exabyte
-- ZB para Zettabyte
-- YB para Yottabyte
-
-**Exemplos**
-
-- 1B
-- 50KB
-- 5MB
-- 1.5GB
-
-### limiter.max-multipart-memory-size
-
-Campo opcional, do tipo string, o valor padrão é `5MB`, é responsável por limitar o tamanho do corpo multipart/form da
-requisição, geralmente utilizado para envio de arquivos, imagens, etc.
-
-Caso o tamanho do corpo ultrapasse o valor informado, a API Gateway irá abortar a requisição com o código de status
-`413 (Request entity too large)`.
-Veja mais sobre esse retorno [clicando aqui](#413-request-entity-too-large).
-
-**Valores aceitos**
-
-- B para Byte
-- KB para KiloByte
-- MB para Megabyte
-- GB para Gigabyte
-- TB para Terabyte
-- PB para Petabyte
-- EB para Exabyte
-- ZB para Zettabyte
-- YB para Yottabyte
-
-**Exemplos**
-
-- 1B
-- 50KB
-- 5MB
-- 1.5GB
-
-### limiter.rate
-
-Campo opcional, do tipo objeto, caso seja informado, o campo [capacity](#limiterratecapacity) torna-se obrigatório,
-esse objeto é responsável por limitar a taxa de requisição pelo IP.
-
-O limite é imposto obtendo a capacidade máxima pelo campo [capacity](#limiterratecapacity) por X duração, informado
-no campo [every](#limiterrateevery).
-
-Caso essa capacidade seja ultrapassada, a API Gateway por segurança abortará a requisição, retornando
-`429 (Too many requests)`.
-Veja mais sobre esse retorno [clicando aqui](#429-too-many-requests).
-
-### limiter.rate.capacity
-
-Campo obrigatório, do tipo inteiro, indica a capacidade máxima de requisições.
-
-O valor padrão é `5`, e o mínimo que poderá ser informado é `1`.
-
-### limiter.rate.every
-
-Campo opcional, do tipo string, o valor padrão é `1s`, indica o valor da duração da verificação da capacidade máxima de
-requisições.
-
-**Valores aceitos**:
-
-- s para segundos
-- m para minutos
-- h para horas
-- ms para milissegundos
-- us (ou µs) para microssegundos
-- ns para nanossegundos
-
-**Exemplos**
-
-- 1h
-- 15.5ms
-- 1h30m
-- 1.5m
-
-### security-cors
-
-Campo opcional, do tipo objeto, usado para segurança do CORS da API Gateway, todos os campos por padrão são vazios,
-não restringindo os valores de origem, métodos e cabeçalhos.
-
-Caso queira restringir, e a requisição não corresponda com as configurações impostas, a API Gateway por segurança
-irá abortar a requisição retornando `403 (Forbidden)`.
-
-### security-cors.allow-origins
-
-Campo opcional, do tipo lista de string, os itens da lista precisam indicar quais IPs de origem a API Gateway
-permite receber nas requisições.
-
-### security-cors.allow-methods
-
-Campo opcional, do tipo lista de string, os itens da lista precisam indicar quais métodos HTTP a API Gateway
-permite receber nas requisições.
-
-### security-cors.allow-headers
-
-Campo opcional, do tipo lista de string, os itens da lista precisam indicar quais campos de cabeçalho HTTP a API Gateway
-permite receber nas requisições.
-
-### middlewares
-
-Campo opcional, é responsável pela configuração de seus middlewares de aplicação, é um mapa com chaves
-em string mencionando o nome do seu middleware, esse nome poderá ser utilizado em seus [endpoints](#endpoints)
-como [endpoint.beforewares](#endpointbeforewares) e [endpoint.afterwares](#endpointafterwares).
-
-O valor da chave é um objeto de [backend](#endpointbackendcomment), porém, com uma observação, esse objeto terá sua
-resposta caso não [abortada](#resposta-abortada), omitida automáticamente pelo endpoint, já que respostas de middlewares
-não são exibidas para o cliente final HTTP, porém, sua resposta será armazenada ao longo da requisição HTTP feita no
-endpoint,
-podendo ter seus valores de requisição e resposta obtidos e manipulados.
-
-Para entender melhor essa ferramenta poderosa, na prática, veja os exemplos de middlewares usados como `beforewares`
-e `afterwares` feitos no projeto de [playground](https://github.com/tech4works/gopen-gateway-playground).
-
-### endpoints
-
-Campo obrigatório, é uma lista de objeto, representa cada endpoint da API Gateway que será registrado para ouvir e
-servir as requisições HTTP.
-
-### endpoint.@comment
-
-Campo opcional, do tipo string, campo livre para anotações.
-
-### endpoint.path
-
-Campo obrigatório, do tipo string, responsável pelo caminho URI do endpoint que irá ouvir e servir.
-
-Caso queira ter parâmetros dinâmicos nesse endpoint, apenas use o padrão `":nome do parâmetro"` por exemplo
-`"/users/:id/status/:status"`, a API Gateway irá entender que teremos 2 parâmetros dinâmicos desse endpoint,
-esses valores podem ser repassados para os backends subjacentes, exemplo:
-
-**Endpoint**
-
-- path: `"/users/:id/status/:status"`
-- resultado: `"/users/1/status/removed"`
-
-**Backend 1**
-
-- path: `"/users/:id"`
-- resultado: `"/users/1"`
-
-**Backend 2**
-
-- path: `"/users/:id/status/:status"`
-- resultado: `"/users/1/status/removed"`
-
-No exemplo acima vemos que o parâmetro pode ser utilizado como quiser como path nas requisições de backend do endpoint
-em questão.
-
-### endpoint.method
-
-Campo obrigatório, do tipo string, responsável por definir qual método HTTP o endpoint será registrado.
-
-### endpoint.timeout
-
-Campo opcional, do tipo string, é semelhante ao campo [timout](#timeout), porém, será aplicado apenas para o endpoint
-em questão.
-
-> ⚠️ **IMPORTANTE**
->
-> Caso omitido, será herdado o valor do campo [timeout](#timeout).
-
-### endpoint.cache
-
-Campo opcional, do tipo objeto, é responsável pela configuração de cache para o endpoint em questão.
-
-> ⚠️ **IMPORTANTE**
->
-> Caso informado, o campo [enabled](#endpointcacheenabled) se torna obrigatório, os outros campos, caso omitidos,
-> irá herdar da configuração [cache](#cache) na raiz caso exista e se preenchida.
->
-> Se por acaso, tenha omitido o campo `duration` tanto na atual configuração como na configuração [cache](#cache) na
-> raiz, o campo [enabled](#endpointcacheenabled) é ignorado considerando-o sempre como `false` pois não foi informado a
-> duração do cache em ambas configurações.
-
-### endpoint.cache.enabled
-
-Campo obrigatório, do tipo booleano, o valor padrão é `false`, indica o desejo que tenha cache em seu endpoint ou não.
-
-> ⚠️ **IMPORTANTE**
->
-> Caso esteja `true` mas não informado o campo `duration` na configuração atual e nem na [raiz](#cache), esse campo
-> será ignorado considerando-o sempre como `false`.
-
-### endpoint.cache.ignore-query
-
-Campo opcional, do tipo booleano, caso não informado o valor padrão é `false`.
-
-Caso o valor seja `true` a API Gateway irá ignorar os parâmetros de busca da URL ao
-criar a chave de armazenamento, caso contrário ela considerára os parâmetros de busca da URL
-ordenando alfabéticamente as chaves e valores.
-
-### endpoint.cache.duration
-
-É semelhante ao campo [cache.duration](#cacheduration), porém, será aplicado apenas para o endpoint em questão.
-
-> ⚠️ **IMPORTANTE**
->
-> Caso omitido, será herdado o valor do campo [cache.duration](#cacheduration).
->
-> Caso seja omitido nas duas configurações, o campo [enabled](#endpointcacheenabled) será ignorado considerando-o sempre
-> como `false`.
-
-### endpoint.cache.strategy-headers
-
-Campo opcional, do tipo lista de string, é semelhante ao campo [cache.strategy-headers](#cachestrategy-headers), porém,
-será aplicado
-apenas para o endpoint em questão.
-
-> ⚠️ **IMPORTANTE**
->
-> Caso omitido, será herdado o valor do campo [cache.strategy-headers](#cachestrategy-headers).
->
-> Caso seja informado vazio, o valor do não será herdado, porém, será aplicado o valor [padrão](#cachestrategy-headers)
-> para o endpoint em questão.
-
-### endpoint.cache.only-if-status-codes
-
-Campo opcional, do tipo lista de inteiro, é semelhante ao
-campo [cache.only-if-status-codes](#cacheonly-if-status-codes), porém, será aplicado
-apenas para o endpoint em questão.
-
-> ⚠️ **IMPORTANTE**
->
-> Caso omitido, será herdado o valor do campo [cache.only-if-status-codes](#cacheonly-if-status-codes).
->
-> Caso seja informado vazio, o valor do não será herdado, porém, será aplicado o
-> valor [padrão](#cacheonly-if-status-codes) para o endpoint em questão.
-
-### endpoint.cache.allow-cache-control
-
-Campo opcional, do tipo booleano, é semelhante ao campo [cache.allow-cache-control](#cacheallow-cache-control), porém,
-será aplicado apenas
-para o endpoint em questão.
-
-> ⚠️ **IMPORTANTE**
->
-> Caso omitido, será herdado o valor do campo [cache.allow-cache-control](#cacheallow-cache-control).
-
-### endpoint.limiter
-
-Campo opcional, do tipo objeto, é semelhante ao campo [limiter](#limiter), porém, será aplicado apenas para o endpoint
-em questão.
-
-> ⚠️ **IMPORTANTE**
->
-> Caso omitido, será herdado o valor do campo [limiter](#limiter).
->
-
-### endpoint.abort-if-status-codes
-
-Campo opcional, do tipo lista de inteiros, o valor padrão é nulo, indicando que qualquer backend executado no endpoint
-que tenha respondido o código de status HTTP maior ou igual a `400 (Bad request)` será abortado.
-
-Caso informado, e um backend retorna o código de status HTTP indicado na configuração, o endpoint será abortado, isso
-significa que os outros backends configurados após o mesmo, não serão executados, e o endpoint irá retornar a resposta
-do mesmo ao cliente final.
-
-Caso queira que nenhum código de status HTTP seja abortado no endpoint, apenas informe o campo vazio.
-
-Veja como o endpoint será respondido após um backend ser abortado [clicando aqui](#resposta-abortada).
-
-### endpoint.response
-
-Campo opcional, do tipo objeto, é responsável pela customização da resposta do endpoint.
-
-Veja mais sobre as regras de resposta da API Gateway [clicando aqui](#lógica-de-resposta).
-
-### endpoint.response.@comment
-
-Campo opcional, do tipo string, livre para anotações.
-
-### endpoint.response.aggregate
-
-Campo opcional, do tipo booleano, o valor padrão é `false`, é responsável por agregar todos os corpos das respostas
-recebidas pelos backends em apenas um corpo.
-
-### endpoint.response.content-type
-
-Campo opcional, do tipo string, é responsável por informar qual conteúdo deseja para o corpo de resposta do endpoint.
-
-**Valores aceitos**
-
-- JSON
-- XML
-- TEXT
-
-### endpoint.response.content-encoding
-
-Campo opcional, do tipo string, é responsável por informar qual codificação deseja para o corpo da resposta do endpoint.
-
-**Valores aceitos**
-
-- NONE (Remove a codificação caso tenha, e retorna sem nenhum tipo de codificação)
-- GZIP
-- DEFLATE
-
-### endpoint.response.nomenclature
-
-Campo opcional, do tipo string, é responsável por informar qual nomenclatura deseja para os campos do corpo JSON
-da resposta do endpoint.
-
-**Valores aceitos**
-
-- LOWER_CAMEL
-- CAMEL
-- SNAKE
-- SCREAMING_SNAKE
-- KEBAB
-- SCREAMING_KEBAB
-
-### endpoint.response.omit-empty
-
-Campo opcional, do tipo booleano, o valor padrão é `false`, indica o desejo de omitir os campos vazios do corpo JSON
-da resposta do endpoint.
-
-### endpoint.beforewares
-
-Campo opcional, do tipo lista de string, o valor padrão é vazio, indicando que o endpoint não tem nenhum middleware
-de pré-requisições.
-
-Caso informado, o endpoint irá executar as requisições, posição por posição, começando no início da lista. Caso o valor
-em string da posição a ser executada estiver configurada no campo [middlewares](#middlewares) corretamente, será
-executado o backend configurado neste campo, caso contrário, irá ignorar a posição apenas imprimindo um log de atenção.
-
-### endpoint.afterwares
-
-Campo opcional, do tipo lista de string, o valor padrão é vazio, indicando que o endpoint não tem nenhum middleware
-de pós-requisições.
-
-Caso informado, o endpoint irá executar as requisições, posição por posição, começando no início da lista. Caso o valor
-em string da posição a ser executada estiver configurada no campo [middlewares](#middlewares) corretamente, será
-executado o
-backend configurado no mesmo, caso contrário, irá ignorar a posição apenas imprimindo um log de atenção.
-
-### endpoint.publishers
-
-Campo opcional, do tipo lista de objeto, responsável pela execução de publicações de eventos para um provedor de 
-mensageria.
-
-### endpoint.publisher.@comment
-
-Campo opcional, do tipo string, campo livre para anotações.
-
-### endpoint.publisher.provider
-
-Campo obrigatório, do tipo string, podendo ter os valores AWS/SNS, AWS/SQS. É responsável pelo provedor de mensageria
-que irá receber as publicações.
-
-### endpoint.publisher.reference
-
-Campo obrigatório, do tipo string, indica qual a referência do Tópico ou Fila.
-
-### endpoint.publisher.group-id
-
-Campo obrigatório, do tipo string, indica qual o grupo de mensagem.
-
-### endpoint.publisher.deduplication-id
-
-Campo obrigatório, do tipo string, identificador usado para detectar mensagens duplicadas.
-
-### endpoint.publisher.body-mapper
-
-Campo opcional, do tipo mapa chave-valor string, é responsável por mapear os campos do corpo JSON da mensagem,
-fazendo um de/para do nome do campo atual para o nome desejado, veja o exemplo:
-
-Corpo atual da mensagem vindo da requisição:
-
-````json
-{
-  "id": 1,
-  "type": "order.created",
-  "dateCreated": "2024-06-12 16:45:03",
-  "payment": {
-    "object":"payment",
-    "id":"pay_080225913252",
-    "dateCreated":"2021-01-01",
-    "customer":"cus_G7Dvo4iphUNk",
-    "subscription":"sub_VXJBYgP2u0eO",
-    "installment":"2765d086-c7c5-5cca-898a-4262d212587c",
-    "paymentLink":"123517639363",
-    "dueDate":"2021-01-01"
-  }
-}
-````
-
-Configuração do body-mapper:
+| Unidade | Descrição      |
+|---------|----------------|
+| `ns`    | nanossegundos  |
+| `us`    | microssegundos |
+| `ms`    | milissegundos  |
+| `s`     | segundos       |
+| `m`     | minutos        |
+| `h`     | horas          |
 
 ```json
 {
-  "id": "id",
-  "event": "type",
-  "createdAt": "dateCreated",
-  "data": "payment"
+  "timeout": "5s",
+  "duration": "15m",
+  "delay": "500ms"
 }
 ```
 
-Resultado:
+</details>
+
+##### 🔹 byte-unit
+
+<details>
+<summary><strong style="color: steelblue">Expandir conteúdo</strong></summary>
+
+Representa tamanho em bytes.
+
+| Propriedade | Valor                                      |
+|-------------|--------------------------------------------|
+| Tipo base   | `string`                                   |
+| Formato     | `<number><unit>`                           |
+| Regex       | `^\d+(B\|KB\|MB\|GB\|TB\|PB\|EB\|ZB\|YB)$` |
+
+| Unidade | Descrição  |
+|---------|------------|
+| `B`     | Bytes      |
+| `KB`    | Kilobytes  |
+| `MB`    | Megabytes  |
+| `GB`    | Gigabytes  |
+| `TB`    | Terabytes  |
+| `PB`    | Petabytes  |
+| `EB`    | Exabytes   |
+| `ZB`    | Zettabytes |
+| `YB`    | Yottabytes |
 
 ```json
 {
-  "id": 1,
-  "event": "order.created",
-  "createdAt": "2024-06-12 16:45:03",
-  "data": {
-    "object":"payment",
-    "id":"pay_080225913252",
-    "dateCreated":"2021-01-01",
-    "customer":"cus_G7Dvo4iphUNk",
-    "subscription":"sub_VXJBYgP2u0eO",
-    "installment":"2765d086-c7c5-5cca-898a-4262d212587c",
-    "paymentLink":"123517639363",
-    "dueDate":"2021-01-01"
-  }
+  "max-body-size": "10MB",
+  "max-header-size": "8KB"
 }
 ```
 
-### endpoint.publisher.body-projection
+</details>
 
-Campo opcional, do tipo objeto, é responsável por customizar o envio dos campos do corpo JSON da mensagem ao
-publicá-la.
+##### 🔹 http-method
 
-**Valores aceitos para os campos**
+<details>
+<summary><strong style="color: steelblue">Expandir conteúdo</strong></summary>
 
-- `-1`: Significa que você deseja remover o campo indicado.
-- `1`: Significa que você deseja manter o campo indicado.
+Métodos HTTP suportados.
 
-**Exemplo**
+| Tipo base | `string` |
+|-----------|----------|
 
-Corpo atual:
+| Valores aceitos |
+|-----------------|
+| `GET`           |
+| `POST`          |
+| `PUT`           |
+| `PATCH`         |
+| `DELETE`        |
 
-```json
-{
-  "id": 1,
-  "type": "order.created",
-  "dateCreated": "2024-06-12 16:45:03",
-  "apiKey": "XXXXX",
-  "payment": {
-    "object":"payment",
-    "id":"pay_080225913252",
-    "dateCreated":"2021-01-01",
-    "customer":"cus_G7Dvo4iphUNk",
-    "subscription":"sub_VXJBYgP2u0eO",
-    "installment":"2765d086-c7c5-5cca-898a-4262d212587c",
-    "paymentLink":"123517639363",
-    "dueDate":"2021-01-01"
-  }
-}
-```
+</details>
 
-Configuração do body-projection:
+##### 🔹 backend-kind
 
-````json
-{
-  "apiKey": -1,
-  "payment.object": -1,
-  "payment.customer": -1
-}
-````
+<details>
+<summary><strong style="color: steelblue">Expandir conteúdo</strong></summary>
 
-Resultado:
+Define o tipo de backend executado.
 
-```json
-{
-  "id": 1,
-  "type": "order.created",
-  "dateCreated": "2024-06-12 16:45:03",
-  "payment": {
-    "id":"pay_080225913252",
-    "dateCreated":"2021-01-01",
-    "subscription":"sub_VXJBYgP2u0eO",
-    "installment":"2765d086-c7c5-5cca-898a-4262d212587c",
-    "paymentLink":"123517639363",
-    "dueDate":"2021-01-01"
-  }
-}
-```
+| Tipo base | `string` |
+|-----------|----------|
 
-### endpoint.publisher.body-modifiers
+| Valores aceitos | Descrição                                              |
+|-----------------|--------------------------------------------------------|
+| `HTTP`          | Realiza uma chamada HTTP/HTTPS para um serviço de API. |
+| `PUBLISHER`     | Publica uma mensagem em tópicos ou filas.              |
 
-Campo opcional, do tipo lista de objeto, valor padrão é vazio, responsável pelas modificações do corpo da
-mensagem ao publicá-la.
+</details>
 
-### endpoint.publisher.body-modifier.@comment
+##### 🔹 backend-broker
 
-Campo opcional, do tipo string, campo livre para anotações.
+<details>
+<summary><strong style="color: steelblue">Expandir conteúdo</strong></summary>
 
-### endpoint.publisher.body-modifier.action
+Define o broker utilizado pelo backend.
 
-Campo obrigatório, do tipo string, responsável pela ação a ser tomada na modificação do corpo da requisição.
+| Tipo base | `string` |
+|-----------|----------|
 
-**Valores aceitos se o corpo for do tipo JSON**
+| Valores aceitos | [Tipo de backend](#-backend-kind) |
+|-----------------|-----------------------------------|
+| `AWS/SQS`       | `PUBLISHER`                       |
+| `AWS/SNS`       | `PUBLISHER`                       |
 
-- `ADD`: Adiciona a chave informada no campo [body.key](#endpointpublisherbody-modifierkey) caso não exista, e
-  agrega o valor informado no campo [body.value](#endpointbackendrequestbody-modifiervalue).
+</details>
 
+##### 🔹 content-type
 
-- `APD`: Acrescenta o valor informado no campo [body.value](#endpointpublisherbody-modifiervalue) caso a chave
-  informada no campo [body.key](#endpointbackendrequestbody-modifierkey) exista.
+<details>
+<summary><strong style="color: steelblue">Expandir conteúdo</strong></summary>
 
+Define o tipo de conteúdo utilizado na serialização.
 
-- `SET`: Defini o valor da chave informada no campo [body.key](#endpointpublisherbody-modifierkey) pelo valor
-  passado no campo [body.value](#endpointbackendrequestbody-modifiervalue).
+| Tipo base | `string` |
+|-----------|----------|
 
+| Valores aceitos |
+|-----------------|
+| `JSON`          |
+| `XML`           |
+| `PLAIN_TEXT`    |
 
-- `RPL`: Substitui o valor da chave informada no campo [body.key](#endpointpublisherbody-modifierkey) pelo valor
-  passado no campo [body.value](#endpointbackendrequestbody-modifiervalue) caso exista.
+</details>
 
+##### 🔹 content-encoding
 
-- `REN`: Renomeia a chave informada no campo [body.key](#endpointpublisherbody-modifierkey) pelo valor passado no
-  campo [body.value](#endpointbackendrequestbody-modifiervalue) caso exista.
+<details>
+<summary><strong style="color: steelblue">Expandir conteúdo</strong></summary>
 
+Define o tipo de compressão aplicado.
 
-- `DEL`: Remove a chave informada no campo [body.key](#endpointpublisherbody-modifierkey) caso exista.
+| Tipo base | `string` |
+|-----------|----------|
 
-**Valores aceitos se o corpo for TEXTO**
+| Valores aceitos |
+|-----------------|
+| `NONE`          |
+| `GZIP`          |
+| `DEFLATE`       |
 
-- `ADD`: Agrega o valor informado no campo [body.value](#endpointpublisherbody-modifiervalue) ao texto.
+</details>
 
+##### 🔹 nomenclature
 
-- `APD`: Acrescenta o valor informado no campo [body.value](#endpointpublisherbody-modifiervalue) caso body não for
-  vazio.
+<details>
+<summary><strong style="color: steelblue">Expandir conteúdo</strong></summary>
 
+Define o padrão de nomenclatura aplicado a campos JSON.
 
-- `RPL`: Irá substituir todos os valores semelhantes à chave informada no
-  campo [body.key](#endpointpublisherbody-modifierkey) pelo valor passado no
-  campo [body.value](#endpointpublisherbody-modifiervalue).
+| Tipo base | `string` |
+|-----------|----------|
 
+| Valores aceitos   |
+|-------------------|
+| `LOWER_CAMEL`     |
+| `CAMEL`           |
+| `SNAKE`           |
+| `SCREAMING_SNAKE` |
+| `KEBAB`           |
+| `SCREAMING_KEBAB` |
 
-- `DEL`: Remove todos os valores semelhantes à chave informada no
-  campo [body.key](#endpointpublisherbody-modifierkey).
+</details>
 
-### endpoint.publisher.body-modifier.key
+##### 🔹 template-merge
 
-Campo obrigatório, do tipo string, utilizado para indicar qual chave do corpo da mensagem deve ser modificada.
+<details>
+<summary><strong style="color: steelblue">Expandir conteúdo</strong></summary>
+
+Define como o template será combinado com a configuração local.
+
+| Tipo base | `string` |
+|-----------|----------|
+
+| Valores aceitos | Descrição                                                                                                  |
+|-----------------|------------------------------------------------------------------------------------------------------------|
+| `BASE`          | Mescla apenas os campos basicos como (`id`, `dependencies`, `kind`, `hosts`, `provider`, `path`, `method`) |
+| `FULL`          | Mescla todos os campos.                                                                                    |
+
+</details>
+</details>
+
+#### 🌎 Configuração Global
+
+<details>
+<summary><strong style="color: steelblue">Expandir conteúdo</strong></summary>
+
+Campos na raiz do JSON de configuração.
+
+| Campo           | Tipo                       | Obrigatório | Padrão | Descrição                                                                                                                         |
+|-----------------|----------------------------|-------------|--------|-----------------------------------------------------------------------------------------------------------------------------------|
+| `$schema`       | string                     | ❌           | —      | URL do JSON Schema para validação.                                                                                                |
+| `@comment`      | string                     | ❌           | —      | Campo livre para anotações.                                                                                                       |
+| `version`       | string                     | ❌           | —      | Usado para controle de versão e também usado no retorno do endpoint estático [/version](#version-1).                              |
+| `hot-reload`    | boolean                    | ❌           | false  | Utilizado para o carregamento automático quando houver alguma alteração no arquivo .json e .env na pasta do ambiente selecionado. |
+| `proxy`         | [object](#proxy)           | ❌           | —      | Utilizado para configurar um proxy local para expor publicamente sua API Gateway localmente.                                      |
+| `store`         | [object](#-store)          | ❌           | local  | Define a configuração do armazenamento global.                                                                                    |
+| `timeout`       | [duration](#-duration)     | ❌           | 30s    | Responsável pelo tempo máximo de duração do processamento de cada requisição.                                                     |
+| `cache`         | [object](#-cache)          | ❌           | —      | Responsável pelas conf. globais de cache.                                                                                         |
+| `limiter`       | [object](#-limiter)        | ❌           | —      | Responsável pelas regras de limitação, seja de tamanho ou taxa.                                                                   |
+| `security-cors` | [object](#-security-cors)  | ❌           | —      | Responsável pela segurança e política CORS.                                                                                       |
+| `templates`     | [object](#-templates)      | ❌           | —      | Responsável por instanciar as configurações de backends reutilizáveis.                                                            |
+| `endpoints`     | array[[object](#endpoint)] | ✅           | —      | Representa cada endpoint da API Gateway que será registrado para ouvir e servir as requisições HTTP.                              |
+
+##### 🗄️ Store
+
+<details>
+<summary><strong style="color: steelblue">Expandir conteúdo</strong></summary>
+
+Objeto de configuração global para armazenamento de cache.
+
+| Campo   | Tipo   | Obrigatório | Padrão | Descrição                                |
+|---------|--------|-------------|--------|------------------------------------------|
+| `redis` | object | ✅           | —      | Configuração de armazenamento via Redis. |
+
+| Campo      | Tipo   | Obrigatório | Padrão | Descrição                          |
+|------------|--------|-------------|--------|------------------------------------|
+| `address`  | string | ✅           | —      | URL referente a conexão com Redis. |
+| `password` | string | ❌           | —      | Senha para acesso a base Redis.    |
+
+</details>
+
+##### 🗃️ Cache
+
+<details>
+<summary><strong style="color: steelblue">Expandir conteúdo</strong></summary>
+
+Objeto de configuração global de cache.
+
+| Campo                  | Tipo                           | Obrigatório | Padrão  | Descrição                                                                                                                          |
+|------------------------|--------------------------------|-------------|---------|------------------------------------------------------------------------------------------------------------------------------------|
+| `enabled`              | boolean                        | ℹ️          | false   | Indica se cache esta habilitado para o endpoint. (**Apenas para o endpoint, e é obrigatório**)                                     |
+| `duration`             | string                         | ✅           | —       | Tempo de vida do cache.                                                                                                            |
+| `strategy-headers`     | array[string]                  | ❌           | —       | Utilizado para adicionar uma estratégia para chave do cache a partir dos headers informados, complementando o padrão `método:url`. |
+| `only-if-methods`      | array[[string](#-http-method)] | ❌           | ["GET"] | Métodos HTTP aceitos.                                                                                                              |
+| `only-if-status-codes` | array[int]                     | ❌           | 2xx     | Código de status aceitos.                                                                                                          |
+| `allow-cache-control`  | boolean                        | ❌           | false   | Considerar ou não o header Cache-Control vindo da requisição.                                                                      |
+
+</details>
+
+##### 🚧 Limiter
+
+<details>
+<summary><strong style="color: steelblue">Expandir conteúdo</strong></summary>
+
+Objeto de configuração global para limitar os recursos recebidos.
+
+| Campo                       | Tipo                  | Obrigatório | Padrão | Descrição                                                                    |
+|-----------------------------|-----------------------|-------------|--------|------------------------------------------------------------------------------|
+| `max-header-size`           | [string](#-byte-unit) | ❌           | 1MB    | Responsável por limitar o tamanho do cabeçalho da requisição                 |
+| `max-body-size`             | [string](#-byte-unit) | ❌           | 3MB    | Responsável por limitar o tamanho do corpo da requisição                     |
+| `max-multipart-memory-size` | [string](#-byte-unit) | ❌           | 5MB    | Responsável por limitar o tamanho do corpo multipart/form da requisição      |
+| `rate.capacity`             | int                   | ❌           | 5      | Indica a capacidade máxima de requisições                                    |
+| `rate.every`                | [string](#-duration)  | ❌           | 1s     | Indica o valor da duração da verificação da capacidade máxima de requisições |
 
 > ⚠️ **IMPORTANTE**
 >
-> Se torna opcional se seu body for do tipo TEXTO e [body.action](#endpointpublisherbody-modifieraction) tiver o
-> valor `ADD`.
+> Caso a requisição ultrapasse uma das regras, API Gateway irá abortar com os seguintes códigos de status:
+>
+> - `max-header-size`: **431 (Request header fields too large)**
+> - `max-body-size` ou `max-multipart-memory-size`: **413 (Request entity too large)**
+> - `rate`: **429 (Too many requests)**
 
-### endpoint.publisher.body-modifier.value
+</details>
 
-Campo obrigatório, do tipo string, utilizado como valor a ser usado para modificar a chave indicada no
-campo [body.key](#endpointpublisherbody-modifierkey).
+##### 🔒 Security-Cors
 
-Temos possibilidades de utilização de [valores dinâmicos](#valores-dinâmicos-para-modificação),
-e de [variáveis de ambiente](#variáveis-de-ambiente) para esse campo.
+<details>
+<summary><strong style="color: steelblue">Expandir conteúdo</strong></summary>
+
+Objeto de configuração global para de segurança CORS.
+
+| Campo           | Tipo                           | Obrigatório | Padrão | Descrição                                                                                |
+|-----------------|--------------------------------|-------------|--------|------------------------------------------------------------------------------------------|
+| `allow-origins` | array[string]                  | ❌           | —      | Responsável por limitar o acesso apenas dos IPs de origem informados na lista            |
+| `allow-methods` | array[[string](#-http-method)] | ❌           | —      | Responsável por limitar o acesso apenas pelos métodos HTTP informados na lista           |
+| `allow-headers` | array[string]                  | ❌           | —      | Responsável por limitar o preenchimento de campos especificos do cabeçalho da requisição |
 
 > ⚠️ **IMPORTANTE**
 >
-> Se torna opcional apenas se [body.action](#endpointpublisherbody-modifieraction) tiver o valor `DEL`.
+> Caso a requisição não seja permitida em uma das regras, API Gateway irá abortar com o código de status:
+> **403 (Forbidden)**
+
+</details>
+
+##### 📝 Templates
+
+<details>
+<summary><strong style="color: steelblue">Expandir conteúdo</strong></summary>
+
+Objeto utilizado para instanciar configurações de backends a partir do seu fluxo, evitando duplicação e melhor
+reutilização dos recursos.
+
+| Campo         | Tipo                  | Descrição                                                                           |
+|---------------|-----------------------|-------------------------------------------------------------------------------------|
+| `beforewares` | [object](#beforeware) | Instancia configurações de backends do fluxo beforeware. (middleware pré-backends). |
+| `backends`    | [object](#backend)    | Instancia configurações de backends do fluxo principal.                             |
+| `afterwares`  | [object](#backend)    | instancia configurações de backends do fluxo afterware. (middleware pós-backends).  |
+
+</details>
+</details>
+
+#### 📡 Endpoint
+
+<details>
+<summary><strong style="color: steelblue">Expandir conteúdo</strong></summary>
+
+Objeto que representa o endpoint da API Gateway que será registrado para ouvir e servir as requisições HTTP.
+
+| Campo                   | Tipo                        | Obrigatório | Padrão                                  | Descrição                                                                                                     |
+|-------------------------|-----------------------------|-------------|-----------------------------------------|---------------------------------------------------------------------------------------------------------------|
+| `@comment`              | string                      | ❌           | —                                       | Campo livre para anotações.                                                                                   |
+| `path`                  | string                      | ✅           | —                                       | Responsável pelo caminho URI do endpoint que irá ouvir e servir.                                              |
+| `method`                | [string](#-http-method)     | ✅           | —                                       | Responsável por definir qual método HTTP o endpoint será registrado.                                          |
+| `timeout`               | [string](#-duration)        | ❌           | [Config. Global](#-configuração-global) | Responsável pela configuração de timeout para o endpoint em questão.                                          |
+| `cache`                 | [object](#cache)            | ❌           | [Config. Global](#-configuração-global) | Responsável pela configuração de cache para o endpoint em questão.                                            |
+| `limiter`               | [object](#limiter)          | ❌           | [Config. Global](#-configuração-global) | Responsável pela configuração de limitação para o endpoint em questão.                                        |
+| `security-cors`         | [object](#security-cors)    | ❌           | [Config. Global](#-configuração-global) | Responsável pela configuração de security CORS para o endpoint em questão.                                    |
+| `abort-if-status-codes` | array[int]                  | ❌           | >= 400                                  | Indica quais codigos de status HTTP respondidos pelos backends pode ser abortado.                             |
+| `parallelism`           | boolean                     | ❌           | false                                   | Indica que endpoint deverá executar todos os backends principais e afterwares de forma paralela (assíncrona). |
+| `beforewares`           | array[[object](#backend)]   | ❌           | —                                       | Middlewares executados antes do fluxo principal.                                                              |
+| `backends`              | array[[object](#backend)]   | ✅           | —                                       | Backends de fluxo principal.                                                                                  |
+| `afterwares`            | array[[object](#backend)]   | ❌           | —                                       | Middlewares executados após o fluxo principal.                                                                |
+| `response`              | [object](#endpointresponse) | ❌           | —                                       | Responsável pela customização da resposta do endpoint.                                                        |
+
+##### 📥 Endpoint Response
+
+<details>
+<summary><strong style="color: steelblue">Expandir conteúdo</strong></summary>
+
+Objeto responsável pela customização do cabeçalho e corpo da resposta do endpoint.
+Veja mais sobre a modelagem de resposta da API Gateway [clicando aqui](#lógica-de-resposta).
+
+| Campo               | Tipo                                 | Obrigatório | Padrão | Descrição                                                                                         |
+|---------------------|--------------------------------------|-------------|--------|---------------------------------------------------------------------------------------------------|
+| `@comment`          | string                               | ❌           | —      | Campo livre para anotações.                                                                       |
+| `continue-on-error` | boolean                              | ❌           | false  | Indica que o endpoint deve continuar mesmo com erro na customização da resposta HTTP do endpoint. |
+| `header`            | [object](#-endpoint-response-header) | ❌           | —      | Responsável pela customização do cabeçalho da resposta HTTP do endpoint.                          |
+| `body`              | [object](#-endpoint-response-body)   | ❌           | —      | Responsável pela customização do corpo da resposta HTTP do endpoint.                              |
+
+</details>
+
+##### 🧾 Endpoint Response Header
+
+<details>
+<summary><strong style="color: steelblue">Expandir conteúdo</strong></summary>
+
+Objeto responsável pela customização do cabeçalho da resposta do endpoint.
+
+| Campo       | Tipo                  | Obrigatório | Padrão | Descrição                                                                                                                                   |
+|-------------|-----------------------|-------------|--------|---------------------------------------------------------------------------------------------------------------------------------------------|
+| `@comment`  | string                | ❌           | —      | Campo livre para anotações.                                                                                                                 |
+| `mapper`    | [object](#-mapper)    | ❌           | —      | Responsável por mapear os campos do cabeçalho da resposta HTTP do endpoint, fazendo um de/para do nome do campo atual para o nome desejado. |
+| `projector` | [object](#-projector) | ❌           | —      | Responsável por projetar apenas os campos que deseja do cabeçalho da resposta HTTP do endpoint.                                             |
+
+</details>
+
+###### 📦 Endpoint Response Body
+
+<details>
+<summary><strong style="color: steelblue">Expandir conteúdo</strong></summary>
+
+Objeto responsável pela customização do corpo da resposta do endpoint.
+
+| Campo              | Tipo                         | Obrigatório | Padrão | Descrição                                                                                                              |
+|--------------------|------------------------------|-------------|--------|------------------------------------------------------------------------------------------------------------------------|
+| `@comment`         | string                       | ❌           | —      | Campo livre para anotações.                                                                                            |
+| `aggregate`        | boolean                      | ❌           | false  | Agrega todas os corpos de respostas dos backends normais no mesmo corpo de resposta.                                   |
+| `omit-empty`       | boolean                      | ❌           | false  | Remove campos vazios (`null`,`""`,`0`, `false`) no corpo da resposta.                                                  |
+| `content-type`     | [string](#-content-type)     | ❌           | —      | Tipo de conteúdo que deseja responder no corpo.                                                                        |
+| `content-encoding` | [string](#-content-encoding) | ❌           | NONE   | Tipo de compressão que deseja responder no corpo.                                                                      |
+| `nomenclature`     | [string](#-nomenclature)     | ❌           | —      | Qual tipo de nomenclatura que deseja responder no corpo JSON/XML.                                                      |
+| `mapper`           | [object](#-mapper)           | ❌           | —      | Responsável por mapear os campos do corpo da resposta, fazendo um de/para do nome do campo atual para o nome desejado. |
+| `projector`        | [object](#-projector)        | ❌           | —      | Responsável por projetar apenas os campos que deseja do corpo JSON da resposta.                                        |
+
+</details>
+</details>
+
+#### 🤖 Backend
+
+<details>
+<summary><strong style="color: steelblue">Expandir conteúdo</strong></summary>
+
+Objeto que representa o backend do endpoint da API Gateway que será executado.
+
+| Campo              | Tipo                           | Origem   | Tipo permitido | Fluxo        | Obrigatório | Padrão | Descrição                                                                                                                        |
+|--------------------|--------------------------------|----------|----------------|--------------|-------------|--------|----------------------------------------------------------------------------------------------------------------------------------|
+| `@comment`         | string                         | —        | —              | —            | ❌           | —      | Campo livre para anotações.                                                                                                      |
+| `id`               | string                         | `INLINE` | —              | —            | ❌           | —      | Identificador unico no endpoint do backend. Caso não informado, o campo **path** será usado como.                                |
+| `dependencies`     | array[string]                  | —        | —              | —            | ❌           | —      | Indica que o mesmo depende de outros backends que precisam esta referenciado antes do mesmo na configuração do endpoint.         |
+| `only-if`          | array[[string](#-eval-guards)] | —        | —              | —            | ❌           | —      | Apenas executa o backend se pelo menos 1 indice informado retornar true.                                                         |
+| `ignore-if`        | array[[string](#-eval-guards)] | —        | —              | —            | ❌           | —      | Ignora a execução do backend se pelo menos 1 indice informado retornar true.                                                     |
+| `template`         | [object](#-backend-template)   | `INLINE` | —              | —            | ❌           | —      | Responsável por referenciar e herdar as informações configuradas no template.                                                    |
+| `kind`             | [string](#-backend-kind)       | —        | —              | —            | ℹ️          | —      | Indica qual o tipo de backend. (**Apenas obrigatório se template não informado**)                                                |
+| `broker`           | [string](#-backend-broker)     | —        | `PUBLISHER`    | —            | ℹ️          | —      | Indica qual o broker do backend. (**Apenas obrigatório se tipo for PUBLISHER**)                                                  |
+| `async`            | boolean                        | —        | —              | —            | ❌           | false  | Executa o backend de forma assíncrona. Ele anula o campo `parallelism` do endpoint caso informado.                               |
+| `hosts`            | array[string]                  | —        | `HTTP`         | —            | ✅           | —      | Indica os hosts para o caminho do backend a ser executado. ([Veja mais sobre o balance clicando aqui](#balance))                 |
+| `path`             | string                         | —        | —              | —            | ✅           | —      | Indica o caminho URI/URL do backend a ser executado.                                                                             |
+| `method`           | [string](#-http-method)        | —        | `HTTP`         | —            | ✅           | —      | Responsável por definir qual método HTTP backend será executado.                                                                 |
+| `request`          | [object](#-backend-request)    | —        | `HTTP`         | —            | ❌           | —      | Responsável pela customização da requisição HTTP enviada ao backend.                                                             |
+| `response`         | [object](#-backend-response)   | —        | `HTTP`         | `PRINCIPAL`  | ❌           | —      | Responsável pela customização da resposta final HTTP retornada do backend.                                                       |
+| `propagate`        | [object](#-backend-propagate)  | —        | —              | `BEFOREWARE` | ❌           | —      | Responsável pela propagação das proximas requisições a partir da resposta do middleware beforeware retornada do backend.         |
+| `group-id`         | [string](#-dynamic-values)     | —        | `PUBLISHER`    | —            | ℹ️          | —      | Indica qual o grupo de mensagem. (**Apenas obrigatório se topico ou fila for do tipo FIFO e broker AWS**)                        |
+| `deduplication-id` | [string](#-dynamic-values)     | —        | `PUBLISHER`    | —            | ℹ️          | —      | Identificador usado para detectar mensagens duplicadas. (**Apenas obrigatório se topico ou fila for do tipo FIFO e broker AWS**) |
+| `delay`            | [string](#-duration)           | —        | `PUBLISHER`    | —            | ❌           | 0s     | Publica a mensagem no tópico ou fila com atraso. (**Verifique se o broker usado tem compatibilidade com entrega com atraso**)    |
+| `message`          | [object](#-backend-message)    | —        | `PUBLISHER`    | —            | ❌           | —      | Responsável pela customização do payload da mensagem a ser publicado no tópico ou fila.                                          |
+
+##### 📝 Backend Template
+
+<details>
+<summary><strong style="color: steelblue">Expandir conteúdo</strong></summary>
+
+Objeto responsável por referenciar e herdar as informações configuradas no template.
+
+| Campo   | Tipo                       | Obrigatório | Padrão | Descrição                                                 |
+|---------|----------------------------|-------------|--------|-----------------------------------------------------------|
+| `path`  | string                     | ✅           | —      | Referência o caminho do template que precisa ser herdado. |
+| `merge` | [string](#-template-merge) | ❌           | FULL   | Indica qual tipo de herança que quer herdar.              |
+
+> ⚠️ **IMPORTANTE**
+>
+> Só é permitido referênciar template no flow de configuração que está:
+>
+> - beforeware -> templates.beforewares
+> - backend -> templates.backend
+> - afterware -> templates.afterwares
+
+</details>
+
+##### 📤 Backend Request
+
+<details>
+<summary><strong style="color: steelblue">Expandir conteúdo</strong></summary>
+
+Objeto responsável pela customização da requisição HTTP enviada ao backend.
+
+| Campo               | Tipo                               | Obrigatório | Padrão | Descrição                                                                                                     |
+|---------------------|------------------------------------|-------------|--------|---------------------------------------------------------------------------------------------------------------|
+| `@comment`          | string                             | ❌           | —      | Campo livre para anotações.                                                                                   |
+| `continue-on-error` | boolean                            | ❌           | false  | Indica que o backend deve continuar mesmo com erro na customização da requisição.                             |
+| `concurrent`        | int                                | ❌           | 1      | Responsável pela quantidade de requisições HTTP concorrentes que deseja fazer ao serviço backend. (**Min 2**) |
+| `header`            | [object](#-backend-request-header) | ❌           | —      | Responsável pela customização do cabeçalho da requisição HTTP enviada ao serviço backend.                     |
+| `param`             | [object](#-backend-request-param)  | ❌           | —      | Responsável pela customização dos parâmetros da URL de requisição HTTP enviada ao serviço backend.            |
+| `query`             | [object](#-backend-request-query)  | ❌           | —      | Responsável pela customização dos parâmetros de busca da requisição HTTP enviada ao serviço backend.          |
+| `body`              | [object](#-backend-request-body)   | ❌           | —      | Responsável pela customização do corpo da requisição HTTP enviada ao serviço backend.                         |
+
+###### 🧾 Backend Request Header
+
+<details>
+<summary><strong style="color: steelblue">Expandir conteúdo</strong></summary>
+
+Objeto responsável pela customização do cabeçalho da requisição HTTP enviada ao backend.
+
+| Campo       | Tipo                        | Obrigatório | Padrão | Descrição                                                                                                                                                    |
+|-------------|-----------------------------|-------------|--------|--------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `@comment`  | string                      | ❌           | —      | Campo livre para anotações.                                                                                                                                  |
+| `omit`      | boolean                     | ❌           | false  | Omita todas as informações do cabeçalho vindas da requisição do endpoint para o backend.                                                                     |
+| `mapper`    | [object](#-mapper)          | ❌           | —      | Responsável por mapear os campos do cabeçalho da requisição HTTP enviada ao serviço backend, fazendo um de/para do nome do campo atual para o nome desejado. |
+| `projector` | [object](#-projector)       | ❌           | —      | Responsável por projetar apenas os campos que deseja do cabeçalho da requisição HTTP enviada ao serviço backend.                                             |
+| `modifiers` | array[[object](#-modifier)] | ❌           | —      | Responsável por modificações especificas do cabeçalho da requisição HTTP enviada ao serviço backend.                                                         |
+
+</details>
+
+###### 🔗 Backend Request Param
+
+<details>
+<summary><strong style="color: steelblue">Expandir conteúdo</strong></summary>
+
+Objeto responsável pela customização dos parâmetros da URL de requisição HTTP enviada ao backend.
+
+| Campo       | Tipo                        | Obrigatório | Padrão | Descrição                                                                                                     |
+|-------------|-----------------------------|-------------|--------|---------------------------------------------------------------------------------------------------------------|
+| `@comment`  | string                      | ❌           | —      | Campo livre para anotações.                                                                                   |
+| `modifiers` | array[[object](#-modifier)] | ❌           | —      | Responsável por modificações especificas dos parâmetros da URL de requisição HTTP enviada ao serviço backend. |
+
+</details>
+
+###### 🔎 Backend Request Query
+
+<details>
+<summary><strong style="color: steelblue">Expandir conteúdo</strong></summary>
+
+Objeto responsável pela customização dos parâmetros de busca da requisição HTTP enviada ao backend.
+
+| Campo       | Tipo                        | Obrigatório | Padrão | Descrição                                                                                                                                                    |
+|-------------|-----------------------------|-------------|--------|--------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `@comment`  | string                      | ❌           | —      | Campo livre para anotações.                                                                                                                                  |
+| `omit`      | boolean                     | ❌           | false  | Omita todas as informações de buscas vindas da requisição do endpoint para o backend.                                                                        |
+| `mapper`    | [object](#-mapper)          | ❌           | —      | Responsável por mapear os parâmetros de busca da requisição HTTP enviada ao serviço backend, fazendo um de/para do nome do campo atual para o nome desejado. |
+| `projector` | [object](#-projector)       | ❌           | —      | Responsável por projetar apenas os parâmetros de busca que deseja da requisição HTTP enviada ao serviço backend.                                             |
+| `modifiers` | array[[object](#-modifier)] | ❌           | —      | Responsável por modificações especificas dos parâmetros de busca da requisição HTTP enviada ao serviço backend.                                              |
+
+</details>
+
+###### 📦 Backend Request Body
+
+<details>
+<summary><strong style="color: steelblue">Expandir conteúdo</strong></summary>
+
+Objeto responsável pela customização do corpo da resposta do endpoint.
+
+| Campo              | Tipo                         | Obrigatório | Padrão | Descrição                                                                                                                                                |
+|--------------------|------------------------------|-------------|--------|----------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `@comment`         | string                       | ❌           | —      | Campo livre para anotações.                                                                                                                              |
+| `omit`             | boolean                      | ❌           | false  | Omita todas as informações do corpo vindas da requisição HTTP do endpoint para o backend.                                                                |
+| `omit-empty`       | boolean                      | ❌           | false  | Remove campos vazios (`null`,`""`,`0`, `false`) no corpo da requisição HTTP enviada ao serviço backend.                                                  |
+| `content-type`     | [string](#-content-type)     | ❌           | —      | Tipo de conteúdo que deseja enviar no corpo da requisição HTTP enviada ao serviço backend.                                                               |
+| `content-encoding` | [string](#-content-encoding) | ❌           | NONE   | Tipo de compressão que deseja enviar no corpo da requisição HTTP enviada ao serviço backend.                                                             |
+| `nomenclature`     | [string](#-nomenclature)     | ❌           | —      | Qual tipo de nomenclatura que deseja enviar no corpo JSON/XML da requisição HTTP enviada ao serviço backend.                                             |
+| `mapper`           | [object](#-mapper)           | ❌           | —      | Responsável por mapear os campos do corpo da requisição HTTP enviada ao serviço backend, fazendo um de/para do nome do campo atual para o nome desejado. |
+| `projector`        | [object](#-projector)        | ❌           | —      | Responsável por projetar apenas os campos que deseja do corpo JSON da requisição HTTP enviada ao serviço backend.                                        |
+| `modifiers`        | array[[object](#-modifier)]  | ❌           | —      | Responsável por modificações especificas dos campos do corpo da requisição HTTP enviada ao serviço backend.                                              |
+
+</details>
+
+</details>
+</details>
+</details>
 
 ### endpoint.backends
 
-Campo opcional, do tipo lista de objeto, responsável pela execução de serviços externos do endpoint.
+Campo obrigatório, do tipo lista de objeto, responsável pela execução de serviços do endpoint.
 
 ### endpoint.backend.@comment
+
+Campo opcional, do tipo string, campo livre para anotações.
+
+### endpoint.backend.id
 
 Campo opcional, do tipo string, campo livre para anotações.
 
 ### endpoint.backend.hosts
 
 Campo obrigatório, do tipo lista de string, é responsável pelos hosts do seu serviço que a API Gateway irá chamar
-juntamente com o campo [backend.path](#endpointbackendpath).
+com o campo [backend.path](#endpointbackendpath).
 
 De certa forma podemos ter um load balancer "burro", pois o backend irá sortear nessa lista qual host irá ser chamado,
 com isso podemos informar múltiplas vezes o mesmo host para balancear as chamadas, veja:
@@ -2111,6 +1801,64 @@ e de [variáveis de ambiente](#variáveis-de-ambiente) para esse campo.
 > ⚠️ **IMPORTANTE**
 >
 > Se torna opcional apenas se [body.action](#endpointbackendresponsebody-modifieraction) tiver o valor `DEL`.
+
+### endpoint.response
+
+Campo opcional, do tipo objeto, é responsável pela customização da resposta do endpoint.
+
+Veja mais sobre as regras de resposta da API Gateway [clicando aqui](#lógica-de-resposta).
+
+### endpoint.response.@comment
+
+Campo opcional, do tipo string, livre para anotações.
+
+### endpoint.response.body
+
+Campo opcional, do tipo objeto, é responsável pela customização do corpo da resposta do endpoint,
+
+### endpoint.response.body.aggregate
+
+Campo opcional, do tipo booleano, o valor padrão é `false`, é responsável por agregar todos os corpos das respostas
+recebidas pelos backends em apenas um corpo.
+
+### endpoint.response.body.content-type
+
+Campo opcional, do tipo string, é responsável por informar qual conteúdo deseja para o corpo de resposta do endpoint.
+
+**Valores aceitos**
+
+- JSON
+- XML
+- TEXT
+
+### endpoint.response.body.content-encoding
+
+Campo opcional, do tipo string, é responsável por informar qual codificação deseja para o corpo da resposta do endpoint.
+
+**Valores aceitos**
+
+- NONE (Remove a codificação caso tenha, e retorna sem nenhum tipo de codificação)
+- GZIP
+- DEFLATE
+
+### endpoint.response.body.nomenclature
+
+Campo opcional, do tipo string, é responsável por informar qual nomenclatura deseja para os campos do corpo JSON
+da resposta do endpoint.
+
+**Valores aceitos**
+
+- LOWER_CAMEL
+- CAMEL
+- SNAKE
+- SCREAMING_SNAKE
+- KEBAB
+- SCREAMING_KEBAB
+
+### endpoint.response.body.omit-empty
+
+Campo opcional, do tipo booleano, o valor padrão é `false`, indica o desejo de omitir os campos vazios do corpo JSON
+da resposta do endpoint.
 
 ## JSON de tempo de execução
 

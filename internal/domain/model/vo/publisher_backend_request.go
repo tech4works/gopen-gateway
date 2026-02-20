@@ -6,7 +6,7 @@ import (
 )
 
 type PublisherBackendRequest struct {
-	provider        enum.PublisherProvider
+	broker          enum.BackendBroker
 	path            string
 	groupID         *string
 	deduplicationID *string
@@ -16,7 +16,7 @@ type PublisherBackendRequest struct {
 }
 
 func NewPublisherBackendRequest(
-	provider enum.PublisherProvider,
+	broker enum.BackendBroker,
 	path,
 	groupID,
 	deduplicationID string,
@@ -25,7 +25,7 @@ func NewPublisherBackendRequest(
 	body string,
 ) *PublisherBackendRequest {
 	return &PublisherBackendRequest{
-		provider:        provider,
+		broker:          broker,
 		path:            path,
 		groupID:         checker.IfEmptyReturns(&groupID, nil),
 		deduplicationID: checker.IfEmptyReturns(&deduplicationID, nil),
@@ -35,8 +35,8 @@ func NewPublisherBackendRequest(
 	}
 }
 
-func (m PublisherBackendRequest) Provider() enum.PublisherProvider {
-	return m.provider
+func (m PublisherBackendRequest) Broker() enum.BackendBroker {
+	return m.broker
 }
 
 func (m PublisherBackendRequest) Path() string {

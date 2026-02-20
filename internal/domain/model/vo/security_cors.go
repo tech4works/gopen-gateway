@@ -26,8 +26,8 @@ type SecurityCors struct {
 	allowHeaders []string
 }
 
-func NewSecurityCors(allowsOrigins, allowMethods, allowHeaders []string) *SecurityCors {
-	return &SecurityCors{
+func NewSecurityCors(allowsOrigins, allowMethods, allowHeaders []string) SecurityCors {
+	return SecurityCors{
 		allowOrigins: allowsOrigins,
 		allowMethods: allowMethods,
 		allowHeaders: allowHeaders,
@@ -35,13 +35,13 @@ func NewSecurityCors(allowsOrigins, allowMethods, allowHeaders []string) *Securi
 }
 
 func (s SecurityCors) DisallowOrigin(origin string) bool {
-	return checker.NonNil(s.allowOrigins) && checker.NotContains(s.allowOrigins, origin)
+	return checker.IsNotEmpty(s.allowOrigins) && checker.NotContains(s.allowOrigins, origin)
 }
 
 func (s SecurityCors) DisallowMethod(method string) bool {
-	return checker.NonNil(s.allowMethods) && checker.NotContains(s.allowMethods, method)
+	return checker.IsNotEmpty(s.allowMethods) && checker.NotContains(s.allowMethods, method)
 }
 
 func (s SecurityCors) DisallowHeader(headerKey string) bool {
-	return checker.NonNil(s.allowHeaders) && checker.NotContains(s.allowHeaders, headerKey)
+	return checker.IsNotEmpty(s.allowHeaders) && checker.NotContains(s.allowHeaders, headerKey)
 }

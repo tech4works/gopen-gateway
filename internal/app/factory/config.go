@@ -39,7 +39,6 @@ type propagateState struct {
 func BuildGopen(gopen *dto.Gopen) *vo.Gopen {
 	return vo.NewGopen(
 		buildProxy(gopen.Proxy),
-		buildSecurityCors(gopen.SecurityCors),
 		buildEndpoints(gopen),
 	)
 }
@@ -49,13 +48,6 @@ func buildProxy(proxy *dto.Proxy) *vo.Proxy {
 		return nil
 	}
 	return vo.NewProxy(proxy.Provider, proxy.Token, proxy.Domains)
-}
-
-func buildSecurityCors(securityCors *dto.SecurityCors) *vo.SecurityCors {
-	if checker.IsNil(securityCors) {
-		return nil
-	}
-	return vo.NewSecurityCors(securityCors.AllowOrigins, securityCors.AllowMethods, securityCors.AllowHeaders)
 }
 
 func buildEndpoints(gopen *dto.Gopen) []vo.Endpoint {
@@ -89,12 +81,12 @@ func buildEndpoint(gopen *dto.Gopen, endpoint dto.Endpoint) vo.Endpoint {
 		endpoint.Path,
 		endpoint.Method,
 		buildTimeout(gopen.Timeout, endpoint.Timeout),
+		buildSecurityCors(gopen.SecurityCors, endpoint.SecurityCors),
 		buildLimiter(gopen.Limiter, endpoint.Limiter),
 		buildCache(gopen.Cache, endpoint.Cache),
-		endpoint.AbortIfHTPPStatusCodes,
-		endpoint.Parallelism,
-		buildEndpointResponse(endpoint.Response),
+		endpoint.AbortIfStatusCodes,
 		buildBackends(gopen.Templates, endpoint),
+		buildEndpointResponse(endpoint.Response),
 	)
 }
 
@@ -106,10 +98,38 @@ func buildTimeout(timeout, endpointTimeout vo.Duration) vo.Duration {
 	}
 }
 
+func buildSecurityCors(securityCors *dto.SecurityCors, endpointSecurityCors *dto.EndpointSecurityCors) vo.SecurityCors {
+	var allowOrigins, allowMethods, allowHeaders []string
+
+	if checker.NonNil(securityCors) {
+		if checker.IsNotNilOrEmpty(securityCors.AllowOrigins) {
+			allowOrigins = securityCors.AllowOrigins
+		}
+		if checker.NonNil(securityCors.AllowMethods) {
+			allowMethods = securityCors.AllowMethods
+		}
+		if checker.NonNil(securityCors.AllowHeaders) {
+			allowHeaders = securityCors.AllowHeaders
+		}
+	}
+
+	if checker.NonNil(endpointSecurityCors) {
+		if checker.IsNotNilOrEmpty(endpointSecurityCors.AllowOrigins) {
+			allowOrigins = endpointSecurityCors.AllowOrigins
+		}
+		if checker.NonNil(endpointSecurityCors.AllowMethods) {
+			allowMethods = endpointSecurityCors.AllowMethods
+		}
+		if checker.NonNil(endpointSecurityCors.AllowHeaders) {
+			allowHeaders = endpointSecurityCors.AllowHeaders
+		}
+	}
+
+	return vo.NewSecurityCors(allowOrigins, allowMethods, allowHeaders)
+}
+
 func buildLimiter(limiter *dto.Limiter, endpointLimiter *dto.EndpointLimiter) vo.Limiter {
-	var maxHeaderSize vo.Bytes
-	var maxBodySize vo.Bytes
-	var maxMultipartForm vo.Bytes
+	var maxHeaderSize, maxBodySize, maxMultipartForm vo.Bytes
 	var endpointRate, rate *dto.Rate
 
 	if checker.NonNil(limiter) {
@@ -127,13 +147,13 @@ func buildLimiter(limiter *dto.Limiter, endpointLimiter *dto.EndpointLimiter) vo
 
 	if checker.NonNil(endpointLimiter) {
 		if checker.NonNil(endpointLimiter.MaxHeaderSize) {
-			maxHeaderSize = endpointLimiter.MaxHeaderSize
+			maxHeaderSize = *endpointLimiter.MaxHeaderSize
 		}
 		if checker.NonNil(endpointLimiter.MaxBodySize) {
-			maxBodySize = endpointLimiter.MaxBodySize
+			maxBodySize = *endpointLimiter.MaxBodySize
 		}
 		if checker.NonNil(endpointLimiter.MaxMultipartMemorySize) {
-			maxMultipartForm = endpointLimiter.MaxMultipartMemorySize
+			maxMultipartForm = *endpointLimiter.MaxMultipartMemorySize
 		}
 		endpointRate = endpointLimiter.Rate
 	}
@@ -308,7 +328,7 @@ func validateBackendDependencies(
 		}
 	}
 
-	if len(missing) > 0 {
+	if checker.IsNotEmpty(missing) {
 		panic(errors.Newf(
 			"dependencies not satisfied (endpoint=%s %s, flow=%s, index=%d, backend.id=%q). "+
 				"Missing (must appear BEFORE in the same endpoint): %s",
@@ -424,7 +444,7 @@ func buildUnifiedPublisher(backend dto.Backend, parallelism bool) vo.Publisher {
 	return vo.NewPublisher(
 		backend.OnlyIf,
 		backend.IgnoreIf,
-		backend.Provider,
+		backend.Broker,
 		backend.Path,
 		backend.GroupID,
 		backend.DeduplicationID,
@@ -541,6 +561,7 @@ func buildBackendResponseBody(backendResponseBody *dto.BackendResponseBody) *vo.
 		buildMapper(backendResponseBody.Mapper),
 		buildProjector(backendResponseBody.Projector),
 		buildModifiers(backendResponseBody.Modifiers),
+		buildEnrichers(backendResponseBody.Enrichers),
 	)
 }
 
@@ -570,6 +591,29 @@ func buildModifier(modifier dto.Modifier) vo.Modifier {
 	return vo.NewModifier(modifier.OnlyIf, modifier.IgnoreIf, modifier.Action, modifier.Propagate, modifier.Key, modifier.Value)
 }
 
+func buildEnrichers(enrichers []dto.Enricher) []vo.Enricher {
+	var result []vo.Enricher
+	for _, enricher := range enrichers {
+		result = append(result, buildEnricher(enricher))
+	}
+	return result
+}
+
+func buildEnricher(enricher dto.Enricher) vo.Enricher {
+	return vo.NewEnricher(
+		enricher.OnlyIf,
+		enricher.IgnoreIf,
+		vo.NewEnricherSource(enricher.Source.Path, enricher.Source.Key),
+		vo.NewEnricherTarget(
+			enricher.Target.Policy,
+			enricher.Target.Path,
+			enricher.Target.Key,
+			enricher.Target.As,
+			enricher.Target.OnMissing,
+		),
+	)
+}
+
 func resolveBackendTemplate(cur dto.Backend, templates *dto.Templates) dto.Backend {
 	if checker.IsNil(cur.Template) || checker.IsEmpty(cur.Template.Path) {
 		if checker.IsEmpty(cur.ID) && checker.IsNotEmpty(cur.Path) {
@@ -583,12 +627,13 @@ func resolveBackendTemplate(cur dto.Backend, templates *dto.Templates) dto.Backe
 
 	base := tpl
 	base.ID = cur.Template.Path
-	if mergeMode == "BASE" {
+	if checker.Equals(mergeMode, enum.TemplateMergeBase) {
 		base = keepTemplateBase(tpl)
 	}
 
 	merged := mergeBackendFULL(base, cur)
 	locked := forceLockedFieldsFromTemplate(tpl, merged)
+
 	return locked
 }
 
@@ -625,17 +670,14 @@ func normalizeMerge(in enum.TemplateMerge) enum.TemplateMerge {
 
 func keepTemplateBase(tpl dto.Backend) dto.Backend {
 	out := dto.Backend{
-		Comment:      tpl.Comment,
 		ID:           tpl.ID,
 		Dependencies: tpl.Dependencies,
-		OnlyIf:       tpl.OnlyIf,
-		IgnoreIf:     tpl.IgnoreIf,
 		Kind:         tpl.Kind,
 	}
 
 	switch tpl.Kind {
 	case enum.BackendKindPublisher:
-		out.Provider = tpl.Provider
+		out.Broker = tpl.Broker
 		out.Path = tpl.Path
 		return out
 	case enum.BackendKindHTTP:
@@ -654,7 +696,7 @@ func forceLockedFieldsFromTemplate(tpl dto.Backend, merged dto.Backend) dto.Back
 
 	switch tpl.Kind {
 	case enum.BackendKindPublisher:
-		merged.Provider = tpl.Provider
+		merged.Broker = tpl.Broker
 		merged.Path = tpl.Path
 		return merged
 
@@ -708,8 +750,8 @@ func mergeBackendFULL(tpl dto.Backend, cur dto.Backend) dto.Backend {
 	out.Propagate = mergeBackendPropagate(out.Propagate, cur.Propagate)
 
 	// PUBLISHER
-	if cur.Provider.IsEnumValid() {
-		out.Provider = cur.Provider
+	if cur.Broker.IsEnumValid() {
+		out.Broker = cur.Broker
 	}
 	if checker.IsNotEmpty(cur.GroupID) {
 		out.GroupID = cur.GroupID
@@ -744,7 +786,7 @@ func mergePublisherMessage(tpl, cur *dto.PublisherMessage) *dto.PublisherMessage
 			out.IgnoreIf = append(append([]string{}, out.IgnoreIf...), cur.IgnoreIf...)
 		}
 		if checker.NonNil(cur.Attributes) {
-			if out.Attributes == nil {
+			if checker.IsNil(out.Attributes) {
 				out.Attributes = map[string]dto.PublisherMessageAttribute{}
 			}
 			for k, v := range cur.Attributes {
@@ -1127,7 +1169,7 @@ func rewriteBackendRequestBodyResponseRefs(b *dto.BackendRequestBody, backendInd
 }
 
 func rewriteModifiersResponseRefs(in []dto.Modifier, backendIndex int) []dto.Modifier {
-	if len(in) == 0 {
+	if checker.IsEmpty(in) {
 		return nil
 	}
 	out := make([]dto.Modifier, 0, len(in))
@@ -1147,7 +1189,7 @@ func rewriteResponseRef(value string, backendIndex int) string {
 }
 
 func onlyPropagate(in []dto.Modifier) []dto.Modifier {
-	if len(in) == 0 {
+	if checker.IsEmpty(in) {
 		return nil
 	}
 	out := make([]dto.Modifier, 0, len(in))

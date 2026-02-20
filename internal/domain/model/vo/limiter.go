@@ -17,8 +17,9 @@
 package vo
 
 import (
-	"github.com/tech4works/checker"
 	"time"
+
+	"github.com/tech4works/checker"
 )
 
 type Limiter struct {

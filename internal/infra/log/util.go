@@ -67,7 +67,7 @@ func tintTextStyle(s string) string {
 	switch s {
 	case http.MethodPost:
 		return fmt.Sprint(BackgroundYellow)
-	case http.MethodGet, enum.PublisherProviderAwsSns.String(), enum.PublisherProviderAwsSqs.String():
+	case http.MethodGet, enum.BackendBrokerAwsSns.String(), enum.BackendBrokerAwsSqs.String():
 		return fmt.Sprint(BackgroundBlue)
 	case http.MethodDelete:
 		return fmt.Sprint(BackgroundRed)

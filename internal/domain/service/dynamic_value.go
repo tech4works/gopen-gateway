@@ -20,6 +20,7 @@ type DynamicValue interface {
 	Get(value string, request *vo.HTTPRequest, history *vo.History) (string, []error)
 	GetAsSliceOfString(value string, request *vo.HTTPRequest, history *vo.History) ([]string, []error)
 	EvalBool(exprs []string, request *vo.HTTPRequest, history *vo.History) (bool, []error)
+	EvalAny(expr string, request *vo.HTTPRequest, history *vo.History) (any, []error)
 	EvalGuards(onlyIf, ignoreIf []string, request *vo.HTTPRequest, history *vo.History) (bool, string, []error)
 }
 
@@ -30,37 +31,43 @@ func NewDynamicValue(jsonPath domain.JSONPath) DynamicValue {
 }
 
 func (d dynamicValueService) Get(value string, request *vo.HTTPRequest, history *vo.History) (string, []error) {
-	var errs []error
+	var allErrs []error
 
-	// 1) Primeiro resolve expressões $... embutidas na string (ex.: "$equals(...) texto #request...")
-	value, errs = d.replaceAllBoolExpressions(value, request, history)
-	if checker.IsLengthGreaterThan(errs, 0) {
-		return value, errs
+	apply := func(stage string, fn func(string, *vo.HTTPRequest, *vo.History) (string, []error)) {
+		v, errs := fn(value, request, history)
+		if checker.IsNotEmpty(errs) {
+			for _, e := range errs {
+				allErrs = append(allErrs, errors.Inheritf(e, "dynamic-value failed: op=%s", stage))
+			}
+		}
+		value = v
+
 	}
 
-	// 2) Depois resolve o restante #...
-	return d.replaceAllExpressions(value, request, history)
+	apply("any-expressions", d.replaceAllAnyExpressions)
+	apply("bool-expressions", d.replaceAllBoolExpressions)
+	apply("all-expressions", d.replaceAllExpressions)
+
+	return value, allErrs
 }
 
 func (d dynamicValueService) GetAsSliceOfString(value string, request *vo.HTTPRequest, history *vo.History) (
 	[]string, []error) {
 	newValue, errs := d.Get(value, request, history)
+
 	if checker.IsSlice(newValue) {
 		var ss []string
-		err := converter.ToDestWithErr(newValue, &ss)
-		if checker.IsNil(err) {
-			return ss, errs
-		} else {
-			errs = append(errs, err)
+		if err := converter.ToDestWithErr(newValue, &ss); checker.NonNil(err) {
+			errs = append(errs, errors.Inheritf(err,
+				"dynamic-value failed: op=parse-slice value=%s", newValue))
 		}
+		return ss, errs
 	}
+
 	return []string{newValue}, errs
 }
 
 func (d dynamicValueService) EvalBool(exprs []string, request *vo.HTTPRequest, history *vo.History) (bool, []error) {
-	// MVP: OR entre as expressões do array
-	// - array vazio/nil => false
-	// - string vazia => ignora (skip)
 	for _, expr := range exprs {
 		expr = strings.TrimSpace(expr)
 		if checker.IsEmpty(expr) {
@@ -68,13 +75,35 @@ func (d dynamicValueService) EvalBool(exprs []string, request *vo.HTTPRequest, h
 		}
 
 		v, errs := d.evalBoolExpr(expr, request, history)
-		if checker.IsLengthGreaterThan(errs, 0) {
+		if checker.IsNotEmpty(errs) {
 			return false, errs
 		} else if v {
 			return true, nil
 		}
 	}
 	return false, nil
+}
+
+func (d dynamicValueService) EvalAny(expr string, request *vo.HTTPRequest, history *vo.History) (any, []error) {
+	expr = strings.TrimSpace(expr)
+
+	if !(strings.HasPrefix(expr, "$") && strings.Contains(expr, "(") && strings.HasSuffix(expr, ")")) {
+		return nil, errors.NewAsSlicef("dynamic-value failed: unsupported any expression expr=%s", expr)
+	}
+
+	name, args, err := d.parseFuncCall(expr)
+	if checker.NonNil(err) {
+		return nil, errors.InheritAsSlicef(err, "dynamic-value failed: op=parse expr=%s", expr)
+	}
+
+	v, errs := d.evalFuncAny(name, args, request, history)
+	if checker.IsNotEmpty(errs) {
+		for i, e := range errs {
+			errs[i] = errors.Inheritf(e, "dynamic-value failed: op=eval-func-any func=%s expr=%s", name, expr)
+		}
+	}
+
+	return v, errs
 }
 
 func (d dynamicValueService) EvalGuards(
@@ -86,19 +115,22 @@ func (d dynamicValueService) EvalGuards(
 	if checker.IsNotEmpty(onlyIf) {
 		ok, errs := d.EvalBool(onlyIf, request, history)
 		if checker.IsNotEmpty(errs) {
+			for i, e := range errs {
+				errs[i] = errors.Inheritf(e, "dynamic-value failed: guard=only-if exprs=%s", strings.Join(onlyIf, " || "))
+			}
 			return false, "", errs
-		}
-		if !ok {
+		} else if !ok {
 			return false, "only-if: " + strings.Join(onlyIf, " || "), nil
 		}
 	}
-
 	if checker.IsNotEmpty(ignoreIf) {
 		ignore, errs := d.EvalBool(ignoreIf, request, history)
 		if checker.IsNotEmpty(errs) {
+			for i, e := range errs {
+				errs[i] = errors.Inheritf(e, "dynamic-value failed: guard=ignore-if exprs=%s", strings.Join(onlyIf, " || "))
+			}
 			return false, "", errs
-		}
-		if ignore {
+		} else if ignore {
 			return false, "ignore-if: " + strings.Join(ignoreIf, " || "), nil
 		}
 	}
@@ -115,18 +147,14 @@ func (d dynamicValueService) resolveToString(
 	expr = strings.TrimSpace(expr)
 	expr = d.stripQuotes(expr)
 
-	// Se o "expr" tem tokens (#...), resolvemos cada token.
 	tokens := d.findAllBySyntax(expr)
 	for _, tok := range tokens {
 		val, err := d.getValueBySyntax(tok, request, history)
-		if errors.Is(err, mapper.ErrValueNotFound) {
-			if treatNotFoundAsEmpty {
+		if checker.NonNil(err) {
+			if errors.Is(err, mapper.ErrDynamicValueNotFound) && treatNotFoundAsEmpty {
 				return "", nil
 			}
-			return "", []error{err}
-		}
-		if checker.NonNil(err) {
-			return "", []error{err}
+			return "", errors.InheritAsSlicef(err, "dynamic-value failed: op=get-value-by-syntax token=%s expr=%s", tok, expr)
 		}
 		expr = strings.Replace(expr, tok, val, 1)
 	}
@@ -141,7 +169,7 @@ func (d dynamicValueService) resolveToAny(
 	treatNotFoundAsEmpty bool,
 ) (any, []error) {
 	s, errs := d.resolveToString(expr, request, history, treatNotFoundAsEmpty)
-	if checker.IsLengthGreaterThan(errs, 0) {
+	if checker.IsNotEmpty(errs) {
 		return nil, errs
 	}
 
@@ -176,10 +204,10 @@ func (d dynamicValueService) replaceAllExpressions(value string, request *vo.HTT
 	var errs []error
 	for _, word := range d.findAllBySyntax(value) {
 		result, err := d.getValueBySyntax(word, request, history)
-		if errors.Is(err, mapper.ErrValueNotFound) {
+		if errors.Is(err, mapper.ErrDynamicValueNotFound) {
 			continue
 		} else if checker.NonNil(err) {
-			errs = append(errs, err)
+			errs = append(errs, errors.Inheritf(err, "dynamic-value failed: op=get-value-by-syntax word=%s", word))
 		} else {
 			value = strings.Replace(value, word, result, 1)
 		}
@@ -192,19 +220,53 @@ func (d dynamicValueService) replaceAllBoolExpressions(
 	request *vo.HTTPRequest,
 	history *vo.History,
 ) (string, []error) {
-	exprs := d.findAllBoolExpressions(value)
-	if len(exprs) == 0 {
+	exprs := d.findAllFuncExpressions(value)
+	if checker.IsEmpty(exprs) {
 		return value, nil
 	}
 
 	var errs []error
 	for _, expr := range exprs {
 		b, es := d.EvalBool([]string{expr}, request, history)
-		if checker.IsLengthGreaterThan(es, 0) {
-			errs = append(errs, es...)
+		if checker.IsNotEmpty(es) {
+			for _, e := range es {
+				errs = append(errs, errors.Inheritf(e, "dynamic-value failed: op=eval-bool expr=%s", expr))
+			}
 			continue
 		}
 		value = strings.Replace(value, expr, converter.ToString(b), 1)
+	}
+
+	return value, errs
+}
+
+func (d dynamicValueService) replaceAllAnyExpressions(
+	value string,
+	request *vo.HTTPRequest,
+	history *vo.History,
+) (string, []error) {
+	exprs := d.findAllFuncExpressions(value)
+	if checker.IsEmpty(exprs) {
+		return value, nil
+	}
+
+	var errs []error
+	for _, expr := range exprs {
+		v, es := d.EvalAny(expr, request, history)
+		if checker.IsNotEmpty(es) {
+			for _, e := range es {
+				errs = append(errs, errors.Inheritf(e, "dynamic-value failed: op=eval-bool expr=%s", expr))
+			}
+			continue
+		}
+
+		repl, err := converter.ToStringWithErr(v)
+		if checker.NonNil(err) {
+			errs = append(errs, errors.Inheritf(err, "dynamic-value failed: op=stringify expr=%s", expr))
+			continue
+		}
+
+		value = strings.Replace(value, expr, repl, 1)
 	}
 
 	return value, errs
@@ -222,19 +284,20 @@ func (d dynamicValueService) findAllBySyntax(value string) []string {
 	return regex.FindAllString(value, -1)
 }
 
-func (d dynamicValueService) findAllBoolExpressions(s string) []string {
+func (d dynamicValueService) findAllFuncExpressions(s string) []string {
 	var out []string
 
 	inQuotes := false
 	var quote byte
-	for i := 0; i < len(s); i++ {
+	for i := 0; checker.IsLengthLessThan(s, i); i++ {
 		ch := s[i]
 
-		if (ch == '"' || ch == '\'') && (i == 0 || s[i-1] != '\\') {
+		if (checker.Equals(ch, '"') || checker.Equals(ch, '\'')) &&
+			(checker.Equals(i, 0) || checker.NotEquals(s[i-1], '\\')) {
 			if !inQuotes {
 				inQuotes = true
 				quote = ch
-			} else if quote == ch {
+			} else if checker.Equals(quote, ch) {
 				inQuotes = false
 				quote = 0
 			}
@@ -244,15 +307,15 @@ func (d dynamicValueService) findAllBoolExpressions(s string) []string {
 			continue
 		}
 
-		if ch != '$' {
+		if checker.NotEquals(ch, '$') {
 			continue
 		}
 
 		start := i
 
-		if i+1 < len(s) && s[i+1] == '(' {
+		if checker.IsLessThan(i+1, len(s)) && checker.Equals(s[i+1], '(') {
 			end := d.scanBalancedParens(s, i+1)
-			if end > 0 {
+			if checker.IsGreaterThan(end, 0) {
 				out = append(out, s[start:end])
 				i = end - 1
 			}
@@ -260,17 +323,20 @@ func (d dynamicValueService) findAllBoolExpressions(s string) []string {
 		}
 
 		j := i + 1
-		for j < len(s) {
+		for checker.IsLengthLessThan(s, j) {
 			c := s[j]
-			if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' {
+			if (checker.IsGreaterThanOrEqual(c, 'a') && checker.IsLessThanOrEqual(c, 'z')) ||
+				(checker.IsGreaterThanOrEqual(c, 'A') && checker.IsLessThanOrEqual(c, 'Z')) ||
+				(checker.IsGreaterThanOrEqual(c, '0') && checker.IsLessThanOrEqual(c, '9')) ||
+				checker.Equals(c, '_') {
 				j++
 				continue
 			}
 			break
 		}
-		if j < len(s) && j > i+1 && s[j] == '(' {
+		if checker.IsLessThan(j, len(s)) && checker.IsGreaterThan(j, i+1) && checker.Equals(s[j], '(') {
 			end := d.scanBalancedParens(s, j)
-			if end > 0 {
+			if checker.IsGreaterThan(end, 0) {
 				out = append(out, s[start:end])
 				i = end - 1
 			}
@@ -282,7 +348,9 @@ func (d dynamicValueService) findAllBoolExpressions(s string) []string {
 }
 
 func (d dynamicValueService) scanBalancedParens(s string, openIdx int) int {
-	if openIdx < 0 || openIdx >= len(s) || s[openIdx] != '(' {
+	if checker.IsLessThan(openIdx, 0) ||
+		checker.IsGreaterThanOrEqual(openIdx, len(s)) ||
+		checker.NotEquals(s[openIdx], '(') {
 		return 0
 	}
 
@@ -290,14 +358,15 @@ func (d dynamicValueService) scanBalancedParens(s string, openIdx int) int {
 	inQuotes := false
 	var quote byte
 
-	for i := openIdx; i < len(s); i++ {
+	for i := openIdx; checker.IsLengthLessThan(s, i); i++ {
 		ch := s[i]
 
-		if (ch == '"' || ch == '\'') && (i == 0 || s[i-1] != '\\') {
+		if (checker.Equals(ch, '"') || checker.Equals(ch, '\'')) &&
+			(checker.Equals(i, 0) || checker.NotEquals(s[i-1], '\\')) {
 			if !inQuotes {
 				inQuotes = true
 				quote = ch
-			} else if quote == ch {
+			} else if checker.Equals(quote, ch) {
 				inQuotes = false
 				quote = 0
 			}
@@ -307,13 +376,13 @@ func (d dynamicValueService) scanBalancedParens(s string, openIdx int) int {
 			continue
 		}
 
-		if ch == '(' {
+		if checker.Equals(ch, '(') {
 			depth++
 			continue
 		}
-		if ch == ')' {
+		if checker.Equals(ch, ')') {
 			depth--
-			if depth == 0 {
+			if checker.Equals(depth, 0) {
 				return i + 1
 			}
 		}
@@ -336,18 +405,21 @@ func (d dynamicValueService) getValueBySyntax(word string, request *vo.HTTPReque
 			}
 
 			result, err := d.getSingleValueBySyntax(part, request, history)
-			if errors.Is(err, mapper.ErrValueNotFound) {
+			if errors.Is(err, mapper.ErrDynamicValueNotFound) {
 				lastNotFound = err
 				continue
 			} else if checker.NonNil(err) {
-				return "", err
+				return "", errors.Inheritf(err, "dynamic-value failed: op=get-single-value-by-syntax part=%s full=%s", part, word)
 			}
+
 			return result, nil
 		}
+
 		if checker.NonNil(lastNotFound) {
 			return "", lastNotFound
 		}
-		return "", errors.Newf("Invalid dynamic value syntax! key: %s", word)
+
+		return "", errors.Newf("dynamic-value failed: invalid full=%s", word)
 	}
 
 	return d.getSingleValueBySyntax(word, request, history)
@@ -358,7 +430,7 @@ func (d dynamicValueService) getSingleValueBySyntax(word string, request *vo.HTT
 	cleanSintaxe := strings.ReplaceAll(word, "#", "")
 	dotSplit := strings.Split(cleanSintaxe, ".")
 	if checker.IsEmpty(dotSplit) {
-		return "", errors.Newf("Invalid dynamic value syntax! key: %s", word)
+		return "", errors.Newf("dynamic-value failed: op=dot-split invalid token=%s", word)
 	}
 
 	prefix := dotSplit[0]
@@ -367,7 +439,7 @@ func (d dynamicValueService) getSingleValueBySyntax(word string, request *vo.HTT
 	} else if checker.Contains(prefix, "responses") {
 		return d.getResponseValueByJsonPath(cleanSintaxe, history)
 	} else {
-		return "", errors.Newf("Invalid prefix syntax %s!", prefix)
+		return "", errors.Newf("dynamic-value failed: op=get-first-dot-split invalid-prefix=%s token=%s", prefix, word)
 	}
 }
 
@@ -376,7 +448,7 @@ func (d dynamicValueService) getRequestValueByJsonPath(jsonPath string, request 
 
 	jsonRequest, err := request.Map()
 	if checker.NonNil(err) {
-		return "", err
+		return "", errors.Inheritf(err, "dynamic-value failed: op=request.map path=%s", jsonPath)
 	}
 
 	result := d.jsonPath.Get(jsonRequest, jsonPath)
@@ -384,7 +456,7 @@ func (d dynamicValueService) getRequestValueByJsonPath(jsonPath string, request 
 		return result.String(), nil
 	}
 
-	return "", mapper.NewErrValueNotFound(jsonPath)
+	return "", mapper.NewErrDynamicValueNotFound(jsonPath)
 }
 
 func (d dynamicValueService) getResponseValueByJsonPath(jsonPath string, history *vo.History) (string, error) {
@@ -392,18 +464,18 @@ func (d dynamicValueService) getResponseValueByJsonPath(jsonPath string, history
 		return d.getResponseValueByBracketJsonPath(jsonPath, history)
 	}
 
-	return "", errors.Newf("Invalid responses syntax! use #responses[<index|id>].<path> (key: #%s)", jsonPath)
+	return "", errors.Newf("dynamic-value failed: invalid syntax=%s", jsonPath)
 }
 
 func (d dynamicValueService) getResponseValueByBracketJsonPath(jsonPath string, history *vo.History) (string, error) {
 	closeIndex := strings.Index(jsonPath, "]")
 	if checker.IsLengthLessThan(closeIndex, 0) {
-		return "", errors.Newf("Invalid responses[<index|id>] syntax (missing ']')! key: %s", jsonPath)
+		return "", errors.Newf("dynamic-value failed: invalid syntax=%s missing ']'", jsonPath)
 	}
 
 	key := strings.TrimSpace(jsonPath[len("responses["):closeIndex])
 	if checker.IsEmpty(key) {
-		return "", errors.Newf("Invalid responses[<index|id>] syntax (empty key)! key: %s", jsonPath)
+		return "", errors.Newf("dynamic-value failed: invalid syntax=%s empty key", jsonPath)
 	}
 
 	rest := jsonPath[closeIndex+1:]
@@ -420,7 +492,7 @@ func (d dynamicValueService) getResponseValueByBracketJsonPath(jsonPath string, 
 func (d dynamicValueService) getResponseValueByIndex(index string, rest string, history *vo.History) (string, error) {
 	jsonResponses, err := history.ResponsesMap()
 	if checker.NonNil(err) {
-		return "", err
+		return "", errors.Inheritf(err, "dynamic-value failed: op=history.map index=%s rest=%s", index, rest)
 	}
 
 	lookupPath := index
@@ -433,13 +505,13 @@ func (d dynamicValueService) getResponseValueByIndex(index string, rest string, 
 		return result.String(), nil
 	}
 
-	return "", mapper.NewErrValueNotFound("responses[" + index + "]." + rest)
+	return "", mapper.NewErrDynamicValueNotFound("responses[" + index + "]." + rest)
 }
 
 func (d dynamicValueService) getResponseValueByID(id string, rest string, history *vo.History) (string, error) {
 	jsonResponses, err := history.ResponsesMapByID()
 	if checker.NonNil(err) {
-		return "", err
+		return "", errors.Inheritf(err, "dynamic-value failed: op=history.map id=%s rest=%s", id, rest)
 	}
 
 	lookupPath := id
@@ -452,18 +524,17 @@ func (d dynamicValueService) getResponseValueByID(id string, rest string, histor
 		return result.String(), nil
 	}
 
-	return "", mapper.NewErrValueNotFound("responses[" + id + "]." + rest)
+	return "", mapper.NewErrDynamicValueNotFound("responses[" + id + "]." + rest)
 }
 
 func (d dynamicValueService) evalBoolExpr(expr string, request *vo.HTTPRequest, history *vo.History) (bool, []error) {
 	expr = strings.TrimSpace(expr)
 	expr = d.trimOuterParens(expr)
 
-	// OR (||) no topo
 	if parts, ok := d.splitTopLevel(expr, "||"); ok {
 		for _, p := range parts {
 			v, errs := d.evalBoolExpr(p, request, history)
-			if checker.IsLengthGreaterThan(errs, 0) {
+			if checker.IsNotEmpty(errs) {
 				return false, errs
 			} else if v {
 				return true, nil
@@ -472,11 +543,10 @@ func (d dynamicValueService) evalBoolExpr(expr string, request *vo.HTTPRequest, 
 		return false, nil
 	}
 
-	// AND (&&) no topo
 	if parts, ok := d.splitTopLevel(expr, "&&"); ok {
 		for _, p := range parts {
 			v, errs := d.evalBoolExpr(p, request, history)
-			if checker.IsLengthGreaterThan(errs, 0) {
+			if checker.IsNotEmpty(errs) {
 				return false, errs
 			} else if !v {
 				return false, nil
@@ -485,45 +555,113 @@ func (d dynamicValueService) evalBoolExpr(expr string, request *vo.HTTPRequest, 
 		return true, nil
 	}
 
-	// Caso: $(...)
-	// Ex.: $(#request.body.enabled)
 	if strings.HasPrefix(expr, "$(") && strings.HasSuffix(expr, ")") {
 		inside := strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(expr, "$("), ")"))
 		return d.evalAsBool(inside, request, history)
 	}
 
-	// Caso: $func(...)
-	// Ex.: $isEmpty(#request.body.x)
 	if strings.HasPrefix(expr, "$") && strings.Contains(expr, "(") && strings.HasSuffix(expr, ")") {
 		name, args, err := d.parseFuncCall(expr)
 		if checker.NonNil(err) {
-			return false, []error{err}
+			return false, errors.InheritAsSlicef(err, "dynamic-value failed: op=parse-func expr=%s", expr)
 		}
 		return d.evalFuncBool(name, args, request, history)
 	}
 
-	// Se vier um literal direto ("true"/"false") também aceitamos
 	if b, ok := d.parseBoolLiteral(expr); ok {
 		return b, nil
 	}
 
-	return false, []error{errors.Newf("Unsupported boolean expression: %s", expr)}
+	return false, errors.NewAsSlicef("dynamic-value failed: unsupported expr=%s", expr)
+}
+
+func (d dynamicValueService) evalFuncAny(
+	name string,
+	args []string,
+	request *vo.HTTPRequest,
+	history *vo.History,
+) (any, []error) {
+	n := strings.ToLower(strings.TrimSpace(name))
+
+	need1 := func() (string, []error) {
+		if checker.IsLengthNotEquals(args, 1) {
+			return "", errors.NewAsSlicef("dynamic-value failed: op=need-1 $%s expects 1 argument, got %d", name,
+				len(args))
+		}
+		return strings.TrimSpace(args[0]), nil
+	}
+
+	switch n {
+	case "length":
+		a, errs := need1()
+		if checker.IsNotEmpty(errs) {
+			return nil, errs
+		}
+		return d.evalLength(a, request, history)
+	case "distinct":
+		a, errs := need1()
+		if checker.IsNotEmpty(errs) {
+			return nil, errs
+		}
+		return d.evalDistinct(a, request, history)
+	}
+
+	return false, errors.NewAsSlicef("dynamic-value failed: unsupported func=%s", name)
+}
+
+func (d dynamicValueService) evalLength(arg string, request *vo.HTTPRequest, history *vo.History) (int, []error) {
+	v, errs := d.resolveToAny(arg, request, history, true)
+	if checker.IsNotEmpty(errs) {
+		return 0, errs
+	}
+
+	ln, err := converter.ToLengthWithErr(v)
+	if checker.NonNil(err) {
+		return 0, errors.InheritAsSlicef(err, "dynamic-value failed: op=to-length arg=%s", arg)
+	}
+
+	return ln, nil
+}
+
+func (d dynamicValueService) evalDistinct(arg string, request *vo.HTTPRequest, history *vo.History) (any, []error) {
+	v, errs := d.resolveToAny(arg, request, history, true)
+	if checker.IsNotEmpty(errs) {
+		return nil, errs
+	} else if !checker.IsSliceOrArrayType(v) {
+		return v, nil
+	}
+
+	arr, ok := v.([]any)
+	if !ok {
+		return nil, errors.NewAsSlicef("dynamic-value failed: op=cast-to-slice arg=%s", arg)
+	}
+
+	out := make([]any, 0, len(arr))
+	for _, it := range arr {
+		if checker.Contains(out, it) {
+			continue
+		}
+		out = append(out, it)
+	}
+
+	return out, nil
 }
 
 func (d dynamicValueService) evalFuncBool(name string, args []string, request *vo.HTTPRequest, history *vo.History) (
 	bool, []error) {
 	n := strings.ToLower(strings.TrimSpace(name))
 
-	// helpers de aridade
 	need1 := func() (string, []error) {
 		if checker.IsLengthNotEquals(args, 1) {
-			return "", []error{errors.Newf("$%s expects 1 argument, got %d", name, len(args))}
+			return "", errors.NewAsSlicef("dynamic-value failed: op=need-1 $%s expects 1 argument, got %d", name,
+				len(args))
 		}
 		return strings.TrimSpace(args[0]), nil
 	}
 	need2 := func() (string, string, []error) {
 		if checker.IsLengthNotEquals(args, 2) {
-			return "", "", []error{errors.Newf("$%s expects 2 arguments, got %d", name, len(args))}
+			return "", "", errors.NewAsSlicef("dynamic-value failed: op=need-2 $%s expects 2 arguments, got %d",
+				name, len(args))
 		}
 		return strings.TrimSpace(args[0]), strings.TrimSpace(args[1]), nil
 	}
@@ -531,170 +669,178 @@ func (d dynamicValueService) evalFuncBool(name string, args []string, request *v
 	switch n {
 	case "isnull":
 		a, errs := need1()
-		if checker.IsLengthGreaterThan(errs, 0) {
+		if checker.IsNotEmpty(errs) {
 			return false, errs
 		}
 		return d.evalIsNull(a, request, history, true)
 	case "isnotnull":
 		a, errs := need1()
-		if checker.IsLengthGreaterThan(errs, 0) {
+		if checker.IsNotEmpty(errs) {
 			return false, errs
 		}
 		v, es := d.evalIsNull(a, request, history, true)
-		if checker.IsLengthGreaterThan(es, 0) {
+		if checker.IsNotEmpty(es) {
 			return false, es
 		}
 		return !v, nil
 	case "isempty":
 		a, errs := need1()
-		if checker.IsLengthGreaterThan(errs, 0) {
+		if checker.IsNotEmpty(errs) {
 			return false, errs
 		}
 		return d.evalEmpty(a, request, history, true)
 	case "isnullorempty":
 		a, errs := need1()
-		if checker.IsLengthGreaterThan(errs, 0) {
+		if checker.IsNotEmpty(errs) {
 			return false, errs
 		}
 		return d.evalNullOrEmpty(a, request, history, true)
 	case "isnotempty":
 		a, errs := need1()
-		if checker.IsLengthGreaterThan(errs, 0) {
+		if checker.IsNotEmpty(errs) {
 			return false, errs
 		}
 		v, es := d.evalEmpty(a, request, history, true)
-		if len(es) > 0 {
+		if checker.IsNotEmpty(es) {
 			return false, es
 		}
 		return !v, nil
 	case "isnotnullorempty":
 		a, errs := need1()
-		if checker.IsLengthGreaterThan(errs, 0) {
+		if checker.IsNotEmpty(errs) {
 			return false, errs
 		}
 		v, es := d.evalNullOrEmpty(a, request, history, true)
-		if len(es) > 0 {
+		if checker.IsNotEmpty(es) {
 			return false, es
 		}
 		return !v, nil
 	case "isgreaterthan":
 		l, r, errs := need2()
-		if checker.IsLengthGreaterThan(errs, 0) {
+		if checker.IsNotEmpty(errs) {
 			return false, errs
 		}
-		return d.evalCompareNumber(l, r, request, history, func(a, b float64) bool { return a > b })
+		return d.evalCompareNumber(l, r, request, history, func(a, b float64) bool {
+			return checker.IsGreaterThan(a, b)
+		})
 	case "isgreaterthanorequal":
 		l, r, errs := need2()
-		if checker.IsLengthGreaterThan(errs, 0) {
+		if checker.IsNotEmpty(errs) {
 			return false, errs
 		}
-		return d.evalCompareNumber(l, r, request, history, func(a, b float64) bool { return a >= b })
+		return d.evalCompareNumber(l, r, request, history, func(a, b float64) bool {
+			return checker.IsGreaterThanOrEqual(a, b)
+		})
 	case "islessthan":
 		l, r, errs := need2()
-		if checker.IsLengthGreaterThan(errs, 0) {
+		if checker.IsNotEmpty(errs) {
 			return false, errs
 		}
-		return d.evalCompareNumber(l, r, request, history, func(a, b float64) bool { return a < b })
+		return d.evalCompareNumber(l, r, request, history, func(a, b float64) bool {
+			return checker.IsLessThan(a, b)
+		})
 	case "islessthanorequal":
 		l, r, errs := need2()
-		if checker.IsLengthGreaterThan(errs, 0) {
+		if checker.IsNotEmpty(errs) {
 			return false, errs
 		}
-		return d.evalCompareNumber(l, r, request, history, func(a, b float64) bool { return a <= b })
+		return d.evalCompareNumber(l, r, request, history, func(a, b float64) bool {
+			return checker.IsLessThanOrEqual(a, b)
+		})
 	case "equals":
 		l, r, errs := need2()
-		if checker.IsLengthGreaterThan(errs, 0) {
+		if checker.IsNotEmpty(errs) {
 			return false, errs
 		}
 		return d.evalEquals(l, r, request, history, true)
 	case "equalsignorecase":
 		l, r, errs := need2()
-		if checker.IsLengthGreaterThan(errs, 0) {
+		if checker.IsNotEmpty(errs) {
 			return false, errs
 		}
 		return d.evalEqualsIgnoreCase(l, r, request, history, true)
 	case "notequals":
 		l, r, errs := need2()
-		if checker.IsLengthGreaterThan(errs, 0) {
+		if checker.IsNotEmpty(errs) {
 			return false, errs
 		}
 		v, es := d.evalEquals(l, r, request, history, true)
-		if len(es) > 0 {
+		if checker.IsNotEmpty(es) {
 			return false, es
 		}
 		return !v, nil
 	case "notequalsignorecase":
 		l, r, errs := need2()
-		if checker.IsLengthGreaterThan(errs, 0) {
+		if checker.IsNotEmpty(errs) {
 			return false, errs
 		}
 		v, es := d.evalEqualsIgnoreCase(l, r, request, history, true)
-		if len(es) > 0 {
+		if checker.IsNotEmpty(es) {
 			return false, es
 		}
 		return !v, nil
 	case "contains":
 		l, r, errs := need2()
-		if checker.IsLengthGreaterThan(errs, 0) {
+		if checker.IsNotEmpty(errs) {
 			return false, errs
 		}
 		return d.evalContains(l, r, request, history, false)
 	case "containsignorecase":
 		l, r, errs := need2()
-		if checker.IsLengthGreaterThan(errs, 0) {
+		if checker.IsNotEmpty(errs) {
 			return false, errs
 		}
 		return d.evalContainsIgnoreCase(l, r, request, history, false)
 	case "notcontains":
 		l, r, errs := need2()
-		if checker.IsLengthGreaterThan(errs, 0) {
+		if checker.IsNotEmpty(errs) {
 			return false, errs
 		}
 		return d.evalContains(l, r, request, history, true)
 	case "notcontainsignorecase":
 		l, r, errs := need2()
-		if checker.IsLengthGreaterThan(errs, 0) {
+		if checker.IsNotEmpty(errs) {
 			return false, errs
 		}
 		return d.evalContainsIgnoreCase(l, r, request, history, true)
 	case "islengthgreaterthan":
 		l, r, errs := need2()
-		if checker.IsLengthGreaterThan(errs, 0) {
+		if checker.IsNotEmpty(errs) {
 			return false, errs
 		}
 		return d.evalLengthCompare(l, r, request, history, "gt")
 	case "islengthlessthan":
 		l, r, errs := need2()
-		if checker.IsLengthGreaterThan(errs, 0) {
+		if checker.IsNotEmpty(errs) {
 			return false, errs
 		}
 		return d.evalLengthCompare(l, r, request, history, "lt")
 	case "islengthgreaterthanorequal":
 		l, r, errs := need2()
-		if checker.IsLengthGreaterThan(errs, 0) {
+		if checker.IsNotEmpty(errs) {
 			return false, errs
 		}
 		return d.evalLengthCompare(l, r, request, history, "gte")
 	case "islengthlessthanorequal":
 		l, r, errs := need2()
-		if checker.IsLengthGreaterThan(errs, 0) {
+		if checker.IsNotEmpty(errs) {
 			return false, errs
 		}
 		return d.evalLengthCompare(l, r, request, history, "lte")
 	case "islengthequals":
 		l, r, errs := need2()
-		if checker.IsLengthGreaterThan(errs, 0) {
+		if checker.IsNotEmpty(errs) {
 			return false, errs
 		}
 		return d.evalLengthCompare(l, r, request, history, "eq")
 	}
 
-	return false, []error{errors.Newf("Unsupported function: $%s", name)}
+	return false, errors.NewAsSlicef("dynamic-value failed: unsupported func=%s", name)
 }
 
 func (d dynamicValueService) evalIsNull(arg string, request *vo.HTTPRequest, history *vo.History, treatNotFoundAsEmpty bool) (bool, []error) {
 	v, errs := d.resolveToAny(arg, request, history, treatNotFoundAsEmpty)
-	if checker.IsLengthGreaterThan(errs, 0) {
+	if checker.IsNotEmpty(errs) {
 		return false, errs
 	}
 
@@ -712,7 +858,7 @@ func (d dynamicValueService) evalIsNull(arg string, request *vo.HTTPRequest, his
 func (d dynamicValueService) evalEmpty(arg string, request *vo.HTTPRequest, history *vo.History, treatNotFoundAsEmpty bool,
 ) (bool, []error) {
 	s, errs := d.resolveToString(arg, request, history, treatNotFoundAsEmpty)
-	if checker.IsLengthGreaterThan(errs, 0) {
+	if checker.IsNotEmpty(errs) {
 		return false, errs
 	} else if checker.IsEmpty(s) {
 		return true, nil
@@ -723,7 +869,7 @@ func (d dynamicValueService) evalEmpty(arg string, request *vo.HTTPRequest, hist
 func (d dynamicValueService) evalNullOrEmpty(arg string, request *vo.HTTPRequest, history *vo.History,
 	treatNotFoundAsEmpty bool) (bool, []error) {
 	s, errs := d.resolveToString(arg, request, history, treatNotFoundAsEmpty)
-	if checker.IsLengthGreaterThan(errs, 0) {
+	if checker.IsNotEmpty(errs) {
 		return false, errs
 	}
 
@@ -739,42 +885,39 @@ func (d dynamicValueService) evalNullOrEmpty(arg string, request *vo.HTTPRequest
 
 func (d dynamicValueService) evalAsBool(arg string, request *vo.HTTPRequest, history *vo.History) (bool, []error) {
 	s, errs := d.resolveToString(arg, request, history, false)
-	if checker.IsLengthGreaterThan(errs, 0) {
+	if checker.IsNotEmpty(errs) {
 		return false, errs
-	}
-	if b, ok := d.parseBoolLiteral(strings.TrimSpace(s)); ok {
+	} else if b, ok := d.parseBoolLiteral(strings.TrimSpace(s)); ok {
 		return b, nil
-	}
-	// opcional: aceitar "1"/"0"
-	if strings.TrimSpace(s) == "1" {
+	} else if checker.Equals(strings.TrimSpace(s), "1") {
 		return true, nil
-	}
-	if strings.TrimSpace(s) == "0" {
+	} else if checker.Equals(strings.TrimSpace(s), "0") {
 		return false, nil
+	} else {
+		return false, errors.NewAsSlicef("dynamic-value failed: value is not boolean: %s (resolved from %s)", s, arg)
 	}
-	return false, []error{errors.Newf("Value is not boolean: %s (resolved from %s)", s, arg)}
 }
 
 func (d dynamicValueService) evalCompareNumber(left string, right string, request *vo.HTTPRequest,
 	history *vo.History, cmp func(a, b float64) bool) (bool, []error) {
 	ls, errs := d.resolveToString(left, request, history, false)
-	if checker.IsLengthGreaterThan(errs, 0) {
+	if checker.IsNotEmpty(errs) {
 		return false, errs
 	}
 
 	rs, errs := d.resolveToString(right, request, history, false)
-	if checker.IsLengthGreaterThan(errs, 0) {
+	if checker.IsNotEmpty(errs) {
 		return false, errs
 	}
 
 	lf, err := converter.ToFloat64WithErr(strings.TrimSpace(d.stripQuotes(ls)))
 	if checker.NonNil(err) {
-		return false, []error{errors.Newf("Left operand is not a number: %s", ls)}
+		return false, errors.InheritAsSlicef(err, "dynamic-value failed: evalCompareNumber left-not-number value=%s", ls)
 	}
 
 	rf, err := converter.ToFloat64WithErr(strings.TrimSpace(d.stripQuotes(rs)))
 	if checker.NonNil(err) {
-		return false, []error{errors.Newf("Right operand is not a number: %s", rs)}
+		return false, errors.InheritAsSlicef(err, "dynamic-value failed: evalCompareNumber left-not-number value=%s", ls)
 	}
 
 	return cmp(lf, rf), nil
@@ -783,12 +926,12 @@ func (d dynamicValueService) evalCompareNumber(left string, right string, reques
 func (d dynamicValueService) evalEquals(left string, right string, request *vo.HTTPRequest, history *vo.History,
 	treatNotFoundAsEmpty bool) (bool, []error) {
 	ls, errs := d.resolveToString(left, request, history, treatNotFoundAsEmpty)
-	if checker.IsLengthGreaterThan(errs, 0) {
+	if checker.IsNotEmpty(errs) {
 		return false, errs
 	}
 
 	rs, errs := d.resolveToString(right, request, history, treatNotFoundAsEmpty)
-	if checker.IsLengthGreaterThan(errs, 0) {
+	if checker.IsNotEmpty(errs) {
 		return false, errs
 	}
 
@@ -801,12 +944,12 @@ func (d dynamicValueService) evalEquals(left string, right string, request *vo.H
 func (d dynamicValueService) evalEqualsIgnoreCase(left string, right string, request *vo.HTTPRequest,
 	history *vo.History, treatNotFoundAsEmpty bool) (bool, []error) {
 	ls, errs := d.resolveToString(left, request, history, treatNotFoundAsEmpty)
-	if checker.IsLengthGreaterThan(errs, 0) {
+	if checker.IsNotEmpty(errs) {
 		return false, errs
 	}
 
 	rs, errs := d.resolveToString(right, request, history, treatNotFoundAsEmpty)
-	if checker.IsLengthGreaterThan(errs, 0) {
+	if checker.IsNotEmpty(errs) {
 		return false, errs
 	}
 
@@ -819,12 +962,12 @@ func (d dynamicValueService) evalEqualsIgnoreCase(left string, right string, req
 func (d dynamicValueService) evalContains(left string, right string, request *vo.HTTPRequest,
 	history *vo.History, negate bool) (bool, []error) {
 	lv, errs := d.resolveToAny(left, request, history, true)
-	if checker.IsLengthGreaterThan(errs, 0) {
+	if checker.IsNotEmpty(errs) {
 		return false, errs
 	}
 
 	rv, errs := d.resolveToAny(right, request, history, true)
-	if checker.IsLengthGreaterThan(errs, 0) {
+	if checker.IsNotEmpty(errs) {
 		return false, errs
 	}
 
@@ -838,12 +981,12 @@ func (d dynamicValueService) evalContains(left string, right string, request *vo
 func (d dynamicValueService) evalContainsIgnoreCase(left string, right string, request *vo.HTTPRequest,
 	history *vo.History, negate bool) (bool, []error) {
 	ls, errs := d.resolveToString(left, request, history, true)
-	if checker.IsLengthGreaterThan(errs, 0) {
+	if checker.IsNotEmpty(errs) {
 		return false, errs
 	}
 
 	rs, errs := d.resolveToString(right, request, history, true)
-	if checker.IsLengthGreaterThan(errs, 0) {
+	if checker.IsNotEmpty(errs) {
 		return false, errs
 	}
 
@@ -860,12 +1003,12 @@ func (d dynamicValueService) evalContainsIgnoreCase(left string, right string, r
 func (d dynamicValueService) evalLengthCompare(left string, right string, request *vo.HTTPRequest,
 	history *vo.History, op string) (bool, []error) {
 	lv, errs := d.resolveToAny(left, request, history, true)
-	if checker.IsLengthGreaterThan(errs, 0) {
+	if checker.IsNotEmpty(errs) {
 		return false, errs
 	}
 
 	rv, errs := d.resolveToAny(right, request, history, false)
-	if checker.IsLengthGreaterThan(errs, 0) {
+	if checker.IsNotEmpty(errs) {
 		return false, errs
 	}
 
@@ -874,13 +1017,15 @@ func (d dynamicValueService) evalLengthCompare(left string, right string, reques
 	case string:
 		i, err := converter.ToIntWithErr(strings.TrimSpace(d.stripQuotes(v)))
 		if checker.NonNil(err) {
-			return false, []error{errors.Newf("Right operand must be int: %v", rv)}
+			return false, errors.InheritAsSlicef(err,
+				"dynamic-value failed: evalLengthCompare right-not-int op=%s value=%v", op, rv)
 		}
 		n = i
 	default:
 		i, err := converter.ToIntWithErr(rv)
 		if checker.NonNil(err) {
-			return false, []error{errors.Newf("Right operand must be int: %v", rv)}
+			return false, errors.InheritAsSlicef(err,
+				"dynamic-value failed: evalLengthCompare right-not-int op=%s value=%v", op, rv)
 		}
 		n = i
 	}
@@ -897,20 +1042,21 @@ func (d dynamicValueService) evalLengthCompare(left string, right string, reques
 	case "eq":
 		return checker.IsLengthEquals(lv, n), nil
 	default:
-		return false, []error{errors.Newf("Invalid length operator: %s", op)}
+		return false, errors.NewAsSlicef("dynamic-value failed: unsupported operator=%s", op)
 	}
 }
 
 func (d dynamicValueService) parseFuncCall(expr string) (string, []string, error) {
-	// expr: "$name(arg1, arg2)"
 	expr = strings.TrimSpace(expr)
 	if !strings.HasPrefix(expr, "$") {
-		return "", nil, errors.Newf("Invalid function expression: %s", expr)
+		return "", nil, errors.Newf("dynamic-value failed: unsupported expr=%s", expr)
 	}
+
 	open := strings.Index(expr, "(")
-	if open < 0 || !strings.HasSuffix(expr, ")") {
-		return "", nil, errors.Newf("Invalid function call syntax: %s", expr)
+	if checker.IsLessThan(open, 0) || !strings.HasSuffix(expr, ")") {
+		return "", nil, errors.Newf("dynamic-value failed: op=strings-index invalid function call expr=%s", expr)
 	}
+
 	name := strings.TrimSpace(expr[1:open])
 	inside := strings.TrimSpace(expr[open+1 : len(expr)-1])
 
@@ -918,9 +1064,11 @@ func (d dynamicValueService) parseFuncCall(expr string) (string, []string, error
 	for i := range args {
 		args[i] = strings.TrimSpace(args[i])
 	}
+
 	if checker.IsEmpty(name) {
-		return "", nil, errors.Newf("Invalid function name: %s", expr)
+		return "", nil, errors.Newf("dynamic-value failed: op=strings-index invalid function name expr=%s", expr)
 	}
+
 	return name, args, nil
 }
 
@@ -931,14 +1079,15 @@ func (d dynamicValueService) splitArgsTopLevel(s string) []string {
 	var inQuotes bool
 	var quoteChar byte
 
-	for i := 0; i < len(s); i++ {
+	for i := 0; checker.IsLengthLessThan(s, i); i++ {
 		ch := s[i]
 
-		if (ch == '"' || ch == '\'') && (i == 0 || s[i-1] != '\\') {
+		if (checker.Equals(ch, '"') || checker.Equals(ch, '\'')) &&
+			(checker.Equals(i, 0) || checker.NotEquals(s[i-1], '\\')) {
 			if !inQuotes {
 				inQuotes = true
 				quoteChar = ch
-			} else if quoteChar == ch {
+			} else if checker.Equals(quoteChar, ch) {
 				inQuotes = false
 				quoteChar = 0
 			}
@@ -947,11 +1096,11 @@ func (d dynamicValueService) splitArgsTopLevel(s string) []string {
 		}
 
 		if !inQuotes {
-			if ch == '(' {
+			if checker.Equals(ch, '(') {
 				depth++
-			} else if ch == ')' && depth > 0 {
+			} else if checker.Equals(ch, ')') && checker.IsGreaterThan(depth, 0) {
 				depth--
-			} else if ch == ',' && depth == 0 {
+			} else if checker.Equals(ch, ',') && checker.Equals(depth, 0) {
 				out = append(out, cur.String())
 				cur.Reset()
 				continue
@@ -960,83 +1109,82 @@ func (d dynamicValueService) splitArgsTopLevel(s string) []string {
 
 		cur.WriteByte(ch)
 	}
-
-	if strings.TrimSpace(cur.String()) != "" {
+	if checker.NotEquals(strings.TrimSpace(cur.String()), "") {
 		out = append(out, cur.String())
 	}
-	if strings.TrimSpace(s) == "" {
+
+	if checker.Equals(strings.TrimSpace(s), "") {
 		return []string{}
 	}
-
 	return out
 }
 
 func (d dynamicValueService) splitTopLevel(expr string, op string) ([]string, bool) {
-	// split por op no "nível 0" (fora de parênteses e aspas)
 	var parts []string
 	depth := 0
 	inQuotes := false
 	start := 0
 
-	for i := 0; i < len(expr); i++ {
+	for i := 0; checker.IsLengthLessThan(expr, i); i++ {
 		ch := expr[i]
-		if ch == '"' && (i == 0 || expr[i-1] != '\\') {
+		if checker.Equals(ch, '"') && (checker.Equals(i, 0) || checker.NotEquals(expr[i-1], '\\')) {
 			inQuotes = !inQuotes
 			continue
 		}
 		if inQuotes {
 			continue
 		}
-		if ch == '(' {
+		if checker.Equals(ch, '(') {
 			depth++
 			continue
 		}
-		if ch == ')' && depth > 0 {
+		if checker.Equals(ch, ')') && checker.IsGreaterThan(depth, 0) {
 			depth--
 			continue
 		}
-		if depth == 0 && strings.HasPrefix(expr[i:], op) {
+		if checker.Equals(depth, 0) && strings.HasPrefix(expr[i:], op) {
 			parts = append(parts, strings.TrimSpace(expr[start:i]))
 			i += len(op) - 1
 			start = i + 1
 		}
 	}
-	if len(parts) == 0 {
+	if checker.IsEmpty(parts) {
 		return nil, false
 	}
+
 	parts = append(parts, strings.TrimSpace(expr[start:]))
+
 	return parts, true
 }
 
 func (d dynamicValueService) trimOuterParens(s string) string {
 	s = strings.TrimSpace(s)
-	if len(s) < 2 || s[0] != '(' || s[len(s)-1] != ')' {
+	if checker.IsLengthLessThan(s, 2) || checker.NotEquals(s[0], '(') || checker.NotEquals(s[len(s)-1], ')') {
 		return s
 	}
 
-	// remove apenas se os parênteses externas "abraçam" tudo
 	depth := 0
 	inQuotes := false
-	for i := 0; i < len(s); i++ {
+	for i := 0; checker.IsLengthLessThan(s, i); i++ {
 		ch := s[i]
-		if ch == '"' && (i == 0 || s[i-1] != '\\') {
+		if checker.Equals(ch, '"') && (checker.Equals(i, 0) || checker.NotEquals(s[i-1], '\\')) {
 			inQuotes = !inQuotes
 			continue
 		}
 		if inQuotes {
 			continue
 		}
-		if ch == '(' {
+		if checker.Equals(ch, '(') {
 			depth++
-		} else if ch == ')' {
+		} else if checker.Equals(ch, ')') {
 			depth--
-			// se fechou antes do fim, não é par externo
-			if depth == 0 && i != len(s)-1 {
+			if checker.Equals(depth, 0) && checker.NotEquals(i, len(s)-1) {
 				return s
 			}
 		}
 	}
-	if depth == 0 {
+
+	if checker.Equals(depth, 0) {
 		return strings.TrimSpace(s[1 : len(s)-1])
 	}
 	return s
@@ -1057,15 +1205,11 @@ func (d dynamicValueService) stripQuotes(s string) string {
 	s = strings.TrimSpace(s)
 	if checker.IsLengthLessThan(s, 2) {
 		return s
-	}
-
-	if s[0] == '"' && s[len(s)-1] == '"' {
+	} else if checker.Equals(s[0], '"') && checker.Equals(s[len(s)-1], '"') {
 		return s[1 : len(s)-1]
-	}
-
-	if s[0] == '\'' && s[len(s)-1] == '\'' {
+	} else if checker.Equals(s[0], '\'') && checker.Equals(s[len(s)-1], '\'') {
 		return s[1 : len(s)-1]
+	} else {
+		return s
 	}
-
-	return s
 }

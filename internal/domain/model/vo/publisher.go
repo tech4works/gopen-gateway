@@ -24,7 +24,7 @@ import (
 type Publisher struct {
 	onlyIf          []string
 	ignoreIf        []string
-	provider        enum.PublisherProvider
+	broker          enum.BackendBroker
 	path            string
 	groupID         string
 	deduplicationID string
@@ -56,7 +56,7 @@ type PublisherMessageBody struct {
 func NewPublisher(
 	onlyIf,
 	ignoreIf []string,
-	provider enum.PublisherProvider,
+	broker enum.BackendBroker,
 	path,
 	groupID,
 	deduplicationID string,
@@ -67,7 +67,7 @@ func NewPublisher(
 	return Publisher{
 		onlyIf:          onlyIf,
 		ignoreIf:        ignoreIf,
-		provider:        provider,
+		broker:          broker,
 		path:            path,
 		groupID:         groupID,
 		deduplicationID: deduplicationID,
@@ -110,8 +110,8 @@ func NewPublisherMessageBody(omitEmpty bool, mapper *Mapper, projector *Projecto
 	}
 }
 
-func (p Publisher) Provider() enum.PublisherProvider {
-	return p.provider
+func (p Publisher) Broker() enum.BackendBroker {
+	return p.broker
 }
 
 func (p Publisher) Path() string {

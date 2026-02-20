@@ -19,14 +19,15 @@ package service
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"strings"
+
 	"github.com/tech4works/checker"
 	"github.com/tech4works/errors"
 	"github.com/tech4works/gopen-gateway/internal/domain"
 	"github.com/tech4works/gopen-gateway/internal/domain/mapper"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
-	"net/http"
-	"strings"
 )
 
 type cacheService struct {
@@ -49,11 +50,13 @@ func (c cacheService) Read(ctx context.Context, cache *vo.Cache, request *vo.HTT
 		return nil, nil
 	}
 
-	cacheResponse, err := c.store.Get(ctx, c.buildKey(cache, request))
+	key := c.buildKey(cache, request)
+
+	cacheResponse, err := c.store.Get(ctx, key)
 	if errors.Is(err, mapper.ErrCacheNotFound) {
 		return nil, nil
 	} else if checker.NonNil(err) {
-		return nil, err
+		return nil, errors.Inheritf(err, "cache failed: unexpected error reading cache key=%s", key)
 	}
 
 	return cacheResponse, nil
@@ -64,7 +67,14 @@ func (c cacheService) Write(ctx context.Context, cache *vo.Cache, request *vo.HT
 		return nil
 	}
 
-	return c.store.Set(ctx, c.buildKey(cache, request), vo.NewCacheResponse(cache, response))
+	key := c.buildKey(cache, request)
+
+	err := c.store.Set(ctx, key, vo.NewCacheResponse(cache, response))
+	if checker.NonNil(err) {
+		return errors.Inheritf(err, "cache failed: unexpected error writing cache key=%s", key)
+	}
+
+	return nil
 }
 
 func (c cacheService) canRead(cache *vo.Cache, request *vo.HTTPRequest) bool {
@@ -72,8 +82,7 @@ func (c cacheService) canRead(cache *vo.Cache, request *vo.HTTPRequest) bool {
 		return false
 	}
 
-	return checker.NotEquals(enum.CacheControlNoCache, c.extractCacheControl(cache, request)) &&
-		c.allowMethod(cache, request)
+	return checker.NotEquals(enum.CacheControlNoCache, c.extractCacheControl(cache, request)) && c.allowMethod(cache, request)
 }
 
 func (c cacheService) canWrite(cache *vo.Cache, request *vo.HTTPRequest, response *vo.HTTPResponse) bool {
@@ -82,7 +91,8 @@ func (c cacheService) canWrite(cache *vo.Cache, request *vo.HTTPRequest, respons
 	}
 
 	return checker.NotEquals(enum.CacheControlNoStore, c.extractCacheControl(cache, request)) &&
-		c.allowMethod(cache, request) && c.allowStatusCode(cache, response)
+		c.allowMethod(cache, request) &&
+		c.allowStatusCode(cache, response)
 }
 
 func (c cacheService) buildKey(cache *vo.Cache, request *vo.HTTPRequest) string {
@@ -90,6 +100,7 @@ func (c cacheService) buildKey(cache *vo.Cache, request *vo.HTTPRequest) string 
 	if cache.IgnoreQuery() {
 		url = request.Path().String()
 	}
+
 	strategyKey := fmt.Sprintf("%s:%s", request.Method(), url)
 
 	var strategyHeaderValues []string

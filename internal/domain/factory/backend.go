@@ -38,6 +38,7 @@ type backendFactory struct {
 	projectorService    service.Projector
 	dynamicValueService service.DynamicValue
 	modifierService     service.Modifier
+	enricherService     service.Enricher
 	omitterService      service.Omitter
 	nomenclatureService service.Nomenclature
 	contentService      service.Content
@@ -56,7 +57,8 @@ type Backend interface {
 }
 
 func NewBackend(mapperService service.Mapper, projectorService service.Projector,
-	dynamicValueService service.DynamicValue, modifierService service.Modifier, omitterService service.Omitter,
+	dynamicValueService service.DynamicValue, modifierService service.Modifier,
+	enricherService service.Enricher, omitterService service.Omitter,
 	nomenclatureService service.Nomenclature, contentService service.Content, aggregatorService service.Aggregator,
 ) Backend {
 	return backendFactory{
@@ -64,6 +66,7 @@ func NewBackend(mapperService service.Mapper, projectorService service.Projector
 		projectorService:    projectorService,
 		dynamicValueService: dynamicValueService,
 		modifierService:     modifierService,
+		enricherService:     enricherService,
 		omitterService:      omitterService,
 		nomenclatureService: nomenclatureService,
 		contentService:      contentService,
@@ -135,7 +138,7 @@ func (f backendFactory) BuildPublisherRequest(request *vo.HTTPRequest, history *
 	}
 
 	return vo.NewPublisherBackendRequest(
-		publisher.Provider(),
+		publisher.Broker(),
 		publisher.Path(),
 		groupID,
 		deduplicateID,
@@ -166,14 +169,14 @@ func (f backendFactory) BuildHTTPResponse(httpResponse *http.Response) *vo.HTTPB
 }
 
 func (f backendFactory) BuildHTTPResponseByErr(endpoint *vo.Endpoint, backend *vo.Backend, err error) *vo.HTTPBackendResponse {
-	if errors.Is(err, mapper.ErrConcurrentCanceled) {
+	if errors.Is(err, mapper.ErrBackendConcurrentCancelled) {
 		return nil
 	}
 
 	var code int
-	if errors.Is(err, mapper.ErrGatewayTimeout) {
+	if errors.Is(err, mapper.ErrBackendGatewayTimeout) {
 		code = http.StatusGatewayTimeout
-	} else if errors.Is(err, mapper.ErrBadGateway) {
+	} else if errors.Is(err, mapper.ErrBackendBadGateway) {
 		code = http.StatusBadGateway
 	}
 	statusCode := vo.NewStatusCode(code)
@@ -199,7 +202,7 @@ func (f backendFactory) BuildPublisherResponse(publisherResponse *publisher.Resp
 
 func (f backendFactory) BuildPublisherResponseByErr(endpoint *vo.Endpoint, backend *vo.Backend, err error,
 ) *vo.PublisherBackendResponse {
-	if errors.Is(err, mapper.ErrConcurrentCanceled) {
+	if errors.Is(err, mapper.ErrBackendConcurrentCancelled) {
 		return nil
 	}
 
@@ -229,8 +232,8 @@ func (f backendFactory) BuildFinalHTTPResponse(
 		return nil, nil
 	}
 
-	body, bodyErrs := f.buildHTTPResponseBody(backend, response, request, history)
-	header, headerErrs := f.buildHTTPResponseHeader(backend, response, body, request, history)
+	body, bodyErrs := f.buildFinalHTTPResponseBody(backend, response, request, history)
+	header, headerErrs := f.buildFinalHTTPResponseHeader(backend, response, body, request, history)
 
 	var allErrs []error
 	allErrs = append(allErrs, bodyErrs...)
@@ -379,28 +382,29 @@ func (f backendFactory) buildHTTPRequestQuery(http *vo.HTTP, request *vo.HTTPReq
 	return query, allErrs
 }
 
-func (f backendFactory) buildHTTPResponseBody(
+func (f backendFactory) buildFinalHTTPResponseBody(
 	backend *vo.Backend,
 	response *vo.HTTPBackendResponse,
 	request *vo.HTTPRequest,
 	history *vo.History,
 ) (*vo.Body, []error) {
-	if response.StatusCode().Failed() ||
-		!response.HasBody() ||
+	if response.StatusCode().Failed() || !response.HasBody() ||
 		(backend.Response().HasBody() && backend.Response().Body().Omit()) {
 		return nil, nil
 	}
 
 	body := response.Body()
+	body, enrichErrs := f.enricherService.ExecuteBodyEnrichers(backend.Response().Body().Enrichers(), body, request, history)
 	body, modifyErrs := f.modifierService.ExecuteBodyModifiers(backend.Response().Body().Modifiers(), body, request, history)
 	body, mapErrs := f.mapperService.MapBody(backend.Response().Body().Mapper(), body, request, history)
 	body, projectErrs := f.projectorService.ProjectBody(backend.Response().Body().Projector(), body, request, history)
 	body, aggregateErr := f.aggregatorService.AggregateBodyToKey(backend.Response().Body().Group(), body)
 
 	var allErrors []error
+	allErrors = append(allErrors, enrichErrs...)
+	allErrors = append(allErrors, modifyErrs...)
 	allErrors = append(allErrors, mapErrs...)
 	allErrors = append(allErrors, projectErrs...)
-	allErrors = append(allErrors, modifyErrs...)
 	if checker.NonNil(aggregateErr) {
 		allErrors = append(allErrors, aggregateErr)
 	}
@@ -408,7 +412,7 @@ func (f backendFactory) buildHTTPResponseBody(
 	return body, allErrors
 }
 
-func (f backendFactory) buildHTTPResponseHeader(
+func (f backendFactory) buildFinalHTTPResponseHeader(
 	backend *vo.Backend,
 	response *vo.HTTPBackendResponse,
 	body *vo.Body,

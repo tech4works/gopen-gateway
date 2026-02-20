@@ -21,6 +21,7 @@ import (
 
 	"github.com/tech4works/checker"
 	"github.com/tech4works/gopen-gateway/internal/domain"
+	"github.com/tech4works/gopen-gateway/internal/domain/mapper"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 )
@@ -41,47 +42,52 @@ func (p provider) ForEach(raw string, iterator func(key string, value domain.JSO
 }
 
 func (p provider) Add(raw, path, value string) (string, error) {
-	if checker.IsEmpty(path) {
-		return raw, nil
-	}
+	var newRaw string
+	var err error
 
 	jsonValue := gjson.Get(raw, path)
 	if jsonValue.Exists() && checker.NotEquals(jsonValue.Type, gjson.Null) {
-		return sjson.SetRaw(raw, path, aggregateValue(jsonValue, value))
+		newRaw, err = sjson.SetRaw(raw, path, aggregateValue(jsonValue, value))
+	} else {
+		newRaw, err = sjson.SetRaw(raw, path, parseStringValueToRaw(value))
 	}
 
-	return sjson.SetRaw(raw, path, parseStringValueToRaw(value))
+	return treatModifierResult("add", newRaw, path, value, newRaw, err)
 }
 
 func (p provider) AppendOnArray(raw, value string) (string, error) {
-	return sjson.SetRaw(raw, "-1", value)
+	path := "-1"
+
+	newRaw, err := sjson.SetRaw(raw, path, value)
+
+	return treatModifierResult("append-on-array", newRaw, path, value, newRaw, err)
 }
 
 func (p provider) Set(raw, path, value string) (string, error) {
-	if checker.IsEmpty(path) {
-		return raw, nil
-	}
-	return sjson.SetRaw(raw, path, parseStringValueToRaw(value))
+	newRaw, err := sjson.SetRaw(raw, path, parseStringValueToRaw(value))
+
+	return treatModifierResult("set", raw, path, value, newRaw, err)
 }
 
 func (p provider) Replace(raw, path, value string) (string, error) {
-	if checker.IsEmpty(path) {
-		return raw, nil
-	}
-
 	jsonValue := gjson.Get(raw, path)
 	if !jsonValue.Exists() {
 		return raw, nil
 	}
 
-	return sjson.SetRaw(raw, path, parseStringValueToRaw(value))
+	newRaw, err := sjson.SetRaw(raw, path, parseStringValueToRaw(value))
+
+	return treatModifierResult("replace", raw, path, value, newRaw, err)
 }
 
 func (p provider) Delete(raw, path string) (string, error) {
 	if checker.IsEmpty(path) {
 		return raw, nil
 	}
-	return sjson.Delete(raw, path)
+
+	newRaw, err := sjson.Delete(raw, path)
+
+	return treatModifierResult("delete", raw, path, "", newRaw, err)
 }
 
 func (p provider) Get(raw, path string) domain.JSONValue {
@@ -136,4 +142,13 @@ func parseValueToRaw(value gjson.Result) string {
 		return "null"
 	}
 	return value.Raw
+}
+
+func treatModifierResult(op, raw, path, value, newRaw string, err error) (string, error) {
+	if checker.NonNil(err) {
+		return raw, err
+	} else if checker.Equals(raw, newRaw) {
+		return raw, mapper.NewErrJSONNotModified(op, path, value)
+	}
+	return newRaw, nil
 }

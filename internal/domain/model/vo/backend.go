@@ -79,6 +79,7 @@ type BackendResponseBody struct {
 	mapper    *Mapper
 	projector *Projector
 	modifiers []Modifier
+	enrichers []Enricher
 }
 
 type BackendRequestHeader struct {
@@ -264,6 +265,7 @@ func NewBackendResponseBody(
 	mapper *Mapper,
 	projector *Projector,
 	modifiers []Modifier,
+	enrichers []Enricher,
 ) *BackendResponseBody {
 	return &BackendResponseBody{
 		omit:      omit,
@@ -271,6 +273,7 @@ func NewBackendResponseBody(
 		mapper:    mapper,
 		projector: projector,
 		modifiers: modifiers,
+		enrichers: enrichers,
 	}
 }
 
@@ -715,8 +718,8 @@ func (b BackendResponseBody) Modifiers() []Modifier {
 	return b.modifiers
 }
 
-func (b BackendResponseBody) HasGroup() bool {
-	return checker.IsNotEmpty(b.group)
+func (b BackendResponseBody) Enrichers() []Enricher {
+	return b.enrichers
 }
 
 func (b BackendResponseBody) Group() string {
@@ -737,6 +740,10 @@ func (b BackendResponseHeader) CountDataTransforms() (count int) {
 		count += len(b.Modifiers())
 	}
 	return count
+}
+
+func (b BackendResponseBody) HasGroup() bool {
+	return checker.IsNotEmpty(b.group)
 }
 
 func (b BackendResponseHeader) HasMapper() bool {

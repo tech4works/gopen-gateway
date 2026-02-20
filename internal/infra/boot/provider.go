@@ -71,6 +71,8 @@ func (p provider) Init() *dto.Gopen {
 		panic("Please fill the environment variable PORT with numbers only!")
 	}
 
+	errors.SetPolicy(errors.PolicyNative) // todo: preciso adicionar a opcao de trace=DEBUG,INFO,WARN,ERROR,PANIC
+
 	p.log.PrintLogo()
 
 	p.log.PrintInfo("Loading Gopen envs...")

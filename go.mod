@@ -13,7 +13,7 @@
 
 module github.com/tech4works/gopen-gateway
 
-go 1.23.1
+go 1.24.0
 
 require (
 	github.com/aws/aws-sdk-go-v2/config v1.29.14
@@ -27,12 +27,12 @@ require (
 	github.com/jellydator/ttlcache/v2 v2.11.1
 	github.com/joho/godotenv v1.5.1
 	github.com/json-iterator/go v1.1.12
-	github.com/redis/go-redis/v9 v9.6.1
+	github.com/redis/go-redis/v9 v9.7.3
 	github.com/tech4works/checker v0.0.0-20260123192908-0c69913370b1
 	github.com/tech4works/compressor v0.0.0-20240807194218-7122652ffea0
-	github.com/tech4works/converter v0.0.0-20260209122059-fc8420b25f78
+	github.com/tech4works/converter v0.0.0-20260220190703-f5b28fc610a0
 	github.com/tech4works/decompressor v0.0.0-20240807211058-01326b21a00d
-	github.com/tech4works/errors v0.0.0-20260204170404-4d9f99b3e090
+	github.com/tech4works/errors v0.0.0-20260220204909-d68a5c210a5d
 	github.com/tidwall/gjson v1.18.0
 	github.com/tidwall/sjson v1.2.5
 	github.com/xeipuuv/gojsonschema v1.2.0
@@ -40,7 +40,7 @@ require (
 	go.elastic.co/apm/module/apmhttp/v2 v2.7.0
 	go.elastic.co/apm/v2 v2.7.0
 	golang.ngrok.com/ngrok v1.13.0
-	golang.org/x/net v0.40.0
+	golang.org/x/net v0.47.0
 	golang.org/x/time v0.11.0
 )
 
@@ -99,11 +99,11 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.ngrok.com/muxado/v2 v2.0.1 // indirect
 	golang.org/x/arch v0.8.0 // indirect
-	golang.org/x/crypto v0.38.0 // indirect
-	golang.org/x/sync v0.14.0 // indirect
-	golang.org/x/sys v0.33.0 // indirect
-	golang.org/x/term v0.32.0 // indirect
-	golang.org/x/text v0.25.0 // indirect
+	golang.org/x/crypto v0.45.0 // indirect
+	golang.org/x/sync v0.18.0 // indirect
+	golang.org/x/sys v0.38.0 // indirect
+	golang.org/x/term v0.37.0 // indirect
+	golang.org/x/text v0.31.0 // indirect
 	google.golang.org/protobuf v1.35.1 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
