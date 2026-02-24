@@ -40,14 +40,14 @@ func NewSecurityCors() SecurityCors {
 
 func (s securityCorsService) ValidateOrigin(securityCors vo.SecurityCors, request *vo.HTTPRequest) error {
 	if securityCors.DisallowOrigin(request.ClientIP()) {
-		return errors.New("Origin not mapped on security-cors.allow-origins")
+		return errors.New("security-cors failed: origin not mapped on security-cors.allow-origins")
 	}
 	return nil
 }
 
 func (s securityCorsService) ValidateMethod(securityCors vo.SecurityCors, request *vo.HTTPRequest) error {
 	if securityCors.DisallowMethod(request.Method()) {
-		return errors.New("Method not mapped on security-cors.allow-methods")
+		return errors.New("security-cors failed: method not mapped on security-cors.allow-methods")
 	}
 	return nil
 }
@@ -62,7 +62,7 @@ func (s securityCorsService) ValidateHeaders(securityCors vo.SecurityCors, reque
 
 	if checker.IsNotEmpty(headersNotAllowed) {
 		keys := strings.Join(headersNotAllowed, ", ")
-		return errors.Newf("Headers contain not mapped fields on security-cors.allow-headers: %s", keys)
+		return errors.Newf("security-cors failed: headers contain not mapped fields on security-cors.allow-headers=%s", keys)
 	}
 
 	return nil

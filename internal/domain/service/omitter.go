@@ -19,6 +19,7 @@ package service
 import (
 	"github.com/tech4works/checker"
 	"github.com/tech4works/converter"
+	"github.com/tech4works/errors"
 	"github.com/tech4works/gopen-gateway/internal/domain"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
 )
@@ -32,82 +33,100 @@ type Omitter interface {
 }
 
 func NewOmitter(jsonPath domain.JSONPath) Omitter {
-	return omitterService{
-		jsonPath: jsonPath,
-	}
+	return omitterService{jsonPath: jsonPath}
 }
 
 func (o omitterService) OmitEmptyValuesFromBody(body *vo.Body) (*vo.Body, []error) {
-	if body.ContentType().IsText() {
-		return o.omitEmptyValuesFromBodyText(body)
-	} else if body.ContentType().IsJSON() {
-		return o.omitEmptyValuesFromBodyJson(body)
+	if checker.IsNil(body) {
+		return nil, nil
 	}
-	return body, nil
+
+	switch {
+	case body.ContentType().IsText():
+		return o.omitEmptyValuesFromBodyText(body)
+	case body.ContentType().IsJSON():
+		return o.omitEmptyValuesFromBodyJSON(body)
+	default:
+		return body, nil
+	}
 }
 
 func (o omitterService) omitEmptyValuesFromBodyText(body *vo.Body) (*vo.Body, []error) {
 	bodyStr, err := body.String()
 	if checker.NonNil(err) {
-		return nil, []error{err}
+		return body, errors.InheritAsSlice(err, "omitter failed: op=body-string")
 	}
 
-	buffer, err := converter.ToBufferWithErr(converter.ToCompactString(bodyStr))
+	compact := converter.ToCompactString(bodyStr)
+
+	buffer, err := converter.ToBufferWithErr(compact)
 	if checker.NonNil(err) {
-		return nil, []error{err}
+		return body, errors.InheritAsSlicef(err, "omitter failed: op=buffer-text")
 	}
 
 	return vo.NewBodyWithContentType(body.ContentType(), buffer), nil
 }
 
-func (o omitterService) omitEmptyValuesFromBodyJson(body *vo.Body) (*vo.Body, []error) {
+func (o omitterService) omitEmptyValuesFromBodyJSON(body *vo.Body) (*vo.Body, []error) {
 	raw, err := body.Raw()
 	if checker.NonNil(err) {
-		return nil, []error{err}
+		return body, errors.InheritAsSlice(err, "omitter failed: op=raw")
 	}
 
 	newBodyStr, errs := o.removeAllEmptyFields(raw)
 	if checker.IsNotEmpty(errs) {
-		return nil, errs
+		for i, e := range errs {
+			errs[i] = errors.Inheritf(e, "omitter failed: op=remove-empty-fields")
+		}
 	}
 
 	buffer, err := converter.ToBufferWithErr(newBodyStr)
 	if checker.NonNil(err) {
-		return nil, []error{err}
+		return body, append(errs, errors.Inherit(err, "omitter failed: op=buffer-json"))
 	}
 
-	return vo.NewBodyWithContentType(body.ContentType(), buffer), nil
+	return vo.NewBodyWithContentType(body.ContentType(), buffer), errs
 }
 
 func (o omitterService) removeAllEmptyFields(jsonStr string) (string, []error) {
+	root := o.jsonPath.Parse(jsonStr)
+	result := jsonStr
+
 	var errs []error
 
-	o.jsonPath.Parse(jsonStr).ForEach(func(key string, value domain.JSONValue) bool {
+	root.ForEach(func(key string, value domain.JSONValue) bool {
 		if value.IsObject() || value.IsArray() {
-			childJson, childErrs := o.removeAllEmptyFields(value.Raw())
+			childClean, childErrs := o.removeAllEmptyFields(value.Raw())
 			if checker.IsNotEmpty(childErrs) {
-				errs = append(errs, childErrs...)
+				errs = append(errs, errors.JoinInheritf(childErrs, ", ", "omitter failed: op=child key=%s", key))
+			}
+			value = o.jsonPath.Parse(childClean)
+		}
+
+		var (
+			next string
+			err  error
+		)
+
+		if checker.IsEmpty(value.Interface()) {
+			next, err = o.jsonPath.Delete(result, key)
+			if checker.NonNil(err) {
+				errs = append(errs, errors.Inheritf(err, "omitter failed: op=delete key=%s", key))
 				return true
 			}
-			value = o.jsonPath.Parse(childJson)
-		}
-
-		var newJsonStr string
-		var err error
-		if checker.IsEmpty(value.Interface()) {
-			newJsonStr, err = o.jsonPath.Delete(jsonStr, key)
-		} else {
-			newJsonStr, err = o.jsonPath.Set(jsonStr, key, value.Raw())
-		}
-
-		if checker.NonNil(err) {
-			errs = append(errs, err)
+			result = next
 			return true
 		}
-		jsonStr = newJsonStr
 
+		next, err = o.jsonPath.Set(result, key, value.Raw())
+		if checker.NonNil(err) {
+			errs = append(errs, errors.Inheritf(err, "omitter failed: op=set key=%s", key))
+			return true
+		}
+
+		result = next
 		return true
 	})
 
-	return jsonStr, errs
+	return result, errs
 }

@@ -25,6 +25,7 @@ import (
 	"github.com/tech4works/checker"
 	"github.com/tech4works/converter"
 	"github.com/tech4works/decompressor"
+	"github.com/tech4works/gopen-gateway/internal/domain/mapper"
 )
 
 type Body struct {
@@ -64,6 +65,21 @@ func NewBodyJson(buffer *bytes.Buffer) *Body {
 	}
 }
 
+func (b *Body) Validate() error {
+	bs, err := b.Bytes()
+	if checker.NonNil(err) {
+		return err
+	}
+
+	if b.ContentType().IsJSON() && checker.IsNotJSON(bs) {
+		return mapper.NewErrInvalidBody("json")
+	} else if b.ContentType().IsXML() && checker.IsNotXML(bs) {
+		return mapper.NewErrInvalidBody("xml")
+	}
+
+	return nil
+}
+
 func (b *Body) ContentType() ContentType {
 	return b.contentType
 }
@@ -85,8 +101,9 @@ func (b *Body) Bytes() ([]byte, error) {
 		return decompressor.ToBytesWithErr(decompressor.TypeGzip, b.RawBytes())
 	} else if b.ContentEncoding().IsDeflate() {
 		return decompressor.ToBytesWithErr(decompressor.TypeDeflate, b.RawBytes())
+	} else {
+		return b.RawBytes(), nil
 	}
-	return b.RawBytes(), nil
 }
 
 func (b *Body) RawBytes() []byte {
@@ -96,17 +113,19 @@ func (b *Body) RawBytes() []byte {
 func (b *Body) String() (string, error) {
 	bs, err := b.Bytes()
 	if checker.NonNil(err) {
-		return string(b.RawBytes()), err
+		return "", err
+	} else {
+		return string(bs), nil
 	}
-	return string(bs), nil
 }
 
 func (b *Body) CompactString() (string, error) {
 	bs, err := b.Bytes()
 	if checker.NonNil(err) {
-		bs = b.RawBytes()
+		return "", err
+	} else {
+		return converter.ToCompactStringWithErr(bs)
 	}
-	return converter.ToCompactString(bs), err
 }
 
 func (b *Body) Raw() (string, error) {
@@ -118,14 +137,6 @@ func (b *Body) Raw() (string, error) {
 		s = strconv.Quote(s)
 	}
 	return s, nil
-}
-
-func (b *Body) Resume() string {
-	if b.contentType.IsJSON() || b.contentType.IsXML() || b.contentType.IsText() {
-		s, _ := b.String()
-		return converter.ToCompactString(s)
-	}
-	return fmt.Sprintf("type=%s encoding=%s contentLength=%s", b.contentType, b.contentEncoding, b.SizeInByteUnit())
 }
 
 func (b *Body) Size() int {

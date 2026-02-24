@@ -47,10 +47,14 @@ type PublisherMessageAttribute struct {
 }
 
 type PublisherMessageBody struct {
-	omitEmpty bool
-	mapper    *Mapper
-	projector *Projector
-	modifiers []Modifier
+	omitEmpty       bool
+	contentType     enum.ContentType
+	contentEncoding enum.ContentEncoding
+	nomenclature    enum.Nomenclature
+	mapper          *Mapper
+	projector       *Projector
+	modifiers       []Modifier
+	joins           []Join
 }
 
 func NewPublisher(
@@ -100,13 +104,25 @@ func NewPublisherMessageAttribute(dataType, value string) PublisherMessageAttrib
 	}
 }
 
-func NewPublisherMessageBody(omitEmpty bool, mapper *Mapper, projector *Projector, modifiers []Modifier,
+func NewPublisherMessageBody(
+	omitEmpty bool,
+	contentType enum.ContentType,
+	contentEncoding enum.ContentEncoding,
+	nomenclature enum.Nomenclature,
+	mapper *Mapper,
+	projector *Projector,
+	modifiers []Modifier,
+	joins []Join,
 ) *PublisherMessageBody {
 	return &PublisherMessageBody{
-		omitEmpty: omitEmpty,
-		mapper:    mapper,
-		projector: projector,
-		modifiers: modifiers,
+		omitEmpty:       omitEmpty,
+		contentType:     contentType,
+		contentEncoding: contentEncoding,
+		nomenclature:    nomenclature,
+		mapper:          mapper,
+		projector:       projector,
+		modifiers:       modifiers,
+		joins:           joins,
 	}
 }
 
@@ -217,8 +233,24 @@ func (p PublisherMessageBody) HasModifiers() bool {
 	return checker.IsNotEmpty(p.modifiers)
 }
 
+func (p PublisherMessageBody) HasJoins() bool {
+	return checker.IsNotEmpty(p.joins)
+}
+
 func (p PublisherMessageBody) OmitEmpty() bool {
 	return p.omitEmpty
+}
+
+func (p PublisherMessageBody) ContentType() enum.ContentType {
+	return p.contentType
+}
+
+func (p PublisherMessageBody) ContentEncoding() enum.ContentEncoding {
+	return p.contentEncoding
+}
+
+func (p PublisherMessageBody) Nomenclature() enum.Nomenclature {
+	return p.nomenclature
 }
 
 func (p PublisherMessageBody) Mapper() *Mapper {
@@ -233,6 +265,10 @@ func (p PublisherMessageBody) Modifiers() []Modifier {
 	return p.modifiers
 }
 
+func (p PublisherMessageBody) Joins() []Join {
+	return p.joins
+}
+
 func (p PublisherMessageBody) CountBodyDataTransforms() (count int) {
 	if p.HasMapper() {
 		count += len(p.Mapper().Map().Keys())
@@ -242,6 +278,9 @@ func (p PublisherMessageBody) CountBodyDataTransforms() (count int) {
 	}
 	if p.HasModifiers() {
 		count += len(p.Modifiers())
+	}
+	if p.HasJoins() {
+		count += len(p.Joins())
 	}
 	return count
 }

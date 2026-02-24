@@ -26,6 +26,7 @@ import (
 )
 
 const (
+	codeErrInvalidBody                  = "INVALID_BODY"
 	codeErrDynamicValueNotFound         = "DYNAMIC_VALUE_NOT_FOUND"
 	codeErrModifierActionNotImplemented = "MODIFIER_ACTION_NOT_IMPLEMENTED"
 	codeErrModifierIncompatibleBodyType = "MODIFIER_INCOMPATIBLE_BODY_TYPE"
@@ -36,10 +37,12 @@ const (
 	codeErrBackendConcurrentCancelled   = "BACKEND_CONCURRENT_CANCELLED"
 	codeErrBackendBadGateway            = "BACKEND_BAD_GATEWAY"
 	codeErrBackendGatewayTimeout        = "BACKEND_GATEWAY_TIMEOUT"
+	codeErrEvalGuards                   = "EVAL_GUARDS"
 	codeErrJSONPathNotModified          = "JSON_PATH_NOT_MODIFIED"
 )
 
 const (
+	msgErrInvalidBody                  = "body failed: op=validate kind=%s"
 	msgErrDynamicValueNotFound         = "dynamic-value failed: value not found by syntax=%s"
 	msgErrModifierActionNotImplemented = "modifier failed: op=modify kind=%s action=%s not implemented"
 	msgErrModifierIncompatibleBodyType = "modifier failed: op=%s incompatible body content-type=%s to modify"
@@ -50,10 +53,13 @@ const (
 	msgErrBackendConcurrentCancelled   = "backend failed: concurrent context cancelled"
 	msgErrBackendBadGateway            = "backend failed: bad gateway err=%s"
 	msgErrBackendGatewayTimeout        = "backend failed: gateway timeout err=%s"
+	msgErrEvalGuards                   = "eval guards: op=eval-guards reason=%s should-run=false"
 	msgErrJSONPathNotModified          = "jsonpath failed: op=%s not modified %s"
 )
 
 var (
+	ErrInvalidBodyJSON              = errors.TargetWithCode(codeErrInvalidBody)
+	ErrInvalidBodyXML               = errors.TargetWithCode(codeErrInvalidBodyXML)
 	ErrDynamicValueNotFound         = errors.TargetWithCode(codeErrDynamicValueNotFound)
 	ErrModifierActionNotImplemented = errors.TargetWithCode(codeErrModifierActionNotImplemented)
 	ErrModifierIncompatibleBodyType = errors.TargetWithCode(codeErrModifierIncompatibleBodyType)
@@ -64,8 +70,13 @@ var (
 	ErrLimiterTooManyRequests       = errors.TargetWithCode(codeErrLimiterTooManyRequests)
 	ErrBackendBadGateway            = errors.TargetWithCode(codeErrBackendBadGateway)
 	ErrBackendGatewayTimeout        = errors.TargetWithCode(codeErrBackendGatewayTimeout)
+	ErrEvalGuards                   = errors.TargetWithCode(codeErrEvalGuards)
 	ErrJSONNotModified              = errors.TargetWithCode(codeErrJSONPathNotModified)
 )
+
+func NewErrInvalidBody(kind string) error {
+	return errors.NewWithSkipCallerAndCodef(2, codeErrInvalidBody, msgErrInvalidBody, kind)
+}
 
 func NewErrDynamicValueNotFound(syntax string) error {
 	return errors.NewWithSkipCallerAndCodef(
@@ -128,6 +139,10 @@ func NewErrBackendBadGateway(err error) error {
 
 func NewErrBackendGatewayTimeout(err error) error {
 	return errors.NewWithSkipCallerAndCodef(2, codeErrBackendGatewayTimeout, msgErrBackendGatewayTimeout, err)
+}
+
+func NewErrEvalGuards(reason string) error {
+	return errors.NewWithSkipCallerAndCodef(2, codeErrEvalGuards, msgErrEvalGuards, reason)
 }
 
 func NewErrJSONNotModified(op, path, value string) error {

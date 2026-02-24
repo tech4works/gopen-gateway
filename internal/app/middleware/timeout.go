@@ -18,9 +18,10 @@ package middleware
 
 import (
 	"context"
+	"net/http"
+
 	"github.com/tech4works/errors"
 	"github.com/tech4works/gopen-gateway/internal/app"
-	"net/http"
 )
 
 type timeoutMiddleware struct {

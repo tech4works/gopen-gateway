@@ -12,7 +12,7 @@ type PublisherBackendRequest struct {
 	deduplicationID *string
 	delay           Duration
 	attributes      map[string]PublisherMessageAttribute
-	body            string
+	body            *Body
 }
 
 func NewPublisherBackendRequest(
@@ -22,7 +22,7 @@ func NewPublisherBackendRequest(
 	deduplicationID string,
 	delay Duration,
 	attributes map[string]PublisherMessageAttribute,
-	body string,
+	body *Body,
 ) *PublisherBackendRequest {
 	return &PublisherBackendRequest{
 		broker:          broker,
@@ -63,6 +63,10 @@ func (m PublisherBackendRequest) Attributes() map[string]PublisherMessageAttribu
 	return m.attributes
 }
 
-func (m PublisherBackendRequest) Body() string {
+func (m PublisherBackendRequest) HasBody() bool {
+	return checker.NonNil(m.body)
+}
+
+func (m PublisherBackendRequest) Body() *Body {
 	return m.body
 }

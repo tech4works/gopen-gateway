@@ -23,11 +23,13 @@ import (
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/tech4works/checker"
+	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
 )
 
 type Mapper struct {
 	onlyIf   []string
 	ignoreIf []string
+	policy   enum.MapperPolicy
 	mMap     Map
 }
 
@@ -36,10 +38,11 @@ type Map struct {
 	values map[string]string
 }
 
-func NewMapper(onlyIf, ignoreIf []string, mMap Map) *Mapper {
+func NewMapper(onlyIf, ignoreIf []string, policy enum.MapperPolicy, mMap Map) *Mapper {
 	return &Mapper{
 		onlyIf:   onlyIf,
 		ignoreIf: ignoreIf,
+		policy:   policy,
 		mMap:     mMap,
 	}
 }
@@ -50,6 +53,10 @@ func (m Mapper) OnlyIf() []string {
 
 func (m Mapper) IgnoreIf() []string {
 	return m.ignoreIf
+}
+
+func (m Mapper) Policy() enum.MapperPolicy {
+	return m.policy
 }
 
 func (m Mapper) Map() *Map {
@@ -106,4 +113,8 @@ func (m *Map) MarshalJSON() ([]byte, error) {
 	}
 
 	return []byte(fmt.Sprintf("{%s}", strings.Join(data, ","))), nil
+}
+
+func (m Mapper) ShouldDropUnmapped() bool {
+	return checker.Equals(m.Policy(), enum.MapperPolicyDropUnmapped)
 }

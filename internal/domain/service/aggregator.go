@@ -22,6 +22,7 @@ import (
 	"github.com/tech4works/errors"
 	"github.com/tech4works/gopen-gateway/internal/domain"
 	"github.com/tech4works/gopen-gateway/internal/domain/mapper"
+	"github.com/tech4works/gopen-gateway/internal/domain/model/aggregate"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
 )
 
@@ -32,8 +33,8 @@ type aggregatorService struct {
 type Aggregator interface {
 	AggregateHeaders(base, header vo.Header) vo.Header
 	AggregateBodyToKey(key string, body *vo.Body) (*vo.Body, error)
-	AggregateBodiesIntoSlice(history *vo.History) (*vo.Body, []error)
-	AggregateBodies(history *vo.History) (*vo.Body, []error)
+	AggregateBodiesIntoSlice(history *aggregate.History) (*vo.Body, []error)
+	AggregateBodies(history *aggregate.History) (*vo.Body, []error)
 }
 
 func NewAggregator(jsonPath domain.JSONPath) Aggregator {
@@ -75,13 +76,13 @@ func (a aggregatorService) AggregateBodyToKey(key string, body *vo.Body) (*vo.Bo
 	return vo.NewBodyWithContentType(vo.NewContentTypeJson(), buffer), nil
 }
 
-func (a aggregatorService) AggregateBodiesIntoSlice(history *vo.History) (*vo.Body, []error) {
+func (a aggregatorService) AggregateBodiesIntoSlice(history *aggregate.History) (*vo.Body, []error) {
 	result := "[]"
 
 	var errs []error
 	for i := 0; checker.IsLessThan(i, history.Size()); i++ {
 		backendResponse := history.GetBackendResponse(i)
-		if checker.IsNil(backendResponse) {
+		if !backendResponse.Executed() {
 			continue
 		}
 
@@ -144,15 +145,16 @@ func (a aggregatorService) AggregateBodiesIntoSlice(history *vo.History) (*vo.Bo
 	return a.buildBodyJson(result, errs)
 }
 
-func (a aggregatorService) AggregateBodies(history *vo.History) (*vo.Body, []error) {
+func (a aggregatorService) AggregateBodies(history *aggregate.History) (*vo.Body, []error) {
 	result := "{}"
 
 	var errs []error
 	for i := 0; checker.IsLessThan(i, history.Size()); i++ {
 		backendResponse := history.GetBackendResponse(i)
-		if checker.IsNil(backendResponse) || !backendResponse.HasBody() {
+		if !backendResponse.Executed() {
 			continue
 		}
+
 		var err error
 		var raw string
 

@@ -18,16 +18,21 @@ package vo
 
 import (
 	"github.com/tech4works/checker"
+	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
 )
 
 type HTTPBackendResponse struct {
+	outcome enum.BackendOutcome
+
 	statusCode StatusCode
 	header     Header
 	body       *Body
 }
 
-func NewHTTPBackendResponse(statusCode StatusCode, header Header, body *Body) *HTTPBackendResponse {
+func NewHTTPBackendResponse(outcome enum.BackendOutcome, statusCode StatusCode, header Header, body *Body,
+) *HTTPBackendResponse {
 	return &HTTPBackendResponse{
+		outcome:    outcome,
 		statusCode: statusCode,
 		header:     header,
 		body:       body,
@@ -46,12 +51,24 @@ func (h *HTTPBackendResponse) Header() Header {
 	return h.header
 }
 
+func (h *HTTPBackendResponse) HasBody() bool {
+	return checker.NonNil(h.body) && checker.IsGreaterThan(h.body.Size(), 0)
+}
+
 func (h *HTTPBackendResponse) Body() *Body {
 	return h.body
 }
 
-func (h *HTTPBackendResponse) HasBody() bool {
-	return checker.NonNil(h.body) && checker.IsGreaterThan(h.body.Size(), 0)
+func (h *HTTPBackendResponse) Executed() bool {
+	return checker.Equals(h.outcome, enum.BackendOutcomeExecuted)
+}
+
+func (h *HTTPBackendResponse) Ignored() bool {
+	return checker.Equals(h.outcome, enum.BackendOutcomeIgnored)
+}
+
+func (h *HTTPBackendResponse) Cancelled() bool {
+	return checker.Equals(h.outcome, enum.BackendOutcomeCancelled)
 }
 
 func (h *HTTPBackendResponse) Map() (map[string]any, error) {

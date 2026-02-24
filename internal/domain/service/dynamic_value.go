@@ -9,6 +9,7 @@ import (
 	"github.com/tech4works/errors"
 	"github.com/tech4works/gopen-gateway/internal/domain"
 	"github.com/tech4works/gopen-gateway/internal/domain/mapper"
+	"github.com/tech4works/gopen-gateway/internal/domain/model/aggregate"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
 )
 
@@ -17,11 +18,12 @@ type dynamicValueService struct {
 }
 
 type DynamicValue interface {
-	Get(value string, request *vo.HTTPRequest, history *vo.History) (string, []error)
-	GetAsSliceOfString(value string, request *vo.HTTPRequest, history *vo.History) ([]string, []error)
-	EvalBool(exprs []string, request *vo.HTTPRequest, history *vo.History) (bool, []error)
-	EvalAny(expr string, request *vo.HTTPRequest, history *vo.History) (any, []error)
-	EvalGuards(onlyIf, ignoreIf []string, request *vo.HTTPRequest, history *vo.History) (bool, string, []error)
+	Get(value string, request *vo.HTTPRequest, history *aggregate.History) (string, []error)
+	GetAsSliceOfString(value string, request *vo.HTTPRequest, history *aggregate.History) ([]string, []error)
+	EvalBool(exprs []string, request *vo.HTTPRequest, history *aggregate.History) (bool, []error)
+	EvalAny(expr string, request *vo.HTTPRequest, history *aggregate.History) (any, []error)
+	EvalGuards(onlyIf, ignoreIf []string, request *vo.HTTPRequest, history *aggregate.History) (bool, string, []error)
+	EvalGuardsWithErr(onlyIf, ignoreIf []string, request *vo.HTTPRequest, history *aggregate.History) []error
 }
 
 func NewDynamicValue(jsonPath domain.JSONPath) DynamicValue {
@@ -30,10 +32,10 @@ func NewDynamicValue(jsonPath domain.JSONPath) DynamicValue {
 	}
 }
 
-func (d dynamicValueService) Get(value string, request *vo.HTTPRequest, history *vo.History) (string, []error) {
+func (d dynamicValueService) Get(value string, request *vo.HTTPRequest, history *aggregate.History) (string, []error) {
 	var allErrs []error
 
-	apply := func(stage string, fn func(string, *vo.HTTPRequest, *vo.History) (string, []error)) {
+	apply := func(stage string, fn func(string, *vo.HTTPRequest, *aggregate.History) (string, []error)) {
 		v, errs := fn(value, request, history)
 		if checker.IsNotEmpty(errs) {
 			for _, e := range errs {
@@ -51,7 +53,7 @@ func (d dynamicValueService) Get(value string, request *vo.HTTPRequest, history 
 	return value, allErrs
 }
 
-func (d dynamicValueService) GetAsSliceOfString(value string, request *vo.HTTPRequest, history *vo.History) (
+func (d dynamicValueService) GetAsSliceOfString(value string, request *vo.HTTPRequest, history *aggregate.History) (
 	[]string, []error) {
 	newValue, errs := d.Get(value, request, history)
 
@@ -67,7 +69,7 @@ func (d dynamicValueService) GetAsSliceOfString(value string, request *vo.HTTPRe
 	return []string{newValue}, errs
 }
 
-func (d dynamicValueService) EvalBool(exprs []string, request *vo.HTTPRequest, history *vo.History) (bool, []error) {
+func (d dynamicValueService) EvalBool(exprs []string, request *vo.HTTPRequest, history *aggregate.History) (bool, []error) {
 	for _, expr := range exprs {
 		expr = strings.TrimSpace(expr)
 		if checker.IsEmpty(expr) {
@@ -84,7 +86,7 @@ func (d dynamicValueService) EvalBool(exprs []string, request *vo.HTTPRequest, h
 	return false, nil
 }
 
-func (d dynamicValueService) EvalAny(expr string, request *vo.HTTPRequest, history *vo.History) (any, []error) {
+func (d dynamicValueService) EvalAny(expr string, request *vo.HTTPRequest, history *aggregate.History) (any, []error) {
 	expr = strings.TrimSpace(expr)
 
 	if !(strings.HasPrefix(expr, "$") && strings.Contains(expr, "(") && strings.HasSuffix(expr, ")")) {
@@ -110,7 +112,7 @@ func (d dynamicValueService) EvalGuards(
 	onlyIf,
 	ignoreIf []string,
 	request *vo.HTTPRequest,
-	history *vo.History,
+	history *aggregate.History,
 ) (bool, string, []error) {
 	if checker.IsNotEmpty(onlyIf) {
 		ok, errs := d.EvalBool(onlyIf, request, history)
@@ -138,10 +140,26 @@ func (d dynamicValueService) EvalGuards(
 	return true, "", nil
 }
 
+func (d dynamicValueService) EvalGuardsWithErr(
+	onlyIf,
+	ignoreIf []string,
+	request *vo.HTTPRequest,
+	history *aggregate.History,
+) []error {
+	shouldRun, reason, errs := d.EvalGuards(onlyIf, ignoreIf, request, history)
+	if checker.IsNotEmpty(errs) {
+		return errs
+	} else if !shouldRun {
+		return converter.ToSlice(mapper.NewErrEvalGuards(reason))
+	} else {
+		return nil
+	}
+}
+
 func (d dynamicValueService) resolveToString(
 	expr string,
 	request *vo.HTTPRequest,
-	history *vo.History,
+	history *aggregate.History,
 	treatNotFoundAsEmpty bool,
 ) (string, []error) {
 	expr = strings.TrimSpace(expr)
@@ -165,7 +183,7 @@ func (d dynamicValueService) resolveToString(
 func (d dynamicValueService) resolveToAny(
 	expr string,
 	request *vo.HTTPRequest,
-	history *vo.History,
+	history *aggregate.History,
 	treatNotFoundAsEmpty bool,
 ) (any, []error) {
 	s, errs := d.resolveToString(expr, request, history, treatNotFoundAsEmpty)
@@ -199,7 +217,7 @@ func (d dynamicValueService) resolveToAny(
 	return unq, nil
 }
 
-func (d dynamicValueService) replaceAllExpressions(value string, request *vo.HTTPRequest, history *vo.History) (
+func (d dynamicValueService) replaceAllExpressions(value string, request *vo.HTTPRequest, history *aggregate.History) (
 	string, []error) {
 	var errs []error
 	for _, word := range d.findAllBySyntax(value) {
@@ -218,7 +236,7 @@ func (d dynamicValueService) replaceAllExpressions(value string, request *vo.HTT
 func (d dynamicValueService) replaceAllBoolExpressions(
 	value string,
 	request *vo.HTTPRequest,
-	history *vo.History,
+	history *aggregate.History,
 ) (string, []error) {
 	exprs := d.findAllFuncExpressions(value)
 	if checker.IsEmpty(exprs) {
@@ -243,7 +261,7 @@ func (d dynamicValueService) replaceAllBoolExpressions(
 func (d dynamicValueService) replaceAllAnyExpressions(
 	value string,
 	request *vo.HTTPRequest,
-	history *vo.History,
+	history *aggregate.History,
 ) (string, []error) {
 	exprs := d.findAllFuncExpressions(value)
 	if checker.IsEmpty(exprs) {
@@ -391,7 +409,7 @@ func (d dynamicValueService) scanBalancedParens(s string, openIdx int) int {
 	return 0
 }
 
-func (d dynamicValueService) getValueBySyntax(word string, request *vo.HTTPRequest, history *vo.History) (string, error) {
+func (d dynamicValueService) getValueBySyntax(word string, request *vo.HTTPRequest, history *aggregate.History) (string, error) {
 	// Operador de fallback/coalesce: tenta da esquerda para a direita
 	// Ex.: "#request.body.cpf || #request.query.cpf"
 	if strings.Contains(word, "||") {
@@ -425,7 +443,7 @@ func (d dynamicValueService) getValueBySyntax(word string, request *vo.HTTPReque
 	return d.getSingleValueBySyntax(word, request, history)
 }
 
-func (d dynamicValueService) getSingleValueBySyntax(word string, request *vo.HTTPRequest, history *vo.History) (string,
+func (d dynamicValueService) getSingleValueBySyntax(word string, request *vo.HTTPRequest, history *aggregate.History) (string,
 	error) {
 	cleanSintaxe := strings.ReplaceAll(word, "#", "")
 	dotSplit := strings.Split(cleanSintaxe, ".")
@@ -459,7 +477,7 @@ func (d dynamicValueService) getRequestValueByJsonPath(jsonPath string, request 
 	return "", mapper.NewErrDynamicValueNotFound(jsonPath)
 }
 
-func (d dynamicValueService) getResponseValueByJsonPath(jsonPath string, history *vo.History) (string, error) {
+func (d dynamicValueService) getResponseValueByJsonPath(jsonPath string, history *aggregate.History) (string, error) {
 	if strings.HasPrefix(jsonPath, "responses[") {
 		return d.getResponseValueByBracketJsonPath(jsonPath, history)
 	}
@@ -467,7 +485,7 @@ func (d dynamicValueService) getResponseValueByJsonPath(jsonPath string, history
 	return "", errors.Newf("dynamic-value failed: invalid syntax=%s", jsonPath)
 }
 
-func (d dynamicValueService) getResponseValueByBracketJsonPath(jsonPath string, history *vo.History) (string, error) {
+func (d dynamicValueService) getResponseValueByBracketJsonPath(jsonPath string, history *aggregate.History) (string, error) {
 	closeIndex := strings.Index(jsonPath, "]")
 	if checker.IsLengthLessThan(closeIndex, 0) {
 		return "", errors.Newf("dynamic-value failed: invalid syntax=%s missing ']'", jsonPath)
@@ -489,7 +507,7 @@ func (d dynamicValueService) getResponseValueByBracketJsonPath(jsonPath string, 
 	return d.getResponseValueByID(key, rest, history)
 }
 
-func (d dynamicValueService) getResponseValueByIndex(index string, rest string, history *vo.History) (string, error) {
+func (d dynamicValueService) getResponseValueByIndex(index string, rest string, history *aggregate.History) (string, error) {
 	jsonResponses, err := history.ResponsesMap()
 	if checker.NonNil(err) {
 		return "", errors.Inheritf(err, "dynamic-value failed: op=history.map index=%s rest=%s", index, rest)
@@ -508,7 +526,7 @@ func (d dynamicValueService) getResponseValueByIndex(index string, rest string, 
 	return "", mapper.NewErrDynamicValueNotFound("responses[" + index + "]." + rest)
 }
 
-func (d dynamicValueService) getResponseValueByID(id string, rest string, history *vo.History) (string, error) {
+func (d dynamicValueService) getResponseValueByID(id string, rest string, history *aggregate.History) (string, error) {
 	jsonResponses, err := history.ResponsesMapByID()
 	if checker.NonNil(err) {
 		return "", errors.Inheritf(err, "dynamic-value failed: op=history.map id=%s rest=%s", id, rest)
@@ -527,7 +545,7 @@ func (d dynamicValueService) getResponseValueByID(id string, rest string, histor
 	return "", mapper.NewErrDynamicValueNotFound("responses[" + id + "]." + rest)
 }
 
-func (d dynamicValueService) evalBoolExpr(expr string, request *vo.HTTPRequest, history *vo.History) (bool, []error) {
+func (d dynamicValueService) evalBoolExpr(expr string, request *vo.HTTPRequest, history *aggregate.History) (bool, []error) {
 	expr = strings.TrimSpace(expr)
 	expr = d.trimOuterParens(expr)
 
@@ -579,7 +597,7 @@ func (d dynamicValueService) evalFuncAny(
 	name string,
 	args []string,
 	request *vo.HTTPRequest,
-	history *vo.History,
+	history *aggregate.History,
 ) (any, []error) {
 	n := strings.ToLower(strings.TrimSpace(name))
 
@@ -609,7 +627,7 @@ func (d dynamicValueService) evalFuncAny(
 	return false, errors.NewAsSlicef("dynamic-value failed: unsupported func=%s", name)
 }
 
-func (d dynamicValueService) evalLength(arg string, request *vo.HTTPRequest, history *vo.History) (int, []error) {
+func (d dynamicValueService) evalLength(arg string, request *vo.HTTPRequest, history *aggregate.History) (int, []error) {
 	v, errs := d.resolveToAny(arg, request, history, true)
 	if checker.IsNotEmpty(errs) {
 		return 0, errs
@@ -623,7 +641,7 @@ func (d dynamicValueService) evalLength(arg string, request *vo.HTTPRequest, his
 	return ln, nil
 }
 
-func (d dynamicValueService) evalDistinct(arg string, request *vo.HTTPRequest, history *vo.History) (any, []error) {
+func (d dynamicValueService) evalDistinct(arg string, request *vo.HTTPRequest, history *aggregate.History) (any, []error) {
 	v, errs := d.resolveToAny(arg, request, history, true)
 	if checker.IsNotEmpty(errs) {
 		return nil, errs
@@ -647,7 +665,7 @@ func (d dynamicValueService) evalDistinct(arg string, request *vo.HTTPRequest, h
 	return out, nil
 }
 
-func (d dynamicValueService) evalFuncBool(name string, args []string, request *vo.HTTPRequest, history *vo.History) (
+func (d dynamicValueService) evalFuncBool(name string, args []string, request *vo.HTTPRequest, history *aggregate.History) (
 	bool, []error) {
 	n := strings.ToLower(strings.TrimSpace(name))
 
@@ -838,7 +856,7 @@ func (d dynamicValueService) evalFuncBool(name string, args []string, request *v
 	return false, errors.NewAsSlicef("dynamic-value failed: unsupported func=%s", name)
 }
 
-func (d dynamicValueService) evalIsNull(arg string, request *vo.HTTPRequest, history *vo.History, treatNotFoundAsEmpty bool) (bool, []error) {
+func (d dynamicValueService) evalIsNull(arg string, request *vo.HTTPRequest, history *aggregate.History, treatNotFoundAsEmpty bool) (bool, []error) {
 	v, errs := d.resolveToAny(arg, request, history, treatNotFoundAsEmpty)
 	if checker.IsNotEmpty(errs) {
 		return false, errs
@@ -855,7 +873,7 @@ func (d dynamicValueService) evalIsNull(arg string, request *vo.HTTPRequest, his
 	return false, nil
 }
 
-func (d dynamicValueService) evalEmpty(arg string, request *vo.HTTPRequest, history *vo.History, treatNotFoundAsEmpty bool,
+func (d dynamicValueService) evalEmpty(arg string, request *vo.HTTPRequest, history *aggregate.History, treatNotFoundAsEmpty bool,
 ) (bool, []error) {
 	s, errs := d.resolveToString(arg, request, history, treatNotFoundAsEmpty)
 	if checker.IsNotEmpty(errs) {
@@ -866,7 +884,7 @@ func (d dynamicValueService) evalEmpty(arg string, request *vo.HTTPRequest, hist
 	return false, nil
 }
 
-func (d dynamicValueService) evalNullOrEmpty(arg string, request *vo.HTTPRequest, history *vo.History,
+func (d dynamicValueService) evalNullOrEmpty(arg string, request *vo.HTTPRequest, history *aggregate.History,
 	treatNotFoundAsEmpty bool) (bool, []error) {
 	s, errs := d.resolveToString(arg, request, history, treatNotFoundAsEmpty)
 	if checker.IsNotEmpty(errs) {
@@ -883,7 +901,7 @@ func (d dynamicValueService) evalNullOrEmpty(arg string, request *vo.HTTPRequest
 	return false, nil
 }
 
-func (d dynamicValueService) evalAsBool(arg string, request *vo.HTTPRequest, history *vo.History) (bool, []error) {
+func (d dynamicValueService) evalAsBool(arg string, request *vo.HTTPRequest, history *aggregate.History) (bool, []error) {
 	s, errs := d.resolveToString(arg, request, history, false)
 	if checker.IsNotEmpty(errs) {
 		return false, errs
@@ -899,7 +917,7 @@ func (d dynamicValueService) evalAsBool(arg string, request *vo.HTTPRequest, his
 }
 
 func (d dynamicValueService) evalCompareNumber(left string, right string, request *vo.HTTPRequest,
-	history *vo.History, cmp func(a, b float64) bool) (bool, []error) {
+	history *aggregate.History, cmp func(a, b float64) bool) (bool, []error) {
 	ls, errs := d.resolveToString(left, request, history, false)
 	if checker.IsNotEmpty(errs) {
 		return false, errs
@@ -923,7 +941,7 @@ func (d dynamicValueService) evalCompareNumber(left string, right string, reques
 	return cmp(lf, rf), nil
 }
 
-func (d dynamicValueService) evalEquals(left string, right string, request *vo.HTTPRequest, history *vo.History,
+func (d dynamicValueService) evalEquals(left string, right string, request *vo.HTTPRequest, history *aggregate.History,
 	treatNotFoundAsEmpty bool) (bool, []error) {
 	ls, errs := d.resolveToString(left, request, history, treatNotFoundAsEmpty)
 	if checker.IsNotEmpty(errs) {
@@ -942,7 +960,7 @@ func (d dynamicValueService) evalEquals(left string, right string, request *vo.H
 }
 
 func (d dynamicValueService) evalEqualsIgnoreCase(left string, right string, request *vo.HTTPRequest,
-	history *vo.History, treatNotFoundAsEmpty bool) (bool, []error) {
+	history *aggregate.History, treatNotFoundAsEmpty bool) (bool, []error) {
 	ls, errs := d.resolveToString(left, request, history, treatNotFoundAsEmpty)
 	if checker.IsNotEmpty(errs) {
 		return false, errs
@@ -960,7 +978,7 @@ func (d dynamicValueService) evalEqualsIgnoreCase(left string, right string, req
 }
 
 func (d dynamicValueService) evalContains(left string, right string, request *vo.HTTPRequest,
-	history *vo.History, negate bool) (bool, []error) {
+	history *aggregate.History, negate bool) (bool, []error) {
 	lv, errs := d.resolveToAny(left, request, history, true)
 	if checker.IsNotEmpty(errs) {
 		return false, errs
@@ -979,7 +997,7 @@ func (d dynamicValueService) evalContains(left string, right string, request *vo
 }
 
 func (d dynamicValueService) evalContainsIgnoreCase(left string, right string, request *vo.HTTPRequest,
-	history *vo.History, negate bool) (bool, []error) {
+	history *aggregate.History, negate bool) (bool, []error) {
 	ls, errs := d.resolveToString(left, request, history, true)
 	if checker.IsNotEmpty(errs) {
 		return false, errs
@@ -1001,7 +1019,7 @@ func (d dynamicValueService) evalContainsIgnoreCase(left string, right string, r
 }
 
 func (d dynamicValueService) evalLengthCompare(left string, right string, request *vo.HTTPRequest,
-	history *vo.History, op string) (bool, []error) {
+	history *aggregate.History, op string) (bool, []error) {
 	lv, errs := d.resolveToAny(left, request, history, true)
 	if checker.IsNotEmpty(errs) {
 		return false, errs

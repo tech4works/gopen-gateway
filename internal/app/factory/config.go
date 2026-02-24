@@ -31,7 +31,7 @@ import (
 type propagateState struct {
 	continueOnError *bool
 	header          *dto.BackendRequestHeader
-	param           *dto.BackendRequestParam
+	urlPath         *dto.BackendRequestURLPath
 	query           *dto.BackendRequestQuery
 	body            *dto.BackendRequestBody
 }
@@ -269,6 +269,7 @@ func buildBackends(templates *dto.Templates, endpoint dto.Endpoint) []vo.Backend
 	var backendIndex int
 
 	seen := map[string]struct{}{}
+	idToIndex := map[string]int{}
 
 	consume := func(flow enum.BackendFlow, items []dto.Backend, allowParallelism bool) {
 		for _, b := range items {
@@ -284,7 +285,11 @@ func buildBackends(templates *dto.Templates, endpoint dto.Endpoint) []vo.Backend
 				&ps,
 				backendIndex,
 				allowParallelism && endpoint.Parallelism,
+				idToIndex,
 			))
+
+			idToIndex[effective.ID] = backendIndex
+
 			backendIndex++
 		}
 	}
@@ -359,25 +364,29 @@ func buildBackendUnified(
 	ps *propagateState,
 	backendIndex int,
 	parallelism bool,
+	idToIndex map[string]int,
 ) vo.Backend {
+	dependencies := buildBackendDependencies(backend.Dependencies, idToIndex)
 	resp := buildBackendResponse(backend, flow)
 
 	switch backend.Kind {
 	case enum.BackendKindPublisher:
 		return vo.NewBackendPublisher(
-			backend.ID,
 			flow,
 			backend.OnlyIf,
 			backend.IgnoreIf,
+			backend.ID,
+			dependencies,
 			buildUnifiedPublisher(backend, parallelism),
 			resp,
 		)
 	case enum.BackendKindHTTP:
 		return vo.NewBackendHTTP(
-			backend.ID,
 			flow,
 			backend.OnlyIf,
 			backend.IgnoreIf,
+			backend.ID,
+			dependencies,
 			backend.Hosts,
 			backend.Path,
 			backend.Method,
@@ -387,6 +396,21 @@ func buildBackendUnified(
 	default:
 		panic(errors.Newf("invalid backend.kind=%v (endpoint=%s %s)", backend.Kind, flow, backend.Path))
 	}
+}
+
+func buildBackendDependencies(deps []string, idToIndex map[string]int) *vo.BackendDependencies {
+	if checker.IsEmpty(deps) {
+		return nil
+	}
+
+	var idxs []int
+	for _, d := range deps {
+		d = strings.TrimSpace(d)
+		if idx, ok := idToIndex[d]; ok {
+			idxs = append(idxs, idx)
+		}
+	}
+	return vo.NewBackendDependencies(deps, idxs)
 }
 
 func buildHTTPBackendRequest(
@@ -422,21 +446,26 @@ func buildHTTPBackendRequest(
 
 func buildBackendResponse(backend dto.Backend, flow enum.BackendFlow) *vo.BackendResponse {
 	if checker.Equals(flow, enum.BackendFlowBeforeware) || checker.Equals(flow, enum.BackendFlowAfterware) {
-		// middleware: força o retorno de um BackendResponseForMiddleware
-		if checker.IsNil(backend.Response) {
-			return vo.NewBackendResponseForMiddleware()
-		}
-	}
-
-	if checker.IsNil(backend.Response) {
+		return buildMiddlewareBackendResponse(backend)
+	} else if checker.IsNil(backend.Response) {
 		return nil
 	}
-
 	return vo.NewBackendResponse(
 		backend.Response.ContinueOnError,
 		backend.Response.Omit,
 		buildBackendResponseHeader(backend.Response.Header),
 		buildBackendResponseBody(backend.Response.Body),
+	)
+}
+
+func buildMiddlewareBackendResponse(backend dto.Backend) *vo.BackendResponse {
+	if checker.IsNil(backend.Response) {
+		return vo.NewBackendResponseForMiddleware(false, true, nil)
+	}
+	return vo.NewBackendResponseForMiddleware(
+		backend.Response.ContinueOnError,
+		backend.Response.Omit,
+		buildBackendResponseHeader(backend.Response.Header),
 	)
 }
 
@@ -486,9 +515,13 @@ func buildPublisherMessageBody(publisherMessageBody *dto.PublisherMessageBody) *
 	}
 	return vo.NewPublisherMessageBody(
 		publisherMessageBody.OmitEmpty,
+		publisherMessageBody.ContentType,
+		publisherMessageBody.ContentEncoding,
+		publisherMessageBody.Nomenclature,
 		buildMapper(publisherMessageBody.Mapper),
 		buildProjector(publisherMessageBody.Projector),
 		buildModifiers(publisherMessageBody.Modifiers),
+		buildJoins(publisherMessageBody.Joins),
 	)
 }
 
@@ -504,11 +537,11 @@ func buildBackendRequestHeader(backendRequestHeader *dto.BackendRequestHeader) *
 	)
 }
 
-func buildBackendRequestParam(backendRequestParam *dto.BackendRequestParam) *vo.BackendRequestParam {
+func buildBackendRequestParam(backendRequestParam *dto.BackendRequestURLPath) *vo.BackendRequestURLPath {
 	if checker.IsNil(backendRequestParam) {
 		return nil
 	}
-	return vo.NewBackendRequestParam(buildModifiers(backendRequestParam.Modifiers))
+	return vo.NewBackendRequestURLPath(buildModifiers(backendRequestParam.Modifiers))
 }
 
 func buildBackendRequestQuery(backendRequestQuery *dto.BackendRequestQuery) *vo.BackendRequestQuery {
@@ -536,6 +569,7 @@ func buildBackendRequestBody(backendRequestBody *dto.BackendRequestBody) *vo.Bac
 		buildMapper(backendRequestBody.Mapper),
 		buildProjector(backendRequestBody.Projector),
 		buildModifiers(backendRequestBody.Modifiers),
+		buildJoins(backendRequestBody.Joins),
 	)
 }
 
@@ -561,7 +595,7 @@ func buildBackendResponseBody(backendResponseBody *dto.BackendResponseBody) *vo.
 		buildMapper(backendResponseBody.Mapper),
 		buildProjector(backendResponseBody.Projector),
 		buildModifiers(backendResponseBody.Modifiers),
-		buildEnrichers(backendResponseBody.Enrichers),
+		buildJoins(backendResponseBody.Joins),
 	)
 }
 
@@ -569,7 +603,7 @@ func buildMapper(mapper *dto.Mapper) *vo.Mapper {
 	if checker.IsNil(mapper) {
 		return nil
 	}
-	return vo.NewMapper(mapper.OnlyIf, mapper.IgnoreIf, mapper.Map)
+	return vo.NewMapper(mapper.OnlyIf, mapper.IgnoreIf, mapper.Policy, mapper.Map)
 }
 
 func buildProjector(projector *dto.Projector) *vo.Projector {
@@ -591,25 +625,25 @@ func buildModifier(modifier dto.Modifier) vo.Modifier {
 	return vo.NewModifier(modifier.OnlyIf, modifier.IgnoreIf, modifier.Action, modifier.Propagate, modifier.Key, modifier.Value)
 }
 
-func buildEnrichers(enrichers []dto.Enricher) []vo.Enricher {
-	var result []vo.Enricher
-	for _, enricher := range enrichers {
-		result = append(result, buildEnricher(enricher))
+func buildJoins(joins []dto.Join) []vo.Join {
+	var result []vo.Join
+	for _, join := range joins {
+		result = append(result, buildJoin(join))
 	}
 	return result
 }
 
-func buildEnricher(enricher dto.Enricher) vo.Enricher {
-	return vo.NewEnricher(
-		enricher.OnlyIf,
-		enricher.IgnoreIf,
-		vo.NewEnricherSource(enricher.Source.Path, enricher.Source.Key),
-		vo.NewEnricherTarget(
-			enricher.Target.Policy,
-			enricher.Target.Path,
-			enricher.Target.Key,
-			enricher.Target.As,
-			enricher.Target.OnMissing,
+func buildJoin(join dto.Join) vo.Join {
+	return vo.NewJoin(
+		join.OnlyIf,
+		join.IgnoreIf,
+		vo.NewJoinSource(join.Source.Path, join.Source.Key),
+		vo.NewJoinTarget(
+			join.Target.Policy,
+			join.Target.Path,
+			join.Target.Key,
+			join.Target.As,
+			join.Target.OnMissing,
 		),
 	)
 }
@@ -691,7 +725,6 @@ func keepTemplateBase(tpl dto.Backend) dto.Backend {
 }
 
 func forceLockedFieldsFromTemplate(tpl dto.Backend, merged dto.Backend) dto.Backend {
-	// kind sempre travado
 	merged.Kind = tpl.Kind
 
 	switch tpl.Kind {
@@ -726,15 +759,12 @@ func mergeBackendFULL(tpl dto.Backend, cur dto.Backend) dto.Backend {
 	if checker.IsNotEmpty(cur.IgnoreIf) {
 		out.IgnoreIf = append(append([]string{}, out.IgnoreIf...), cur.IgnoreIf...)
 	}
-
 	if cur.Kind.IsEnumValid() {
 		out.Kind = cur.Kind
 	}
 	if checker.NonNil(cur.Async) {
 		out.Async = cur.Async
 	}
-
-	// HTTP
 	if checker.IsNotEmpty(cur.Hosts) {
 		out.Hosts = cur.Hosts
 	}
@@ -749,7 +779,6 @@ func mergeBackendFULL(tpl dto.Backend, cur dto.Backend) dto.Backend {
 	out.Response = mergeBackendResponse(out.Response, cur.Response)
 	out.Propagate = mergeBackendPropagate(out.Propagate, cur.Propagate)
 
-	// PUBLISHER
 	if cur.Broker.IsEnumValid() {
 		out.Broker = cur.Broker
 	}
@@ -808,6 +837,15 @@ func mergePublisherMessageBody(tpl, cur *dto.PublisherMessageBody) *dto.Publishe
 	}
 	if checker.NonNil(cur) {
 		out.OmitEmpty = out.OmitEmpty || cur.OmitEmpty
+		if cur.ContentType.IsEnumValid() {
+			out.ContentType = cur.ContentType
+		}
+		if cur.ContentEncoding.IsEnumValid() {
+			out.ContentEncoding = cur.ContentEncoding
+		}
+		if cur.Nomenclature.IsEnumValid() {
+			out.Nomenclature = cur.Nomenclature
+		}
 		if checker.NonNil(cur.Mapper) {
 			out.Mapper = cur.Mapper
 		}
@@ -815,6 +853,7 @@ func mergePublisherMessageBody(tpl, cur *dto.PublisherMessageBody) *dto.Publishe
 			out.Projector = cur.Projector
 		}
 		out.Modifiers = append(append([]dto.Modifier{}, out.Modifiers...), cur.Modifiers...)
+		out.Joins = append(append([]dto.Join{}, out.Joins...), cur.Joins...)
 	}
 	return &out
 }
@@ -828,11 +867,9 @@ func mergeBackendRequest(tpl, cur *dto.BackendRequest) *dto.BackendRequest {
 	if checker.NonNil(tpl) {
 		out = *tpl
 	}
-
 	if checker.IsNil(cur) {
 		return &out
 	}
-
 	if checker.NonNil(cur.ContinueOnError) {
 		out.ContinueOnError = cur.ContinueOnError
 	}
@@ -854,7 +891,7 @@ func mergeBackendRequest(tpl, cur *dto.BackendRequest) *dto.BackendRequest {
 func mergeBackendRequestWithPropagation(req *dto.BackendRequest, ps *propagateState) *dto.BackendRequest {
 	if checker.IsNil(req) &&
 		checker.IsNil(ps.header) &&
-		checker.IsNil(ps.param) &&
+		checker.IsNil(ps.urlPath) &&
 		checker.IsNil(ps.query) &&
 		checker.IsNil(ps.body) {
 		return nil
@@ -874,7 +911,7 @@ func mergeBackendRequestWithPropagation(req *dto.BackendRequest, ps *propagateSt
 	}
 
 	out.Header = mergeBackendRequestHeader(ps.header, out.Header)
-	out.Param = mergeBackendRequestParam(ps.param, out.Param)
+	out.Param = mergeBackendRequestParam(ps.urlPath, out.Param)
 	out.Query = mergeBackendRequestQuery(ps.query, out.Query)
 	out.Body = mergeBackendRequestBody(ps.body, out.Body)
 
@@ -890,28 +927,23 @@ func mergeBackendRequestHeader(inh, cur *dto.BackendRequestHeader) *dto.BackendR
 		out = *inh
 	}
 	if checker.NonNil(cur) {
-		// bool: herda por OR (se algum upstream pediu omit, mantém omit)
 		out.Omit = out.Omit || cur.Omit
-
-		// ponteiros: o "cur" tem precedência quando vier preenchido
 		if checker.NonNil(cur.Mapper) {
 			out.Mapper = cur.Mapper
 		}
 		if checker.NonNil(cur.Projector) {
 			out.Projector = cur.Projector
 		}
-
-		// modifiers: inherited primeiro, depois current
 		out.Modifiers = append(append([]dto.Modifier{}, out.Modifiers...), cur.Modifiers...)
 	}
 	return &out
 }
 
-func mergeBackendRequestParam(inh, cur *dto.BackendRequestParam) *dto.BackendRequestParam {
+func mergeBackendRequestParam(inh, cur *dto.BackendRequestURLPath) *dto.BackendRequestURLPath {
 	if checker.IsNil(inh) && checker.IsNil(cur) {
 		return nil
 	}
-	var out dto.BackendRequestParam
+	var out dto.BackendRequestURLPath
 	if checker.NonNil(inh) {
 		out = *inh
 	}
@@ -955,8 +987,6 @@ func mergeBackendRequestBody(inh, cur *dto.BackendRequestBody) *dto.BackendReque
 	if checker.NonNil(cur) {
 		out.Omit = out.Omit || cur.Omit
 		out.OmitEmpty = out.OmitEmpty || cur.OmitEmpty
-
-		// enums: "cur" ganha quando for válido, senão herda
 		if cur.ContentType.IsEnumValid() {
 			out.ContentType = cur.ContentType
 		}
@@ -966,7 +996,6 @@ func mergeBackendRequestBody(inh, cur *dto.BackendRequestBody) *dto.BackendReque
 		if cur.Nomenclature.IsEnumValid() {
 			out.Nomenclature = cur.Nomenclature
 		}
-
 		if checker.NonNil(cur.Mapper) {
 			out.Mapper = cur.Mapper
 		}
@@ -975,6 +1004,7 @@ func mergeBackendRequestBody(inh, cur *dto.BackendRequestBody) *dto.BackendReque
 		}
 
 		out.Modifiers = append(append([]dto.Modifier{}, out.Modifiers...), cur.Modifiers...)
+		out.Joins = append(append([]dto.Join{}, out.Joins...), cur.Joins...)
 	}
 	return &out
 }
@@ -1068,7 +1098,7 @@ func mergeBackendPropagate(tpl, cur *dto.BackendPropagate) *dto.BackendPropagate
 	}
 
 	out.Header = mergeBackendRequestHeader(out.Header, cur.Header)
-	out.Param = mergeBackendRequestParam(out.Param, cur.Param)
+	out.URLPath = mergeBackendRequestParam(out.URLPath, cur.URLPath)
 	out.Query = mergeBackendRequestQuery(out.Query, cur.Query)
 	out.Body = mergeBackendRequestBody(out.Body, cur.Body)
 
@@ -1089,8 +1119,8 @@ func applyBackendPropagateIntoState(p *dto.BackendPropagate, ps *propagateState,
 	if checker.NonNil(rewritten.Header) {
 		rewritten.Header = rewriteBackendRequestHeaderResponseRefs(rewritten.Header, backendIndex)
 	}
-	if checker.NonNil(rewritten.Param) {
-		rewritten.Param = rewriteBackendRequestParamResponseRefs(rewritten.Param, backendIndex)
+	if checker.NonNil(rewritten.URLPath) {
+		rewritten.URLPath = rewriteBackendRequestParamResponseRefs(rewritten.URLPath, backendIndex)
 	}
 	if checker.NonNil(rewritten.Query) {
 		rewritten.Query = rewriteBackendRequestQueryResponseRefs(rewritten.Query, backendIndex)
@@ -1100,7 +1130,7 @@ func applyBackendPropagateIntoState(p *dto.BackendPropagate, ps *propagateState,
 	}
 
 	ps.header = mergeBackendRequestHeader(ps.header, rewritten.Header)
-	ps.param = mergeBackendRequestParam(ps.param, rewritten.Param)
+	ps.urlPath = mergeBackendRequestParam(ps.urlPath, rewritten.URLPath)
 	ps.query = mergeBackendRequestQuery(ps.query, rewritten.Query)
 	ps.body = mergeBackendRequestBody(ps.body, rewritten.Body)
 }
@@ -1116,7 +1146,7 @@ func collectPropagatingModifiersFromRequestIntoState(req *dto.BackendRequest, ps
 		})
 	}
 	if checker.NonNil(req.Param) && checker.IsNotEmpty(req.Param.Modifiers) {
-		ps.param = mergeBackendRequestParam(ps.param, &dto.BackendRequestParam{
+		ps.urlPath = mergeBackendRequestParam(ps.urlPath, &dto.BackendRequestURLPath{
 			Modifiers: rewriteModifiersResponseRefs(onlyPropagate(req.Param.Modifiers), backendIndex),
 		})
 	}
@@ -1141,7 +1171,7 @@ func rewriteBackendRequestHeaderResponseRefs(h *dto.BackendRequestHeader, backen
 	return &out
 }
 
-func rewriteBackendRequestParamResponseRefs(p *dto.BackendRequestParam, backendIndex int) *dto.BackendRequestParam {
+func rewriteBackendRequestParamResponseRefs(p *dto.BackendRequestURLPath, backendIndex int) *dto.BackendRequestURLPath {
 	if checker.IsNil(p) {
 		return nil
 	}

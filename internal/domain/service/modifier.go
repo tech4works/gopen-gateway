@@ -25,6 +25,7 @@ import (
 	"github.com/tech4works/errors"
 	"github.com/tech4works/gopen-gateway/internal/domain"
 	"github.com/tech4works/gopen-gateway/internal/domain/mapper"
+	"github.com/tech4works/gopen-gateway/internal/domain/model/aggregate"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
 )
@@ -35,15 +36,15 @@ type modifierService struct {
 }
 
 type Modifier interface {
-	ExecuteURLPathModifiers(modifiers []vo.Modifier, urlPath vo.URLPath, request *vo.HTTPRequest, history *vo.History) (vo.URLPath, []error)
-	ExecuteHeaderModifiers(modifiers []vo.Modifier, header vo.Header, request *vo.HTTPRequest, history *vo.History) (vo.Header, []error)
-	ExecuteQueryModifiers(modifiers []vo.Modifier, query vo.Query, request *vo.HTTPRequest, history *vo.History) (vo.Query, []error)
-	ExecuteBodyModifiers(modifiers []vo.Modifier, body *vo.Body, request *vo.HTTPRequest, history *vo.History) (*vo.Body, []error)
+	ExecuteURLPathModifiers(modifiers []vo.Modifier, urlPath vo.URLPath, request *vo.HTTPRequest, history *aggregate.History) (vo.URLPath, []error)
+	ExecuteHeaderModifiers(modifiers []vo.Modifier, header vo.Header, request *vo.HTTPRequest, history *aggregate.History) (vo.Header, []error)
+	ExecuteQueryModifiers(modifiers []vo.Modifier, query vo.Query, request *vo.HTTPRequest, history *aggregate.History) (vo.Query, []error)
+	ExecuteBodyModifiers(modifiers []vo.Modifier, body *vo.Body, request *vo.HTTPRequest, history *aggregate.History) (*vo.Body, []error)
 
-	ModifyURLPath(modifier *vo.Modifier, urlPath vo.URLPath, request *vo.HTTPRequest, history *vo.History) (vo.URLPath, error)
-	ModifyHeader(modifier *vo.Modifier, header vo.Header, request *vo.HTTPRequest, history *vo.History) (vo.Header, error)
-	ModifyQuery(modifier *vo.Modifier, query vo.Query, request *vo.HTTPRequest, history *vo.History) (vo.Query, error)
-	ModifyBody(modifier *vo.Modifier, body *vo.Body, request *vo.HTTPRequest, history *vo.History) (*vo.Body, error)
+	ModifyURLPath(modifier *vo.Modifier, urlPath vo.URLPath, request *vo.HTTPRequest, history *aggregate.History) (vo.URLPath, error)
+	ModifyHeader(modifier *vo.Modifier, header vo.Header, request *vo.HTTPRequest, history *aggregate.History) (vo.Header, error)
+	ModifyQuery(modifier *vo.Modifier, query vo.Query, request *vo.HTTPRequest, history *aggregate.History) (vo.Query, error)
+	ModifyBody(modifier *vo.Modifier, body *vo.Body, request *vo.HTTPRequest, history *aggregate.History) (*vo.Body, error)
 }
 
 func NewModifier(jsonPath domain.JSONPath, dynamicValueService DynamicValue) Modifier {
@@ -54,7 +55,7 @@ func NewModifier(jsonPath domain.JSONPath, dynamicValueService DynamicValue) Mod
 }
 
 func (s modifierService) ExecuteBodyModifiers(modifiers []vo.Modifier, body *vo.Body, request *vo.HTTPRequest,
-	history *vo.History) (*vo.Body, []error) {
+	history *aggregate.History) (*vo.Body, []error) {
 	var allErrs []error
 	for _, modifier := range modifiers {
 		var err error
@@ -70,7 +71,7 @@ func (s modifierService) ExecuteBodyModifiers(modifiers []vo.Modifier, body *vo.
 }
 
 func (s modifierService) ExecuteURLPathModifiers(modifiers []vo.Modifier, urlPath vo.URLPath, request *vo.HTTPRequest,
-	history *vo.History) (vo.URLPath, []error) {
+	history *aggregate.History) (vo.URLPath, []error) {
 	var allErrs []error
 
 	for _, modifier := range modifiers {
@@ -87,7 +88,7 @@ func (s modifierService) ExecuteURLPathModifiers(modifiers []vo.Modifier, urlPat
 }
 
 func (s modifierService) ExecuteHeaderModifiers(modifiers []vo.Modifier, header vo.Header, request *vo.HTTPRequest,
-	history *vo.History) (vo.Header, []error) {
+	history *aggregate.History) (vo.Header, []error) {
 	var allErrs []error
 
 	for _, modifier := range modifiers {
@@ -104,7 +105,7 @@ func (s modifierService) ExecuteHeaderModifiers(modifiers []vo.Modifier, header 
 }
 
 func (s modifierService) ExecuteQueryModifiers(modifiers []vo.Modifier, query vo.Query, request *vo.HTTPRequest,
-	history *vo.History) (vo.Query, []error) {
+	history *aggregate.History) (vo.Query, []error) {
 	var allErrs []error
 
 	for _, modifier := range modifiers {
@@ -121,7 +122,7 @@ func (s modifierService) ExecuteQueryModifiers(modifiers []vo.Modifier, query vo
 }
 
 func (s modifierService) ModifyURLPath(modifier *vo.Modifier, urlPath vo.URLPath, request *vo.HTTPRequest,
-	history *vo.History) (vo.URLPath, error) {
+	history *aggregate.History) (vo.URLPath, error) {
 	shouldRun, err := s.evalModifierGuards("url path", modifier, request, history)
 	if checker.NonNil(err) {
 		return urlPath, s.wrapModifierErr("url-path", "eval-guards", modifier, err, "")
@@ -149,7 +150,7 @@ func (s modifierService) ModifyURLPath(modifier *vo.Modifier, urlPath vo.URLPath
 }
 
 func (s modifierService) ModifyHeader(modifier *vo.Modifier, header vo.Header, request *vo.HTTPRequest,
-	history *vo.History) (vo.Header, error) {
+	history *aggregate.History) (vo.Header, error) {
 	shouldRun, err := s.evalModifierGuards("header", modifier, request, history)
 	if checker.NonNil(err) {
 		return header, s.wrapModifierErr("header", "eval-guards", modifier, err, "")
@@ -180,7 +181,7 @@ func (s modifierService) ModifyHeader(modifier *vo.Modifier, header vo.Header, r
 	}
 }
 
-func (s modifierService) ModifyQuery(modifier *vo.Modifier, query vo.Query, request *vo.HTTPRequest, history *vo.History,
+func (s modifierService) ModifyQuery(modifier *vo.Modifier, query vo.Query, request *vo.HTTPRequest, history *aggregate.History,
 ) (vo.Query, error) {
 	shouldRun, err := s.evalModifierGuards("query", modifier, request, history)
 	if checker.NonNil(err) {
@@ -212,7 +213,7 @@ func (s modifierService) ModifyQuery(modifier *vo.Modifier, query vo.Query, requ
 	}
 }
 
-func (s modifierService) ModifyBody(modifier *vo.Modifier, body *vo.Body, request *vo.HTTPRequest, history *vo.History,
+func (s modifierService) ModifyBody(modifier *vo.Modifier, body *vo.Body, request *vo.HTTPRequest, history *aggregate.History,
 ) (*vo.Body, error) {
 	if checker.IsNil(body) {
 		return nil, nil
@@ -248,7 +249,7 @@ func (s modifierService) ModifyBody(modifier *vo.Modifier, body *vo.Body, reques
 	}
 }
 
-func (s modifierService) evalModifierGuards(kind string, modifier *vo.Modifier, request *vo.HTTPRequest, history *vo.History,
+func (s modifierService) evalModifierGuards(kind string, modifier *vo.Modifier, request *vo.HTTPRequest, history *aggregate.History,
 ) (bool, error) {
 	shouldRun, _, errs := s.dynamicValueService.EvalGuards(modifier.OnlyIf(), modifier.IgnoreIf(), request, history)
 	if checker.IsNotEmpty(errs) {
@@ -583,6 +584,7 @@ func (s modifierService) joinDynamicValueErr(kind string, modifier *vo.Modifier,
 		return nil
 	}
 
-	return errors.JoinInheritf(errs, ", ", "modifier failed: op=resolve-dynamic-value kind=%s action=%s key=%s value=%s",
+	return errors.JoinInheritf(errs, ", ",
+		"modifier failed: op=resolve-dynamic-value kind=%s action=%s key=%s value=%s",
 		kind, modifier.Action(), modifier.Key(), modifier.Value())
 }

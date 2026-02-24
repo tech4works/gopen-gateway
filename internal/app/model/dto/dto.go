@@ -190,23 +190,23 @@ type Backend struct {
 }
 
 type BackendRequest struct {
-	Comment         string                `json:"@comment,omitempty"`
-	ContinueOnError *bool                 `json:"continue-on-error,omitempty"`
-	Concurrent      int                   `json:"concurrent,omitempty"`
-	Async           *bool                 `json:"async,omitempty"`
-	Header          *BackendRequestHeader `json:"header,omitempty"`
-	Param           *BackendRequestParam  `json:"param,omitempty"`
-	Query           *BackendRequestQuery  `json:"query,omitempty"`
-	Body            *BackendRequestBody   `json:"body,omitempty"`
+	Comment         string                 `json:"@comment,omitempty"`
+	ContinueOnError *bool                  `json:"continue-on-error,omitempty"`
+	Concurrent      int                    `json:"concurrent,omitempty"`
+	Async           *bool                  `json:"async,omitempty"`
+	Header          *BackendRequestHeader  `json:"header,omitempty"`
+	Param           *BackendRequestURLPath `json:"param,omitempty"`
+	Query           *BackendRequestQuery   `json:"query,omitempty"`
+	Body            *BackendRequestBody    `json:"body,omitempty"`
 }
 
 type BackendPropagate struct {
-	Comment         string                `json:"@comment,omitempty"`
-	ContinueOnError *bool                 `json:"continue-on-error,omitempty"`
-	Header          *BackendRequestHeader `json:"header,omitempty"`
-	Param           *BackendRequestParam  `json:"param,omitempty"`
-	Query           *BackendRequestQuery  `json:"query,omitempty"`
-	Body            *BackendRequestBody   `json:"body,omitempty"`
+	Comment         string                 `json:"@comment,omitempty"`
+	ContinueOnError *bool                  `json:"continue-on-error,omitempty"`
+	Header          *BackendRequestHeader  `json:"header,omitempty"`
+	URLPath         *BackendRequestURLPath `json:"url-path,omitempty"`
+	Query           *BackendRequestQuery   `json:"query,omitempty"`
+	Body            *BackendRequestBody    `json:"body,omitempty"`
 }
 
 type BackendRequestHeader struct {
@@ -217,7 +217,7 @@ type BackendRequestHeader struct {
 	Modifiers []Modifier `json:"modifiers,omitempty"`
 }
 
-type BackendRequestParam struct {
+type BackendRequestURLPath struct {
 	Comment   string     `json:"@comment,omitempty"`
 	Modifiers []Modifier `json:"modifiers,omitempty"`
 }
@@ -240,6 +240,7 @@ type BackendRequestBody struct {
 	Mapper          *Mapper              `json:"mapper,omitempty"`
 	Projector       *Projector           `json:"projector,omitempty"`
 	Modifiers       []Modifier           `json:"modifiers,omitempty"`
+	Joins           []Join               `json:"joins,omitempty"`
 }
 
 type BackendResponse struct {
@@ -265,7 +266,7 @@ type BackendResponseBody struct {
 	Mapper    *Mapper    `json:"mapper,omitempty"`
 	Projector *Projector `json:"projector,omitempty"`
 	Modifiers []Modifier `json:"modifiers,omitempty"`
-	Enrichers []Enricher `json:"enrichers,omitempty"`
+	Joins     []Join     `json:"joins,omitempty"`
 }
 
 type PublisherMessage struct {
@@ -278,10 +279,14 @@ type PublisherMessage struct {
 }
 
 type PublisherMessageBody struct {
-	OmitEmpty bool       `json:"omit-empty,omitempty"`
-	Mapper    *Mapper    `json:"mapper,omitempty"`
-	Projector *Projector `json:"projector,omitempty"`
-	Modifiers []Modifier `json:"modifiers,omitempty"`
+	OmitEmpty       bool                 `json:"omit-empty,omitempty"`
+	ContentType     enum.ContentType     `json:"content-type,omitempty"`
+	ContentEncoding enum.ContentEncoding `json:"content-encoding,omitempty"`
+	Nomenclature    enum.Nomenclature    `json:"nomenclature,omitempty"`
+	Mapper          *Mapper              `json:"mapper,omitempty"`
+	Projector       *Projector           `json:"projector,omitempty"`
+	Modifiers       []Modifier           `json:"modifiers,omitempty"`
+	Joins           []Join               `json:"joins,omitempty"`
 }
 
 type PublisherMessageAttribute struct {
@@ -290,10 +295,11 @@ type PublisherMessageAttribute struct {
 }
 
 type Mapper struct {
-	Comment  string   `json:"@comment,omitempty"`
-	OnlyIf   []string `json:"only-if,omitempty"`
-	IgnoreIf []string `json:"ignore-if,omitempty"`
-	Map      vo.Map   `json:"map,omitempty"`
+	Comment  string            `json:"@comment,omitempty"`
+	OnlyIf   []string          `json:"only-if,omitempty"`
+	IgnoreIf []string          `json:"ignore-if,omitempty"`
+	Policy   enum.MapperPolicy `json:"policy,omitempty"`
+	Map      vo.Map            `json:"map,omitempty"`
 }
 
 type Projector struct {
@@ -313,25 +319,25 @@ type Modifier struct {
 	Value     string              `json:"value,omitempty"`
 }
 
-type Enricher struct {
-	Comment  string         `json:"@comment,omitempty"`
-	OnlyIf   []string       `json:"only-if,omitempty"`
-	IgnoreIf []string       `json:"ignore-if,omitempty"`
-	Source   EnricherSource `json:"source,omitempty"`
-	Target   EnricherTarget `json:"target,omitempty"`
+type Join struct {
+	Comment  string     `json:"@comment,omitempty"`
+	OnlyIf   []string   `json:"only-if,omitempty"`
+	IgnoreIf []string   `json:"ignore-if,omitempty"`
+	Source   JoinSource `json:"source,omitempty"`
+	Target   JoinTarget `json:"target,omitempty"`
 }
 
-type EnricherSource struct {
+type JoinSource struct {
 	Path string `json:"path,omitempty"`
 	Key  string `json:"key,omitempty"`
 }
 
-type EnricherTarget struct {
-	Policy    enum.EnrichTargetPolicy    `json:"policy,omitempty"`
-	Path      string                     `json:"path,omitempty"`
-	Key       string                     `json:"key,omitempty"`
-	As        string                     `json:"as,omitempty"`
-	OnMissing enum.EnrichTargetOnMissing `json:"on-missing,omitempty"`
+type JoinTarget struct {
+	Policy    enum.JoinTargetPolicy    `json:"policy,omitempty"`
+	Path      string                   `json:"path,omitempty"`
+	Key       string                   `json:"key,omitempty"`
+	As        string                   `json:"as,omitempty"`
+	OnMissing enum.JoinTargetOnMissing `json:"on-missing,omitempty"`
 }
 
 type ErrorBody struct {

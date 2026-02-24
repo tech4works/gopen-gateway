@@ -18,7 +18,6 @@ package usecase
 
 import (
 	"context"
-	berrors "errors"
 	"fmt"
 	"net/url"
 	"runtime/debug"
@@ -30,6 +29,7 @@ import (
 	"github.com/tech4works/gopen-gateway/internal/app/model/dto"
 	"github.com/tech4works/gopen-gateway/internal/domain/factory"
 	"github.com/tech4works/gopen-gateway/internal/domain/mapper"
+	"github.com/tech4works/gopen-gateway/internal/domain/model/aggregate"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
 	"github.com/tech4works/gopen-gateway/internal/domain/service"
@@ -86,9 +86,7 @@ func NewEndpoint(
 func (e endpointUseCase) Execute(ctx context.Context, executeData dto.ExecuteEndpoint) *vo.HTTPResponse {
 	backends := executeData.Endpoint.Backends()
 
-	history := vo.NewHistoryWithSize(len(backends))
-
-	history, aborted, err := e.executeAllBackends(ctx, executeData, backends, history)
+	history, aborted, err := e.executeAllBackends(ctx, executeData, backends)
 	if checker.NonNil(err) {
 		return e.httpResponseFactory.BuildErrorResponse(executeData.Endpoint, err)
 	} else if aborted {
@@ -102,15 +100,38 @@ func (e endpointUseCase) executeAllBackends(
 	ctx context.Context,
 	executeData dto.ExecuteEndpoint,
 	backends []vo.Backend,
-	history *vo.History,
-) (*vo.History, bool, error) {
+) (*aggregate.History, bool, error) {
 	seqCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	asyncDoneCh := make(chan backendExecResult, len(backends))
 	abortCh := make(chan backendExecResult, 1)
 
-	pendingAsync := 0
+	committed := make([]chan struct{}, len(backends))
+	for i := range committed {
+		committed[i] = make(chan struct{})
+	}
+
+	history := aggregate.NewHistoryWithSize(len(backends))
+
+	waitDependencies := func(b vo.Backend) {
+		for _, dependencyIndex := range b.Dependencies().Indexes() {
+			select {
+			case <-seqCtx.Done():
+				return
+			case <-committed[dependencyIndex]:
+			}
+		}
+	}
+
+	commitResult := func(r backendExecResult) {
+		history.AddBackend(r.i, &r.backend, r.httpReq, r.httpResp, r.pubReq, r.pubResp)
+		select {
+		case <-committed[r.i]:
+		default:
+			close(committed[r.i])
+		}
+	}
 
 	pollAbort := func() (backendExecResult, bool) {
 		select {
@@ -121,9 +142,11 @@ func (e endpointUseCase) executeAllBackends(
 		}
 	}
 
+	pendingAsync := 0
+
 	for i := range backends {
 		if r, ok := pollAbort(); ok {
-			history = history.AddBackend(r.i, &r.backend, r.httpReq, r.httpResp, r.pubReq, r.pubResp)
+			commitResult(r)
 			return history, true, nil
 		}
 
@@ -131,10 +154,13 @@ func (e endpointUseCase) executeAllBackends(
 
 		if backend.Async() {
 			pendingAsync++
+
 			i := i
 			backend := backend
 
 			safeSendBackendResult(seqCtx, "executeBackend.runAsync", asyncDoneCh, func() backendExecResult {
+				waitDependencies(backend)
+
 				httpReq, httpResp, pubReq, pubResp, err := e.executeBackend(seqCtx, executeData, &backend, history)
 
 				if e.shouldBackendAbort(executeData.Endpoint, httpResp, pubResp, err) {
@@ -152,6 +178,7 @@ func (e endpointUseCase) executeAllBackends(
 					default:
 					}
 				}
+
 				return backendExecResult{
 					i:        i,
 					backend:  backend,
@@ -165,13 +192,23 @@ func (e endpointUseCase) executeAllBackends(
 			continue
 		}
 
+		waitDependencies(backend)
+
 		httpReq, httpResp, pubReq, pubResp, err := e.executeBackend(seqCtx, executeData, &backend, history)
 		if checker.NonNil(err) {
 			cancel()
 			return history, false, err
 		}
 
-		history = history.AddBackend(i, &backend, httpReq, httpResp, pubReq, pubResp)
+		commitResult(backendExecResult{
+			i:        i,
+			backend:  backend,
+			httpReq:  httpReq,
+			httpResp: httpResp,
+			pubReq:   pubReq,
+			pubResp:  pubResp,
+			err:      nil,
+		})
 
 		if e.shouldBackendAbort(executeData.Endpoint, httpResp, pubResp, err) {
 			cancel()
@@ -182,14 +219,14 @@ func (e endpointUseCase) executeAllBackends(
 	for completed := 0; checker.IsLessThan(completed, pendingAsync); {
 		select {
 		case r := <-abortCh:
-			history = history.AddBackend(r.i, &r.backend, r.httpReq, r.httpResp, r.pubReq, r.pubResp)
+			commitResult(r)
 			return history, true, nil
 		case r := <-asyncDoneCh:
 			if checker.NonNil(r.err) {
 				cancel()
 				return history, false, r.err
 			}
-			history = history.AddBackend(r.i, &r.backend, r.httpReq, r.httpResp, r.pubReq, r.pubResp)
+			commitResult(r)
 			completed++
 		}
 	}
@@ -201,22 +238,8 @@ func (e endpointUseCase) executeBackend(
 	ctx context.Context,
 	executeData dto.ExecuteEndpoint,
 	backend *vo.Backend,
-	history *vo.History,
+	history *aggregate.History,
 ) (*vo.HTTPBackendRequest, *vo.HTTPBackendResponse, *vo.PublisherBackendRequest, *vo.PublisherBackendResponse, error) {
-	shouldRun, reason, errs := e.dynamicValueService.EvalGuards(
-		backend.OnlyIf(),
-		backend.IgnoreIf(),
-		executeData.Request,
-		history,
-	)
-	if checker.IsNotEmpty(errs) {
-		return nil, nil, nil, nil, errors.JoinInheritf(errs, ", ", "failed to evaluate guard for backend kind=%v",
-			backend.Kind())
-	} else if !shouldRun {
-		e.backendLog.PrintWarn(executeData, backend, "backend ignored by expression:", reason)
-		return nil, nil, nil, nil, nil
-	}
-
 	switch backend.Kind() {
 	case enum.BackendKindHTTP:
 		httpReq, httpResp, err := e.executeHTTPBackend(ctx, executeData, backend, history)
@@ -229,33 +252,49 @@ func (e endpointUseCase) executeBackend(
 	}
 }
 
+func (e endpointUseCase) evalBackendGuards(
+	backend *vo.Backend,
+	request *vo.HTTPRequest,
+	history *aggregate.History,
+) error {
+	errs := e.dynamicValueService.EvalGuardsWithErr(backend.OnlyIf(), backend.IgnoreIf(), request, history)
+	if errors.Only(errs, mapper.ErrEvalGuards) {
+		return errs[0]
+	} else if checker.IsNotEmpty(errs) {
+		return errors.JoinInheritf(errs, ", ", "failed to evaluate guard for backend kind=%v", backend.Kind())
+	} else {
+		return nil
+	}
+}
+
 func (e endpointUseCase) executeHTTPBackend(
 	ctx context.Context,
 	executeData dto.ExecuteEndpoint,
 	backend *vo.Backend,
-	history *vo.History,
+	history *aggregate.History,
 ) (*vo.HTTPBackendRequest, *vo.HTTPBackendResponse, error) {
+	if err := e.evalBackendGuards(backend, executeData.Request, history); checker.NonNil(err) {
+		return nil, e.backendFactory.BuildHTTPResponseByErr(executeData.Endpoint, backend, err), nil
+	}
+
 	httpBackendRequest, err := e.buildHTTPBackendRequest(ctx, executeData, backend, history)
 	if checker.NonNil(err) {
 		return httpBackendRequest, nil, err
-	}
-
-	if backend.HTTP().HasRequest() && backend.HTTP().Request().IsConcurrent() {
+	} else if backend.HTTP().HasRequest() && backend.HTTP().Request().IsConcurrent() {
 		return httpBackendRequest, e.makeConcurrentBackendHTTPRequest(ctx, backend, executeData, httpBackendRequest), nil
+	} else {
+		return httpBackendRequest, e.makeBackendHTTPRequest(ctx, executeData, backend, httpBackendRequest), nil
 	}
-
-	return httpBackendRequest, e.makeBackendHTTPRequest(ctx, executeData, backend, httpBackendRequest), nil
 }
 
 func (e endpointUseCase) executePublisherBackend(
 	ctx context.Context,
 	executeData dto.ExecuteEndpoint,
 	backend *vo.Backend,
-	history *vo.History,
+	history *aggregate.History,
 ) (*vo.PublisherBackendRequest, *vo.PublisherBackendResponse, error) {
-	if !executeData.Request.HasBody() {
-		e.backendLog.PrintWarn(executeData, backend, "Ignore publishers because request body is empty!")
-		return nil, nil, nil
+	if err := e.evalBackendGuards(backend, executeData.Request, history); checker.NonNil(err) {
+		return nil, e.backendFactory.BuildPublisherResponseByErr(executeData.Endpoint, backend, err), nil
 	}
 
 	publisherBackendRequest, err := e.buildPublisherRequest(ctx, executeData, backend, history)
@@ -310,7 +349,7 @@ func (e endpointUseCase) makeBackendHTTPRequest(
 	duration := time.Since(startTime)
 
 	var httpBackendResponse *vo.HTTPBackendResponse
-	if err = e.treatHTTPClientErr(err); checker.NonNil(err) {
+	if err = e.treatHTTPClientErr(err); errors.Is(err, mapper.ErrBackendConcurrentCancelled) {
 		httpBackendResponse = e.backendFactory.BuildHTTPResponseByErr(executeData.Endpoint, backend, err)
 	} else {
 		httpBackendResponse = e.backendFactory.BuildHTTPResponse(httpResponse)
@@ -327,8 +366,8 @@ func (e endpointUseCase) treatHTTPClientErr(err error) error {
 	}
 
 	var urlErr *url.Error
-	berrors.As(err, &urlErr)
-	if berrors.Is(urlErr.Err, context.Canceled) {
+	errors.As(err, &urlErr)
+	if errors.Is(urlErr.Err, context.Canceled) {
 		return mapper.NewErrBackendConcurrentCancelled()
 	} else if urlErr.Timeout() {
 		return mapper.NewErrBackendGatewayTimeout(err)
@@ -338,11 +377,19 @@ func (e endpointUseCase) treatHTTPClientErr(err error) error {
 }
 
 func (e endpointUseCase) makeBackendPublisherRequest(
-	ctx context.Context,
+	parent context.Context,
 	executeData dto.ExecuteEndpoint,
 	backend *vo.Backend,
 	publisherBackendRequest *vo.PublisherBackendRequest,
 ) *vo.PublisherBackendResponse {
+	timeout, ok := parent.Deadline()
+	if !ok {
+		return e.backendFactory.BuildPublisherResponseByErr(executeData.Endpoint, backend, context.DeadlineExceeded)
+	}
+
+	ctx, cancel := context.WithTimeout(parent, time.Until(timeout))
+	defer cancel()
+
 	e.backendLog.PrintPublisherRequest(executeData, backend, publisherBackendRequest)
 
 	startTime := time.Now()
@@ -362,15 +409,11 @@ func (e endpointUseCase) makeBackendPublisherRequest(
 }
 
 func (e endpointUseCase) treatPublisherClientErr(err error) error {
-	if checker.IsNil(err) {
-		return nil
-	}
-
-	if berrors.Is(err, context.Canceled) {
+	if errors.Is(err, context.Canceled) {
 		return mapper.NewErrBackendConcurrentCancelled()
+	} else {
+		return err
 	}
-
-	return err
 }
 
 func (e endpointUseCase) shouldBackendAbort(
@@ -381,7 +424,7 @@ func (e endpointUseCase) shouldBackendAbort(
 ) bool {
 	if checker.NonNil(err) {
 		return true
-	} else if checker.IsNil(httpResp) || checker.IsNil(pubResp) {
+	} else if checker.IsNil(httpResp) && checker.IsNil(pubResp) {
 		return false
 	}
 
@@ -403,7 +446,7 @@ func (e endpointUseCase) buildHTTPBackendRequest(
 	ctx context.Context,
 	executeData dto.ExecuteEndpoint,
 	backend *vo.Backend,
-	history *vo.History,
+	history *aggregate.History,
 ) (*vo.HTTPBackendRequest, error) {
 	span, ctx := apm.StartSpan(ctx, "http.request", "factory")
 	defer span.End()
@@ -413,9 +456,7 @@ func (e endpointUseCase) buildHTTPBackendRequest(
 	httpBackendRequest, errs := e.backendFactory.BuildHTTPRequest(backend.HTTP(), executeData.Request, history)
 	if checker.IsEmpty(errs) {
 		return httpBackendRequest, nil
-	}
-
-	if backend.HTTP().HasRequest() && backend.HTTP().Request().ContinueOnError() {
+	} else if backend.HTTP().HasRequest() && backend.HTTP().Request().ContinueOnError() {
 		for _, err := range errs {
 			e.backendLog.PrintWarn(executeData, backend, err)
 		}
@@ -436,9 +477,9 @@ func (e endpointUseCase) buildFinalHTTPBackendResponse(
 	executeData dto.ExecuteEndpoint,
 	backend *vo.Backend,
 	httpBackendResponse *vo.HTTPBackendResponse,
-	history *vo.History,
+	history *aggregate.History,
 ) (*vo.HTTPBackendResponse, error) {
-	if !backend.HasResponse() {
+	if !backend.HasResponse() || !httpBackendResponse.Executed() {
 		return httpBackendResponse, nil
 	} else if backend.Response().Omit() {
 		return nil, nil
@@ -472,9 +513,9 @@ func (e endpointUseCase) buildFinalPublisherBackendResponse(
 	executeData dto.ExecuteEndpoint,
 	backend *vo.Backend,
 	publisherResponse *vo.PublisherBackendResponse,
-	history *vo.History,
+	history *aggregate.History,
 ) (*vo.PublisherBackendResponse, error) {
-	if !backend.HasResponse() {
+	if !backend.HasResponse() || !publisherResponse.Executed() {
 		return publisherResponse, nil
 	}
 
@@ -502,7 +543,7 @@ func (e endpointUseCase) buildFinalPublisherBackendResponse(
 	)
 }
 
-func (e endpointUseCase) buildHTTPResponse(ctx context.Context, executeData dto.ExecuteEndpoint, history *vo.History,
+func (e endpointUseCase) buildHTTPResponse(ctx context.Context, executeData dto.ExecuteEndpoint, history *aggregate.History,
 ) *vo.HTTPResponse {
 	span, ctx := apm.StartSpan(ctx, "endpoint.response", "factory")
 	defer span.End()
@@ -530,7 +571,7 @@ func (e endpointUseCase) buildHTTPResponse(ctx context.Context, executeData dto.
 	))
 }
 
-func (e endpointUseCase) filterHistory(executeData dto.ExecuteEndpoint, history *vo.History) (*vo.History, error) {
+func (e endpointUseCase) filterHistory(executeData dto.ExecuteEndpoint, history *aggregate.History) (*aggregate.History, error) {
 	for i := 0; checker.IsLessThan(i, history.Size()); i++ {
 		backend, httpReq, tempHTTPRes, pubReq, tmpPubRes := history.GetBackend(i)
 		if checker.IsNil(backend) {
@@ -549,7 +590,7 @@ func (e endpointUseCase) filterHistory(executeData dto.ExecuteEndpoint, history 
 			return nil, err
 		}
 
-		history = history.AddBackend(i, backend, httpReq, httpFinal, pubReq, pubFinal)
+		history.AddBackend(i, backend, httpReq, httpFinal, pubReq, pubFinal)
 	}
 
 	return history, nil
@@ -592,7 +633,7 @@ func (e endpointUseCase) buildPublisherRequest(
 	ctx context.Context,
 	executeData dto.ExecuteEndpoint,
 	backend *vo.Backend,
-	history *vo.History,
+	history *aggregate.History,
 ) (*vo.PublisherBackendRequest, error) {
 	span, ctx := apm.StartSpan(ctx, "publisher.request", "factory")
 	defer span.End()
@@ -602,7 +643,7 @@ func (e endpointUseCase) buildPublisherRequest(
 	publisherRequest, errs := e.backendFactory.BuildPublisherRequest(executeData.Request, history, backend.Publisher())
 	if checker.IsEmpty(errs) {
 		return publisherRequest, nil
-	} else if backend.Response().ContinueOnError() {
+	} else if backend.Publisher().HasMessage() && backend.Publisher().Message().ContinueOnError() {
 		for _, err := range errs {
 			e.backendLog.PrintWarn(executeData, backend, err)
 		}

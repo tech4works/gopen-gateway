@@ -18,44 +18,30 @@ package middleware
 
 import (
 	"net/http"
-	"runtime/debug"
 
 	"github.com/tech4works/checker"
-	"github.com/tech4works/errors"
 	"github.com/tech4works/gopen-gateway/internal/app"
-	"go.elastic.co/apm/v2"
 )
 
-type panicRecoveryMiddleware struct {
-	log app.MiddlewareLog
+type preValidation struct {
 }
 
-type PanicRecovery interface {
+type PreValidation interface {
 	Do(ctx app.Context)
 }
 
-func NewPanicRecovery(log app.MiddlewareLog) PanicRecovery {
-	return panicRecoveryMiddleware{
-		log: log,
-	}
+func NewPrevalidate() PreValidation {
+	return preValidation{}
 }
 
-func (p panicRecoveryMiddleware) Do(ctx app.Context) {
-	defer func() {
-		if r := recover(); checker.NonNil(r) {
-			p.log.PrintErrorf(ctx, "%s:%s", r, string(debug.Stack()))
+func (m preValidation) Do(ctx app.Context) {
+	body := ctx.Request().Body()
 
-			err := errors.New("Gateway panic error occurred! detail:", r)
+	err := body.Validate()
+	if checker.NonNil(err) {
+		ctx.WriteError(http.StatusBadRequest, err)
+		return
+	}
 
-			tx := apm.TransactionFromContext(ctx.Context())
-			if checker.NonNil(tx) {
-				apmErr := apm.DefaultTracer().NewError(err)
-				apmErr.SetTransaction(tx)
-				apmErr.Send()
-			}
-
-			ctx.WriteError(http.StatusInternalServerError, err)
-		}
-	}()
 	ctx.Next()
 }

@@ -25,37 +25,26 @@ import (
 	"github.com/tech4works/errors"
 	"github.com/tech4works/gopen-gateway/internal/app/model/dto"
 	"github.com/tech4works/gopen-gateway/internal/domain/mapper"
+	"github.com/tech4works/gopen-gateway/internal/domain/model/aggregate"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
 	"github.com/tech4works/gopen-gateway/internal/domain/service"
 )
 
 type httpResponseFactory struct {
-	aggregatorService   service.Aggregator
-	omitterService      service.Omitter
-	mapperService       service.Mapper
-	projectorService    service.Projector
-	nomenclatureService service.Nomenclature
-	contentService      service.Content
-	httpBackendFactory  Backend
+	aggregatorService    service.Aggregator
+	buildPipelineService service.BuildPipeline
 }
 
 type HTTPResponse interface {
 	BuildErrorResponse(endpoint *vo.Endpoint, err error) *vo.HTTPResponse
-	BuildAbortedResponse(history *vo.History) *vo.HTTPResponse
-	BuildResponse(endpoint *vo.Endpoint, request *vo.HTTPRequest, history *vo.History) (*vo.HTTPResponse, []error)
+	BuildAbortedResponse(history *aggregate.History) *vo.HTTPResponse
+	BuildResponse(endpoint *vo.Endpoint, request *vo.HTTPRequest, history *aggregate.History) (*vo.HTTPResponse, []error)
 }
 
-func NewHTTPResponse(aggregatorService service.Aggregator, omitterService service.Omitter,
-	mapperService service.Mapper, projectorService service.Projector, nomenclatureService service.Nomenclature,
-	contentService service.Content, httpBackendFactory Backend) HTTPResponse {
+func NewHTTPResponse(aggregatorService service.Aggregator, buildPipelineService service.BuildPipeline) HTTPResponse {
 	return httpResponseFactory{
-		aggregatorService:   aggregatorService,
-		omitterService:      omitterService,
-		mapperService:       mapperService,
-		projectorService:    projectorService,
-		nomenclatureService: nomenclatureService,
-		contentService:      contentService,
-		httpBackendFactory:  httpBackendFactory,
+		aggregatorService:    aggregatorService,
+		buildPipelineService: buildPipelineService,
 	}
 }
 
@@ -79,7 +68,7 @@ func (h httpResponseFactory) BuildErrorResponse(endpoint *vo.Endpoint, err error
 	return vo.NewHTTPResponse(statusCode, header, body)
 }
 
-func (h httpResponseFactory) BuildAbortedResponse(history *vo.History) *vo.HTTPResponse {
+func (h httpResponseFactory) BuildAbortedResponse(history *aggregate.History) *vo.HTTPResponse {
 	lastestBackendResponse := history.BackendResponseLastest()
 	lastestStatusCode := lastestBackendResponse.StatusCode()
 	lastestHeader := lastestBackendResponse.Header()
@@ -95,7 +84,7 @@ func (h httpResponseFactory) BuildAbortedResponse(history *vo.History) *vo.HTTPR
 	return vo.NewHTTPResponse(lastestStatusCode, header, lastestBody)
 }
 
-func (h httpResponseFactory) BuildResponse(endpoint *vo.Endpoint, request *vo.HTTPRequest, history *vo.History,
+func (h httpResponseFactory) BuildResponse(endpoint *vo.Endpoint, request *vo.HTTPRequest, history *aggregate.History,
 ) (*vo.HTTPResponse, []error) {
 	var allErrs []error
 
@@ -108,7 +97,7 @@ func (h httpResponseFactory) BuildResponse(endpoint *vo.Endpoint, request *vo.HT
 	return vo.NewHTTPResponse(statusCode, header, body), allErrs
 }
 
-func (h httpResponseFactory) buildStatusCodeByHistory(history *vo.History) vo.StatusCode {
+func (h httpResponseFactory) buildStatusCodeByHistory(history *aggregate.History) vo.StatusCode {
 	if history.IsMultipleResponses() {
 		return h.buildStatusCodeFromMultipleResponses(history)
 	} else if history.IsSingleResponse() {
@@ -117,7 +106,7 @@ func (h httpResponseFactory) buildStatusCodeByHistory(history *vo.History) vo.St
 	return vo.NewStatusCode(http.StatusNoContent)
 }
 
-func (h httpResponseFactory) buildBodyByHistory(endpoint *vo.Endpoint, request *vo.HTTPRequest, history *vo.History) (
+func (h httpResponseFactory) buildBodyByHistory(endpoint *vo.Endpoint, request *vo.HTTPRequest, history *aggregate.History) (
 	*vo.Body, []error) {
 	var body *vo.Body
 	var errs []error
@@ -128,32 +117,18 @@ func (h httpResponseFactory) buildBodyByHistory(endpoint *vo.Endpoint, request *
 		body = history.BackendResponseLastest().Body()
 	}
 
-	if !endpoint.HasResponse() || !endpoint.Response().HasBody() {
-		return body, nil
+	if !endpoint.HasResponse() || !endpoint.Response().HasBody() || checker.IsNil(body) {
+		return body, errs
 	}
 
-	body, omitErrs := h.omitEmptyValuesFromBody(endpoint.Response().Body().OmitEmpty(), body)
-	body, modifyCaseErrs := h.nomenclatureService.ToCase(endpoint.Response().Body().Nomenclature(), body)
-	body, mapErrs := h.mapperService.MapBody(endpoint.Response().Body().Mapper(), body, request, history)
-	body, projectErrs := h.projectorService.ProjectBody(endpoint.Response().Body().Projector(), body, request, history)
-	body, modifyContentTypeErr := h.contentService.ModifyBodyContentType(endpoint.Response().Body().ContentType(), body)
-	body, modifyBodyContentEncodingErr := h.contentService.ModifyBodyContentEncoding(endpoint.Response().Body().ContentEncoding(), body)
+	bodyPipelineSpec := vo.NewBodyPipelineSpecFromEndpointResponse(endpoint.Response())
 
-	errs = append(errs, omitErrs...)
-	errs = append(errs, modifyCaseErrs...)
-	errs = append(errs, mapErrs...)
-	errs = append(errs, projectErrs...)
-	if checker.NonNil(modifyContentTypeErr) {
-		errs = append(errs, modifyContentTypeErr)
-	}
-	if checker.NonNil(modifyBodyContentEncodingErr) {
-		errs = append(errs, modifyBodyContentEncodingErr)
-	}
+	body, bodyErrs := h.buildPipelineService.ApplyBody(bodyPipelineSpec, body, request, history)
 
-	return body, errs
+	return body, append(errs, bodyErrs...)
 }
 
-func (h httpResponseFactory) buildHeaderByHistory(body *vo.Body, history *vo.History) vo.Header {
+func (h httpResponseFactory) buildHeaderByHistory(body *vo.Body, history *aggregate.History) vo.Header {
 	mapHeader := map[string][]string{
 		mapper.XGopenCache:    {"false"},
 		mapper.XGopenSuccess:  {converter.ToString(history.AllOK())},
@@ -171,30 +146,21 @@ func (h httpResponseFactory) buildHeaderByHistory(body *vo.Body, history *vo.His
 
 	for i := 0; checker.IsLessThan(i, history.Size()); i++ {
 		backendResponse := history.GetBackendResponse(i)
-		if checker.IsNil(backendResponse) {
-			continue
+		if backendResponse.Executed() {
+			header = h.aggregatorService.AggregateHeaders(header, backendResponse.Header())
 		}
-		header = h.aggregatorService.AggregateHeaders(header, backendResponse.Header())
 	}
 
 	return header
 }
 
-func (h httpResponseFactory) buildBodyFromMultipleResponses(endpoint *vo.Endpoint, history *vo.History) (*vo.Body, []error) {
-	if endpoint.HasResponse() && endpoint.Response().HasBody() && endpoint.Response().Body().Aggregate() {
-		return h.aggregatorService.AggregateBodies(history)
-	}
-	return h.aggregatorService.AggregateBodiesIntoSlice(history)
-}
-
-func (h httpResponseFactory) buildStatusCodeFromMultipleResponses(history *vo.History) vo.StatusCode {
+func (h httpResponseFactory) buildStatusCodeFromMultipleResponses(history *aggregate.History) vo.StatusCode {
 	statusCodes := make(map[vo.StatusCode]int)
 	for i := 0; checker.IsLessThan(i, history.Size()); i++ {
 		backendResponse := history.GetBackendResponse(i)
-		if checker.IsNil(backendResponse) {
-			continue
+		if backendResponse.Executed() {
+			statusCodes[backendResponse.StatusCode()]++
 		}
-		statusCodes[backendResponse.StatusCode()]++
 	}
 
 	mostFrequentCode := vo.NewStatusCode(http.StatusNoContent)
@@ -209,9 +175,10 @@ func (h httpResponseFactory) buildStatusCodeFromMultipleResponses(history *vo.Hi
 	return mostFrequentCode
 }
 
-func (h httpResponseFactory) omitEmptyValuesFromBody(omitEmpty bool, body *vo.Body) (*vo.Body, []error) {
-	if !omitEmpty {
-		return body, nil
+func (h httpResponseFactory) buildBodyFromMultipleResponses(endpoint *vo.Endpoint, history *aggregate.History) (*vo.Body,
+	[]error) {
+	if endpoint.HasResponse() && endpoint.Response().HasBody() && endpoint.Response().Body().Aggregate() {
+		return h.aggregatorService.AggregateBodies(history)
 	}
-	return h.omitterService.OmitEmptyValuesFromBody(body)
+	return h.aggregatorService.AggregateBodiesIntoSlice(history)
 }

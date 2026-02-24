@@ -28,14 +28,18 @@ type BackendPolymorphicResponse interface {
 	HasBody() bool
 	Body() *Body
 	Map() (map[string]any, error)
+	Executed() bool
+	Ignored() bool
+	Cancelled() bool
 }
 
 type Backend struct {
-	id              string
 	flow            enum.BackendFlow
 	continueOnError bool
 	onlyIf          []string
 	ignoreIf        []string
+	id              string
+	dependencies    *BackendDependencies
 	kind            enum.BackendKind
 	http            *HTTP
 	publisher       *Publisher
@@ -54,7 +58,7 @@ type BackendRequest struct {
 	concurrent      int
 	async           bool
 	header          *BackendRequestHeader
-	param           *BackendRequestParam
+	urlPath         *BackendRequestURLPath
 	query           *BackendRequestQuery
 	body            *BackendRequestBody
 }
@@ -79,7 +83,7 @@ type BackendResponseBody struct {
 	mapper    *Mapper
 	projector *Projector
 	modifiers []Modifier
-	enrichers []Enricher
+	joins     []Join
 }
 
 type BackendRequestHeader struct {
@@ -89,7 +93,7 @@ type BackendRequestHeader struct {
 	modifiers []Modifier
 }
 
-type BackendRequestParam struct {
+type BackendRequestURLPath struct {
 	modifiers []Modifier
 }
 
@@ -98,6 +102,11 @@ type BackendRequestQuery struct {
 	mapper    *Mapper
 	projector *Projector
 	modifiers []Modifier
+}
+
+type BackendDependencies struct {
+	ids  []string
+	idxs []int
 }
 
 type BackendRequestBody struct {
@@ -109,13 +118,15 @@ type BackendRequestBody struct {
 	mapper          *Mapper
 	projector       *Projector
 	modifiers       []Modifier
+	joins           []Join
 }
 
 func NewBackendHTTP(
-	id string,
 	flow enum.BackendFlow,
 	onlyIf []string,
 	ignoreIf []string,
+	id string,
+	dependencies *BackendDependencies,
 	hosts []string,
 	path string,
 	method string,
@@ -123,11 +134,12 @@ func NewBackendHTTP(
 	response *BackendResponse,
 ) Backend {
 	return Backend{
-		id:       id,
-		flow:     flow,
-		onlyIf:   onlyIf,
-		ignoreIf: ignoreIf,
-		kind:     enum.BackendKindHTTP,
+		flow:         flow,
+		onlyIf:       onlyIf,
+		ignoreIf:     ignoreIf,
+		id:           id,
+		dependencies: dependencies,
+		kind:         enum.BackendKindHTTP,
 		http: &HTTP{
 			hosts:   hosts,
 			path:    path,
@@ -139,21 +151,23 @@ func NewBackendHTTP(
 }
 
 func NewBackendPublisher(
-	id string,
 	flow enum.BackendFlow,
 	onlyIf []string,
 	ignoreIf []string,
+	id string,
+	dependencies *BackendDependencies,
 	publisher Publisher,
 	response *BackendResponse,
 ) Backend {
 	return Backend{
-		id:        id,
-		flow:      flow,
-		onlyIf:    onlyIf,
-		ignoreIf:  ignoreIf,
-		kind:      enum.BackendKindPublisher,
-		publisher: &publisher,
-		response:  response,
+		flow:         flow,
+		onlyIf:       onlyIf,
+		ignoreIf:     ignoreIf,
+		id:           id,
+		dependencies: dependencies,
+		kind:         enum.BackendKindPublisher,
+		publisher:    &publisher,
+		response:     response,
 	}
 }
 
@@ -162,7 +176,7 @@ func NewBackendRequest(
 	concurrent int,
 	async bool,
 	header *BackendRequestHeader,
-	param *BackendRequestParam,
+	param *BackendRequestURLPath,
 	query *BackendRequestQuery,
 	body *BackendRequestBody,
 ) *BackendRequest {
@@ -171,7 +185,7 @@ func NewBackendRequest(
 		concurrent:      concurrent,
 		async:           async,
 		header:          header,
-		param:           param,
+		urlPath:         param,
 		query:           query,
 		body:            body,
 	}
@@ -191,8 +205,8 @@ func NewBackendRequestHeader(
 	}
 }
 
-func NewBackendRequestParam(modifiers []Modifier) *BackendRequestParam {
-	return &BackendRequestParam{modifiers: modifiers}
+func NewBackendRequestURLPath(modifiers []Modifier) *BackendRequestURLPath {
+	return &BackendRequestURLPath{modifiers: modifiers}
 }
 
 func NewBackendRequestQuery(
@@ -218,6 +232,7 @@ func NewBackendRequestBody(
 	mapper *Mapper,
 	projector *Projector,
 	modifiers []Modifier,
+	joins []Join,
 ) *BackendRequestBody {
 	return &BackendRequestBody{
 		omit:            omit,
@@ -228,6 +243,22 @@ func NewBackendRequestBody(
 		mapper:          mapper,
 		projector:       projector,
 		modifiers:       modifiers,
+		joins:           joins,
+	}
+}
+
+func NewBackendResponseForMiddleware(
+	continueOnError,
+	omit bool,
+	header *BackendResponseHeader,
+) *BackendResponse {
+	return &BackendResponse{
+		continueOnError: continueOnError,
+		omit:            omit,
+		header:          header,
+		body: &BackendResponseBody{
+			omit: true,
+		},
 	}
 }
 
@@ -265,7 +296,7 @@ func NewBackendResponseBody(
 	mapper *Mapper,
 	projector *Projector,
 	modifiers []Modifier,
-	enrichers []Enricher,
+	joins []Join,
 ) *BackendResponseBody {
 	return &BackendResponseBody{
 		omit:      omit,
@@ -273,20 +304,15 @@ func NewBackendResponseBody(
 		mapper:    mapper,
 		projector: projector,
 		modifiers: modifiers,
-		enrichers: enrichers,
+		joins:     joins,
 	}
 }
 
-func NewBackendResponseForMiddleware() *BackendResponse {
-	return &BackendResponse{
-		body: &BackendResponseBody{
-			omit: true,
-		},
+func NewBackendDependencies(ids []string, idxs []int) *BackendDependencies {
+	return &BackendDependencies{
+		ids:  ids,
+		idxs: idxs,
 	}
-}
-
-func (b *Backend) ID() string {
-	return b.id
 }
 
 func (b *Backend) OnlyIf() []string {
@@ -295,6 +321,18 @@ func (b *Backend) OnlyIf() []string {
 
 func (b *Backend) IgnoreIf() []string {
 	return b.ignoreIf
+}
+
+func (b *Backend) ID() string {
+	return b.id
+}
+
+func (b *Backend) HasDependencies() bool {
+	return checker.NonNil(b.dependencies)
+}
+
+func (b *Backend) Dependencies() *BackendDependencies {
+	return b.dependencies
 }
 
 func (b *Backend) HTTP() *HTTP {
@@ -418,8 +456,8 @@ func (b *BackendRequest) Async() bool {
 }
 
 func (b *BackendRequest) CountAllDataTransforms() (count int) {
-	if b.HasParam() {
-		count += b.Param().CountDataTransforms()
+	if b.HasURLPath() {
+		count += b.URLPath().CountDataTransforms()
 	}
 	if b.HasQuery() {
 		count += b.Query().CountDataTransforms()
@@ -486,7 +524,7 @@ func (b BackendRequestHeader) Modifiers() []Modifier {
 	return b.modifiers
 }
 
-func (b BackendRequestParam) Modifiers() []Modifier {
+func (b BackendRequestURLPath) Modifiers() []Modifier {
 	return b.modifiers
 }
 
@@ -514,14 +552,18 @@ func (b BackendRequestBody) Modifiers() []Modifier {
 	return b.modifiers
 }
 
-func (b BackendRequestParam) CountDataTransforms() int {
+func (b BackendRequestBody) Joins() []Join {
+	return b.joins
+}
+
+func (b BackendRequestURLPath) CountDataTransforms() int {
 	if b.HasModifiers() {
 		return len(b.Modifiers())
 	}
 	return 0
 }
 
-func (b BackendRequestParam) HasModifiers() bool {
+func (b BackendRequestURLPath) HasModifiers() bool {
 	return checker.IsNotEmpty(b.modifiers)
 }
 
@@ -594,6 +636,9 @@ func (b BackendRequestBody) CountDataTransforms() (count int) {
 	if b.HasModifiers() {
 		count += len(b.Modifiers())
 	}
+	if b.HasJoins() {
+		count += len(b.Joins())
+	}
 	return count
 }
 
@@ -609,16 +654,20 @@ func (b BackendRequestBody) HasModifiers() bool {
 	return checker.IsNotEmpty(b.modifiers)
 }
 
+func (b BackendRequestBody) HasJoins() bool {
+	return checker.IsNotEmpty(b.joins)
+}
+
 func (b BackendRequest) ContinueOnError() bool {
 	return b.continueOnError
 }
 
-func (b BackendRequest) HasParam() bool {
-	return checker.NonNil(b.param)
+func (b BackendRequest) HasURLPath() bool {
+	return checker.NonNil(b.urlPath)
 }
 
-func (b BackendRequest) Param() *BackendRequestParam {
-	return b.param
+func (b BackendRequest) URLPath() *BackendRequestURLPath {
+	return b.urlPath
 }
 
 func (b BackendRequest) HasQuery() bool {
@@ -718,28 +767,28 @@ func (b BackendResponseBody) Modifiers() []Modifier {
 	return b.modifiers
 }
 
-func (b BackendResponseBody) Enrichers() []Enricher {
-	return b.enrichers
+func (b BackendResponseBody) Joins() []Join {
+	return b.joins
+}
+
+func (b BackendResponseBody) HasMapper() bool {
+	return checker.NonNil(b.mapper)
+}
+
+func (b BackendResponseBody) HasProjector() bool {
+	return checker.NonNil(b.projector)
+}
+
+func (b BackendResponseBody) HasModifiers() bool {
+	return checker.IsNotEmpty(b.modifiers)
+}
+
+func (b BackendResponseBody) HasJoins() bool {
+	return checker.IsNotEmpty(b.joins)
 }
 
 func (b BackendResponseBody) Group() string {
 	return b.group
-}
-
-func (b BackendResponseHeader) CountDataTransforms() (count int) {
-	if b.Omit() {
-		return 1
-	}
-	if b.HasMapper() {
-		count += len(b.Mapper().Map().Keys())
-	}
-	if b.HasProjector() {
-		count += len(b.Projector().Project().Keys())
-	}
-	if b.HasModifiers() {
-		count += len(b.Modifiers())
-	}
-	return count
 }
 
 func (b BackendResponseBody) HasGroup() bool {
@@ -758,7 +807,7 @@ func (b BackendResponseHeader) HasModifiers() bool {
 	return checker.IsNotEmpty(b.modifiers)
 }
 
-func (b BackendResponseBody) CountDataTransforms() (count int) {
+func (b BackendResponseHeader) CountDataTransforms() (count int) {
 	if b.Omit() {
 		return 1
 	}
@@ -774,14 +823,29 @@ func (b BackendResponseBody) CountDataTransforms() (count int) {
 	return count
 }
 
-func (b BackendResponseBody) HasMapper() bool {
-	return checker.NonNil(b.mapper)
+func (b BackendResponseBody) CountDataTransforms() (count int) {
+	if b.Omit() {
+		return 1
+	}
+	if b.HasMapper() {
+		count += len(b.Mapper().Map().Keys())
+	}
+	if b.HasProjector() {
+		count += len(b.Projector().Project().Keys())
+	}
+	if b.HasModifiers() {
+		count += len(b.Modifiers())
+	}
+	if b.HasJoins() {
+		count += len(b.Joins())
+	}
+	return count
 }
 
-func (b BackendResponseBody) HasProjector() bool {
-	return checker.NonNil(b.projector)
+func (d *BackendDependencies) IDs() []string {
+	return d.ids
 }
 
-func (b BackendResponseBody) HasModifiers() bool {
-	return checker.IsNotEmpty(b.modifiers)
+func (d *BackendDependencies) Indexes() []int {
+	return d.idxs
 }

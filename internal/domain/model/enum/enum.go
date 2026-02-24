@@ -16,6 +16,8 @@
 
 package enum
 
+type ExecutionPolicy string
+
 type ModifierAction string
 
 type Nomenclature string
@@ -40,10 +42,31 @@ type BackendBroker string
 
 type TemplateMerge string
 
-type EnrichTargetOnMissing string
+type JoinTargetOnMissing string
 
-type EnrichTargetPolicy string
+type JoinTargetPolicy string
 
+type MapperPolicy string
+
+type BackendOutcome string
+
+const (
+	ExecutionPolicyFailFastAll                  ExecutionPolicy = "FAIL_FAST_ALL"
+	ExecutionPolicyFailFastStatus               ExecutionPolicy = "FAIL_FAST_STATUS"
+	ExecutionPolicyFailFastInfra                ExecutionPolicy = "FAIL_FAST_INFRA"
+	ExecutionPolicyFailFastInfraOnly            ExecutionPolicy = "FAIL_FAST_INFRA_ONLY"
+	ExecutionPolicyBestEffortAll                ExecutionPolicy = "BEST_EFFORT_ALL"
+	ExecutionPolicyBestEffortStatusFail         ExecutionPolicy = "BEST_EFFORT_STATUS_FAIL"
+	ExecutionPolicyBestEffortInfraFail          ExecutionPolicy = "BEST_EFFORT_INFRA_FAIL"
+	ExecutionPolicyBestEffortTransformFail      ExecutionPolicy = "BEST_EFFORT_TRANSFORM_FAIL"
+	ExecutionPolicyBestEffortStatusAndInfraFail ExecutionPolicy = "BEST_EFFORT_STATUS_AND_INFRA_FAIL"
+	ExecutionPolicyBestEffortStrict             ExecutionPolicy = "BEST_EFFORT_STRICT"
+)
+const (
+	BackendOutcomeExecuted  BackendOutcome = "EXECUTED"
+	BackendOutcomeIgnored   BackendOutcome = "IGNORED"
+	BackendOutcomeCancelled BackendOutcome = "CANCELLED"
+)
 const (
 	ModifierActionAdd ModifierAction = "ADD"
 	ModifierActionApd ModifierAction = "APD"
@@ -103,14 +126,18 @@ const (
 	TemplateMergeFull TemplateMerge = "FULL"
 )
 const (
-	EnrichTargetOnMissingNull  EnrichTargetOnMissing = "NULL"
-	EnrichTargetOnMissingOmit  EnrichTargetOnMissing = "OMIT"
-	EnrichTargetOnMissingError EnrichTargetOnMissing = "ERROR"
+	JoinTargetOnMissingNull  JoinTargetOnMissing = "NULL"
+	JoinTargetOnMissingOmit  JoinTargetOnMissing = "OMIT"
+	JoinTargetOnMissingError JoinTargetOnMissing = "ERROR"
 )
 const (
-	EnrichTargetKeyKeep         EnrichTargetPolicy = "KEEP"
-	EnrichTargetKeyDropOnEnrich EnrichTargetPolicy = "DROP_ON_ENRICH"
-	EnrichTargetKeyDropAlways   EnrichTargetPolicy = "DROP_ALWAYS"
+	JoinTargetKeepKey         JoinTargetPolicy = "KEEP_KEY"
+	JoinTargetDropKeyOnMerged JoinTargetPolicy = "DROP_KEY_ON_MERGED"
+	JoinTargetDropKeyAlways   JoinTargetPolicy = "DROP_KEY_ALWAYS"
+)
+const (
+	MapperPolicyKeepUnmapped MapperPolicy = "KEEP_UNMAPPED"
+	MapperPolicyDropUnmapped MapperPolicy = "DROP_UNMAPPED"
 )
 
 func (p BackendBroker) String() string {
@@ -125,17 +152,25 @@ func (p BackendBroker) IsEnumValid() bool {
 	return false
 }
 
-func (e EnrichTargetOnMissing) IsEnumValid() bool {
+func (e JoinTargetOnMissing) IsEnumValid() bool {
 	switch e {
-	case EnrichTargetOnMissingNull, EnrichTargetOnMissingOmit, EnrichTargetOnMissingError:
+	case JoinTargetOnMissingNull, JoinTargetOnMissingOmit, JoinTargetOnMissingError:
 		return true
 	}
 	return false
 }
 
-func (e EnrichTargetPolicy) IsEnumValid() bool {
+func (e JoinTargetPolicy) IsEnumValid() bool {
 	switch e {
-	case EnrichTargetKeyKeep, EnrichTargetKeyDropOnEnrich, EnrichTargetKeyDropAlways:
+	case JoinTargetKeepKey, JoinTargetDropKeyOnMerged, JoinTargetDropKeyAlways:
+		return true
+	}
+	return false
+}
+
+func (e MapperPolicy) IsEnumValid() bool {
+	switch e {
+	case MapperPolicyKeepUnmapped, MapperPolicyDropUnmapped:
 		return true
 	}
 	return false
@@ -144,6 +179,14 @@ func (e EnrichTargetPolicy) IsEnumValid() bool {
 func (c ContentType) IsEnumValid() bool {
 	switch c {
 	case ContentTypePlainText, ContentTypeJson, ContentTypeXml:
+		return true
+	}
+	return false
+}
+
+func (b BackendOutcome) IsEnumValid() bool {
+	switch b {
+	case BackendOutcomeExecuted, BackendOutcomeIgnored, BackendOutcomeCancelled:
 		return true
 	}
 	return false

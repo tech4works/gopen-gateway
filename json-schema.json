@@ -586,6 +586,13 @@
         "ignore-if": {
           "$ref": "#/definitions/ignore-if"
         },
+        "policy": {
+          "type": "string",
+          "enum": [
+            "KEEP_UNMAPPED",
+            "DROP_UNMAPPED"
+          ]
+        },
         "map": {
           "type": "object",
           "minProperties": 1,
@@ -598,6 +605,94 @@
         "map"
       ],
       "additionalProperties": false
+    },
+    "join": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "@comment": {
+          "type": "string"
+        },
+        "only-if": {
+          "$ref": "#/definitions/only-if"
+        },
+        "ignore-if": {
+          "$ref": "#/definitions/ignore-if"
+        },
+        "source": {
+          "$ref": "#/definitions/join-source"
+        },
+        "target": {
+          "$ref": "#/definitions/join-target"
+        }
+      },
+      "required": [
+        "source",
+        "target"
+      ]
+    },
+    "join-source": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "@comment": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "key": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "path",
+        "key"
+      ]
+    },
+    "join-target": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "@comment": {
+          "type": "string"
+        },
+        "policy": {
+          "type": "string",
+          "enum": [
+            "KEEP_KEY",
+            "DROP_KEY_ON_MERGED",
+            "DROP_KEY_ALWAYS"
+          ]
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "key": {
+          "type": "string",
+          "minLength": 1
+        },
+        "as": {
+          "type": "string",
+          "minLength": 1
+        },
+        "on-missing": {
+          "type": "string",
+          "enum": [
+            "OMIT",
+            "NULL",
+            "ERROR"
+          ]
+        }
+      },
+      "required": [
+        "path",
+        "key",
+        "as"
+      ]
     },
     "backend-request-header": {
       "type": "object",
@@ -737,18 +832,25 @@
         "nomenclature": {
           "$ref": "#/definitions/nomenclature"
         },
-        "mapper": {
-          "$ref": "#/definitions/mapper"
-        },
-        "projector": {
-          "$ref": "#/definitions/projector"
-        },
         "modifiers": {
           "type": "array",
           "minItems": 1,
           "items": {
             "$ref": "#/definitions/request-modifier"
           }
+        },
+        "joins": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/join"
+          }
+        },
+        "mapper": {
+          "$ref": "#/definitions/mapper"
+        },
+        "projector": {
+          "$ref": "#/definitions/projector"
         }
       },
       "anyOf": [
@@ -790,6 +892,11 @@
         {
           "required": [
             "modifiers"
+          ]
+        },
+        {
+          "required": [
+            "joins"
           ]
         }
       ],
@@ -910,18 +1017,25 @@
           "type": "string",
           "minLength": 1
         },
-        "mapper": {
-          "$ref": "#/definitions/mapper"
-        },
-        "projector": {
-          "$ref": "#/definitions/projector"
-        },
         "modifiers": {
           "type": "array",
           "minItems": 1,
           "items": {
             "$ref": "#/definitions/response-modifier"
           }
+        },
+        "joins": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/join"
+          }
+        },
+        "mapper": {
+          "$ref": "#/definitions/mapper"
+        },
+        "projector": {
+          "$ref": "#/definitions/projector"
         }
       },
       "anyOf": [
@@ -948,6 +1062,11 @@
         {
           "required": [
             "modifiers"
+          ]
+        },
+        {
+          "required": [
+            "joins"
           ]
         }
       ],
@@ -1082,18 +1201,25 @@
         "omit-empty": {
           "type": "boolean"
         },
-        "mapper": {
-          "$ref": "#/definitions/mapper"
-        },
-        "projector": {
-          "$ref": "#/definitions/projector"
-        },
         "modifiers": {
           "type": "array",
           "minItems": 1,
           "items": {
             "$ref": "#/definitions/publisher-modifier"
           }
+        },
+        "joins": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/join"
+          }
+        },
+        "mapper": {
+          "$ref": "#/definitions/mapper"
+        },
+        "projector": {
+          "$ref": "#/definitions/projector"
         }
       },
       "anyOf": [
@@ -1115,6 +1241,11 @@
         {
           "required": [
             "modifiers"
+          ]
+        },
+        {
+          "required": [
+            "joins"
           ]
         }
       ],

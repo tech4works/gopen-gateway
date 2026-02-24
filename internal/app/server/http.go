@@ -49,6 +49,7 @@ type http struct {
 	securityCorsMiddleware  middleware.SecurityCors
 	timeoutMiddleware       middleware.Timeout
 	limiterMiddleware       middleware.Limiter
+	validateMiddleware      middleware.PreValidation
 	cacheMiddleware         middleware.Cache
 	staticController        controller.Static
 	endpointController      controller.Endpoint
@@ -79,19 +80,21 @@ func New(
 	mapperService := service.NewMapper(jsonPath, dynamicValueService)
 	projectorService := service.NewProjector(jsonPath, dynamicValueService)
 	modifierService := service.NewModifier(jsonPath, dynamicValueService)
+	joinService := service.NewJoin(jsonPath, dynamicValueService)
 	omitterService := service.NewOmitter(jsonPath)
 	nomenclatureService := service.NewNomenclature(jsonPath, nomenclature)
 	contentService := service.NewContent(converter)
 	aggregatorService := service.NewAggregator(jsonPath)
+
+	buildPipelineService := service.NewBuildPipeline(modifierService, joinService, mapperService, projectorService,
+		omitterService, nomenclatureService, contentService, aggregatorService, dynamicValueService)
 	limiterService := service.NewLimiter()
 	securityCorsService := service.NewSecurityCors()
 	cacheService := service.NewCache(store)
 
 	log.PrintInfo("Building factories...")
-	httpBackendFactory := domainFactory.NewBackend(mapperService, projectorService, dynamicValueService,
-		modifierService, omitterService, nomenclatureService, contentService, aggregatorService)
-	httpResponseFactory := domainFactory.NewHTTPResponse(aggregatorService, omitterService, mapperService,
-		projectorService, nomenclatureService, contentService, httpBackendFactory)
+	httpBackendFactory := domainFactory.NewBackend(buildPipelineService)
+	httpResponseFactory := domainFactory.NewHTTPResponse(aggregatorService, buildPipelineService)
 
 	log.PrintInfo("Building use cases...")
 	endpointUseCase := usecase.NewEndpoint(dynamicValueService, httpBackendFactory, httpResponseFactory, httpClient,
@@ -102,6 +105,7 @@ func New(
 	logMiddleware := middleware.NewLog(httpLog)
 	securityCorsMiddleware := middleware.NewSecurityCors(securityCorsService)
 	timeoutMiddleware := middleware.NewTimeout()
+	validateMiddleware := middleware.NewPrevalidate()
 	limiterMiddleware := middleware.NewLimiter(limiterService)
 	cacheMiddleware := middleware.NewCache(cacheService, middlewareLog)
 
@@ -118,6 +122,7 @@ func New(
 		logMiddleware:           logMiddleware,
 		timeoutMiddleware:       timeoutMiddleware,
 		limiterMiddleware:       limiterMiddleware,
+		validateMiddleware:      validateMiddleware,
 		cacheMiddleware:         cacheMiddleware,
 		securityCorsMiddleware:  securityCorsMiddleware,
 		staticController:        staticController,
@@ -228,6 +233,7 @@ func (h *http) buildEndpointHandles() []app.HandlerFunc {
 		h.logMiddleware.Do,
 		h.securityCorsMiddleware.Do,
 		h.limiterMiddleware.Do,
+		h.validateMiddleware.Do,
 		h.cacheMiddleware.Do,
 		h.endpointController.Execute,
 	}

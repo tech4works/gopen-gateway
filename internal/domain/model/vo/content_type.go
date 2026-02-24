@@ -17,8 +17,9 @@
 package vo
 
 import (
-	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
 	"strings"
+
+	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
 )
 
 type ContentType string

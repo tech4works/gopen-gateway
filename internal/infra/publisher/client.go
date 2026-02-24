@@ -51,7 +51,11 @@ func (c client) Publish(ctx context.Context, request *vo.PublisherBackendRequest
 
 	span.Context.SetLabel("broker", request.Broker())
 	span.Context.SetLabel("url", request.Path())
-	span.Context.SetLabel("message", request.Body())
+	if request.HasBody() {
+		span.Context.SetLabel("body", request.Body())
+	} else {
+		span.Context.SetLabel("body", "<nil>")
+	}
 
 	switch request.Broker() {
 	case enum.BackendBrokerAwsSqs:
@@ -68,6 +72,11 @@ func (c client) publishSQS(ctx context.Context, request *vo.PublisherBackendRequ
 		return nil, errors.New("SQS client not configuration. Please check your configuration.")
 	}
 
+	body, err := c.parseBodyToString(request)
+	if checker.NonNil(err) {
+		return nil, err
+	}
+
 	messageAttributes := make(map[string]sqstypes.MessageAttributeValue, len(request.Attributes()))
 	for key, attribute := range request.Attributes() {
 		messageAttributes[key] = sqstypes.MessageAttributeValue{
@@ -77,8 +86,8 @@ func (c client) publishSQS(ctx context.Context, request *vo.PublisherBackendRequ
 	}
 
 	out, err := c.sqs.SendMessage(ctx, &sqs.SendMessageInput{
-		MessageBody:            converter.ToPointer(request.Body()),
 		QueueUrl:               converter.ToPointer(request.Path()),
+		MessageBody:            body,
 		DelaySeconds:           int32(request.Delay().Time().Seconds()),
 		MessageAttributes:      messageAttributes,
 		MessageDeduplicationId: request.DeduplicationID(),
@@ -104,6 +113,11 @@ func (c client) publishSNS(ctx context.Context, request *vo.PublisherBackendRequ
 		return nil, errors.New("SNS client not configuration. Please check your configuration.")
 	}
 
+	body, err := c.parseBodyToString(request)
+	if checker.NonNil(err) {
+		return nil, err
+	}
+
 	messageAttributes := make(map[string]snstypes.MessageAttributeValue, len(request.Attributes()))
 	for key, attribute := range request.Attributes() {
 		messageAttributes[key] = snstypes.MessageAttributeValue{
@@ -114,7 +128,7 @@ func (c client) publishSNS(ctx context.Context, request *vo.PublisherBackendRequ
 
 	out, err := c.sns.Publish(ctx, &sns.PublishInput{
 		TopicArn:               converter.ToPointer(request.Path()),
-		Message:                converter.ToPointer(request.Body()),
+		Message:                body,
 		MessageDeduplicationId: request.DeduplicationID(),
 		MessageGroupId:         request.GroupID(),
 		MessageAttributes:      messageAttributes,
@@ -132,4 +146,15 @@ func (c client) publishSNS(ctx context.Context, request *vo.PublisherBackendRequ
 			SequentialNumber: *out.SequenceNumber,
 		},
 	}, nil
+}
+
+func (c client) parseBodyToString(request *vo.PublisherBackendRequest) (*string, error) {
+	if !request.HasBody() {
+		return nil, nil
+	}
+	compactString, err := request.Body().CompactString()
+	if checker.NonNil(err) {
+		return nil, err
+	}
+	return converter.ToPointer(compactString), nil
 }
