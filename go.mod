@@ -23,6 +23,7 @@ require (
 	github.com/clbanning/mxj/v2 v2.7.0
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/gin-gonic/gin v1.10.0
+	github.com/google/uuid v1.6.0
 	github.com/iancoleman/strcase v0.3.0
 	github.com/jellydator/ttlcache/v2 v2.11.1
 	github.com/joho/godotenv v1.5.1
@@ -30,7 +31,7 @@ require (
 	github.com/redis/go-redis/v9 v9.7.3
 	github.com/tech4works/checker v0.0.0-20260223203122-226e9b56d8be
 	github.com/tech4works/compressor v0.0.0-20240807194218-7122652ffea0
-	github.com/tech4works/converter v0.0.0-20260222200121-fa959bf02a82
+	github.com/tech4works/converter v0.0.0-20260319173216-e3974e06896c
 	github.com/tech4works/decompressor v0.0.0-20240807211058-01326b21a00d
 	github.com/tech4works/errors v0.0.0-20260223162722-b6d6a29e8766
 	github.com/tidwall/gjson v1.18.0
@@ -40,8 +41,9 @@ require (
 	go.elastic.co/apm/module/apmhttp/v2 v2.7.0
 	go.elastic.co/apm/v2 v2.7.0
 	golang.ngrok.com/ngrok v1.13.0
-	golang.org/x/net v0.47.0
+	golang.org/x/net v0.48.0
 	golang.org/x/time v0.11.0
+	google.golang.org/grpc v1.79.2
 )
 
 require (
@@ -61,7 +63,7 @@ require (
 	github.com/bitly/go-simplejson v0.5.1 // indirect
 	github.com/bytedance/sonic v1.11.6 // indirect
 	github.com/bytedance/sonic/loader v0.1.1 // indirect
-	github.com/cespare/xxhash/v2 v2.2.0 // indirect
+	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cloudwego/base64x v0.1.4 // indirect
 	github.com/cloudwego/iasm v0.2.0 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
@@ -99,12 +101,12 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.ngrok.com/muxado/v2 v2.0.1 // indirect
 	golang.org/x/arch v0.8.0 // indirect
-	golang.org/x/crypto v0.45.0 // indirect
-	golang.org/x/sync v0.18.0 // indirect
-	golang.org/x/sys v0.38.0 // indirect
-	golang.org/x/term v0.37.0 // indirect
-	golang.org/x/text v0.31.0 // indirect
-	google.golang.org/protobuf v1.35.1 // indirect
+	golang.org/x/crypto v0.46.0 // indirect
+	golang.org/x/sync v0.19.0 // indirect
+	golang.org/x/sys v0.39.0 // indirect
+	golang.org/x/term v0.38.0 // indirect
+	golang.org/x/text v0.32.0 // indirect
+	google.golang.org/protobuf v1.36.10 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect

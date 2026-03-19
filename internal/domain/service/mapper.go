@@ -25,137 +25,153 @@ import (
 	"github.com/tech4works/converter"
 	"github.com/tech4works/errors"
 	"github.com/tech4works/gopen-gateway/internal/domain"
-	domainMapper "github.com/tech4works/gopen-gateway/internal/domain/mapper"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/aggregate"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
 )
 
-type mapperService struct {
+type mapper struct {
 	jsonPath            domain.JSONPath
 	dynamicValueService DynamicValue
 }
 
 type Mapper interface {
-	MapHeader(mapper *vo.Mapper, header vo.Header, request *vo.HTTPRequest, history *aggregate.History) (vo.Header, error)
-	MapQuery(mapper *vo.Mapper, query vo.Query, request *vo.HTTPRequest, history *aggregate.History) (vo.Query, error)
-	MapBody(mapper *vo.Mapper, body *vo.Body, request *vo.HTTPRequest, history *aggregate.History) (*vo.Body, []error)
+	MapMetadata(
+		config *vo.MapperConfig,
+		metadata vo.Metadata,
+		ignoreKeys []string,
+		request *vo.EndpointRequest,
+		history *aggregate.History,
+	) (vo.Metadata, error)
+	MapQuery(
+		config *vo.MapperConfig,
+		query vo.Query,
+		request *vo.EndpointRequest,
+		history *aggregate.History,
+	) (vo.Query, error)
+	MapPayload(
+		config *vo.MapperConfig,
+		payload *vo.Payload,
+		request *vo.EndpointRequest,
+		history *aggregate.History,
+	) (*vo.Payload, []error)
 }
 
 func NewMapper(jsonPath domain.JSONPath, dynamicValueService DynamicValue) Mapper {
-	return mapperService{
+	return mapper{
 		jsonPath:            jsonPath,
 		dynamicValueService: dynamicValueService,
 	}
 }
 
-func (m mapperService) MapHeader(
-	mapper *vo.Mapper,
-	header vo.Header,
-	request *vo.HTTPRequest,
+func (m mapper) MapMetadata(
+	config *vo.MapperConfig,
+	metadata vo.Metadata,
+	ignoreKeys []string,
+	request *vo.EndpointRequest,
 	history *aggregate.History,
-) (vo.Header, error) {
-	if checker.IsNil(mapper) || mapper.Map().IsEmpty() {
-		return header, nil
+) (vo.Metadata, error) {
+	if checker.IsNil(config) || config.Map().IsEmpty() {
+		return metadata, nil
 	}
 
-	shouldRun, err := m.evalMapperGuards("header", mapper, request, history)
+	shouldRun, err := m.evalMapperGuards(config, "metadata", request, history)
 	if checker.NonNil(err) {
-		return header, err
+		return metadata, err
 	} else if !shouldRun {
-		return header, nil
+		return metadata, nil
 	}
 
-	if mapper.ShouldDropUnmapped() {
-		return m.mapHeaderDropUnmapped(mapper.Map(), header), nil
+	if config.ShouldDropUnmapped() {
+		return m.mapMetadataDropUnmapped(config.Map(), metadata, ignoreKeys), nil
 	} else {
-		return m.mapHeaderKeepAll(mapper.Map(), header), nil
+		return m.mapMetadataKeepAll(config.Map(), metadata, ignoreKeys), nil
 	}
 }
 
-func (m mapperService) MapQuery(
-	mapper *vo.Mapper,
+func (m mapper) MapQuery(
+	config *vo.MapperConfig,
 	query vo.Query,
-	request *vo.HTTPRequest,
+	request *vo.EndpointRequest,
 	history *aggregate.History,
 ) (vo.Query, error) {
-	if checker.IsNil(mapper) || mapper.Map().IsEmpty() {
+	if checker.IsNil(config) || config.Map().IsEmpty() {
 		return query, nil
 	}
 
-	shouldRun, err := m.evalMapperGuards("query", mapper, request, history)
+	shouldRun, err := m.evalMapperGuards(config, "query", request, history)
 	if checker.NonNil(err) {
 		return query, err
 	} else if !shouldRun {
 		return query, nil
 	}
 
-	if mapper.ShouldDropUnmapped() {
-		return m.mapQueryDropUnmapped(mapper.Map(), query), nil
+	if config.ShouldDropUnmapped() {
+		return m.mapQueryDropUnmapped(config.Map(), query), nil
 	} else {
-		return m.mapQueryKeepAll(mapper.Map(), query), nil
+		return m.mapQueryKeepAll(config.Map(), query), nil
 	}
 }
 
-func (m mapperService) MapBody(
-	mapper *vo.Mapper,
-	body *vo.Body,
-	request *vo.HTTPRequest,
+func (m mapper) MapPayload(
+	config *vo.MapperConfig,
+	payload *vo.Payload,
+	request *vo.EndpointRequest,
 	history *aggregate.History,
-) (*vo.Body, []error) {
-	if checker.IsNil(mapper) || mapper.Map().IsEmpty() || checker.IsNil(body) {
-		return body, nil
+) (*vo.Payload, []error) {
+	if checker.IsNil(config) || config.Map().IsEmpty() || checker.IsNil(payload) {
+		return payload, nil
 	}
 
-	shouldRun, err := m.evalMapperGuards("body", mapper, request, history)
+	shouldRun, err := m.evalMapperGuards(config, "payload", request, history)
 	if checker.NonNil(err) {
-		return body, converter.ToSlice(err)
+		return payload, converter.ToSlice(err)
 	} else if !shouldRun {
-		return body, nil
+		return payload, nil
 	}
 
-	if body.ContentType().IsText() {
-		return m.mapBodyText(mapper, body)
-	} else if body.ContentType().IsJSON() {
-		return m.mapBodyJSON(mapper, body)
+	if payload.ContentType().IsPlainText() {
+		return m.mapPayloadPlainText(config, payload)
+	} else if payload.ContentType().IsJSON() {
+		return m.mapPayloadJSON(config, payload)
 	}
 
-	return body, nil
+	return payload, nil
 }
 
-func (m mapperService) mapHeaderKeepAll(mMap *vo.Map, header vo.Header) vo.Header {
+func (m mapper) mapMetadataKeepAll(config *vo.MapConfig, header vo.Metadata, ignoreKeys []string) vo.Metadata {
 	out := map[string][]string{}
 
 	for _, key := range header.Keys() {
-		if domainMapper.IsNotHeaderMandatoryKey(key) && mMap.Exists(key) {
-			out[mMap.Get(key)] = header.GetAll(key)
+		if checker.NotContains(ignoreKeys, key) && config.Exists(key) {
+			out[config.Get(key)] = header.GetAll(key)
 			continue
 		}
 		out[key] = header.GetAll(key)
 	}
 
-	return vo.NewHeader(out)
+	return vo.NewMetadata(out)
 }
 
-func (m mapperService) mapHeaderDropUnmapped(mMap *vo.Map, header vo.Header) vo.Header {
+func (m mapper) mapMetadataDropUnmapped(config *vo.MapConfig, header vo.Metadata, ignoreKeys []string) vo.Metadata {
 	out := map[string][]string{}
 
 	for _, key := range header.Keys() {
-		if domainMapper.IsHeaderMandatoryKey(key) {
+		if checker.Contains(ignoreKeys, key) {
 			out[key] = header.GetAll(key)
-		} else if mMap.Exists(key) {
-			out[mMap.Get(key)] = header.GetAll(key)
+		} else if config.Exists(key) {
+			out[config.Get(key)] = header.GetAll(key)
 		}
 	}
 
-	return vo.NewHeader(out)
+	return vo.NewMetadata(out)
 }
 
-func (m mapperService) mapQueryKeepAll(mMap *vo.Map, query vo.Query) vo.Query {
+func (m mapper) mapQueryKeepAll(config *vo.MapConfig, query vo.Query) vo.Query {
 	out := map[string][]string{}
 
 	for _, key := range query.Keys() {
-		if mMap.Exists(key) {
-			out[mMap.Get(key)] = query.GetAll(key)
+		if config.Exists(key) {
+			out[config.Get(key)] = query.GetAll(key)
 			continue
 		}
 		out[key] = query.GetAll(key)
@@ -164,43 +180,43 @@ func (m mapperService) mapQueryKeepAll(mMap *vo.Map, query vo.Query) vo.Query {
 	return vo.NewQuery(out)
 }
 
-func (m mapperService) mapQueryDropUnmapped(mMap *vo.Map, query vo.Query) vo.Query {
+func (m mapper) mapQueryDropUnmapped(config *vo.MapConfig, query vo.Query) vo.Query {
 	out := map[string][]string{}
 
 	for _, key := range query.Keys() {
-		if mMap.Exists(key) {
-			out[mMap.Get(key)] = query.GetAll(key)
+		if config.Exists(key) {
+			out[config.Get(key)] = query.GetAll(key)
 		}
 	}
 
 	return vo.NewQuery(out)
 }
 
-func (m mapperService) mapBodyText(mapper *vo.Mapper, body *vo.Body) (*vo.Body, []error) {
-	raw, err := body.String()
+func (m mapper) mapPayloadPlainText(config *vo.MapperConfig, payload *vo.Payload) (*vo.Payload, []error) {
+	raw, err := payload.String()
 	if checker.NonNil(err) {
-		return body, errors.InheritAsSlice(err, "mapper failed: kind=text op=stringify-body")
+		return payload, errors.InheritAsSlice(err, "mapper failed: kind=text op=stringify-payload")
 	}
 
-	re, err := m.buildMapperRegex(mapper.Map())
+	re, err := m.buildMapperRegex(config.Map())
 	if checker.IsNil(re) {
-		return body, errors.NewAsSlice("mapper failed: kind=text op=build-regex: regex compilation failed")
+		return payload, errors.NewAsSlice("mapper failed: kind=text op=build-regex: regex compilation failed")
 	}
 
 	var out string
-	if mapper.ShouldDropUnmapped() {
-		out = m.dropUnmappedText(mapper.Map(), re, raw)
+	if config.ShouldDropUnmapped() {
+		out = m.dropUnmappedPlainText(config.Map(), re, raw)
 	} else {
-		out = m.keepUnmappedText(mapper.Map(), re, raw)
+		out = m.keepUnmappedPlainText(config.Map(), re, raw)
 	}
 
-	return m.newBodyWithString(body, out, nil)
+	return m.newPayloadWithString(payload, out, nil)
 }
 
-func (m mapperService) mapBodyJSON(mapper *vo.Mapper, body *vo.Body) (*vo.Body, []error) {
-	raw, err := body.String()
+func (m mapper) mapPayloadJSON(config *vo.MapperConfig, payload *vo.Payload) (*vo.Payload, []error) {
+	raw, err := payload.String()
 	if checker.NonNil(err) {
-		return body, errors.InheritAsSlice(err, "mapper failed: kind=json op=stringify-body")
+		return payload, errors.InheritAsSlice(err, "mapper failed: kind=json op=stringify-payload")
 	}
 
 	parsed := m.jsonPath.Parse(raw)
@@ -209,19 +225,19 @@ func (m mapperService) mapBodyJSON(mapper *vo.Mapper, body *vo.Body) (*vo.Body, 
 	var errs []error
 
 	if parsed.IsArray() {
-		out, errs = m.mapJSONArray(mapper, parsed)
+		out, errs = m.mapJSONArray(config, parsed)
 	} else {
-		out, errs = m.mapJSONObject(mapper, parsed)
+		out, errs = m.mapJSONObject(config, parsed)
 	}
 
-	return m.newBodyWithString(body, out, errs)
+	return m.newPayloadWithString(payload, out, errs)
 }
 
-func (m mapperService) mapJSONArray(mapper *vo.Mapper, jsonArray domain.JSONValue) (string, []error) {
+func (m mapper) mapJSONArray(config *vo.MapperConfig, jsonArray domain.JSONValue) (string, []error) {
 	var out = "[]"
 	var errs []error
 	jsonArray.ForEach(func(idx string, value domain.JSONValue) bool {
-		next, itemErrs := m.mapJSONArrayItem(mapper, idx, value, out)
+		next, itemErrs := m.mapJSONArrayItem(config, idx, value, out)
 		if checker.IsNotEmpty(itemErrs) {
 			errs = append(errs, itemErrs...)
 			return true
@@ -232,8 +248,8 @@ func (m mapperService) mapJSONArray(mapper *vo.Mapper, jsonArray domain.JSONValu
 	return out, errs
 }
 
-func (m mapperService) mapJSONArrayItem(
-	mapper *vo.Mapper,
+func (m mapper) mapJSONArrayItem(
+	config *vo.MapperConfig,
 	idx string,
 	value domain.JSONValue,
 	current string,
@@ -244,13 +260,13 @@ func (m mapperService) mapJSONArrayItem(
 	)
 
 	if value.IsObject() {
-		obj, childErrs := m.mapJSONObject(mapper, value)
+		obj, childErrs := m.mapJSONObject(config, value)
 		if checker.IsNotEmpty(childErrs) {
 			return current, m.inheritIdxErrs(childErrs, "map-json-object", idx)
 		}
 		next, err = m.jsonPath.AppendOnArray(current, obj)
 	} else if value.IsArray() {
-		arr, childErrs := m.mapJSONArray(mapper, value)
+		arr, childErrs := m.mapJSONArray(config, value)
 		if checker.IsNotEmpty(childErrs) {
 			return current, m.inheritIdxErrs(childErrs, "map-json-array", idx)
 		}
@@ -265,7 +281,7 @@ func (m mapperService) mapJSONArrayItem(
 	return next, nil
 }
 
-func (m mapperService) inheritIdxErrs(errs []error, op string, idx string) []error {
+func (m mapper) inheritIdxErrs(errs []error, op string, idx string) []error {
 	out := make([]error, 0, len(errs))
 	for _, e := range errs {
 		out = append(out, errors.Inheritf(e, "mapper failed: kind=json op=%s idx=%s", op, idx))
@@ -273,20 +289,20 @@ func (m mapperService) inheritIdxErrs(errs []error, op string, idx string) []err
 	return out
 }
 
-func (m mapperService) mapJSONObject(mapper *vo.Mapper, jsonObject domain.JSONValue) (string, []error) {
-	if mapper.ShouldDropUnmapped() {
-		return m.mapJSONObjectDropUnmapped(mapper.Map(), jsonObject)
+func (m mapper) mapJSONObject(config *vo.MapperConfig, jsonObject domain.JSONValue) (string, []error) {
+	if config.ShouldDropUnmapped() {
+		return m.mapJSONObjectDropUnmapped(config.Map(), jsonObject)
 	} else {
-		return m.mapJSONObjectKeepAll(mapper.Map(), jsonObject)
+		return m.mapJSONObjectKeepAll(config.Map(), jsonObject)
 	}
 }
 
-func (m mapperService) mapJSONObjectKeepAll(mMap *vo.Map, jsonObject domain.JSONValue) (string, []error) {
+func (m mapper) mapJSONObjectKeepAll(config *vo.MapConfig, jsonObject domain.JSONValue) (string, []error) {
 	mapped := jsonObject.Raw()
 	var errs []error
 
-	for _, key := range mMap.Keys() {
-		newKey := mMap.Get(key)
+	for _, key := range config.Keys() {
+		newKey := config.Get(key)
 		if checker.Equals(key, newKey) {
 			continue
 		}
@@ -314,12 +330,12 @@ func (m mapperService) mapJSONObjectKeepAll(mMap *vo.Map, jsonObject domain.JSON
 	return mapped, errs
 }
 
-func (m mapperService) mapJSONObjectDropUnmapped(mMap *vo.Map, jsonObject domain.JSONValue) (string, []error) {
+func (m mapper) mapJSONObjectDropUnmapped(config *vo.MapConfig, jsonObject domain.JSONValue) (string, []error) {
 	mapped := "{}"
 	var errs []error
 
-	for _, key := range mMap.Keys() {
-		newKey := mMap.Get(key)
+	for _, key := range config.Keys() {
+		newKey := config.Get(key)
 
 		val := jsonObject.Get(key)
 		if val.NotExists() {
@@ -328,12 +344,8 @@ func (m mapperService) mapJSONObjectDropUnmapped(mMap *vo.Map, jsonObject domain
 
 		out, err := m.jsonPath.Set(mapped, newKey, val.Raw())
 		if checker.NonNil(err) {
-			errs = append(errs, errors.Inheritf(
-				err,
-				"mapper failed: kind=json op=set policy=drop-unmapped from=%s to=%s",
-				key,
-				newKey,
-			))
+			errs = append(errs, errors.Inheritf(err, "mapper failed: kind=json op=set policy=drop-unmapped from=%s to=%s",
+				key, newKey))
 			continue
 		}
 
@@ -343,11 +355,11 @@ func (m mapperService) mapJSONObjectDropUnmapped(mMap *vo.Map, jsonObject domain
 	return mapped, errs
 }
 
-func (m mapperService) buildMapperRegex(mMap *vo.Map) (*regexp.Regexp, error) {
-	keys := mMap.Keys()
+func (m mapper) buildMapperRegex(config *vo.MapConfig) (*regexp.Regexp, error) {
+	keys := config.Keys()
 
 	sort.Slice(keys, func(i, j int) bool {
-		return len(keys[i]) > len(keys[j])
+		return checker.IsGreaterThan(len(keys[i]), len(keys[j]))
 	})
 
 	parts := make([]string, 0, len(keys))
@@ -358,38 +370,38 @@ func (m mapperService) buildMapperRegex(mMap *vo.Map) (*regexp.Regexp, error) {
 	return regexp.Compile(strings.Join(parts, "|"))
 }
 
-func (m mapperService) keepUnmappedText(mMap *vo.Map, re *regexp.Regexp, raw string) string {
+func (m mapper) keepUnmappedPlainText(config *vo.MapConfig, re *regexp.Regexp, raw string) string {
 	return re.ReplaceAllStringFunc(raw, func(match string) string {
-		if mMap.Exists(match) {
-			return mMap.Get(match)
+		if config.Exists(match) {
+			return config.Get(match)
 		}
 		return match
 	})
 }
 
-func (m mapperService) dropUnmappedText(mMap *vo.Map, re *regexp.Regexp, raw string) string {
+func (m mapper) dropUnmappedPlainText(config *vo.MapConfig, re *regexp.Regexp, raw string) string {
 	var b strings.Builder
 	for _, match := range re.FindAllString(raw, -1) {
-		if mMap.Exists(match) {
-			b.WriteString(mMap.Get(match))
+		if config.Exists(match) {
+			b.WriteString(config.Get(match))
 		}
 	}
 	return b.String()
 }
 
-func (m mapperService) evalMapperGuards(kind string, mapper *vo.Mapper, request *vo.HTTPRequest, history *aggregate.History) (
-	bool, error) {
-	shouldRun, _, errs := m.dynamicValueService.EvalGuards(mapper.OnlyIf(), mapper.IgnoreIf(), request, history)
+func (m mapper) evalMapperGuards(config *vo.MapperConfig, kind string, request *vo.EndpointRequest,
+	history *aggregate.History) (bool, error) {
+	shouldRun, _, errs := m.dynamicValueService.EvalGuards(config.OnlyIf(), config.IgnoreIf(), request, history)
 	if checker.IsNotEmpty(errs) {
 		return false, errors.JoinInheritf(errs, ", ", "failed to evaluate guard for %s mapper", kind)
 	}
 	return shouldRun, nil
 }
 
-func (m mapperService) newBodyWithString(body *vo.Body, str string, errs []error) (*vo.Body, []error) {
+func (m mapper) newPayloadWithString(payload *vo.Payload, str string, errs []error) (*vo.Payload, []error) {
 	buffer, err := converter.ToBufferWithErr(str)
 	if checker.NonNil(err) {
-		return body, append(errs, errors.Inherit(err, "mapper failed: op=buffer"))
+		return payload, append(errs, errors.Inherit(err, "mapper failed: op=buffer"))
 	}
-	return vo.NewBodyWithContentType(body.ContentType(), buffer), errs
+	return vo.NewPayloadWithContentType(payload.ContentType(), buffer), errs
 }

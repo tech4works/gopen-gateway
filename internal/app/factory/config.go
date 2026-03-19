@@ -21,7 +21,6 @@ import (
 	"strings"
 
 	"github.com/tech4works/checker"
-	"github.com/tech4works/converter"
 	"github.com/tech4works/errors"
 	"github.com/tech4works/gopen-gateway/internal/app/model/dto"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
@@ -29,29 +28,18 @@ import (
 )
 
 type propagateState struct {
-	continueOnError *bool
-	header          *dto.BackendRequestHeader
-	urlPath         *dto.BackendRequestURLPath
-	query           *dto.BackendRequestQuery
-	body            *dto.BackendRequestBody
+	header  *dto.MetadataTransformation
+	urlPath *dto.URLPathTransformation
+	query   *dto.QueryTransformation
+	body    *dto.PayloadTransformation
 }
 
-func BuildGopen(gopen *dto.Gopen) *vo.Gopen {
-	return vo.NewGopen(
-		buildProxy(gopen.Proxy),
-		buildEndpoints(gopen),
-	)
+func BuildGopen(gopen *dto.Gopen) *vo.GopenConfig {
+	return vo.NewGopenConfig(buildEndpoints(gopen))
 }
 
-func buildProxy(proxy *dto.Proxy) *vo.Proxy {
-	if checker.IsNil(proxy) {
-		return nil
-	}
-	return vo.NewProxy(proxy.Provider, proxy.Token, proxy.Domains)
-}
-
-func buildEndpoints(gopen *dto.Gopen) []vo.Endpoint {
-	var endpoints []vo.Endpoint
+func buildEndpoints(gopen *dto.Gopen) []vo.EndpointConfig {
+	var endpoints []vo.EndpointConfig
 	var errs []string
 
 	for _, endpoint := range gopen.Endpoints {
@@ -61,8 +49,7 @@ func buildEndpoints(gopen *dto.Gopen) []vo.Endpoint {
 				checker.NotEquals(endpoint.Method, registeredEndpoint.Method()) {
 				continue
 			}
-			err = fmt.Sprintf("- Duplicate endpoint path: %s method: %s", endpoint.Path, endpoint.Method)
-			errs = append(errs, err)
+			errs = append(errs, fmt.Sprintf("- Duplicate endpoint path: %s method: %s", endpoint.Path, endpoint.Method))
 		}
 		if checker.IsEmpty(err) {
 			endpoints = append(endpoints, buildEndpoint(gopen, endpoint))
@@ -76,33 +63,41 @@ func buildEndpoints(gopen *dto.Gopen) []vo.Endpoint {
 	return endpoints
 }
 
-func buildEndpoint(gopen *dto.Gopen, endpoint dto.Endpoint) vo.Endpoint {
-	return vo.NewEndpoint(
+func buildEndpoint(gopen *dto.Gopen, endpoint dto.Endpoint) vo.EndpointConfig {
+	return vo.NewEndpointConfig(
+		resolveEndpointExecution(endpoint.Execution),
 		endpoint.Path,
 		endpoint.Method,
 		buildTimeout(gopen.Timeout, endpoint.Timeout),
 		buildSecurityCors(gopen.SecurityCors, endpoint.SecurityCors),
 		buildLimiter(gopen.Limiter, endpoint.Limiter),
-		buildCache(gopen.Cache, endpoint.Cache),
-		endpoint.AbortIfStatusCodes,
+		buildEndpointCache(gopen.Cache, endpoint.Cache),
 		buildBackends(gopen.Templates, endpoint),
 		buildEndpointResponse(endpoint.Response),
 	)
 }
 
-func buildTimeout(timeout, endpointTimeout vo.Duration) vo.Duration {
-	if checker.IsGreaterThan(endpointTimeout, 0) {
-		return endpointTimeout
-	} else {
+func buildTimeout(base, timeout vo.Duration) vo.Duration {
+	if checker.IsGreaterThan(timeout, 0) {
 		return timeout
+	} else {
+		return base
 	}
 }
 
-func buildSecurityCors(securityCors *dto.SecurityCors, endpointSecurityCors *dto.EndpointSecurityCors) vo.SecurityCors {
-	var allowOrigins, allowMethods, allowHeaders []string
+func buildSecurityCors(securityCors *dto.SecurityCors, endpointSecurityCors *dto.SecurityCors,
+) *vo.SecurityCorsConfig {
+	var onlyIf, ignoreIf, allowOrigins, allowMethods, allowHeaders []string
+	var allowCredentials bool
 
 	if checker.NonNil(securityCors) {
-		if checker.IsNotNilOrEmpty(securityCors.AllowOrigins) {
+		if checker.NonNil(securityCors.OnlyIf) {
+			onlyIf = securityCors.OnlyIf
+		}
+		if checker.NonNil(securityCors.IgnoreIf) {
+			ignoreIf = securityCors.IgnoreIf
+		}
+		if checker.NonNil(securityCors.AllowOrigins) {
 			allowOrigins = securityCors.AllowOrigins
 		}
 		if checker.NonNil(securityCors.AllowMethods) {
@@ -111,10 +106,17 @@ func buildSecurityCors(securityCors *dto.SecurityCors, endpointSecurityCors *dto
 		if checker.NonNil(securityCors.AllowHeaders) {
 			allowHeaders = securityCors.AllowHeaders
 		}
+		allowCredentials = securityCors.AllowCredentials
 	}
 
 	if checker.NonNil(endpointSecurityCors) {
-		if checker.IsNotNilOrEmpty(endpointSecurityCors.AllowOrigins) {
+		if checker.NonNil(endpointSecurityCors.OnlyIf) {
+			onlyIf = endpointSecurityCors.OnlyIf
+		}
+		if checker.NonNil(endpointSecurityCors.IgnoreIf) {
+			ignoreIf = endpointSecurityCors.IgnoreIf
+		}
+		if checker.NonNil(endpointSecurityCors.AllowOrigins) {
 			allowOrigins = endpointSecurityCors.AllowOrigins
 		}
 		if checker.NonNil(endpointSecurityCors.AllowMethods) {
@@ -123,45 +125,66 @@ func buildSecurityCors(securityCors *dto.SecurityCors, endpointSecurityCors *dto
 		if checker.NonNil(endpointSecurityCors.AllowHeaders) {
 			allowHeaders = endpointSecurityCors.AllowHeaders
 		}
+		allowCredentials = endpointSecurityCors.AllowCredentials
 	}
 
-	return vo.NewSecurityCors(allowOrigins, allowMethods, allowHeaders)
+	return vo.NewSecurityCorsConfig(onlyIf, ignoreIf, allowOrigins, allowMethods, allowHeaders, allowCredentials)
 }
 
-func buildLimiter(limiter *dto.Limiter, endpointLimiter *dto.EndpointLimiter) vo.Limiter {
-	var maxHeaderSize, maxBodySize, maxMultipartForm vo.Bytes
-	var endpointRate, rate *dto.Rate
+func buildLimiter(limiter *dto.Limiter, endpointLimiter *dto.Limiter) *vo.LimiterConfig {
+	if checker.IsNil(limiter) && checker.IsNil(endpointLimiter) {
+		return nil
+	}
+
+	var endpointSize, size *dto.LimiterSize
+	var endpointRate, rate *dto.LimiterRate
 
 	if checker.NonNil(limiter) {
-		if checker.NonNil(limiter.MaxHeaderSize) {
-			maxHeaderSize = *limiter.MaxHeaderSize
-		}
-		if checker.NonNil(limiter.MaxBodySize) {
-			maxBodySize = *limiter.MaxBodySize
-		}
-		if checker.NonNil(limiter.MaxMultipartMemorySize) {
-			maxMultipartForm = *limiter.MaxMultipartMemorySize
-		}
+		size = limiter.Size
 		rate = limiter.Rate
 	}
 
 	if checker.NonNil(endpointLimiter) {
-		if checker.NonNil(endpointLimiter.MaxHeaderSize) {
-			maxHeaderSize = *endpointLimiter.MaxHeaderSize
-		}
-		if checker.NonNil(endpointLimiter.MaxBodySize) {
-			maxBodySize = *endpointLimiter.MaxBodySize
-		}
-		if checker.NonNil(endpointLimiter.MaxMultipartMemorySize) {
-			maxMultipartForm = *endpointLimiter.MaxMultipartMemorySize
-		}
+		endpointSize = endpointLimiter.Size
 		endpointRate = endpointLimiter.Rate
 	}
 
-	return vo.NewLimiter(maxHeaderSize, maxBodySize, maxMultipartForm, buildLimiterRate(rate, endpointRate))
+	return vo.NewLimiterConfig(buildLimiterSize(size, endpointSize), buildLimiterRate(rate, endpointRate))
 }
 
-func buildLimiterRate(rate, endpointRate *dto.Rate) vo.Rate {
+func buildLimiterSize(size, endpointSize *dto.LimiterSize) *vo.LimiterSizeConfig {
+	if checker.IsNil(size) && checker.IsNil(endpointSize) {
+		return nil
+	}
+
+	var maxMetadata, maxPayload vo.Bytes
+
+	if checker.NonNil(size) {
+		if checker.NonNil(size.MaxHeader) {
+			maxMetadata = *size.MaxHeader
+		}
+		if checker.NonNil(size.MaxBody) {
+			maxPayload = *size.MaxBody
+		}
+	}
+
+	if checker.NonNil(endpointSize) {
+		if checker.NonNil(endpointSize.MaxHeader) {
+			maxMetadata = *endpointSize.MaxHeader
+		}
+		if checker.NonNil(endpointSize.MaxBody) {
+			maxPayload = *endpointSize.MaxBody
+		}
+	}
+
+	return vo.NewLimiterSizeConfig(maxMetadata, maxPayload)
+}
+
+func buildLimiterRate(rate, endpointRate *dto.LimiterRate) *vo.LimiterRateConfig {
+	if checker.IsNil(rate) && checker.IsNil(endpointRate) {
+		return nil
+	}
+
 	var every vo.Duration
 	var capacity int
 
@@ -183,88 +206,53 @@ func buildLimiterRate(rate, endpointRate *dto.Rate) vo.Rate {
 		}
 	}
 
-	return vo.NewRate(every, capacity)
+	return vo.NewLimiterRateConfig(every, capacity)
 }
 
-func buildCache(cache *dto.Cache, endpointCache *dto.EndpointCache) *vo.Cache {
+func buildEndpointCache(cache *dto.Cache, endpointCache *dto.Cache) *vo.CacheConfig {
 	if checker.IsNil(cache) && checker.IsNil(endpointCache) {
 		return nil
 	}
 
-	var enabled bool
-	var ignoreQuery bool
-	var duration vo.Duration
-	var strategyHeaders []string
-	var onlyIfStatusCodes []int
-	var onlyIfMethods []string
-	var allowCacheControl *bool
+	var read, write dto.CacheDecision
+	var key string
+	var ttl vo.Duration
 
 	if checker.NonNil(cache) {
-		duration = cache.Duration
-		strategyHeaders = cache.StrategyHeaders
-		onlyIfStatusCodes = cache.OnlyIfStatusCodes
-		onlyIfMethods = cache.OnlyIfMethods
-		allowCacheControl = cache.AllowCacheControl
+		read = cache.Read
+		write = cache.Write
+		key = cache.Key
+		ttl = cache.TTL
 	}
 
 	if checker.NonNil(endpointCache) {
-		enabled = endpointCache.Enabled
-		ignoreQuery = endpointCache.IgnoreQuery
-		if checker.IsGreaterThan(endpointCache.Duration, 0) {
-			duration = endpointCache.Duration
-		}
-		if checker.NonNil(endpointCache.StrategyHeaders) {
-			strategyHeaders = endpointCache.StrategyHeaders
-		}
-		if checker.NonNil(endpointCache.AllowCacheControl) {
-			allowCacheControl = endpointCache.AllowCacheControl
-		}
-		if checker.NonNil(endpointCache.OnlyIfStatusCodes) {
-			onlyIfStatusCodes = endpointCache.OnlyIfStatusCodes
-		}
+		read = endpointCache.Read
+		write = endpointCache.Write
+		key = endpointCache.Key
+		ttl = endpointCache.TTL
 	}
 
-	return vo.NewCache(enabled, ignoreQuery, duration, strategyHeaders, onlyIfStatusCodes, onlyIfMethods, allowCacheControl)
-}
-
-func buildEndpointResponse(endpointResponse *dto.EndpointResponse) *vo.EndpointResponse {
-	if checker.IsNil(endpointResponse) {
-		return nil
-	}
-	return vo.NewEndpointResponse(
-		endpointResponse.ContinueOnError,
-		buildEndpointResponseHeader(endpointResponse.Header),
-		buildEndpointResponseBody(endpointResponse.Body),
+	return vo.NewCacheConfig(
+		enum.CacheKindEndpoint,
+		vo.NewCacheDecisionConfig(read.OnlyIf, read.IgnoreIf),
+		vo.NewCacheDecisionConfig(write.OnlyIf, write.IgnoreIf),
+		key,
+		ttl,
 	)
 }
 
-func buildEndpointResponseHeader(endpointResponseHeader *dto.EndpointResponseHeader) *vo.EndpointResponseHeader {
-	if checker.IsNil(endpointResponseHeader) {
-		return nil
-	}
-	return vo.NewEndpointResponseHeader(
-		buildMapper(endpointResponseHeader.Mapper),
-		buildProjector(endpointResponseHeader.Projector),
+func buildEndpointResponse(endpointResponse *dto.EndpointResponse) vo.EndpointResponseConfig {
+	return vo.NewEndpointResponseConfig(
+		buildMetadata(endpointResponse.Header),
+		buildPayload(endpointResponse.Body),
 	)
 }
 
-func buildEndpointResponseBody(endpointResponseBody *dto.EndpointResponseBody) *vo.EndpointResponseBody {
-	if checker.IsNil(endpointResponseBody) {
-		return nil
-	}
-	return vo.NewEndpointResponseBody(
-		endpointResponseBody.Aggregate,
-		endpointResponseBody.OmitEmpty,
-		endpointResponseBody.ContentType,
-		endpointResponseBody.ContentEncoding,
-		endpointResponseBody.Nomenclature,
-		buildMapper(endpointResponseBody.Mapper),
-		buildProjector(endpointResponseBody.Projector),
-	)
-}
-
-func buildBackends(templates *dto.Templates, endpoint dto.Endpoint) []vo.Backend {
-	var result []vo.Backend
+func buildBackends(
+	templates *dto.Templates,
+	endpoint dto.Endpoint,
+) []vo.BackendConfig {
+	var result []vo.BackendConfig
 	var ps propagateState
 	var backendIndex int
 
@@ -280,11 +268,11 @@ func buildBackends(templates *dto.Templates, endpoint dto.Endpoint) []vo.Backend
 			markBackendSeen(endpoint, flow, backendIndex, effective, seen)
 
 			result = append(result, buildBackendUnified(
+				endpoint,
 				effective,
 				flow,
 				&ps,
 				backendIndex,
-				allowParallelism && endpoint.Parallelism,
 				idToIndex,
 			))
 
@@ -359,46 +347,54 @@ func markBackendSeen(endpoint dto.Endpoint, flow enum.BackendFlow, backendIndex 
 }
 
 func buildBackendUnified(
+	endpoint dto.Endpoint,
 	backend dto.Backend,
 	flow enum.BackendFlow,
 	ps *propagateState,
 	backendIndex int,
-	parallelism bool,
 	idToIndex map[string]int,
-) vo.Backend {
-	dependencies := buildBackendDependencies(backend.Dependencies, idToIndex)
-	resp := buildBackendResponse(backend, flow)
+) vo.BackendConfig {
+	var http *vo.BackendHTTPConfig
+	var publisher *vo.BackendPublisherConfig
 
 	switch backend.Kind {
 	case enum.BackendKindPublisher:
-		return vo.NewBackendPublisher(
-			flow,
-			backend.OnlyIf,
-			backend.IgnoreIf,
-			backend.ID,
-			dependencies,
-			buildUnifiedPublisher(backend, parallelism),
-			resp,
+		publisher = vo.NewBackendPublisherConfig(
+			backend.Broker,
+			backend.Path,
+			backend.GroupID,
+			backend.DeduplicationID,
+			backend.Delay,
+			buildPublisherMessage(backend.Message),
 		)
 	case enum.BackendKindHTTP:
-		return vo.NewBackendHTTP(
-			flow,
-			backend.OnlyIf,
-			backend.IgnoreIf,
-			backend.ID,
-			dependencies,
+		http = vo.NewBackendHTTPConfig(
 			backend.Hosts,
 			backend.Path,
 			backend.Method,
-			buildHTTPBackendRequest(backend, ps, backendIndex, parallelism),
-			resp,
+			buildHTTPBackendRequest(backend, ps, backendIndex),
 		)
 	default:
 		panic(errors.Newf("invalid backend.kind=%v (endpoint=%s %s)", backend.Kind, flow, backend.Path))
 	}
+
+	return vo.NewBackendConfig(
+		flow,
+		backend.OnlyIf,
+		backend.IgnoreIf,
+		backend.ID,
+		resolveBackendExecution(endpoint.Execution, backend.Execution),
+		buildBackendDependencies(backend.Dependencies, idToIndex),
+		backend.Kind,
+		backend.Timeout,
+		buildBackendCache(backend.Cache),
+		http,
+		publisher,
+		buildBackendResponse(backend, flow),
+	)
 }
 
-func buildBackendDependencies(deps []string, idToIndex map[string]int) *vo.BackendDependencies {
+func buildBackendDependencies(deps []string, idToIndex map[string]int) *vo.BackendDependenciesConfig {
 	if checker.IsEmpty(deps) {
 		return nil
 	}
@@ -410,145 +406,91 @@ func buildBackendDependencies(deps []string, idToIndex map[string]int) *vo.Backe
 			idxs = append(idxs, idx)
 		}
 	}
-	return vo.NewBackendDependencies(deps, idxs)
+	return vo.NewBackendDependenciesConfig(deps, idxs)
 }
 
-func buildHTTPBackendRequest(
-	backend dto.Backend,
-	ps *propagateState,
-	backendIndex int,
-	parallelism bool,
-) *vo.BackendRequest {
+func buildBackendCache(cache *dto.Cache) *vo.CacheConfig {
+	if checker.IsNil(cache) {
+		return nil
+	}
+	return vo.NewCacheConfig(
+		enum.CacheKindBackend,
+		vo.NewCacheDecisionConfig(cache.Read.OnlyIf, cache.Read.IgnoreIf),
+		vo.NewCacheDecisionConfig(cache.Write.OnlyIf, cache.Write.IgnoreIf),
+		cache.Key,
+		cache.TTL,
+	)
+}
+
+func buildHTTPBackendRequest(backend dto.Backend, ps *propagateState, backendIndex int) vo.BackendHTTPRequestConfig {
 	effective := mergeBackendRequestWithPropagation(backend.Request, ps)
 
 	applyBackendPropagateIntoState(backend.Propagate, ps, backendIndex)
 	collectPropagatingModifiersFromRequestIntoState(backend.Request, ps, backendIndex)
 
-	if checker.IsNil(effective) {
-		return nil
-	}
-
-	async := effective.Async
-	if checker.IsNil(async) && checker.NonNil(backend.Async) {
-		async = backend.Async
-	}
-
-	return vo.NewBackendRequest(
-		checker.IfNilReturns(effective.ContinueOnError, false),
-		effective.Concurrent,
-		resolveAsync(async, parallelism),
-		buildBackendRequestHeader(effective.Header),
-		buildBackendRequestParam(effective.Param),
-		buildBackendRequestQuery(effective.Query),
-		buildBackendRequestBody(effective.Body),
+	return vo.NewBackendHTTPRequestConfig(
+		buildMetadata(effective.Header),
+		buildURLPath(effective.Param),
+		buildQuery(effective.Query),
+		buildPayload(effective.Body),
 	)
 }
 
-func buildBackendResponse(backend dto.Backend, flow enum.BackendFlow) *vo.BackendResponse {
+func buildBackendResponse(backend dto.Backend, flow enum.BackendFlow) *vo.BackendResponseConfig {
 	if checker.Equals(flow, enum.BackendFlowBeforeware) || checker.Equals(flow, enum.BackendFlowAfterware) {
 		return buildMiddlewareBackendResponse(backend)
 	} else if checker.IsNil(backend.Response) {
 		return nil
+	} else {
+		return vo.NewBackendResponseConfig(
+			backend.Response.Omit,
+			buildMetadata(backend.Response.Header),
+			buildPayload(backend.Response.Body),
+		)
 	}
-	return vo.NewBackendResponse(
-		backend.Response.ContinueOnError,
-		backend.Response.Omit,
-		buildBackendResponseHeader(backend.Response.Header),
-		buildBackendResponseBody(backend.Response.Body),
-	)
 }
 
-func buildMiddlewareBackendResponse(backend dto.Backend) *vo.BackendResponse {
+func buildMiddlewareBackendResponse(backend dto.Backend) *vo.BackendResponseConfig {
 	if checker.IsNil(backend.Response) {
-		return vo.NewBackendResponseForMiddleware(false, true, nil)
+		return vo.NewBackendResponseConfigForMiddleware(false, nil)
+	} else {
+		return vo.NewBackendResponseConfigForMiddleware(backend.Response.Omit, buildMetadata(backend.Response.Header))
 	}
-	return vo.NewBackendResponseForMiddleware(
-		backend.Response.ContinueOnError,
-		backend.Response.Omit,
-		buildBackendResponseHeader(backend.Response.Header),
-	)
 }
 
-func buildUnifiedPublisher(backend dto.Backend, parallelism bool) vo.Publisher {
-	return vo.NewPublisher(
-		backend.OnlyIf,
-		backend.IgnoreIf,
-		backend.Broker,
-		backend.Path,
-		backend.GroupID,
-		backend.DeduplicationID,
-		backend.Delay,
-		resolveAsync(backend.Async, parallelism),
-		buildPublisherMessage(backend.Message),
-	)
-}
-
-func buildPublisherMessage(publisherMessage *dto.PublisherMessage) *vo.PublisherMessage {
-	if checker.IsNil(publisherMessage) {
-		return nil
-	}
-	return vo.NewPublisherMessage(
-		publisherMessage.ContinueOnError,
+func buildPublisherMessage(publisherMessage dto.PublisherMessage) vo.BackendPublisherMessageConfig {
+	return vo.NewBackendPublisherMessageConfig(
 		publisherMessage.OnlyIf,
 		publisherMessage.IgnoreIf,
-		buildPublisherMessageAttributes(publisherMessage.Attributes),
-		buildPublisherMessageBody(publisherMessage.Body),
+		buildAttributeValues(publisherMessage.Attributes),
+		buildPayload(publisherMessage.Body),
 	)
 }
 
-func buildPublisherMessageAttributes(publisherMessageAttributes map[string]dto.PublisherMessageAttribute,
-) map[string]vo.PublisherMessageAttribute {
-	if checker.IsNil(publisherMessageAttributes) {
+func buildAttributeValues(attributes map[string]dto.AttributeValue) map[string]vo.AttributeValueConfig {
+	if checker.IsNil(attributes) {
 		return nil
 	}
 
-	var result = make(map[string]vo.PublisherMessageAttribute)
-	for key, value := range publisherMessageAttributes {
-		result[key] = vo.NewPublisherMessageAttribute(value.DataType, value.Value)
+	var result = make(map[string]vo.AttributeValueConfig)
+	for key, value := range attributes {
+		result[key] = vo.NewAttributeValueConfig(value.DataType, value.Value)
 	}
 	return result
 }
 
-func buildPublisherMessageBody(publisherMessageBody *dto.PublisherMessageBody) *vo.PublisherMessageBody {
-	if checker.IsNil(publisherMessageBody) {
-		return nil
-	}
-	return vo.NewPublisherMessageBody(
-		publisherMessageBody.OmitEmpty,
-		publisherMessageBody.ContentType,
-		publisherMessageBody.ContentEncoding,
-		publisherMessageBody.Nomenclature,
-		buildMapper(publisherMessageBody.Mapper),
-		buildProjector(publisherMessageBody.Projector),
-		buildModifiers(publisherMessageBody.Modifiers),
-		buildJoins(publisherMessageBody.Joins),
-	)
-}
-
-func buildBackendRequestHeader(backendRequestHeader *dto.BackendRequestHeader) *vo.BackendRequestHeader {
-	if checker.IsNil(backendRequestHeader) {
-		return nil
-	}
-	return vo.NewBackendRequestHeader(
-		backendRequestHeader.Omit,
-		buildMapper(backendRequestHeader.Mapper),
-		buildProjector(backendRequestHeader.Projector),
-		buildModifiers(backendRequestHeader.Modifiers),
-	)
-}
-
-func buildBackendRequestParam(backendRequestParam *dto.BackendRequestURLPath) *vo.BackendRequestURLPath {
+func buildURLPath(backendRequestParam *dto.URLPathTransformation) *vo.URLPathConfig {
 	if checker.IsNil(backendRequestParam) {
 		return nil
 	}
-	return vo.NewBackendRequestURLPath(buildModifiers(backendRequestParam.Modifiers))
+	return vo.NewURLPathConfig(buildModifiers(backendRequestParam.Modifiers))
 }
 
-func buildBackendRequestQuery(backendRequestQuery *dto.BackendRequestQuery) *vo.BackendRequestQuery {
+func buildQuery(backendRequestQuery *dto.QueryTransformation) *vo.QueryConfig {
 	if checker.IsNil(backendRequestQuery) {
 		return nil
 	}
-	return vo.NewBackendRequestQuery(
+	return vo.NewQueryConfig(
 		backendRequestQuery.Omit,
 		buildMapper(backendRequestQuery.Mapper),
 		buildProjector(backendRequestQuery.Projector),
@@ -556,84 +498,72 @@ func buildBackendRequestQuery(backendRequestQuery *dto.BackendRequestQuery) *vo.
 	)
 }
 
-func buildBackendRequestBody(backendRequestBody *dto.BackendRequestBody) *vo.BackendRequestBody {
-	if checker.IsNil(backendRequestBody) {
+func buildMetadata(metadata *dto.MetadataTransformation) *vo.MetadataConfig {
+	if checker.IsNil(metadata) {
 		return nil
 	}
-	return vo.NewBackendRequestBody(
-		backendRequestBody.Omit,
-		backendRequestBody.OmitEmpty,
-		backendRequestBody.ContentType,
-		backendRequestBody.ContentEncoding,
-		backendRequestBody.Nomenclature,
-		buildMapper(backendRequestBody.Mapper),
-		buildProjector(backendRequestBody.Projector),
-		buildModifiers(backendRequestBody.Modifiers),
-		buildJoins(backendRequestBody.Joins),
+	return vo.NewMetadataConfig(
+		metadata.Omit,
+		buildMapper(metadata.Mapper),
+		buildProjector(metadata.Projector),
+		buildModifiers(metadata.Modifiers),
 	)
 }
 
-func buildBackendResponseHeader(backendResponseHeader *dto.BackendResponseHeader) *vo.BackendResponseHeader {
-	if checker.IsNil(backendResponseHeader) {
+func buildPayload(payload *dto.PayloadTransformation) *vo.PayloadConfig {
+	if checker.IsNil(payload) {
 		return nil
 	}
-	return vo.NewBackendResponseHeader(
-		backendResponseHeader.Omit,
-		buildMapper(backendResponseHeader.Mapper),
-		buildProjector(backendResponseHeader.Projector),
-		buildModifiers(backendResponseHeader.Modifiers),
+	return vo.NewPayloadConfig(
+		payload.Aggregate,
+		payload.Omit,
+		payload.OmitEmpty,
+		payload.Group,
+		payload.ContentType,
+		payload.ContentEncoding,
+		payload.Nomenclature,
+		buildMapper(payload.Mapper),
+		buildProjector(payload.Projector),
+		buildModifiers(payload.Modifiers),
+		buildJoins(payload.Joins),
 	)
 }
 
-func buildBackendResponseBody(backendResponseBody *dto.BackendResponseBody) *vo.BackendResponseBody {
-	if checker.IsNil(backendResponseBody) {
-		return nil
-	}
-	return vo.NewBackendResponseBody(
-		backendResponseBody.Omit,
-		backendResponseBody.Group,
-		buildMapper(backendResponseBody.Mapper),
-		buildProjector(backendResponseBody.Projector),
-		buildModifiers(backendResponseBody.Modifiers),
-		buildJoins(backendResponseBody.Joins),
-	)
-}
-
-func buildMapper(mapper *dto.Mapper) *vo.Mapper {
+func buildMapper(mapper *dto.Mapper) *vo.MapperConfig {
 	if checker.IsNil(mapper) {
 		return nil
 	}
-	return vo.NewMapper(mapper.OnlyIf, mapper.IgnoreIf, mapper.Policy, mapper.Map)
+	return vo.NewMapperConfig(mapper.OnlyIf, mapper.IgnoreIf, mapper.Policy, mapper.Map)
 }
 
-func buildProjector(projector *dto.Projector) *vo.Projector {
+func buildProjector(projector *dto.Projector) *vo.ProjectorConfig {
 	if checker.IsNil(projector) {
 		return nil
 	}
-	return vo.NewProjector(projector.OnlyIf, projector.IgnoreIf, projector.Project)
+	return vo.NewProjectorConfig(projector.OnlyIf, projector.IgnoreIf, projector.Project)
 }
 
-func buildModifiers(modifiers []dto.Modifier) []vo.Modifier {
-	var result []vo.Modifier
+func buildModifiers(modifiers []dto.Modifier) []vo.ModifierConfig {
+	var result []vo.ModifierConfig
 	for _, modifier := range modifiers {
 		result = append(result, buildModifier(modifier))
 	}
 	return result
 }
 
-func buildModifier(modifier dto.Modifier) vo.Modifier {
-	return vo.NewModifier(modifier.OnlyIf, modifier.IgnoreIf, modifier.Action, modifier.Propagate, modifier.Key, modifier.Value)
+func buildModifier(modifier dto.Modifier) vo.ModifierConfig {
+	return vo.NewModifierConfig(modifier.OnlyIf, modifier.IgnoreIf, modifier.Action, modifier.Propagate, modifier.Key, modifier.Value)
 }
 
-func buildJoins(joins []dto.Join) []vo.Join {
-	var result []vo.Join
+func buildJoins(joins []dto.Join) []vo.JoinConfig {
+	var result []vo.JoinConfig
 	for _, join := range joins {
 		result = append(result, buildJoin(join))
 	}
 	return result
 }
 
-func buildJoin(join dto.Join) vo.Join {
+func buildJoin(join dto.Join) vo.JoinConfig {
 	return vo.NewJoin(
 		join.OnlyIf,
 		join.IgnoreIf,
@@ -798,131 +728,62 @@ func mergeBackendFULL(tpl dto.Backend, cur dto.Backend) dto.Backend {
 	return out
 }
 
-func mergePublisherMessage(tpl, cur *dto.PublisherMessage) *dto.PublisherMessage {
-	if checker.IsNil(tpl) && checker.IsNil(cur) {
-		return nil
+func mergePublisherMessage(tpl, cur dto.PublisherMessage) dto.PublisherMessage {
+	out := tpl
+
+	if checker.IsNotEmpty(cur.OnlyIf) {
+		out.OnlyIf = append(append([]string{}, out.OnlyIf...), cur.OnlyIf...)
 	}
-	var out dto.PublisherMessage
-	if checker.NonNil(tpl) {
-		out = *tpl
+	if checker.IsNotEmpty(cur.IgnoreIf) {
+		out.IgnoreIf = append(append([]string{}, out.IgnoreIf...), cur.IgnoreIf...)
 	}
-	if checker.NonNil(cur) {
-		out.ContinueOnError = cur.ContinueOnError
-		if checker.IsNotEmpty(cur.OnlyIf) {
-			out.OnlyIf = append(append([]string{}, out.OnlyIf...), cur.OnlyIf...)
+	if checker.NonNil(cur.Attributes) {
+		if checker.IsNil(out.Attributes) {
+			out.Attributes = map[string]dto.AttributeValue{}
 		}
-		if checker.IsNotEmpty(cur.IgnoreIf) {
-			out.IgnoreIf = append(append([]string{}, out.IgnoreIf...), cur.IgnoreIf...)
+		for k, v := range cur.Attributes {
+			out.Attributes[k] = v
 		}
-		if checker.NonNil(cur.Attributes) {
-			if checker.IsNil(out.Attributes) {
-				out.Attributes = map[string]dto.PublisherMessageAttribute{}
-			}
-			for k, v := range cur.Attributes {
-				out.Attributes[k] = v
-			}
-		}
-		out.Body = mergePublisherMessageBody(out.Body, cur.Body)
 	}
-	return &out
+	out.Body = mergePayloadTransformation(out.Body, cur.Body)
+
+	return out
 }
 
-func mergePublisherMessageBody(tpl, cur *dto.PublisherMessageBody) *dto.PublisherMessageBody {
-	if checker.IsNil(tpl) && checker.IsNil(cur) {
-		return nil
-	}
-	var out dto.PublisherMessageBody
-	if checker.NonNil(tpl) {
-		out = *tpl
-	}
-	if checker.NonNil(cur) {
-		out.OmitEmpty = out.OmitEmpty || cur.OmitEmpty
-		if cur.ContentType.IsEnumValid() {
-			out.ContentType = cur.ContentType
-		}
-		if cur.ContentEncoding.IsEnumValid() {
-			out.ContentEncoding = cur.ContentEncoding
-		}
-		if cur.Nomenclature.IsEnumValid() {
-			out.Nomenclature = cur.Nomenclature
-		}
-		if checker.NonNil(cur.Mapper) {
-			out.Mapper = cur.Mapper
-		}
-		if checker.NonNil(cur.Projector) {
-			out.Projector = cur.Projector
-		}
-		out.Modifiers = append(append([]dto.Modifier{}, out.Modifiers...), cur.Modifiers...)
-		out.Joins = append(append([]dto.Join{}, out.Joins...), cur.Joins...)
-	}
-	return &out
+func mergeBackendRequest(tpl, cur dto.BackendRequest) dto.BackendRequest {
+	out := tpl
+
+	out.Header = mergeMetadataTransformation(out.Header, cur.Header)
+	out.Param = mergeURLPathTransformation(out.Param, cur.Param)
+	out.Query = mergeQueryTransformation(out.Query, cur.Query)
+	out.Body = mergePayloadTransformation(out.Body, cur.Body)
+
+	return out
 }
 
-func mergeBackendRequest(tpl, cur *dto.BackendRequest) *dto.BackendRequest {
-	if checker.IsNil(tpl) && checker.IsNil(cur) {
-		return nil
-	}
-
-	var out dto.BackendRequest
-	if checker.NonNil(tpl) {
-		out = *tpl
-	}
-	if checker.IsNil(cur) {
-		return &out
-	}
-	if checker.NonNil(cur.ContinueOnError) {
-		out.ContinueOnError = cur.ContinueOnError
-	}
-	if checker.IsGreaterThan(cur.Concurrent, 0) {
-		out.Concurrent = cur.Concurrent
-	}
-	if checker.NonNil(cur.Async) {
-		out.Async = cur.Async
-	}
-
-	out.Header = mergeBackendRequestHeader(out.Header, cur.Header)
-	out.Param = mergeBackendRequestParam(out.Param, cur.Param)
-	out.Query = mergeBackendRequestQuery(out.Query, cur.Query)
-	out.Body = mergeBackendRequestBody(out.Body, cur.Body)
-
-	return &out
-}
-
-func mergeBackendRequestWithPropagation(req *dto.BackendRequest, ps *propagateState) *dto.BackendRequest {
-	if checker.IsNil(req) &&
-		checker.IsNil(ps.header) &&
+func mergeBackendRequestWithPropagation(req dto.BackendRequest, ps *propagateState) dto.BackendRequest {
+	if checker.IsNil(ps.header) &&
 		checker.IsNil(ps.urlPath) &&
 		checker.IsNil(ps.query) &&
 		checker.IsNil(ps.body) {
-		return nil
+		return req
 	}
 
-	var out dto.BackendRequest
-	if checker.NonNil(req) {
-		out = *req
-	}
+	out := req
 
-	// ContinueOnError (*bool):
-	// - se o backend atual NÃO configurou (nil), herda o valor propagado (pode ser nil também)
-	// - se o backend atual configurou false, ele bloqueia a herança (mantém false)
-	// - se o backend atual configurou true, ele ganha (mantém true)
-	if checker.IsNil(out.ContinueOnError) {
-		out.ContinueOnError = ps.continueOnError
-	}
+	out.Header = mergeMetadataTransformation(ps.header, out.Header)
+	out.Param = mergeURLPathTransformation(ps.urlPath, out.Param)
+	out.Query = mergeQueryTransformation(ps.query, out.Query)
+	out.Body = mergePayloadTransformation(ps.body, out.Body)
 
-	out.Header = mergeBackendRequestHeader(ps.header, out.Header)
-	out.Param = mergeBackendRequestParam(ps.urlPath, out.Param)
-	out.Query = mergeBackendRequestQuery(ps.query, out.Query)
-	out.Body = mergeBackendRequestBody(ps.body, out.Body)
-
-	return &out
+	return out
 }
 
-func mergeBackendRequestHeader(inh, cur *dto.BackendRequestHeader) *dto.BackendRequestHeader {
+func mergeMetadataTransformation(inh, cur *dto.MetadataTransformation) *dto.MetadataTransformation {
 	if checker.IsNil(inh) && checker.IsNil(cur) {
 		return nil
 	}
-	var out dto.BackendRequestHeader
+	var out dto.MetadataTransformation
 	if checker.NonNil(inh) {
 		out = *inh
 	}
@@ -939,11 +800,11 @@ func mergeBackendRequestHeader(inh, cur *dto.BackendRequestHeader) *dto.BackendR
 	return &out
 }
 
-func mergeBackendRequestParam(inh, cur *dto.BackendRequestURLPath) *dto.BackendRequestURLPath {
+func mergeURLPathTransformation(inh, cur *dto.URLPathTransformation) *dto.URLPathTransformation {
 	if checker.IsNil(inh) && checker.IsNil(cur) {
 		return nil
 	}
-	var out dto.BackendRequestURLPath
+	var out dto.URLPathTransformation
 	if checker.NonNil(inh) {
 		out = *inh
 	}
@@ -953,11 +814,11 @@ func mergeBackendRequestParam(inh, cur *dto.BackendRequestURLPath) *dto.BackendR
 	return &out
 }
 
-func mergeBackendRequestQuery(inh, cur *dto.BackendRequestQuery) *dto.BackendRequestQuery {
+func mergeQueryTransformation(inh, cur *dto.QueryTransformation) *dto.QueryTransformation {
 	if checker.IsNil(inh) && checker.IsNil(cur) {
 		return nil
 	}
-	var out dto.BackendRequestQuery
+	var out dto.QueryTransformation
 	if checker.NonNil(inh) {
 		out = *inh
 	}
@@ -976,23 +837,19 @@ func mergeBackendRequestQuery(inh, cur *dto.BackendRequestQuery) *dto.BackendReq
 	return &out
 }
 
-func mergeBackendRequestBody(inh, cur *dto.BackendRequestBody) *dto.BackendRequestBody {
+func mergePayloadTransformation(inh, cur *dto.PayloadTransformation) *dto.PayloadTransformation {
 	if checker.IsNil(inh) && checker.IsNil(cur) {
 		return nil
 	}
-	var out dto.BackendRequestBody
+	var out dto.PayloadTransformation
 	if checker.NonNil(inh) {
 		out = *inh
 	}
 	if checker.NonNil(cur) {
 		out.Omit = out.Omit || cur.Omit
 		out.OmitEmpty = out.OmitEmpty || cur.OmitEmpty
-		if cur.ContentType.IsEnumValid() {
-			out.ContentType = cur.ContentType
-		}
-		if cur.ContentEncoding.IsEnumValid() {
-			out.ContentEncoding = cur.ContentEncoding
-		}
+		out.ContentType = cur.ContentType
+		out.ContentEncoding = cur.ContentEncoding
 		if cur.Nomenclature.IsEnumValid() {
 			out.Nomenclature = cur.Nomenclature
 		}
@@ -1009,112 +866,29 @@ func mergeBackendRequestBody(inh, cur *dto.BackendRequestBody) *dto.BackendReque
 	return &out
 }
 
-func mergeBackendResponse(tpl, cur *dto.BackendResponse) *dto.BackendResponse {
-	if checker.IsNil(tpl) && checker.IsNil(cur) {
-		return nil
-	}
-	var out dto.BackendResponse
-	if checker.NonNil(tpl) {
-		out = *tpl
-	}
-	if checker.NonNil(cur) {
-		// bool aqui: caller decide (não fazemos OR), porque omit=true é uma escolha forte.
-		out.ContinueOnError = cur.ContinueOnError
-		out.Omit = cur.Omit
-
-		out.Header = mergeBackendResponseHeader(out.Header, cur.Header)
-		out.Body = mergeBackendResponseBody(out.Body, cur.Body)
-	}
-	return &out
-}
-
-func mergeBackendResponseHeader(tpl, cur *dto.BackendResponseHeader) *dto.BackendResponseHeader {
-	if checker.IsNil(tpl) && checker.IsNil(cur) {
-		return nil
-	}
-
-	var out dto.BackendResponseHeader
-	if checker.NonNil(tpl) {
-		out = *tpl
-	}
-
-	if checker.IsNil(cur) {
-		return &out
-	}
+func mergeBackendResponse(tpl, cur dto.BackendResponse) dto.BackendResponse {
+	out := tpl
 
 	out.Omit = out.Omit || cur.Omit
-	if checker.NonNil(cur.Mapper) {
-		out.Mapper = cur.Mapper
-	}
-	if checker.NonNil(cur.Projector) {
-		out.Projector = cur.Projector
-	}
-	out.Modifiers = append(append([]dto.Modifier{}, out.Modifiers...), cur.Modifiers...)
+	out.Header = mergeMetadataTransformation(out.Header, cur.Header)
+	out.Body = mergePayloadTransformation(out.Body, cur.Body)
 
-	return &out
+	return out
 }
 
-func mergeBackendResponseBody(tpl, cur *dto.BackendResponseBody) *dto.BackendResponseBody {
-	if checker.IsNil(tpl) && checker.IsNil(cur) {
-		return nil
-	}
+func mergeBackendPropagate(tpl, cur dto.BackendPropagate) dto.BackendPropagate {
+	out := tpl
 
-	var out dto.BackendResponseBody
-	if checker.NonNil(tpl) {
-		out = *tpl
-	}
-	if checker.NonNil(cur) {
-		out.Omit = out.Omit || cur.Omit
-		if checker.IsNotEmpty(cur.Group) {
-			out.Group = cur.Group
-		}
-		if checker.NonNil(cur.Mapper) {
-			out.Mapper = cur.Mapper
-		}
-		if checker.NonNil(cur.Projector) {
-			out.Projector = cur.Projector
-		}
-		out.Modifiers = append(append([]dto.Modifier{}, out.Modifiers...), cur.Modifiers...)
-	}
-	return &out
+	out.Header = mergeMetadataTransformation(out.Header, cur.Header)
+	out.URLPath = mergeURLPathTransformation(out.URLPath, cur.URLPath)
+	out.Query = mergeQueryTransformation(out.Query, cur.Query)
+	out.Body = mergePayloadTransformation(out.Body, cur.Body)
+
+	return out
 }
 
-func mergeBackendPropagate(tpl, cur *dto.BackendPropagate) *dto.BackendPropagate {
-	if checker.IsNil(tpl) && checker.IsNil(cur) {
-		return nil
-	}
-
-	var out dto.BackendPropagate
-	if checker.NonNil(tpl) {
-		out = *tpl
-	}
-
-	if checker.IsNil(cur) {
-		return &out
-	}
-
-	if checker.NonNil(cur.ContinueOnError) {
-		out.ContinueOnError = cur.ContinueOnError
-	}
-
-	out.Header = mergeBackendRequestHeader(out.Header, cur.Header)
-	out.URLPath = mergeBackendRequestParam(out.URLPath, cur.URLPath)
-	out.Query = mergeBackendRequestQuery(out.Query, cur.Query)
-	out.Body = mergeBackendRequestBody(out.Body, cur.Body)
-
-	return &out
-}
-
-func applyBackendPropagateIntoState(p *dto.BackendPropagate, ps *propagateState, backendIndex int) {
-	if checker.IsNil(p) {
-		return
-	}
-
-	if checker.NonNil(p.ContinueOnError) {
-		ps.continueOnError = converter.ToPointer(*p.ContinueOnError)
-	}
-
-	var rewritten = *p
+func applyBackendPropagateIntoState(p dto.BackendPropagate, ps *propagateState, backendIndex int) {
+	var rewritten = p
 
 	if checker.NonNil(rewritten.Header) {
 		rewritten.Header = rewriteBackendRequestHeaderResponseRefs(rewritten.Header, backendIndex)
@@ -1129,40 +903,36 @@ func applyBackendPropagateIntoState(p *dto.BackendPropagate, ps *propagateState,
 		rewritten.Body = rewriteBackendRequestBodyResponseRefs(rewritten.Body, backendIndex)
 	}
 
-	ps.header = mergeBackendRequestHeader(ps.header, rewritten.Header)
-	ps.urlPath = mergeBackendRequestParam(ps.urlPath, rewritten.URLPath)
-	ps.query = mergeBackendRequestQuery(ps.query, rewritten.Query)
-	ps.body = mergeBackendRequestBody(ps.body, rewritten.Body)
+	ps.header = mergeMetadataTransformation(ps.header, rewritten.Header)
+	ps.urlPath = mergeURLPathTransformation(ps.urlPath, rewritten.URLPath)
+	ps.query = mergeQueryTransformation(ps.query, rewritten.Query)
+	ps.body = mergePayloadTransformation(ps.body, rewritten.Body)
 }
 
-func collectPropagatingModifiersFromRequestIntoState(req *dto.BackendRequest, ps *propagateState, backendIndex int) {
-	if checker.IsNil(req) {
-		return
-	}
-
+func collectPropagatingModifiersFromRequestIntoState(req dto.BackendRequest, ps *propagateState, backendIndex int) {
 	if checker.NonNil(req.Header) && checker.IsNotEmpty(req.Header.Modifiers) {
-		ps.header = mergeBackendRequestHeader(ps.header, &dto.BackendRequestHeader{
+		ps.header = mergeMetadataTransformation(ps.header, &dto.MetadataTransformation{
 			Modifiers: rewriteModifiersResponseRefs(onlyPropagate(req.Header.Modifiers), backendIndex),
 		})
 	}
 	if checker.NonNil(req.Param) && checker.IsNotEmpty(req.Param.Modifiers) {
-		ps.urlPath = mergeBackendRequestParam(ps.urlPath, &dto.BackendRequestURLPath{
+		ps.urlPath = mergeURLPathTransformation(ps.urlPath, &dto.URLPathTransformation{
 			Modifiers: rewriteModifiersResponseRefs(onlyPropagate(req.Param.Modifiers), backendIndex),
 		})
 	}
 	if checker.NonNil(req.Query) && checker.IsNotEmpty(req.Query.Modifiers) {
-		ps.query = mergeBackendRequestQuery(ps.query, &dto.BackendRequestQuery{
+		ps.query = mergeQueryTransformation(ps.query, &dto.QueryTransformation{
 			Modifiers: rewriteModifiersResponseRefs(onlyPropagate(req.Query.Modifiers), backendIndex),
 		})
 	}
 	if checker.NonNil(req.Body) && checker.IsNotEmpty(req.Body.Modifiers) {
-		ps.body = mergeBackendRequestBody(ps.body, &dto.BackendRequestBody{
+		ps.body = mergePayloadTransformation(ps.body, &dto.PayloadTransformation{
 			Modifiers: rewriteModifiersResponseRefs(onlyPropagate(req.Body.Modifiers), backendIndex),
 		})
 	}
 }
 
-func rewriteBackendRequestHeaderResponseRefs(h *dto.BackendRequestHeader, backendIndex int) *dto.BackendRequestHeader {
+func rewriteBackendRequestHeaderResponseRefs(h *dto.MetadataTransformation, backendIndex int) *dto.MetadataTransformation {
 	if checker.IsNil(h) {
 		return nil
 	}
@@ -1171,7 +941,7 @@ func rewriteBackendRequestHeaderResponseRefs(h *dto.BackendRequestHeader, backen
 	return &out
 }
 
-func rewriteBackendRequestParamResponseRefs(p *dto.BackendRequestURLPath, backendIndex int) *dto.BackendRequestURLPath {
+func rewriteBackendRequestParamResponseRefs(p *dto.URLPathTransformation, backendIndex int) *dto.URLPathTransformation {
 	if checker.IsNil(p) {
 		return nil
 	}
@@ -1180,7 +950,7 @@ func rewriteBackendRequestParamResponseRefs(p *dto.BackendRequestURLPath, backen
 	return &out
 }
 
-func rewriteBackendRequestQueryResponseRefs(q *dto.BackendRequestQuery, backendIndex int) *dto.BackendRequestQuery {
+func rewriteBackendRequestQueryResponseRefs(q *dto.QueryTransformation, backendIndex int) *dto.QueryTransformation {
 	if checker.IsNil(q) {
 		return nil
 	}
@@ -1189,7 +959,7 @@ func rewriteBackendRequestQueryResponseRefs(q *dto.BackendRequestQuery, backendI
 	return &out
 }
 
-func rewriteBackendRequestBodyResponseRefs(b *dto.BackendRequestBody, backendIndex int) *dto.BackendRequestBody {
+func rewriteBackendRequestBodyResponseRefs(b *dto.PayloadTransformation, backendIndex int) *dto.PayloadTransformation {
 	if checker.IsNil(b) {
 		return nil
 	}
@@ -1229,6 +999,47 @@ func onlyPropagate(in []dto.Modifier) []dto.Modifier {
 		}
 	}
 	return out
+}
+
+func resolveEndpointExecution(endpointExec *dto.EndpointExecution) vo.EndpointExecutionConfig {
+	if checker.IsNil(endpointExec) {
+		return vo.NewEndpointExecutionConfigDefault()
+	}
+	return vo.NewEndpointExecutionConfig(endpointExec.Mode, endpointExec.On)
+}
+
+func resolveBackendExecution(endpointExec *dto.EndpointExecution, backendExec *dto.BackendExecution) vo.BackendExecutionConfig {
+	if checker.IsNil(endpointExec) && checker.IsNil(backendExec) {
+		return vo.NewBackendExecutionConfigDefault()
+	}
+
+	var concurrent int
+	var async bool
+	var mode enum.ExecutionMode
+	var on []enum.ExecutionOn
+
+	if checker.NonNil(endpointExec) {
+		async = endpointExec.Parallelism
+		if endpointExec.Mode.IsEnumValid() {
+			mode = endpointExec.Mode
+		}
+		if checker.IsNotEmpty(endpointExec.On) {
+			on = endpointExec.On
+		}
+	}
+
+	if checker.NonNil(backendExec) {
+		concurrent = backendExec.Concurrent
+		async = resolveAsync(backendExec.Async, async)
+		if backendExec.Mode.IsEnumValid() {
+			mode = backendExec.Mode
+		}
+		if checker.IsNotEmpty(backendExec.On) {
+			on = backendExec.On
+		}
+	}
+
+	return vo.NewBackendExecutionConfig(concurrent, async, mode, on)
 }
 
 func resolveAsync(cur *bool, endpointParallelism bool) bool {

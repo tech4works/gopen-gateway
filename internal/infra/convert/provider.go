@@ -19,6 +19,7 @@ package convert
 import (
 	"bytes"
 	"fmt"
+
 	xj "github.com/basgys/goxml2json"
 	"github.com/clbanning/mxj/v2"
 	"github.com/tech4works/checker"
@@ -34,11 +35,11 @@ func New() domain.Converter {
 }
 
 func (p provider) ConvertJSONToXML(bs []byte) ([]byte, error) {
-	mapJson, err := mxj.NewMapJson(bs)
+	mapJSON, err := mxj.NewMapJson(bs)
 	if checker.NonNil(err) {
 		return nil, err
 	}
-	return mapJson.Xml("root")
+	return mapJSON.Xml("root")
 }
 
 func (p provider) ConvertTextToXML(bs []byte) ([]byte, error) {

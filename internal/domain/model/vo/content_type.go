@@ -19,7 +19,7 @@ package vo
 import (
 	"strings"
 
-	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
+	"github.com/tech4works/checker"
 )
 
 type ContentType string
@@ -29,15 +29,15 @@ func NewContentType(s string) ContentType {
 }
 
 func NewContentTypeTextPlain() ContentType {
-	return "text/plain; charset=UTF-8"
+	return "text/plain"
 }
 
-func NewContentTypeJson() ContentType {
-	return "application/json; charset=UTF-8"
+func NewContentTypeJSON() ContentType {
+	return "application/json"
 }
 
-func NewContentTypeXml() ContentType {
-	return "application/xml; charset=UTF-8"
+func NewContentTypeXML() ContentType {
+	return "application/xml"
 }
 
 func (c ContentType) String() string {
@@ -45,7 +45,8 @@ func (c ContentType) String() string {
 }
 
 func (c ContentType) IsJSON() bool {
-	return strings.HasPrefix(string(c), "application/json")
+	s := strings.ToLower(c.String())
+	return strings.HasPrefix(s, "application/json") || strings.Contains(s, "+json")
 }
 
 func (c ContentType) IsNotJSON() bool {
@@ -53,32 +54,33 @@ func (c ContentType) IsNotJSON() bool {
 }
 
 func (c ContentType) IsXML() bool {
-	return strings.HasPrefix(string(c), "application/xml")
+	s := strings.ToLower(c.String())
+	return strings.HasPrefix(s, "application/xml") || strings.Contains(s, "+xml")
 }
 
 func (c ContentType) IsNotXML() bool {
 	return !c.IsXML()
 }
 
-func (c ContentType) IsText() bool {
-	return strings.HasPrefix(string(c), "text/plain")
+func (c ContentType) IsPlainText() bool {
+	s := strings.ToLower(c.String())
+	return strings.HasPrefix(s, "text/plain")
 }
 
-func (c ContentType) IsNotText() bool {
-	return !c.IsText()
+func (c ContentType) IsNotPlainText() bool {
+	return !c.IsPlainText()
 }
 
-func (c ContentType) IsUnknown() bool {
-	return c.IsNotJSON() && c.IsNotXML() && c.IsNotText()
+func (c ContentType) IsSupported() bool {
+	return c.IsJSON() || c.IsXML() || c.IsPlainText()
 }
 
-func (c ContentType) ToEnum() enum.ContentType {
-	if c.IsText() {
-		return enum.ContentTypePlainText
-	} else if c.IsJSON() {
-		return enum.ContentTypeJson
-	} else if c.IsXML() {
-		return enum.ContentTypeXml
-	}
-	return ""
+func (c ContentType) IsUnsupported() bool {
+	return !c.IsSupported()
+}
+
+func (c ContentType) Equals(another ContentType) bool {
+	return checker.Equals(c.IsPlainText(), another.IsPlainText()) ||
+		checker.Equals(c.IsJSON(), another.IsJSON()) ||
+		checker.Equals(c.IsXML(), another.IsXML())
 }

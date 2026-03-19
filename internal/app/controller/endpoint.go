@@ -27,7 +27,7 @@ type endpointController struct {
 }
 
 type Endpoint interface {
-	Execute(ctx app.Context)
+	Do(ctx app.Context)
 }
 
 func NewEndpoint(endpointUseCase usecase.Endpoint) Endpoint {
@@ -36,6 +36,6 @@ func NewEndpoint(endpointUseCase usecase.Endpoint) Endpoint {
 	}
 }
 
-func (e endpointController) Execute(ctx app.Context) {
+func (e endpointController) Do(ctx app.Context) {
 	ctx.Write(e.endpointUseCase.Execute(ctx.Context(), factory.BuildExecuteEndpoint(ctx)))
 }

@@ -47,45 +47,40 @@ func NewBuildPipeline(
 }
 
 func (p BuildPipeline) ApplyHost(
-	spec *vo.HostPipelineSpec,
-) (string, []error) {
-	return spec.Hosts()[rand.Intn(len(spec.Hosts())-1)], nil
+	spec vo.HostPipelineSpec,
+) string {
+	return spec.Hosts()[rand.Intn(len(spec.Hosts())-1)]
 }
 
-func (p BuildPipeline) ApplyHeader(
-	spec *vo.HeaderPipelineSpec,
-	header vo.Header,
-	request *vo.HTTPRequest,
+func (p BuildPipeline) ApplyMetadata(
+	spec vo.MetadataPipelineSpec,
+	metadata vo.Metadata,
+	ignoreKeys []string,
+	request *vo.EndpointRequest,
 	history *aggregate.History,
-) (vo.Header, []error) {
+) (vo.Metadata, []error) {
 	if checker.IsNil(spec) || spec.Omit() {
-		return header, nil
+		return metadata, nil
 	}
 	return apply(
-		header,
-		step[vo.Header]{
-			label: "aggregate",
-			run: func(in vo.Header) (vo.Header, []error) {
-				return p.aggregatorService.AggregateHeaders(in, request.Header()), nil
-			},
-		},
-		step[vo.Header]{
+		metadata,
+		step[vo.Metadata]{
 			label: "modifiers",
-			run: func(in vo.Header) (vo.Header, []error) {
-				return p.modifierService.ExecuteHeaderModifiers(spec.Modifiers(), in, request, history)
+			run: func(in vo.Metadata) (vo.Metadata, []error) {
+				return p.modifierService.ExecuteMetadataModifiers(spec.Modifiers(), in, ignoreKeys, request, history)
 			},
 		},
-		step[vo.Header]{
+		step[vo.Metadata]{
 			label: "mapper",
-			run: func(in vo.Header) (vo.Header, []error) {
-				out, err := p.mapperService.MapHeader(spec.Mapper(), in, request, history)
+			run: func(in vo.Metadata) (vo.Metadata, []error) {
+				out, err := p.mapperService.MapMetadata(spec.Mapper(), in, ignoreKeys, request, history)
 				return out, converter.ToSliceIfNonNil(err)
 			},
 		},
-		step[vo.Header]{
+		step[vo.Metadata]{
 			label: "projector",
-			run: func(in vo.Header) (vo.Header, []error) {
-				out, err := p.projectorService.ProjectHeader(spec.Projector(), in, request, history)
+			run: func(in vo.Metadata) (vo.Metadata, []error) {
+				out, err := p.projectorService.ProjectMetadata(spec.Projector(), in, ignoreKeys, request, history)
 				return out, converter.ToSliceIfNonNil(err)
 			},
 		},
@@ -93,9 +88,9 @@ func (p BuildPipeline) ApplyHeader(
 }
 
 func (p BuildPipeline) ApplyURLPath(
-	spec *vo.URLPathPipelineSpec,
+	spec vo.URLPathPipelineSpec,
 	urlPath vo.URLPath,
-	req *vo.HTTPRequest,
+	request *vo.EndpointRequest,
 	hist *aggregate.History,
 ) (vo.URLPath, []error) {
 	if checker.IsNil(spec) {
@@ -106,16 +101,16 @@ func (p BuildPipeline) ApplyURLPath(
 		step[vo.URLPath]{
 			label: "modifiers",
 			run: func(in vo.URLPath) (vo.URLPath, []error) {
-				return p.modifierService.ExecuteURLPathModifiers(spec.Modifiers(), in, req, hist)
+				return p.modifierService.ExecuteURLPathModifiers(spec.Modifiers(), in, request, hist)
 			},
 		},
 	)
 }
 
 func (p BuildPipeline) ApplyQuery(
-	spec *vo.QueryPipelineSpec,
+	spec vo.QueryPipelineSpec,
 	query vo.Query,
-	request *vo.HTTPRequest,
+	request *vo.EndpointRequest,
 	history *aggregate.History,
 ) (vo.Query, []error) {
 	if checker.IsNil(spec) {
@@ -148,57 +143,57 @@ func (p BuildPipeline) ApplyQuery(
 	)
 }
 
-func (p BuildPipeline) ApplyBody(
-	spec *vo.BodyPipelineSpec,
-	body *vo.Body,
-	request *vo.HTTPRequest,
+func (p BuildPipeline) ApplyPayload(
+	spec vo.PayloadPipelineSpec,
+	payload *vo.Payload,
+	request *vo.EndpointRequest,
 	history *aggregate.History,
-) (*vo.Body, []error) {
+) (*vo.Payload, []error) {
 	if checker.IsNil(spec) {
-		return body, nil
-	} else if spec.Omit() || checker.IsNil(body) {
+		return payload, nil
+	} else if spec.Omit() || checker.IsNil(payload) {
 		return nil, nil
 	}
 	return apply(
-		body,
-		step[*vo.Body]{
+		payload,
+		step[*vo.Payload]{
 			label: "modifiers",
-			run: func(in *vo.Body) (*vo.Body, []error) {
-				return p.modifierService.ExecuteBodyModifiers(spec.Modifiers(), in, request, history)
+			run: func(in *vo.Payload) (*vo.Payload, []error) {
+				return p.modifierService.ExecutePayloadModifiers(spec.Modifiers(), in, request, history)
 			},
 		},
-		step[*vo.Body]{
+		step[*vo.Payload]{
 			label: "joins",
-			run: func(in *vo.Body) (*vo.Body, []error) {
-				return p.joinService.ExecuteBodyJoins(spec.Joins(), in, request, history)
+			run: func(in *vo.Payload) (*vo.Payload, []error) {
+				return p.joinService.ExecutePayloadJoins(spec.Joins(), in, request, history)
 			},
 		},
-		step[*vo.Body]{
+		step[*vo.Payload]{
 			label: "mapper",
-			run: func(in *vo.Body) (*vo.Body, []error) {
-				return p.mapperService.MapBody(spec.Mapper(), in, request, history)
+			run: func(in *vo.Payload) (*vo.Payload, []error) {
+				return p.mapperService.MapPayload(spec.Mapper(), in, request, history)
 			},
 		},
-		step[*vo.Body]{
+		step[*vo.Payload]{
 			label: "projector",
-			run: func(in *vo.Body) (*vo.Body, []error) {
-				return p.projectorService.ProjectBody(spec.Projector(), in, request, history)
+			run: func(in *vo.Payload) (*vo.Payload, []error) {
+				return p.projectorService.ProjectPayload(spec.Projector(), in, request, history)
 			},
 		},
-		step[*vo.Body]{
+		step[*vo.Payload]{
 			label: "omit-empty",
-			run: func(in *vo.Body) (*vo.Body, []error) {
+			run: func(in *vo.Payload) (*vo.Payload, []error) {
 				if spec.OmitEmpty() {
-					return p.omitterService.OmitEmptyValuesFromBody(in)
+					return p.omitterService.OmitEmptyValuesFromPayload(in)
 				}
 				return in, nil
 			},
 		},
-		step[*vo.Body]{
+		step[*vo.Payload]{
 			label: "aggregate",
-			run: func(in *vo.Body) (*vo.Body, []error) {
+			run: func(in *vo.Payload) (*vo.Payload, []error) {
 				if spec.HasGroup() {
-					out, err := p.aggregatorService.AggregateBodyToKey(spec.Group(), in)
+					out, err := p.aggregatorService.AggregatePayloadToKey(spec.Group(), in)
 					return out, converter.ToSliceIfNonNil(err)
 				}
 				return in, nil
@@ -208,22 +203,22 @@ func (p BuildPipeline) ApplyBody(
 }
 
 func (p BuildPipeline) ApplyGroupID(
-	spec *vo.GroupIDPipelineSpec,
-	request *vo.HTTPRequest,
+	spec vo.GroupIDPipelineSpec,
+	request *vo.EndpointRequest,
 	history *aggregate.History,
 ) (string, []error) {
-	if checker.IsNil(spec) {
+	if checker.IsNil(spec) || !spec.HasGroupID() {
 		return "", nil
 	}
 	return apply(
-		spec.Value(),
+		spec.GroupID(),
 		step[string]{
 			label: "get-dynamic-value",
 			run: func(in string) (string, []error) {
-				value, allErrs := p.dynamicValueService.Get(spec.Value(), request, history)
+				value, allErrs := p.dynamicValueService.Get(in, request, history)
 				if checker.IsNotEmpty(allErrs) {
 					allErrs = errors.JoinInheritAsSlicef(allErrs, ", ",
-						"pipeline failed: op=build-group-id value=%s", spec.Value())
+						"pipeline failed: op=build-group-id value=%s", in)
 				}
 				return value, allErrs
 			},
@@ -231,42 +226,42 @@ func (p BuildPipeline) ApplyGroupID(
 }
 
 func (p BuildPipeline) ApplyDeduplicationID(
-	spec *vo.DeduplicationIDPipelineSpec,
-	request *vo.HTTPRequest,
+	spec vo.DeduplicationIDPipelineSpec,
+	request *vo.EndpointRequest,
 	history *aggregate.History,
 ) (string, []error) {
-	if checker.IsNil(spec) {
+	if checker.IsNil(spec) || !spec.HasDeduplicationID() {
 		return "", nil
 	}
 	return apply(
-		spec.Value(),
+		spec.DeduplicationID(),
 		step[string]{
 			label: "get-dynamic-value",
 			run: func(in string) (string, []error) {
-				value, allErrs := p.dynamicValueService.Get(spec.Value(), request, history)
+				value, allErrs := p.dynamicValueService.Get(in, request, history)
 				if checker.IsNotEmpty(allErrs) {
 					allErrs = errors.JoinInheritAsSlicef(allErrs, ", ",
-						"pipeline failed: op=build-deduplicate-id value=%s", spec.Value())
+						"pipeline failed: op=build-deduplicate-id value=%s", in)
 				}
 				return value, allErrs
 			},
 		})
 }
 
-func (p BuildPipeline) ApplyPublisherAttributes(
-	spec *vo.PublisherAttributesPipelineSpec,
-	request *vo.HTTPRequest,
+func (p BuildPipeline) ApplyAttributes(
+	spec vo.AttributesPipelineSpec,
+	request *vo.EndpointRequest,
 	history *aggregate.History,
-) (map[string]vo.PublisherMessageAttribute, []error) {
+) (map[string]vo.AttributeValueConfig, []error) {
 	if checker.IsNil(spec) {
 		return nil, nil
 	}
 	return apply(
 		spec.Attributes(),
-		step[map[string]vo.PublisherMessageAttribute]{
+		step[map[string]vo.AttributeValueConfig]{
 			label: "build-message-attribute",
-			run: func(m map[string]vo.PublisherMessageAttribute) (map[string]vo.PublisherMessageAttribute, []error) {
-				attributes := make(map[string]vo.PublisherMessageAttribute, len(spec.Attributes()))
+			run: func(m map[string]vo.AttributeValueConfig) (map[string]vo.AttributeValueConfig, []error) {
+				attributes := make(map[string]vo.AttributeValueConfig, len(spec.Attributes()))
 				allErrs := make([]error, 0)
 
 				for key, attribute := range spec.Attributes() {
@@ -276,7 +271,7 @@ func (p BuildPipeline) ApplyPublisherAttributes(
 							"pipeline failed: op=build-message-attribute key=%s value=%s", key, attribute.Value()))
 						continue
 					}
-					attributes[key] = vo.NewPublisherMessageAttribute(attribute.DataType(), value)
+					attributes[key] = vo.NewAttributeValueConfig(attribute.DataType(), value)
 				}
 
 				return attributes, allErrs

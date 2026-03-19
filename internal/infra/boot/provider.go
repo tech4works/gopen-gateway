@@ -82,7 +82,7 @@ func (p provider) Init() *dto.Gopen {
 	}
 
 	p.log.PrintInfo("Loading Gopen json...")
-	gopen, err := p.loadJson()
+	gopen, err := p.loadJSON()
 	if checker.NonNil(err) {
 		panic(err)
 	}
@@ -116,7 +116,7 @@ func (p provider) Start(gopen *dto.Gopen) {
 		snsClient = sns.NewFromConfig(awsConfig)
 	}
 
-	err := p.writeRuntimeJson(gopen)
+	err := p.writeRuntimeJSON(gopen)
 	if checker.NonNil(err) {
 		p.log.PrintWarn(err)
 	}
@@ -156,7 +156,7 @@ func (p provider) Stop() {
 
 	p.log.PrintInfo("Removing runtime json...")
 
-	err := p.removeRuntimeJson()
+	err := p.removeRuntimeJSON()
 	if checker.NonNil(err) {
 		p.log.PrintWarn("Error to remove runtime json!")
 	}
@@ -194,7 +194,7 @@ func (p provider) restart(oldGopen *dto.Gopen, oldServer server.HTTP) {
 	}
 
 	p.log.PrintInfo("Reloading Gopen json...")
-	gopen, err := p.loadJson()
+	gopen, err := p.loadJSON()
 	if checker.NonNil(err) {
 		panic(err)
 	}
@@ -233,7 +233,7 @@ func (p provider) initWatcher(oldGopen *dto.Gopen, oldServer server.HTTP) (*fsno
 		}
 	}()
 
-	for _, path := range []string{p.buildEnvUri(), p.buildJsonUri()} {
+	for _, path := range []string{p.buildEnvUri(), p.buildJSONUri()} {
 		err = watcher.Add(path)
 		if checker.NonNil(err) {
 			return nil, err
@@ -263,21 +263,21 @@ func (p provider) reloadEnvs() (err error) {
 	return err
 }
 
-func (p provider) loadJson() (*dto.Gopen, error) {
-	gopenJsonUri := p.buildJsonUri()
+func (p provider) loadJSON() (*dto.Gopen, error) {
+	gopenJSONUri := p.buildJSONUri()
 
-	gopenJsonBytes, err := os.ReadFile(gopenJsonUri)
+	gopenJSONBytes, err := os.ReadFile(gopenJSONUri)
 	if checker.NonNil(err) {
-		return nil, errors.New("Error read Gopen config from file json:", gopenJsonUri, "err:", err)
+		return nil, errors.New("Error read Gopen config from file json:", gopenJSONUri, "err:", err)
 	}
-	gopenJsonBytes = p.fillEnvValues(gopenJsonBytes)
+	gopenJSONBytes = p.fillEnvValues(gopenJSONBytes)
 
-	if err = p.validateJsonBySchema(gopenJsonBytes); checker.NonNil(err) {
+	if err = p.validateJSONBySchema(gopenJSONBytes); checker.NonNil(err) {
 		return nil, err
 	}
 
 	var gopen dto.Gopen
-	err = converter.ToDestWithErr(gopenJsonBytes, &gopen)
+	err = converter.ToDestWithErr(gopenJSONBytes, &gopen)
 	if checker.NonNil(err) {
 		return nil, err
 	}
@@ -285,29 +285,29 @@ func (p provider) loadJson() (*dto.Gopen, error) {
 	return &gopen, nil
 }
 
-func (p provider) fillEnvValues(gopenJsonBytes []byte) []byte {
+func (p provider) fillEnvValues(gopenJSONBytes []byte) []byte {
 	// todo: aceitar campos não string receber variável de ambiente também
 	//  foi pensado que talvez utilizar campos string e any para isso, convertendo para o tipo desejado apenas
 	//  quando objeto de valor for montado
-	gopenJsonStr := converter.ToString(gopenJsonBytes)
+	gopenJSONStr := converter.ToString(gopenJSONBytes)
 
 	regex := regexp.MustCompile(`\$\w+`)
-	words := regex.FindAllString(gopenJsonStr, -1)
+	words := regex.FindAllString(gopenJSONStr, -1)
 
 	count := 0
 	for _, word := range words {
 		envKey := strings.ReplaceAll(word, "$", "")
 		envValue := os.Getenv(envKey)
 		if checker.IsNotEmpty(envValue) {
-			gopenJsonStr = strings.ReplaceAll(gopenJsonStr, word, envValue)
+			gopenJSONStr = strings.ReplaceAll(gopenJSONStr, word, envValue)
 			count++
 		}
 	}
 
-	return converter.ToBytes(gopenJsonStr)
+	return converter.ToBytes(gopenJSONStr)
 }
 
-func (p provider) validateJsonBySchema(jsonBytes []byte) error {
+func (p provider) validateJSONBySchema(jsonBytes []byte) error {
 	schemaLoader := gojsonschema.NewReferenceLoader(jsonSchemaUri)
 	documentLoader := gojsonschema.NewBytesLoader(jsonBytes)
 
@@ -325,7 +325,7 @@ func (p provider) validateJsonBySchema(jsonBytes []byte) error {
 	return err
 }
 
-func (p provider) writeRuntimeJson(gopen *dto.Gopen) error {
+func (p provider) writeRuntimeJSON(gopen *dto.Gopen) error {
 	if _, err := os.Stat(runtimeFolder); os.IsNotExist(err) {
 		err = os.MkdirAll(runtimeFolder, 0755)
 		if checker.NonNil(err) {
@@ -333,15 +333,15 @@ func (p provider) writeRuntimeJson(gopen *dto.Gopen) error {
 		}
 	}
 
-	gopenJsonBytes, err := json.MarshalIndent(gopen, "", "\t")
+	gopenJSONBytes, err := json.MarshalIndent(gopen, "", "\t")
 	if checker.IsNil(err) {
-		err = os.WriteFile(jsonRuntimeUri, gopenJsonBytes, 0644)
+		err = os.WriteFile(jsonRuntimeUri, gopenJSONBytes, 0644)
 	}
 
 	return err
 }
 
-func (p provider) removeRuntimeJson() error {
+func (p provider) removeRuntimeJSON() error {
 	err := os.Remove(runtimeFolder)
 	if errors.IsNot(err, os.ErrNotExist) {
 		err = nil
@@ -357,7 +357,7 @@ func (p provider) buildEnvUri() string {
 	return "./gopen/.env"
 }
 
-func (p provider) buildJsonUri() string {
+func (p provider) buildJSONUri() string {
 	path := fmt.Sprintf("./gopen/%s/.json", os.Getenv("ENV"))
 	if _, err := os.Stat(path); checker.IsNil(err) {
 		return path

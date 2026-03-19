@@ -24,164 +24,142 @@ import (
 	"github.com/tech4works/converter"
 	"github.com/tech4works/errors"
 	"github.com/tech4works/gopen-gateway/internal/domain"
-	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
 )
 
-type contentService struct {
+type content struct {
 	converter domain.Converter
 }
 
 type Content interface {
-	ModifyBodyContentType(contentType enum.ContentType, body *vo.Body) (*vo.Body, error)
-	ModifyBodyContentEncoding(contentEncoding enum.ContentEncoding, body *vo.Body) (*vo.Body, error)
+	ModifyPayloadContentType(config vo.ContentType, payload *vo.Payload) (*vo.Payload, error)
+	ModifyPayloadContentEncoding(config vo.ContentEncoding, payload *vo.Payload) (*vo.Payload, error)
 }
 
 func NewContent(converter domain.Converter) Content {
-	return contentService{
+	return content{
 		converter: converter,
 	}
 }
 
-func (c contentService) ModifyBodyContentType(contentType enum.ContentType, body *vo.Body) (*vo.Body, error) {
-	if !contentType.IsEnumValid() ||
-		body.ContentType().IsUnknown() ||
-		checker.Equals(body.ContentType().ToEnum(), contentType) {
-		return body, nil
+func (c content) ModifyPayloadContentType(config vo.ContentType, payload *vo.Payload) (*vo.Payload, error) {
+	if checker.IsNil(payload) || config.IsUnsupported() || config.Equals(payload.ContentType()) {
+		return payload, nil
 	}
 
-	bodyBytes, httpContentType, err := c.modifyBodyContentType(body, contentType)
+	bs, err := c.modifyPayloadContentType(config, payload)
 	if checker.NonNil(err) {
-		return body, errors.Inheritf(err, "content-type failed: op=modify-body from=%s to=%s", body.ContentType(),
-			contentType)
+		return payload, errors.Inheritf(err, "content-type failed: op=modify-payload from=%s to=%s",
+			payload.ContentType(), config)
 	}
 
-	buffer, err := converter.ToBufferWithErr(bodyBytes)
+	buffer, err := converter.ToBufferWithErr(bs)
 	if checker.NonNil(err) {
-		return body, errors.Inheritf(err, "content-type failed: op=buffer to=%s", httpContentType)
+		return payload, errors.Inheritf(err, "content-type failed: op=buffer to=%s", config)
 	}
 
-	return vo.NewBodyWithContentType(httpContentType, buffer), nil
+	return vo.NewPayloadWithContentType(config, buffer), nil
 }
 
-func (c contentService) ModifyBodyContentEncoding(contentEncoding enum.ContentEncoding, body *vo.Body) (*vo.Body, error) {
-	if !contentEncoding.IsEnumValid() ||
-		checker.EqualsIgnoreCase(body.ContentEncoding(), contentEncoding) {
-		return body, nil
+func (c content) ModifyPayloadContentEncoding(config vo.ContentEncoding, payload *vo.Payload) (
+	*vo.Payload, error) {
+	if checker.IsNil(payload) || config.IsUnsupported() || config.Equals(payload.ContentEncoding()) {
+		return payload, nil
 	}
 
-	bodyBytes, httpContentEncoding, err := c.modifyBodyContentEncoding(body, contentEncoding)
+	bs, err := c.modifyPayloadContentEncoding(config, payload)
 	if checker.NonNil(err) {
-		return body, errors.Inheritf(err,
-			"content-encoding failed: op=modify-body from=%s to=%s", body.ContentEncoding(), contentEncoding)
+		return payload, errors.Inheritf(err, "content-encoding failed: op=modify-payload from=%s to=%s",
+			payload.ContentEncoding(), config)
 	}
 
-	buffer, err := converter.ToBufferWithErr(bodyBytes)
+	buffer, err := converter.ToBufferWithErr(bs)
 	if checker.NonNil(err) {
-		return body, errors.Inheritf(err, "content-encoding failed: op=buffer to=%s", httpContentEncoding.String())
+		return payload, errors.Inheritf(err, "content-encoding failed: op=buffer to=%s", config.String())
 	}
 
-	return vo.NewBody(
-		body.ContentType().String(),
-		httpContentEncoding.String(),
-		buffer,
-	), nil
+	return vo.NewPayload(payload.ContentType().String(), config.String(), buffer), nil
 }
 
-func (c contentService) modifyBodyContentType(
-	body *vo.Body,
-	contentType enum.ContentType,
-) ([]byte, vo.ContentType, error) {
-	rawBytes, err := body.Bytes()
+func (c content) modifyPayloadContentType(config vo.ContentType, payload *vo.Payload) ([]byte, error) {
+	rawBytes, err := payload.Bytes()
 	if checker.NonNil(err) {
-		return nil, "", errors.Inherit(err, "content-type failed: op=bytes")
-	}
-
-	switch contentType {
-	case enum.ContentTypePlainText:
+		return nil, errors.Inherit(err, "content-type failed: op=bytes")
+	} else if config.IsPlainText() {
 		return c.asPlainText(rawBytes)
-	case enum.ContentTypeJson:
-		return c.asJSON(body, rawBytes)
-	case enum.ContentTypeXml:
-		return c.asXML(body, rawBytes)
-	default:
-		return rawBytes, body.ContentType(), nil
+	} else if config.IsJSON() {
+		return c.asJSON(payload, rawBytes)
+	} else if config.IsXML() {
+		return c.asXML(payload, rawBytes)
+	} else {
+		return nil, errors.New("content-type failed: op=unsupported")
 	}
 }
 
-func (c contentService) modifyBodyContentEncoding(
-	body *vo.Body,
-	contentEncoding enum.ContentEncoding,
-) ([]byte, vo.ContentEncoding, error) {
-	rawBytes, err := body.Bytes()
+func (c content) modifyPayloadContentEncoding(config vo.ContentEncoding, payload *vo.Payload) ([]byte,
+	error) {
+	rawBytes, err := payload.Bytes()
 	if checker.NonNil(err) {
-		return nil, "", errors.Inherit(err, "content-encoding failed: op=bytes")
-	}
-
-	switch contentEncoding {
-	case enum.ContentEncodingGzip:
+		return nil, errors.Inherit(err, "content-encoding failed: op=bytes")
+	} else if config.IsGzip() {
 		return c.asGzip(rawBytes)
-	case enum.ContentEncodingDeflate:
+	} else if config.IsDeflate() {
 		return c.asDeflate(rawBytes)
-	default:
-		return rawBytes, body.ContentEncoding(), nil
+	} else {
+		return nil, errors.New("content-encoding failed: op=unsupported")
 	}
 }
 
-func (c contentService) asPlainText(rawBytes []byte) ([]byte, vo.ContentType, error) {
-	return []byte(strconv.Quote(string(rawBytes))), vo.NewContentTypeTextPlain(), nil
+func (c content) asPlainText(rawBytes []byte) ([]byte, error) {
+	return []byte(strconv.Quote(string(rawBytes))), nil
 }
 
-func (c contentService) asJSON(body *vo.Body, rawBytes []byte) ([]byte, vo.ContentType, error) {
-	httpContentType := vo.NewContentTypeJson()
-
-	if body.ContentType().IsXML() {
+func (c content) asJSON(payload *vo.Payload, rawBytes []byte) ([]byte, error) {
+	if payload.ContentType().IsXML() {
 		converted, err := c.converter.ConvertXMLToJSON(rawBytes)
 		if checker.NonNil(err) {
-			return nil, "", errors.Inherit(err, "content-type failed: op=convert xml->json")
+			return nil, errors.Inherit(err, "content-type failed: op=convert xml->json")
 		}
-		return converted, httpContentType, nil
+		return converted, nil
 	}
 
 	converted, err := c.converter.ConvertTextToJSON(rawBytes)
 	if checker.NonNil(err) {
-		return nil, "", errors.Inherit(err, "content-type failed: op=convert text->json")
+		return nil, errors.Inherit(err, "content-type failed: op=convert text->json")
 	}
 
-	return converted, httpContentType, nil
+	return converted, nil
 }
 
-func (c contentService) asXML(body *vo.Body, rawBytes []byte) ([]byte, vo.ContentType, error) {
-	httpContentType := vo.NewContentTypeXml()
-
-	if body.ContentType().IsJSON() {
+func (c content) asXML(payload *vo.Payload, rawBytes []byte) ([]byte, error) {
+	if payload.ContentType().IsJSON() {
 		converted, err := c.converter.ConvertJSONToXML(rawBytes)
 		if checker.NonNil(err) {
-			return nil, "", errors.Inherit(err, "content-type failed: op=convert json->xml")
+			return nil, errors.Inherit(err, "content-type failed: op=convert json->xml")
 		}
-		return converted, httpContentType, nil
+		return converted, nil
 	}
 
 	converted, err := c.converter.ConvertTextToXML(rawBytes)
 	if checker.NonNil(err) {
-		return nil, "", errors.Inherit(err, "content-type failed: op=convert text->xml")
+		return nil, errors.Inherit(err, "content-type failed: op=convert text->xml")
 	}
 
-	return converted, httpContentType, nil
+	return converted, nil
 }
 
-func (c contentService) asGzip(rawBytes []byte) ([]byte, vo.ContentEncoding, error) {
+func (c content) asGzip(rawBytes []byte) ([]byte, error) {
 	compressed, err := compressor.ToGzipWithErr(rawBytes)
 	if checker.NonNil(err) {
-		return nil, "", errors.Inherit(err, "content-encoding failed: op=gzip")
+		return nil, errors.Inherit(err, "content-encoding failed: op=gzip")
 	}
-	return compressed, vo.NewContentEncodingGzip(), nil
+	return compressed, nil
 }
 
-func (c contentService) asDeflate(rawBytes []byte) ([]byte, vo.ContentEncoding, error) {
+func (c content) asDeflate(rawBytes []byte) ([]byte, error) {
 	compressed, err := compressor.ToDeflateWithErr(rawBytes)
 	if checker.NonNil(err) {
-		return nil, "", errors.Inherit(err, "content-encoding failed: op=deflate")
+		return nil, errors.Inherit(err, "content-encoding failed: op=deflate")
 	}
-	return compressed, vo.NewContentEncodingDeflate(), nil
+	return compressed, nil
 }

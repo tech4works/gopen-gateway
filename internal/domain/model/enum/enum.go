@@ -16,6 +16,10 @@
 
 package enum
 
+import "google.golang.org/grpc/codes"
+
+type Protocol string
+
 type ExecutionPolicy string
 
 type ModifierAction string
@@ -30,14 +34,6 @@ type ProjectKind int
 
 type ProjectValue int
 
-type ContentType string
-
-type ContentEncoding string
-
-type CacheControl string
-
-type ProxyProvider string
-
 type BackendBroker string
 
 type TemplateMerge string
@@ -50,29 +46,35 @@ type MapperPolicy string
 
 type BackendOutcome string
 
+type ExecutionMode string
+
+type ExecutionOn string
+
+type AttributeValueDataType string
+
+type ResponseStatus string
+
+type DegradationKind string
+
+type CacheKind string
+
 const (
-	ExecutionPolicyFailFastAll                  ExecutionPolicy = "FAIL_FAST_ALL"
-	ExecutionPolicyFailFastStatus               ExecutionPolicy = "FAIL_FAST_STATUS"
-	ExecutionPolicyFailFastInfra                ExecutionPolicy = "FAIL_FAST_INFRA"
-	ExecutionPolicyFailFastInfraOnly            ExecutionPolicy = "FAIL_FAST_INFRA_ONLY"
-	ExecutionPolicyBestEffortAll                ExecutionPolicy = "BEST_EFFORT_ALL"
-	ExecutionPolicyBestEffortStatusFail         ExecutionPolicy = "BEST_EFFORT_STATUS_FAIL"
-	ExecutionPolicyBestEffortInfraFail          ExecutionPolicy = "BEST_EFFORT_INFRA_FAIL"
-	ExecutionPolicyBestEffortTransformFail      ExecutionPolicy = "BEST_EFFORT_TRANSFORM_FAIL"
-	ExecutionPolicyBestEffortStatusAndInfraFail ExecutionPolicy = "BEST_EFFORT_STATUS_AND_INFRA_FAIL"
-	ExecutionPolicyBestEffortStrict             ExecutionPolicy = "BEST_EFFORT_STRICT"
+	ProtocolHTTP      Protocol = "HTTP"
+	ProtocolGRPC      Protocol = "GRPC"
+	ProtocolWebSocket Protocol = "WEBSOCKET"
 )
 const (
 	BackendOutcomeExecuted  BackendOutcome = "EXECUTED"
 	BackendOutcomeIgnored   BackendOutcome = "IGNORED"
 	BackendOutcomeCancelled BackendOutcome = "CANCELLED"
+	BackendOutcomeError     BackendOutcome = "ERROR"
 )
 const (
-	ModifierActionAdd ModifierAction = "ADD"
-	ModifierActionApd ModifierAction = "APD"
-	ModifierActionSet ModifierAction = "SET"
-	ModifierActionRpl ModifierAction = "RPL"
-	ModifierActionDel ModifierAction = "DEL"
+	ModifierActionAdd     ModifierAction = "ADD"
+	ModifierActionAppend  ModifierAction = "APPEND"
+	ModifierActionSet     ModifierAction = "SET"
+	ModifierActionReplace ModifierAction = "REPLACE"
+	ModifierActionDelete  ModifierAction = "DELETE"
 )
 const (
 	ProjectKindAll       ProjectKind = iota
@@ -101,23 +103,6 @@ const (
 	NomenclatureScreamingKebab Nomenclature = "SCREAMING_KEBAB"
 )
 const (
-	ContentTypePlainText ContentType = "PLAIN_TEXT"
-	ContentTypeJson      ContentType = "JSON"
-	ContentTypeXml       ContentType = "XML"
-)
-const (
-	ContentEncodingNone    ContentEncoding = "NONE"
-	ContentEncodingGzip    ContentEncoding = "GZIP"
-	ContentEncodingDeflate ContentEncoding = "DEFLATE"
-)
-const (
-	CacheControlNoCache CacheControl = "no-cache"
-	CacheControlNoStore CacheControl = "no-store"
-)
-const (
-	ProxyProviderNgrok ProxyProvider = "NGROK"
-)
-const (
 	BackendBrokerAwsSqs BackendBroker = "AWS/SQS"
 	BackendBrokerAwsSns BackendBroker = "AWS/SNS"
 )
@@ -139,6 +124,98 @@ const (
 	MapperPolicyKeepUnmapped MapperPolicy = "KEEP_UNMAPPED"
 	MapperPolicyDropUnmapped MapperPolicy = "DROP_UNMAPPED"
 )
+const (
+	ExecutionModeFailFast   ExecutionMode = "FAIL_FAST"
+	ExecutionModeBestEffort ExecutionMode = "BEST_EFFORT"
+)
+const (
+	ExecutionOnBuild         ExecutionOn = "BUILD"
+	ExecutionOnBuildRequest  ExecutionOn = "BUILD_REQUEST"
+	ExecutionOnBuildMessage  ExecutionOn = "BUILD_MESSAGE"
+	ExecutionOnBuildResponse ExecutionOn = "BUILD_BACKEND_RESPONSE"
+	ExecutionOnClientError   ExecutionOn = "CLIENT_ERROR"
+	ExecutionOnServerError   ExecutionOn = "SERVER_ERROR"
+)
+const (
+	AttributeValueDataTypeString AttributeValueDataType = "STRING"
+	AttributeValueDataTypeNumber AttributeValueDataType = "NUMBER"
+	AttributeValueDataTypeBinary AttributeValueDataType = "BINARY"
+)
+const (
+	ResponseStatusUnknown            ResponseStatus = "UNKNOWN"
+	ResponseStatusOK                 ResponseStatus = "OK"
+	ResponseStatusCancelled          ResponseStatus = "CANCELLED"
+	ResponseStatusInvalidArgument    ResponseStatus = "INVALID_ARGUMENT"
+	ResponseStatusDeadlineExceeded   ResponseStatus = "DEADLINE_EXCEEDED"
+	ResponseStatusNotFound           ResponseStatus = "NOT_FOUND"
+	ResponseStatusAlreadyExists      ResponseStatus = "ALREADY_EXISTS"
+	ResponseStatusPermissionDenied   ResponseStatus = "PERMISSION_DENIED"
+	ResponseStatusUnauthenticated    ResponseStatus = "UNAUTHENTICATED"
+	ResponseStatusResourceExhausted  ResponseStatus = "RESOURCE_EXHAUSTED"
+	ResponseStatusPayloadTooLarge    ResponseStatus = "PAYLOAD_TOO_LARGE"
+	ResponseStatusMetadataTooLarge   ResponseStatus = "METADATA_TOO_LARGE"
+	ResponseStatusFailedPrecondition ResponseStatus = "FAILED_PRECONDITION"
+	ResponseStatusAborted            ResponseStatus = "ABORTED"
+	ResponseStatusOutOfRange         ResponseStatus = "OUT_OF_RANGE"
+	ResponseStatusUnimplemented      ResponseStatus = "UNIMPLEMENTED"
+	ResponseStatusInternalError      ResponseStatus = "INTERNAL_ERROR"
+	ResponseStatusUnavailable        ResponseStatus = "UNAVAILABLE"
+	ResponseStatusBadGateway         ResponseStatus = "BAD_GATEWAY"
+	ResponseStatusDataLoss           ResponseStatus = "DATA_LOSS"
+	ResponseStatusConflict           ResponseStatus = "CONFLICT"
+)
+const (
+	DegradationKindMetadata        DegradationKind = "METADATA"
+	DegradationKindQuery           DegradationKind = "QUERY"
+	DegradationKindURLPath         DegradationKind = "URL_PATH"
+	DegradationKindPayload         DegradationKind = "PAYLOAD"
+	DegradationKindDeduplicationID DegradationKind = "DEDUPLICATION_ID"
+	DegradationKindGroupID         DegradationKind = "GROUP_ID"
+	DegradationKindAttributes      DegradationKind = "ATTRIBUTES"
+)
+const (
+	CacheKindEndpoint CacheKind = "ENDPOINT"
+	CacheKindBackend  CacheKind = "BACKEND"
+)
+
+func NewResponseStatusFromGRPC(code codes.Code) ResponseStatus {
+	switch code {
+	case codes.OK:
+		return ResponseStatusOK
+	case codes.Canceled:
+		return ResponseStatusCancelled
+	case codes.InvalidArgument:
+		return ResponseStatusInvalidArgument
+	case codes.DeadlineExceeded:
+		return ResponseStatusDeadlineExceeded
+	case codes.NotFound:
+		return ResponseStatusNotFound
+	case codes.AlreadyExists:
+		return ResponseStatusAlreadyExists
+	case codes.PermissionDenied:
+		return ResponseStatusPermissionDenied
+	case codes.Unauthenticated:
+		return ResponseStatusUnauthenticated
+	case codes.ResourceExhausted:
+		return ResponseStatusResourceExhausted
+	case codes.FailedPrecondition:
+		return ResponseStatusFailedPrecondition
+	case codes.Aborted:
+		return ResponseStatusAborted
+	case codes.OutOfRange:
+		return ResponseStatusOutOfRange
+	case codes.Unimplemented:
+		return ResponseStatusUnimplemented
+	case codes.Internal:
+		return ResponseStatusInternalError
+	case codes.Unavailable:
+		return ResponseStatusUnavailable
+	case codes.DataLoss:
+		return ResponseStatusDataLoss
+	default:
+		return ResponseStatusUnknown
+	}
+}
 
 func (p BackendBroker) String() string {
 	return string(p)
@@ -176,33 +253,9 @@ func (e MapperPolicy) IsEnumValid() bool {
 	return false
 }
 
-func (c ContentType) IsEnumValid() bool {
-	switch c {
-	case ContentTypePlainText, ContentTypeJson, ContentTypeXml:
-		return true
-	}
-	return false
-}
-
 func (b BackendOutcome) IsEnumValid() bool {
 	switch b {
-	case BackendOutcomeExecuted, BackendOutcomeIgnored, BackendOutcomeCancelled:
-		return true
-	}
-	return false
-}
-
-func (r ContentEncoding) IsEnumValid() bool {
-	switch r {
-	case ContentEncodingNone, ContentEncodingGzip, ContentEncodingDeflate:
-		return true
-	}
-	return false
-}
-
-func (c CacheControl) IsEnumValid() bool {
-	switch c {
-	case CacheControlNoCache, CacheControlNoStore:
+	case BackendOutcomeExecuted, BackendOutcomeIgnored, BackendOutcomeCancelled, BackendOutcomeError:
 		return true
 	}
 	return false
@@ -219,7 +272,16 @@ func (n Nomenclature) IsEnumValid() bool {
 
 func (m ModifierAction) IsEnumValid() bool {
 	switch m {
-	case ModifierActionSet, ModifierActionApd, ModifierActionRpl, ModifierActionAdd, ModifierActionDel:
+	case ModifierActionSet, ModifierActionAppend, ModifierActionReplace, ModifierActionAdd, ModifierActionDelete:
+		return true
+	}
+	return false
+}
+
+func (d DegradationKind) IsEnumValid() bool {
+	switch d {
+	case DegradationKindMetadata, DegradationKindQuery, DegradationKindURLPath, DegradationKindPayload,
+		DegradationKindDeduplicationID, DegradationKindGroupID, DegradationKindAttributes:
 		return true
 	}
 	return false
@@ -252,6 +314,51 @@ func (t TemplateMerge) IsEnumValid() bool {
 func (b BackendKind) IsEnumValid() bool {
 	switch b {
 	case BackendKindHTTP, BackendKindPublisher:
+		return true
+	}
+	return false
+}
+
+func (m ExecutionMode) IsEnumValid() bool {
+	switch m {
+	case ExecutionModeFailFast, ExecutionModeBestEffort:
+		return true
+	}
+	return false
+}
+
+func (o ExecutionOn) IsEnumValid() bool {
+	switch o {
+	case ExecutionOnBuild, ExecutionOnClientError, ExecutionOnServerError:
+		return true
+	}
+	return false
+}
+
+func (p AttributeValueDataType) IsEnumValid() bool {
+	switch p {
+	case AttributeValueDataTypeString, AttributeValueDataTypeNumber,
+		AttributeValueDataTypeBinary:
+		return true
+	}
+	return false
+}
+
+func (p AttributeValueDataType) String() string {
+	return string(p)
+}
+
+func (p Protocol) IsEnumValid() bool {
+	switch p {
+	case ProtocolHTTP, ProtocolGRPC, ProtocolWebSocket:
+		return true
+	}
+	return false
+}
+
+func (c CacheKind) IsEnumValid() bool {
+	switch c {
+	case CacheKindEndpoint, CacheKindBackend:
 		return true
 	}
 	return false

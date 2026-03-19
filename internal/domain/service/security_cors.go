@@ -20,50 +20,106 @@ import (
 	"strings"
 
 	"github.com/tech4works/checker"
+	"github.com/tech4works/converter"
 	"github.com/tech4works/errors"
-	"github.com/tech4works/gopen-gateway/internal/domain/mapper"
+	"github.com/tech4works/gopen-gateway/internal/domain"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
 )
 
-type securityCorsService struct {
+type securityCors struct {
+	dynamicValueService DynamicValue
 }
 
 type SecurityCors interface {
-	ValidateOrigin(securityCors vo.SecurityCors, request *vo.HTTPRequest) error
-	ValidateMethod(securityCors vo.SecurityCors, request *vo.HTTPRequest) error
-	ValidateHeaders(securityCors vo.SecurityCors, request *vo.HTTPRequest) error
+	Validate(config *vo.SecurityCorsConfig, request *vo.EndpointRequest) error
+	BuildResponseMetadataByConfig(config *vo.SecurityCorsConfig, request *vo.EndpointRequest) (vo.Metadata, error)
 }
 
-func NewSecurityCors() SecurityCors {
-	return securityCorsService{}
+func NewSecurityCors(dynamicValueService DynamicValue) SecurityCors {
+	return securityCors{
+		dynamicValueService: dynamicValueService,
+	}
 }
 
-func (s securityCorsService) ValidateOrigin(securityCors vo.SecurityCors, request *vo.HTTPRequest) error {
-	if securityCors.DisallowOrigin(request.ClientIP()) {
+func (s securityCors) Validate(config *vo.SecurityCorsConfig, request *vo.EndpointRequest) error {
+	if !request.IsCORS() {
+		return nil
+	}
+
+	err := s.evalSecurityCorsGuards(config, request)
+	if checker.NonNil(err) {
+		return err
+	}
+
+	origin := request.Metadata().Get("Origin")
+	if config.DisallowOrigin(origin) {
 		return errors.New("security-cors failed: origin not mapped on security-cors.allow-origins")
 	}
-	return nil
-}
 
-func (s securityCorsService) ValidateMethod(securityCors vo.SecurityCors, request *vo.HTTPRequest) error {
-	if securityCors.DisallowMethod(request.Method()) {
+	method := request.Operation()
+	if request.IsPreflight() {
+		method = request.Metadata().Get("Access-Control-Request-Method")
+	}
+
+	if config.DisallowMethod(method) {
 		return errors.New("security-cors failed: method not mapped on security-cors.allow-methods")
 	}
-	return nil
-}
 
-func (s securityCorsService) ValidateHeaders(securityCors vo.SecurityCors, request *vo.HTTPRequest) error {
-	var headersNotAllowed []string
-	for _, key := range request.Header().Keys() {
-		if checker.NotEquals(key, mapper.XForwardedFor) && securityCors.DisallowHeader(key) {
-			headersNotAllowed = append(headersNotAllowed, key)
+	if request.IsPreflight() {
+		var notAllowed []string
+		for _, h := range request.Metadata().GetAll("Access-Control-Request-Headers") {
+			if config.DisallowHeader(h) {
+				notAllowed = append(notAllowed, h)
+			}
+		}
+		if checker.IsNotEmpty(notAllowed) {
+			return errors.Newf("security-cors failed: request-headers contain not mapped fields on security-cors.allow-headers=%s",
+				strings.Join(notAllowed, ", "))
 		}
 	}
 
-	if checker.IsNotEmpty(headersNotAllowed) {
-		keys := strings.Join(headersNotAllowed, ", ")
-		return errors.Newf("security-cors failed: headers contain not mapped fields on security-cors.allow-headers=%s", keys)
+	return nil
+}
+
+func (s securityCors) BuildResponseMetadataByConfig(config *vo.SecurityCorsConfig, request *vo.EndpointRequest) (
+	vo.Metadata, error) {
+	if !request.IsCORS() {
+		return vo.NewEmptyMetadata(), nil
 	}
 
-	return nil
+	err := s.evalSecurityCorsGuards(config, request)
+	if checker.NonNil(err) && errors.IsNot(err, domain.ErrEvalGuards) {
+		return vo.NewEmptyMetadata(), err
+	}
+
+	mapMetadata := map[string][]string{
+		"Access-Control-Allow-Origin": request.Metadata().GetAll("Origin"),
+		"Vary":                        {"Origin"},
+	}
+
+	if config.AllowCredentials() {
+		mapMetadata["Access-Control-Allow-Credentials"] = converter.ToSlice("true")
+	}
+
+	if request.IsPreflight() {
+		mapMetadata["Access-Control-Allow-Methods"] = request.Metadata().GetAll("Access-Control-Request-Method")
+
+		requestedHeaders := request.Metadata().GetAll("Access-Control-Request-Headers")
+		if checker.IsNotEmpty(requestedHeaders) {
+			mapMetadata["Access-Control-Allow-Headers"] = requestedHeaders
+		}
+	}
+
+	return vo.NewMetadata(mapMetadata), nil
+}
+
+func (s securityCors) evalSecurityCorsGuards(config *vo.SecurityCorsConfig, request *vo.EndpointRequest) error {
+	errs := s.dynamicValueService.EvalGuardsWithErr(config.OnlyIf(), config.IgnoreIf(), request, nil)
+	if errors.Only(errs, domain.ErrEvalGuards) {
+		return errs[0]
+	} else if checker.IsNotEmpty(errs) {
+		return errors.JoinInheritf(errs, ", ", "failed to evaluate guard for security-cors")
+	} else {
+		return nil
+	}
 }

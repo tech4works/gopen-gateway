@@ -17,9 +17,10 @@
 package vo
 
 import (
-	"github.com/tech4works/checker"
 	"strconv"
 	"time"
+
+	"github.com/tech4works/checker"
 )
 
 type Duration time.Duration

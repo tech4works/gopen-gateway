@@ -29,63 +29,63 @@ type omitterService struct {
 }
 
 type Omitter interface {
-	OmitEmptyValuesFromBody(body *vo.Body) (*vo.Body, []error)
+	OmitEmptyValuesFromPayload(payload *vo.Payload) (*vo.Payload, []error)
 }
 
 func NewOmitter(jsonPath domain.JSONPath) Omitter {
 	return omitterService{jsonPath: jsonPath}
 }
 
-func (o omitterService) OmitEmptyValuesFromBody(body *vo.Body) (*vo.Body, []error) {
-	if checker.IsNil(body) {
+func (o omitterService) OmitEmptyValuesFromPayload(payload *vo.Payload) (*vo.Payload, []error) {
+	if checker.IsNil(payload) {
 		return nil, nil
 	}
 
 	switch {
-	case body.ContentType().IsText():
-		return o.omitEmptyValuesFromBodyText(body)
-	case body.ContentType().IsJSON():
-		return o.omitEmptyValuesFromBodyJSON(body)
+	case payload.ContentType().IsNotJSON():
+		return o.omitEmptyValuesFromPayloadPlainText(payload)
+	case payload.ContentType().IsJSON():
+		return o.omitEmptyValuesFromPayloadJSON(payload)
 	default:
-		return body, nil
+		return payload, nil
 	}
 }
 
-func (o omitterService) omitEmptyValuesFromBodyText(body *vo.Body) (*vo.Body, []error) {
-	bodyStr, err := body.String()
+func (o omitterService) omitEmptyValuesFromPayloadPlainText(payload *vo.Payload) (*vo.Payload, []error) {
+	str, err := payload.String()
 	if checker.NonNil(err) {
-		return body, errors.InheritAsSlice(err, "omitter failed: op=body-string")
+		return payload, errors.InheritAsSlice(err, "omitter failed: op=payload-string")
 	}
 
-	compact := converter.ToCompactString(bodyStr)
+	compact := converter.ToCompactString(str)
 
 	buffer, err := converter.ToBufferWithErr(compact)
 	if checker.NonNil(err) {
-		return body, errors.InheritAsSlicef(err, "omitter failed: op=buffer-text")
+		return payload, errors.InheritAsSlicef(err, "omitter failed: op=buffer-text")
 	}
 
-	return vo.NewBodyWithContentType(body.ContentType(), buffer), nil
+	return vo.NewPayloadWithContentType(payload.ContentType(), buffer), nil
 }
 
-func (o omitterService) omitEmptyValuesFromBodyJSON(body *vo.Body) (*vo.Body, []error) {
-	raw, err := body.Raw()
+func (o omitterService) omitEmptyValuesFromPayloadJSON(payload *vo.Payload) (*vo.Payload, []error) {
+	raw, err := payload.Raw()
 	if checker.NonNil(err) {
-		return body, errors.InheritAsSlice(err, "omitter failed: op=raw")
+		return payload, errors.InheritAsSlice(err, "omitter failed: op=raw")
 	}
 
-	newBodyStr, errs := o.removeAllEmptyFields(raw)
+	newRaw, errs := o.removeAllEmptyFields(raw)
 	if checker.IsNotEmpty(errs) {
 		for i, e := range errs {
 			errs[i] = errors.Inheritf(e, "omitter failed: op=remove-empty-fields")
 		}
 	}
 
-	buffer, err := converter.ToBufferWithErr(newBodyStr)
+	buffer, err := converter.ToBufferWithErr(newRaw)
 	if checker.NonNil(err) {
-		return body, append(errs, errors.Inherit(err, "omitter failed: op=buffer-json"))
+		return payload, append(errs, errors.Inherit(err, "omitter failed: op=buffer-json"))
 	}
 
-	return vo.NewBodyWithContentType(body.ContentType(), buffer), errs
+	return vo.NewPayloadWithContentType(payload.ContentType(), buffer), errs
 }
 
 func (o omitterService) removeAllEmptyFields(jsonStr string) (string, []error) {

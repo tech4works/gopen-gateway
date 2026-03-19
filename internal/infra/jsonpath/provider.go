@@ -21,7 +21,6 @@ import (
 
 	"github.com/tech4works/checker"
 	"github.com/tech4works/gopen-gateway/internal/domain"
-	"github.com/tech4works/gopen-gateway/internal/domain/mapper"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 )
@@ -110,19 +109,19 @@ func aggregateValue(jsonValue gjson.Result, newValue string) string {
 		newArray = append(newArray, newParsedValue)
 	}
 
-	newArrayJson := "["
+	newArrayJSON := "["
 	for i, v := range newArray {
 		if checker.Equals(v.Type, gjson.Null) || checker.IsEmpty(v.String()) {
 			continue
 		}
 		if checker.NotEquals(i, 0) {
-			newArrayJson += ","
+			newArrayJSON += ","
 		}
-		newArrayJson += parseValueToRaw(v)
+		newArrayJSON += parseValueToRaw(v)
 	}
-	newArrayJson += "]"
+	newArrayJSON += "]"
 
-	return newArrayJson
+	return newArrayJSON
 }
 
 func parseStringValueToRaw(value string) string {
@@ -148,7 +147,7 @@ func treatModifierResult(op, raw, path, value, newRaw string, err error) (string
 	if checker.NonNil(err) {
 		return raw, err
 	} else if checker.Equals(raw, newRaw) {
-		return raw, mapper.NewErrJSONNotModified(op, path, value)
+		return raw, domain.NewErrJSONNotModified(op, path, value)
 	}
 	return newRaw, nil
 }

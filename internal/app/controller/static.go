@@ -19,9 +19,8 @@ package controller
 import (
 	"github.com/tech4works/checker"
 	"github.com/tech4works/gopen-gateway/internal/app"
-	"github.com/tech4works/gopen-gateway/internal/app/factory"
 	"github.com/tech4works/gopen-gateway/internal/app/model/dto"
-	"net/http"
+	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
 )
 
 type staticController struct {
@@ -31,7 +30,6 @@ type staticController struct {
 type Static interface {
 	Ping(ctx app.Context)
 	Version(ctx app.Context)
-	Settings(ctx app.Context)
 }
 
 func NewStatic(gopen *dto.Gopen) Static {
@@ -41,17 +39,13 @@ func NewStatic(gopen *dto.Gopen) Static {
 }
 
 func (s staticController) Ping(ctx app.Context) {
-	ctx.WriteString(http.StatusOK, "Pong!")
+	ctx.WriteString(enum.ResponseStatusOK, "Pong!")
 }
 
 func (s staticController) Version(ctx app.Context) {
 	if checker.IsNotEmpty(s.gopen.Version) {
-		ctx.WriteString(http.StatusOK, s.gopen.Version)
+		ctx.WriteString(enum.ResponseStatusOK, s.gopen.Version)
 		return
 	}
-	ctx.WriteStatusCode(http.StatusNotFound)
-}
-
-func (s staticController) Settings(ctx app.Context) {
-	ctx.WriteJson(http.StatusOK, factory.BuildSettingView(*s.gopen))
+	ctx.WriteStatus(enum.ResponseStatusNotFound)
 }

@@ -19,16 +19,16 @@ package usecase
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/url"
-	"runtime/debug"
 	"time"
 
 	"github.com/tech4works/checker"
 	"github.com/tech4works/errors"
 	"github.com/tech4works/gopen-gateway/internal/app"
+	"github.com/tech4works/gopen-gateway/internal/app/factory"
 	"github.com/tech4works/gopen-gateway/internal/app/model/dto"
-	"github.com/tech4works/gopen-gateway/internal/domain/factory"
-	"github.com/tech4works/gopen-gateway/internal/domain/mapper"
+	"github.com/tech4works/gopen-gateway/internal/domain"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/aggregate"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
@@ -37,70 +37,92 @@ import (
 )
 
 type endpointUseCase struct {
-	dynamicValueService service.DynamicValue
-	backendFactory      factory.Backend
-	httpResponseFactory factory.HTTPResponse
-	httpClient          app.HTTPClient
-	publishClient       app.PublisherClient
-	endpointLog         app.EndpointLog
-	backendLog          app.BackendLog
+	dynamicValueService     service.DynamicValue
+	cacheService            service.Cache
+	backendRequestFactory   factory.BackendRequest
+	backendResponseFactory  factory.BackendResponse
+	endpointResponseFactory factory.EndpointResponse
+	httpClient              app.HTTPClient
+	publishClient           app.PublisherClient
+	endpointLog             app.EndpointLog
+	backendLog              app.BackendLog
 }
 
 type backendExecResult struct {
-	i       int
-	backend vo.Backend
-
-	httpReq  *vo.HTTPBackendRequest
-	httpResp *vo.HTTPBackendResponse
-
-	pubReq  *vo.PublisherBackendRequest
-	pubResp *vo.PublisherBackendResponse
-
-	err error
+	i        int
+	backend  *vo.BackendConfig
+	response *vo.BackendResponse
 }
 
 type Endpoint interface {
-	Execute(ctx context.Context, executeData dto.ExecuteEndpoint) *vo.HTTPResponse
+	Execute(ctx context.Context, executeData dto.ExecuteEndpoint) *vo.EndpointResponse
 }
 
 func NewEndpoint(
 	dynamicValueService service.DynamicValue,
-	backendFactory factory.Backend,
-	responseFactory factory.HTTPResponse,
+	cacheService service.Cache,
+	backendRequestFactory factory.BackendRequest,
+	backendResponseFactory factory.BackendResponse,
+	endpointResponseFactory factory.EndpointResponse,
 	httpClient app.HTTPClient,
 	publishClient app.PublisherClient,
 	endpointLog app.EndpointLog,
 	backendLog app.BackendLog,
 ) Endpoint {
 	return endpointUseCase{
-		dynamicValueService: dynamicValueService,
-		backendFactory:      backendFactory,
-		httpResponseFactory: responseFactory,
-		httpClient:          httpClient,
-		publishClient:       publishClient,
-		endpointLog:         endpointLog,
-		backendLog:          backendLog,
+		dynamicValueService:     dynamicValueService,
+		cacheService:            cacheService,
+		backendRequestFactory:   backendRequestFactory,
+		backendResponseFactory:  backendResponseFactory,
+		endpointResponseFactory: endpointResponseFactory,
+		httpClient:              httpClient,
+		publishClient:           publishClient,
+		endpointLog:             endpointLog,
+		backendLog:              backendLog,
 	}
 }
 
-func (e endpointUseCase) Execute(ctx context.Context, executeData dto.ExecuteEndpoint) *vo.HTTPResponse {
-	backends := executeData.Endpoint.Backends()
-
-	history, aborted, err := e.executeAllBackends(ctx, executeData, backends)
-	if checker.NonNil(err) {
-		return e.httpResponseFactory.BuildErrorResponse(executeData.Endpoint, err)
-	} else if aborted {
-		return e.httpResponseFactory.BuildAbortedResponse(history)
+func (e endpointUseCase) Execute(ctx context.Context, executeData dto.ExecuteEndpoint) *vo.EndpointResponse {
+	cacheResponse := e.readEndpointResponseOnCacheIfNeeded(ctx, executeData)
+	if checker.NonNil(cacheResponse) {
+		return cacheResponse
 	}
 
-	return e.buildHTTPResponse(ctx, executeData, history)
+	history, aborted := e.executeAllBackends(ctx, executeData, executeData.Endpoint.Backends())
+
+	var response *vo.EndpointResponse
+	if aborted {
+		response = e.endpointResponseFactory.BuildAbortedResponse(history)
+	} else {
+		response = e.buildEndpointResponse(ctx, executeData, history)
+	}
+
+	e.writeEndpointResponseOnCacheIfNeeded(ctx, executeData, history, response)
+
+	return response
+}
+
+func (e endpointUseCase) readEndpointResponseOnCacheIfNeeded(ctx context.Context, executeData dto.ExecuteEndpoint,
+) *vo.EndpointResponse {
+	if !executeData.Endpoint.HasCache() || !executeData.Endpoint.AllowCache() {
+		return nil
+	}
+
+	var endpointCacheEntry vo.EndpointCacheEntry
+	err := e.cacheService.Read(ctx, executeData.Endpoint.Cache(), executeData.Request, nil, &endpointCacheEntry)
+	if checker.NonNil(err) {
+		e.endpointLog.PrintWarnf(executeData, "error to read endpoint response cache: %v", err)
+		return nil
+	}
+
+	return endpointCacheEntry.Response()
 }
 
 func (e endpointUseCase) executeAllBackends(
 	ctx context.Context,
 	executeData dto.ExecuteEndpoint,
-	backends []vo.Backend,
-) (*aggregate.History, bool, error) {
+	backends []vo.BackendConfig,
+) (*aggregate.History, bool) {
 	seqCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -114,7 +136,7 @@ func (e endpointUseCase) executeAllBackends(
 
 	history := aggregate.NewHistoryWithSize(len(backends))
 
-	waitDependencies := func(b vo.Backend) {
+	waitDependencies := func(b *vo.BackendConfig) {
 		for _, dependencyIndex := range b.Dependencies().Indexes() {
 			select {
 			case <-seqCtx.Done():
@@ -124,8 +146,8 @@ func (e endpointUseCase) executeAllBackends(
 		}
 	}
 
-	commitResult := func(r backendExecResult) {
-		history.AddBackend(r.i, &r.backend, r.httpReq, r.httpResp, r.pubReq, r.pubResp)
+	commit := func(r backendExecResult) {
+		history.Add(r.i, r.backend, r.response)
 		select {
 		case <-committed[r.i]:
 		default:
@@ -146,218 +168,267 @@ func (e endpointUseCase) executeAllBackends(
 
 	for i := range backends {
 		if r, ok := pollAbort(); ok {
-			commitResult(r)
-			return history, true, nil
+			commit(r)
+			return history, true
 		}
 
 		backend := backends[i]
 
-		if backend.Async() {
+		if backend.Execution().Async() {
 			pendingAsync++
 
 			i := i
 			backend := backend
 
-			safeSendBackendResult(seqCtx, "executeBackend.runAsync", asyncDoneCh, func() backendExecResult {
-				waitDependencies(backend)
+			go func() backendExecResult {
+				waitDependencies(&backend)
 
-				httpReq, httpResp, pubReq, pubResp, err := e.executeBackend(seqCtx, executeData, &backend, history)
+				response := e.executeBackend(seqCtx, executeData, &backend, history)
 
-				if e.shouldBackendAbort(executeData.Endpoint, httpResp, pubResp, err) {
+				if e.shouldBackendAbort(&backend, response) {
 					select {
-					case abortCh <- backendExecResult{
-						i:        i,
-						backend:  backend,
-						httpReq:  httpReq,
-						httpResp: httpResp,
-						pubReq:   pubReq,
-						pubResp:  pubResp,
-						err:      nil,
-					}:
+					case abortCh <- backendExecResult{i: i, backend: &backend, response: response}:
 						cancel()
 					default:
 					}
 				}
 
-				return backendExecResult{
-					i:        i,
-					backend:  backend,
-					httpReq:  httpReq,
-					httpResp: httpResp,
-					pubReq:   pubReq,
-					pubResp:  pubResp,
-					err:      err,
-				}
-			})
+				return backendExecResult{i: i, backend: &backend, response: response}
+			}()
 			continue
 		}
 
-		waitDependencies(backend)
+		waitDependencies(&backend)
 
-		httpReq, httpResp, pubReq, pubResp, err := e.executeBackend(seqCtx, executeData, &backend, history)
-		if checker.NonNil(err) {
+		response := e.executeBackend(seqCtx, executeData, &backend, history)
+
+		commit(backendExecResult{i: i, backend: &backend, response: response})
+
+		if e.shouldBackendAbort(&backend, response) {
 			cancel()
-			return history, false, err
-		}
-
-		commitResult(backendExecResult{
-			i:        i,
-			backend:  backend,
-			httpReq:  httpReq,
-			httpResp: httpResp,
-			pubReq:   pubReq,
-			pubResp:  pubResp,
-			err:      nil,
-		})
-
-		if e.shouldBackendAbort(executeData.Endpoint, httpResp, pubResp, err) {
-			cancel()
-			return history, true, nil
+			return history, true
 		}
 	}
 
 	for completed := 0; checker.IsLessThan(completed, pendingAsync); {
 		select {
 		case r := <-abortCh:
-			commitResult(r)
-			return history, true, nil
+			commit(r)
+			return history, true
 		case r := <-asyncDoneCh:
-			if checker.NonNil(r.err) {
-				cancel()
-				return history, false, r.err
-			}
-			commitResult(r)
+			commit(r)
 			completed++
 		}
 	}
 
-	return history, false, nil
+	return history, false
 }
 
 func (e endpointUseCase) executeBackend(
 	ctx context.Context,
 	executeData dto.ExecuteEndpoint,
-	backend *vo.Backend,
+	backend *vo.BackendConfig,
 	history *aggregate.History,
-) (*vo.HTTPBackendRequest, *vo.HTTPBackendResponse, *vo.PublisherBackendRequest, *vo.PublisherBackendResponse, error) {
+) (backendResponse *vo.BackendResponse) {
+	startTime := time.Now()
+
+	defer func() {
+		if r := recover(); checker.NonNil(r) {
+			err := e.panicAsError(ctx, backend.ID(), r)
+			backendResponse = e.backendResponseFactory.BuildResponseByError(executeData.Endpoint, backend, err,
+				time.Since(startTime))
+		}
+		e.writeBackendResponseOnCacheIfNeeded(ctx, executeData, backend, history, backendResponse)
+	}()
+
+	if err := e.checkIfCanBackendBeRun(executeData, backend, history); checker.NonNil(err) {
+		backendResponse = e.backendResponseFactory.BuildResponseByError(executeData.Endpoint, backend, err,
+			time.Since(startTime))
+		return
+	}
+
+	cacheBackendResponse := e.readBackendResponseOnCacheIfNeeded(ctx, executeData, backend, startTime, history)
+	if checker.NonNil(cacheBackendResponse) {
+		backendResponse = cacheBackendResponse
+		return
+	}
+
 	switch backend.Kind() {
 	case enum.BackendKindHTTP:
-		httpReq, httpResp, err := e.executeHTTPBackend(ctx, executeData, backend, history)
-		return httpReq, httpResp, nil, nil, err
+		backendResponse = e.executeHTTPBackend(ctx, executeData, backend, startTime, history)
+		return
 	case enum.BackendKindPublisher:
-		pubReq, pubResp, err := e.executePublisherBackend(ctx, executeData, backend, history)
-		return nil, nil, pubReq, pubResp, err
+		backendResponse = e.executePublisherBackend(ctx, executeData, backend, startTime, history)
+		return
 	default:
-		return nil, nil, nil, nil, errors.Newf("invalid backend kind: %v", backend.Kind())
+		panic(fmt.Sprintf("unknown backend kind: %v", backend.Kind()))
 	}
 }
 
+func (e endpointUseCase) checkIfCanBackendBeRun(
+	executeData dto.ExecuteEndpoint, backend *vo.BackendConfig, history *aggregate.History,
+) error {
+	if !history.DependenciesSatisfied(backend) {
+		return app.NewErrBackendDependenciesNotExecuted(backend.Dependencies().IDs())
+	}
+	return e.evalBackendGuards(backend, executeData.Request, history)
+}
+
 func (e endpointUseCase) evalBackendGuards(
-	backend *vo.Backend,
-	request *vo.HTTPRequest,
+	backend *vo.BackendConfig,
+	request *vo.EndpointRequest,
 	history *aggregate.History,
 ) error {
 	errs := e.dynamicValueService.EvalGuardsWithErr(backend.OnlyIf(), backend.IgnoreIf(), request, history)
-	if errors.Only(errs, mapper.ErrEvalGuards) {
+	if errors.Only(errs, domain.ErrEvalGuards) {
 		return errs[0]
 	} else if checker.IsNotEmpty(errs) {
-		return errors.JoinInheritf(errs, ", ", "failed to evaluate guard for backend kind=%v", backend.Kind())
+		return errors.JoinInheritf(errs, ", ", "failed to evaluate guard for backend id=%s kind=%s",
+			backend.ID(), backend.Kind())
 	} else {
 		return nil
 	}
 }
 
+func (e endpointUseCase) readBackendResponseOnCacheIfNeeded(
+	ctx context.Context,
+	executeData dto.ExecuteEndpoint,
+	backend *vo.BackendConfig,
+	startTime time.Time,
+	history *aggregate.History,
+) *vo.BackendResponse {
+	if !backend.HasCache() || !backend.AllowCache() {
+		return nil
+	}
+
+	var backendCacheEntry vo.BackendCacheEntry
+	err := e.cacheService.Read(ctx, executeData.Endpoint.Cache(), executeData.Request, history, &backendCacheEntry)
+	if checker.NonNil(err) {
+		e.backendLog.PrintWarnf(executeData, backend, "error to read backend response cache: %v", err)
+		return nil
+	}
+
+	return backendCacheEntry.Response(time.Since(startTime))
+}
+
 func (e endpointUseCase) executeHTTPBackend(
 	ctx context.Context,
 	executeData dto.ExecuteEndpoint,
-	backend *vo.Backend,
+	backend *vo.BackendConfig,
+	startTime time.Time,
 	history *aggregate.History,
-) (*vo.HTTPBackendRequest, *vo.HTTPBackendResponse, error) {
-	if err := e.evalBackendGuards(backend, executeData.Request, history); checker.NonNil(err) {
-		return nil, e.backendFactory.BuildHTTPResponseByErr(executeData.Endpoint, backend, err), nil
-	}
-
+) *vo.BackendResponse {
 	httpBackendRequest, err := e.buildHTTPBackendRequest(ctx, executeData, backend, history)
 	if checker.NonNil(err) {
-		return httpBackendRequest, nil, err
-	} else if backend.HTTP().HasRequest() && backend.HTTP().Request().IsConcurrent() {
-		return httpBackendRequest, e.makeConcurrentBackendHTTPRequest(ctx, backend, executeData, httpBackendRequest), nil
+		return e.backendResponseFactory.BuildResponseByError(executeData.Endpoint, backend, err, time.Since(startTime))
+	} else if backend.Execution().IsConcurrent() {
+		return e.makeConcurrentBackendHTTPRequest(ctx, executeData, backend, startTime, httpBackendRequest)
 	} else {
-		return httpBackendRequest, e.makeBackendHTTPRequest(ctx, executeData, backend, httpBackendRequest), nil
+		return e.makeBackendHTTPRequest(ctx, executeData, backend, startTime, httpBackendRequest)
 	}
 }
 
 func (e endpointUseCase) executePublisherBackend(
 	ctx context.Context,
 	executeData dto.ExecuteEndpoint,
-	backend *vo.Backend,
+	backend *vo.BackendConfig,
+	startTime time.Time,
 	history *aggregate.History,
-) (*vo.PublisherBackendRequest, *vo.PublisherBackendResponse, error) {
-	if err := e.evalBackendGuards(backend, executeData.Request, history); checker.NonNil(err) {
-		return nil, e.backendFactory.BuildPublisherResponseByErr(executeData.Endpoint, backend, err), nil
-	}
-
+) *vo.BackendResponse {
 	publisherBackendRequest, err := e.buildPublisherRequest(ctx, executeData, backend, history)
-	if checker.IsNotEmpty(err) {
-		return nil, nil, err
+	if checker.NonNil(err) {
+		return e.backendResponseFactory.BuildResponseByError(executeData.Endpoint, backend, err, time.Since(startTime))
+	} else {
+		return e.makeBackendPublisherRequest(ctx, executeData, backend, startTime, publisherBackendRequest)
 	}
-
-	return publisherBackendRequest, e.makeBackendPublisherRequest(ctx, executeData, backend, publisherBackendRequest), nil
 }
 
 func (e endpointUseCase) makeConcurrentBackendHTTPRequest(
 	ctx context.Context,
-	backend *vo.Backend,
 	executeData dto.ExecuteEndpoint,
+	backend *vo.BackendConfig,
+	startTime time.Time,
 	request *vo.HTTPBackendRequest,
-) *vo.HTTPBackendResponse {
+) *vo.BackendResponse {
 	concurrentCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	responseChan := make(chan *vo.HTTPBackendResponse)
-	for i := 0; checker.IsLessThan(i, backend.HTTP().Request().Concurrent()); i++ {
+	responseChan := make(chan *vo.BackendResponse)
+	for i := 0; checker.IsLessThan(i, backend.Execution().Concurrent()); i++ {
 		go func() {
-			httpBackendResponse := e.makeBackendHTTPRequest(concurrentCtx, executeData, backend, request)
-			responseChan <- httpBackendResponse
+			backendResponse := e.makeBackendHTTPRequest(concurrentCtx, executeData, backend, startTime, request)
+			responseChan <- backendResponse
 		}()
 	}
 
 	select {
-	case httpBackendResponse := <-responseChan:
-		return httpBackendResponse
+	case backendResponse := <-responseChan:
+		return backendResponse
 	}
 }
 
 func (e endpointUseCase) makeBackendHTTPRequest(
 	parent context.Context,
 	executeData dto.ExecuteEndpoint,
-	backend *vo.Backend,
+	backend *vo.BackendConfig,
+	startTime time.Time,
 	request *vo.HTTPBackendRequest,
-) *vo.HTTPBackendResponse {
-	timeout, ok := parent.Deadline()
-	if !ok {
-		return e.backendFactory.BuildHTTPResponseByErr(executeData.Endpoint, backend, context.DeadlineExceeded)
+) *vo.BackendResponse {
+	if checker.NonNil(parent.Err()) {
+		return e.backendResponseFactory.BuildResponseByError(executeData.Endpoint, backend, parent.Err(), time.Since(startTime))
 	}
+
+	timeout, _ := parent.Deadline()
 
 	ctx, cancel := context.WithTimeout(parent, time.Until(timeout))
 	defer cancel()
 
 	e.backendLog.PrintHTTPRequest(executeData, backend, request)
 
-	startTime := time.Now()
-	httpResponse, err := e.httpClient.MakeRequest(ctx, request)
-	duration := time.Since(startTime)
+	httpResponse, err := e.httpClient.MakeRequest(ctx, executeData.Request, request)
 
-	var httpBackendResponse *vo.HTTPBackendResponse
-	if err = e.treatHTTPClientErr(err); errors.Is(err, mapper.ErrBackendConcurrentCancelled) {
-		httpBackendResponse = e.backendFactory.BuildHTTPResponseByErr(executeData.Endpoint, backend, err)
+	var backendResponse *vo.BackendResponse
+	if err = e.treatHTTPClientErr(err); checker.NonNil(err) {
+		backendResponse = e.backendResponseFactory.BuildResponseByError(executeData.Endpoint, backend, err, time.Since(startTime))
 	} else {
-		httpBackendResponse = e.backendFactory.BuildHTTPResponse(httpResponse)
+		backendResponse = e.backendResponseFactory.BuildResponseByHTTP(httpResponse, time.Since(startTime))
 	}
 
-	e.backendLog.PrintHTTPResponse(executeData, backend, httpBackendResponse, duration)
+	e.backendLog.PrintResponse(executeData, backend, backendResponse)
 
-	return httpBackendResponse
+	return backendResponse
+}
+
+func (e endpointUseCase) makeBackendPublisherRequest(
+	parent context.Context,
+	executeData dto.ExecuteEndpoint,
+	backend *vo.BackendConfig,
+	startTime time.Time,
+	publisherBackendRequest *vo.PublisherBackendRequest,
+) *vo.BackendResponse {
+	if checker.NonNil(parent.Err()) {
+		return e.backendResponseFactory.BuildResponseByError(executeData.Endpoint, backend, parent.Err(), time.Since(startTime))
+	}
+
+	timeout, _ := parent.Deadline()
+
+	ctx, cancel := context.WithTimeout(parent, time.Until(timeout))
+	defer cancel()
+
+	e.backendLog.PrintPublisherRequest(executeData, backend, publisherBackendRequest)
+
+	publisherResponse, err := e.publishClient.Publish(ctx, executeData.Request, publisherBackendRequest)
+
+	var backendResponse *vo.BackendResponse
+	if err = e.treatPublisherClientErr(err); checker.NonNil(err) {
+		backendResponse = e.backendResponseFactory.BuildResponseByError(executeData.Endpoint, backend, err, time.Since(startTime))
+	} else {
+		backendResponse = e.backendResponseFactory.BuildResponseByPublisher(publisherResponse, time.Since(startTime))
+	}
+
+	e.backendLog.PrintResponse(executeData, backend, backendResponse)
+
+	return backendResponse
 }
 
 func (e endpointUseCase) treatHTTPClientErr(err error) error {
@@ -367,85 +438,46 @@ func (e endpointUseCase) treatHTTPClientErr(err error) error {
 
 	var urlErr *url.Error
 	errors.As(err, &urlErr)
-	if errors.Is(urlErr.Err, context.Canceled) {
-		return mapper.NewErrBackendConcurrentCancelled()
-	} else if urlErr.Timeout() {
-		return mapper.NewErrBackendGatewayTimeout(err)
+
+	if checker.NonNil(urlErr) && errors.Is(urlErr.Err, context.Canceled) {
+		return app.NewErrBackendConcurrentCancelled()
+	} else if checker.NonNil(urlErr) && urlErr.Timeout() {
+		return app.NewErrBackendGatewayTimeout(err)
 	} else {
-		return mapper.NewErrBackendBadGateway(err)
+		return app.NewErrBackendBadGateway(err)
 	}
-}
-
-func (e endpointUseCase) makeBackendPublisherRequest(
-	parent context.Context,
-	executeData dto.ExecuteEndpoint,
-	backend *vo.Backend,
-	publisherBackendRequest *vo.PublisherBackendRequest,
-) *vo.PublisherBackendResponse {
-	timeout, ok := parent.Deadline()
-	if !ok {
-		return e.backendFactory.BuildPublisherResponseByErr(executeData.Endpoint, backend, context.DeadlineExceeded)
-	}
-
-	ctx, cancel := context.WithTimeout(parent, time.Until(timeout))
-	defer cancel()
-
-	e.backendLog.PrintPublisherRequest(executeData, backend, publisherBackendRequest)
-
-	startTime := time.Now()
-	publisherResponse, err := e.publishClient.Publish(ctx, publisherBackendRequest)
-	duration := time.Since(startTime)
-
-	var publisherBackendResponse *vo.PublisherBackendResponse
-	if err = e.treatPublisherClientErr(err); checker.NonNil(err) {
-		publisherBackendResponse = e.backendFactory.BuildPublisherResponseByErr(executeData.Endpoint, backend, err)
-	} else {
-		publisherBackendResponse = e.backendFactory.BuildPublisherResponse(publisherResponse)
-	}
-
-	e.backendLog.PrintPublisherResponse(executeData, backend, publisherBackendResponse, duration)
-
-	return publisherBackendResponse
 }
 
 func (e endpointUseCase) treatPublisherClientErr(err error) error {
-	if errors.Is(err, context.Canceled) {
-		return mapper.NewErrBackendConcurrentCancelled()
-	} else {
-		return err
+	if checker.IsNil(err) {
+		return nil
 	}
+
+	if errors.Is(err, context.Canceled) {
+		return app.NewErrBackendConcurrentCancelled()
+	} else if errors.Is(err, context.DeadlineExceeded) {
+		return app.NewErrBackendGatewayTimeout(err)
+	}
+
+	var netErr net.Error
+	if errors.As(err, &netErr) && netErr.Timeout() {
+		return app.NewErrBackendGatewayTimeout(err)
+	}
+
+	return app.NewErrBackendBadGateway(err)
 }
 
-func (e endpointUseCase) shouldBackendAbort(
-	endpoint *vo.Endpoint,
-	httpResp *vo.HTTPBackendResponse,
-	pubResp *vo.PublisherBackendResponse,
-	err error,
-) bool {
-	if checker.NonNil(err) {
-		return true
-	} else if checker.IsNil(httpResp) && checker.IsNil(pubResp) {
+func (e endpointUseCase) shouldBackendAbort(backend *vo.BackendConfig, response *vo.BackendResponse) bool {
+	if backend.Execution().IsBestEffort() {
 		return false
 	}
-
-	var status vo.StatusCode
-	if checker.NonNil(httpResp) {
-		status = httpResp.StatusCode()
-	} else {
-		status = httpResp.StatusCode()
-	}
-
-	if endpoint.HasAbortIfStatusCodes() {
-		return checker.Contains(endpoint.AbortIfStatusCodes(), status.Code())
-	}
-
-	return status.Failed()
+	return backend.Execution().ShouldAbortOnResponseStatus(response.Status())
 }
 
 func (e endpointUseCase) buildHTTPBackendRequest(
 	ctx context.Context,
 	executeData dto.ExecuteEndpoint,
-	backend *vo.Backend,
+	backend *vo.BackendConfig,
 	history *aggregate.History,
 ) (*vo.HTTPBackendRequest, error) {
 	span, ctx := apm.StartSpan(ctx, "http.request", "factory")
@@ -453,186 +485,30 @@ func (e endpointUseCase) buildHTTPBackendRequest(
 
 	span.Context.SetLabel("transformations", backend.HTTP().CountAllDataTransforms())
 
-	httpBackendRequest, errs := e.backendFactory.BuildHTTPRequest(backend.HTTP(), executeData.Request, history)
+	httpBackendRequest, errs := e.backendRequestFactory.BuildHTTPRequest(backend, executeData.Request, history)
 	if checker.IsEmpty(errs) {
 		return httpBackendRequest, nil
-	} else if backend.HTTP().HasRequest() && backend.HTTP().Request().ContinueOnError() {
+	} else if backend.Execution().ContinueOn(enum.ExecutionOnBuild) {
 		for _, err := range errs {
-			e.backendLog.PrintWarn(executeData, backend, err)
+			e.backendLog.PrintWarnf(executeData, backend, "error build HTTP backend request: %s", err)
 		}
 		return httpBackendRequest, nil
 	}
 
-	return httpBackendRequest, errors.JoinInheritf(
+	return nil, errors.JoinInheritf(
 		errs,
 		", ",
-		"failed to build backend request (endpoint=%s method=%s path=%s)",
-		executeData.Endpoint.Path(),
+		"failed to build http backend request (id=%s method=%s path=%s)",
+		backend.ID(),
 		backend.HTTP().Method(),
 		backend.HTTP().Path(),
 	)
-}
-
-func (e endpointUseCase) buildFinalHTTPBackendResponse(
-	executeData dto.ExecuteEndpoint,
-	backend *vo.Backend,
-	httpBackendResponse *vo.HTTPBackendResponse,
-	history *aggregate.History,
-) (*vo.HTTPBackendResponse, error) {
-	if !backend.HasResponse() || !httpBackendResponse.Executed() {
-		return httpBackendResponse, nil
-	} else if backend.Response().Omit() {
-		return nil, nil
-	}
-
-	finalHTTPBackendResponse, errs := e.backendFactory.BuildFinalHTTPResponse(
-		backend,
-		httpBackendResponse,
-		executeData.Request,
-		history,
-	)
-	if checker.IsEmpty(errs) {
-		return finalHTTPBackendResponse, nil
-	} else if backend.Response().ContinueOnError() {
-		for _, err := range errs {
-			e.backendLog.PrintWarn(executeData, backend, err)
-		}
-		return finalHTTPBackendResponse, nil
-	}
-
-	return finalHTTPBackendResponse, errors.JoinInheritf(
-		errs, ", ",
-		"failed to build final backend response (endpoint=%s method=%s path=%s)",
-		executeData.Endpoint.Path(),
-		backend.HTTP().Method(),
-		backend.HTTP().Path(),
-	)
-}
-
-func (e endpointUseCase) buildFinalPublisherBackendResponse(
-	executeData dto.ExecuteEndpoint,
-	backend *vo.Backend,
-	publisherResponse *vo.PublisherBackendResponse,
-	history *aggregate.History,
-) (*vo.PublisherBackendResponse, error) {
-	if !backend.HasResponse() || !publisherResponse.Executed() {
-		return publisherResponse, nil
-	}
-
-	finalPublisherResponse, errs := e.backendFactory.BuildFinalPublisherResponse(
-		backend,
-		publisherResponse,
-		executeData.Request,
-		history,
-	)
-	if checker.IsEmpty(errs) {
-		return finalPublisherResponse, nil
-	} else if backend.HasResponse() && backend.Response().ContinueOnError() {
-		for _, err := range errs {
-			e.backendLog.PrintWarn(executeData, backend, err)
-		}
-		return finalPublisherResponse, nil
-	}
-
-	return finalPublisherResponse, errors.JoinInheritf(
-		errs, ", ",
-		"failed to build final backend publisher response (endpoint=%s broker=%s path=%s)",
-		executeData.Endpoint.Path(),
-		backend.Publisher().Broker(),
-		backend.Publisher().Path(),
-	)
-}
-
-func (e endpointUseCase) buildHTTPResponse(ctx context.Context, executeData dto.ExecuteEndpoint, history *aggregate.History,
-) *vo.HTTPResponse {
-	span, ctx := apm.StartSpan(ctx, "endpoint.response", "factory")
-	defer span.End()
-
-	filteredHistory, err := e.filterHistory(executeData, history)
-	if checker.NonNil(err) {
-		return e.httpResponseFactory.BuildErrorResponse(executeData.Endpoint, err)
-	}
-
-	httpResponse, errs := e.httpResponseFactory.BuildResponse(executeData.Endpoint, executeData.Request, filteredHistory)
-	if checker.IsEmpty(errs) {
-		return httpResponse
-	} else if executeData.Endpoint.HasResponse() && executeData.Endpoint.Response().ContinueOnError() {
-		for _, err := range errs {
-			e.endpointLog.PrintWarn(executeData, err)
-		}
-		return httpResponse
-	}
-
-	return e.httpResponseFactory.BuildErrorResponse(executeData.Endpoint, errors.JoinInheritf(
-		errs, ", ",
-		"failed to build endpoint response (method=%s path=%s)",
-		executeData.Endpoint.Method(),
-		executeData.Endpoint.Path(),
-	))
-}
-
-func (e endpointUseCase) filterHistory(executeData dto.ExecuteEndpoint, history *aggregate.History) (*aggregate.History, error) {
-	for i := 0; checker.IsLessThan(i, history.Size()); i++ {
-		backend, httpReq, tempHTTPRes, pubReq, tmpPubRes := history.GetBackend(i)
-		if checker.IsNil(backend) {
-			continue
-		}
-
-		var httpFinal *vo.HTTPBackendResponse
-		var pubFinal *vo.PublisherBackendResponse
-		var err error
-		if backend.IsHTTP() && checker.NonNil(tempHTTPRes) {
-			httpFinal, err = e.buildFinalHTTPBackendResponse(executeData, backend, tempHTTPRes, history)
-		} else if backend.IsPublisher() && checker.NonNil(tmpPubRes) {
-			pubFinal, err = e.buildFinalPublisherBackendResponse(executeData, backend, tmpPubRes, history)
-		}
-		if checker.NonNil(err) {
-			return nil, err
-		}
-
-		history.AddBackend(i, backend, httpReq, httpFinal, pubReq, pubFinal)
-	}
-
-	return history, nil
-}
-
-func panicAsError(ctx context.Context, where string, r any) error {
-	err := fmt.Errorf("panic in backend goroutine (%s): %v\n%s", where, r, string(debug.Stack()))
-
-	apm.CaptureError(ctx, err).Send()
-
-	return err
-}
-
-func safeSendBackendResult(
-	ctx context.Context,
-	where string,
-	out chan<- backendExecResult,
-	build func() backendExecResult,
-) {
-	go func() {
-		var r backendExecResult
-
-		defer func() {
-			if rec := recover(); checker.NonNil(rec) {
-				r.err = panicAsError(ctx, where, rec)
-			}
-			select {
-			case <-ctx.Done():
-				return
-			case out <- r:
-				return
-			}
-		}()
-
-		r = build()
-	}()
 }
 
 func (e endpointUseCase) buildPublisherRequest(
 	ctx context.Context,
 	executeData dto.ExecuteEndpoint,
-	backend *vo.Backend,
+	backend *vo.BackendConfig,
 	history *aggregate.History,
 ) (*vo.PublisherBackendRequest, error) {
 	span, ctx := apm.StartSpan(ctx, "publisher.request", "factory")
@@ -640,21 +516,150 @@ func (e endpointUseCase) buildPublisherRequest(
 
 	span.Context.SetLabel("publisher.transformations", backend.Publisher().CountAllDataTransforms())
 
-	publisherRequest, errs := e.backendFactory.BuildPublisherRequest(executeData.Request, history, backend.Publisher())
+	publisherRequest, errs := e.backendRequestFactory.BuildPublisherRequest(backend, executeData.Request, history)
 	if checker.IsEmpty(errs) {
 		return publisherRequest, nil
-	} else if backend.Publisher().HasMessage() && backend.Publisher().Message().ContinueOnError() {
+	} else if backend.Execution().ContinueOn(enum.ExecutionOnBuild) {
 		for _, err := range errs {
-			e.backendLog.PrintWarn(executeData, backend, err)
+			e.backendLog.PrintWarnf(executeData, backend, "error build PUBLISHER backend request: %s", err)
 		}
 		return publisherRequest, nil
 	}
 
-	return publisherRequest, errors.JoinInheritf(
+	return nil, errors.JoinInheritf(
 		errs, ", ",
-		"failed to build publisher request (endpoint=%s broker=%s path=%s)",
-		executeData.Endpoint.Path(),
+		"failed to build PUBLISHER backend request (id=%s broker=%s path=%s)",
+		backend.ID(),
 		backend.Publisher().Broker(),
 		backend.Publisher().Path(),
 	)
+}
+
+func (e endpointUseCase) buildEndpointResponse(
+	ctx context.Context,
+	executeData dto.ExecuteEndpoint,
+	history *aggregate.History,
+) *vo.EndpointResponse {
+	span, ctx := apm.StartSpan(ctx, "endpoint.response", "factory")
+	defer span.End()
+
+	err := e.buildFinalBackendResponses(executeData, history)
+	if checker.NonNil(err) {
+		return e.endpointResponseFactory.BuildErrorResponse(executeData.Endpoint, err)
+	}
+
+	endpointResponse, errs := e.endpointResponseFactory.BuildResponse(executeData.Endpoint, executeData.Request, history)
+	if checker.IsEmpty(errs) {
+		return endpointResponse
+	} else if executeData.Endpoint.Execution().ContinueOn(enum.ExecutionOnBuild) {
+		for _, err = range errs {
+			e.endpointLog.PrintWarnf(executeData, "error build endpoint response: %s", err)
+		}
+		return endpointResponse
+	}
+
+	return e.endpointResponseFactory.BuildErrorResponse(executeData.Endpoint, errors.JoinInheritf(
+		errs, ", ",
+		"failed to build endpoint response (method=%s path=%s)",
+		executeData.Endpoint.Method(),
+		executeData.Endpoint.Path(),
+	))
+}
+
+func (e endpointUseCase) buildFinalBackendResponses(executeData dto.ExecuteEndpoint, history *aggregate.History) error {
+	var allErrs []error
+	for i := 0; checker.IsLessThan(i, history.Size()); i++ {
+		backend, response := history.Get(i)
+
+		var (
+			finalResponse *vo.BackendResponse
+			err           error
+		)
+		finalResponse, err = e.buildFinalBackendResponse(executeData, backend, response, history)
+		if checker.NonNil(err) {
+			allErrs = append(allErrs, err)
+			continue
+		}
+
+		history.Add(i, backend, finalResponse)
+	}
+	if checker.IsNotEmpty(allErrs) {
+		return errors.JoinInheritf(
+			allErrs, ", ",
+			"failed to build final backend responses (method=%s path=%s)",
+			executeData.Endpoint.Method(),
+			executeData.Endpoint.Path(),
+		)
+	}
+	return nil
+}
+
+func (e endpointUseCase) buildFinalBackendResponse(
+	executeData dto.ExecuteEndpoint,
+	backend *vo.BackendConfig,
+	response *vo.BackendResponse,
+	history *aggregate.History,
+) (*vo.BackendResponse, error) {
+	finalBackendResponse, errs := e.backendResponseFactory.BuildFinalResponse(backend, response, executeData.Request, history)
+
+	if checker.IsEmpty(errs) {
+		return finalBackendResponse, nil
+	} else if backend.Execution().ContinueOn(enum.ExecutionOnBuild) {
+		for _, err := range errs {
+			e.backendLog.PrintWarnf(executeData, backend, "error build final backend response: %s", err)
+		}
+		return finalBackendResponse, nil
+	}
+
+	return nil, errors.JoinInheritf(
+		errs, ", ",
+		"failed to build final backend response (endpoint=%s id=%s)",
+		executeData.Endpoint.Path(),
+		backend.ID(),
+	)
+}
+
+func (e endpointUseCase) panicAsError(ctx context.Context, where string, r any) error {
+	err := errors.Newf("panic in backend goroutine (%s): %v", where, r)
+
+	apm.CaptureError(ctx, err).Send()
+
+	return err
+}
+
+func (e endpointUseCase) writeBackendResponseOnCacheIfNeeded(
+	ctx context.Context,
+	executeData dto.ExecuteEndpoint,
+	backend *vo.BackendConfig,
+	history *aggregate.History,
+	backendResponse *vo.BackendResponse,
+) {
+	if !backend.HasCache() || !backend.AllowCache() || checker.IsNil(backendResponse) || backendResponse.ComesFromCache() {
+		return
+	}
+
+	entry := vo.NewBackendCacheEntry(backend.Cache(), backendResponse)
+
+	err := e.cacheService.Write(ctx, backend.Cache(), entry, executeData.Request, history)
+	if checker.NonNil(err) {
+		e.backendLog.PrintWarnf(executeData, backend, "error to write backend response cache: %v", err)
+	}
+}
+
+func (e endpointUseCase) writeEndpointResponseOnCacheIfNeeded(
+	ctx context.Context,
+	executeData dto.ExecuteEndpoint,
+	history *aggregate.History,
+	response *vo.EndpointResponse,
+) {
+	if !executeData.Endpoint.HasCache() || !executeData.Endpoint.AllowCache() {
+		return
+	}
+
+	entry := vo.NewEndpointCacheEntry(executeData.Endpoint.Cache(), response)
+
+	err := e.cacheService.Write(ctx, executeData.Endpoint.Cache(), entry, executeData.Request, history)
+	if checker.NonNil(err) {
+		e.endpointLog.PrintWarnf(executeData, "error to write endpoint response cache: %v", err)
+	}
 }

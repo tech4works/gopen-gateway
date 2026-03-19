@@ -58,10 +58,10 @@ func (e middlewareLog) PrintError(ctx app.Context, msg ...any) {
 
 func (e middlewareLog) prefix(ctx app.Context) string {
 	path := ctx.Endpoint().Path()
-	traceIDText := BuildTraceIDText(ctx.TraceID())
+	traceIDText := BuildTraceIDText(ctx.Request().TraceID())
 
 	method := BuildTintText(ctx.Endpoint().Method())
-	url := BuildUriText(ctx.Request().URL())
+	url := BuildURIText(ctx.Request().Route())
 
-	return fmt.Sprintf("[%s | %s | %s |%s| %s]", path, ctx.ClientIP(), traceIDText, method, url)
+	return fmt.Sprintf("[%s | %s | %s |%s| %s]", path, ctx.Request().ClientIP(), traceIDText, method, url)
 }

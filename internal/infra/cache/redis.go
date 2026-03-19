@@ -18,16 +18,14 @@ package cache
 
 import (
 	"context"
+	"time"
 
 	"github.com/redis/go-redis/v9"
 	"github.com/tech4works/checker"
 	"github.com/tech4works/compressor"
-	"github.com/tech4works/converter"
 	"github.com/tech4works/decompressor"
 	"github.com/tech4works/errors"
 	"github.com/tech4works/gopen-gateway/internal/domain"
-	"github.com/tech4works/gopen-gateway/internal/domain/mapper"
-	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
 	"go.elastic.co/apm/v2"
 )
 
@@ -44,51 +42,43 @@ func NewRedisStore(address, password string) domain.Store {
 	}
 }
 
-func (r redisStore) Set(ctx context.Context, key string, cacheResponse *vo.CacheResponse) error {
+func (r redisStore) Set(ctx context.Context, key, value string, ttl time.Duration) error {
 	span, ctx := apm.StartSpan(ctx, "global.write", "cache")
 	defer span.End()
 
 	span.Context.SetLabel("key", key)
 
-	b64, err := compressor.ToGzipBase64WithErr(cacheResponse)
+	b64, err := compressor.ToGzipBase64WithErr(value)
 	if checker.NonNil(err) {
 		return err
 	}
 
-	return r.client.Set(ctx, key, b64, cacheResponse.Duration.Time()).Err()
+	return r.client.Set(ctx, key, b64, ttl).Err()
 }
 
 func (r redisStore) Del(ctx context.Context, key string) error {
-	return r.client.Del(ctx, key).Err()
-}
-
-func (r redisStore) Get(ctx context.Context, key string) (*vo.CacheResponse, error) {
 	span, ctx := apm.StartSpan(ctx, "global.read", "cache")
 	defer span.End()
 
 	span.Context.SetLabel("key", key)
-	span.Context.SetLabel("cache", "GLOBAL")
+
+	return r.client.Del(ctx, key).Err()
+}
+
+func (r redisStore) Get(ctx context.Context, key string) (string, error) {
+	span, ctx := apm.StartSpan(ctx, "global.read", "cache")
+	defer span.End()
+
 	span.Context.SetLabel("key", key)
 
 	cacheGzipBase64, err := r.client.Get(ctx, key).Result()
 	if errors.Is(err, redis.Nil) {
-		return nil, mapper.NewErrCacheNotFound(key)
+		return "", domain.NewErrCacheNotFound(key)
 	} else if checker.NonNil(err) {
-		return nil, err
+		return "", err
 	}
 
-	bs, err := decompressor.ToBytesWithErr(decompressor.TypeGzipBase64, cacheGzipBase64)
-	if checker.NonNil(err) {
-		return nil, err
-	}
-
-	var cacheResponse vo.CacheResponse
-	err = converter.ToDestWithErr(bs, &cacheResponse)
-	if checker.NonNil(err) {
-		return nil, err
-	}
-
-	return &cacheResponse, nil
+	return decompressor.ToStringWithErr(decompressor.TypeGzipBase64, cacheGzipBase64)
 }
 
 func (r redisStore) Close() error {

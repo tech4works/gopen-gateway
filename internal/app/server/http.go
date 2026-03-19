@@ -28,31 +28,26 @@ import (
 	"github.com/tech4works/gopen-gateway/internal/app"
 	"github.com/tech4works/gopen-gateway/internal/app/controller"
 	"github.com/tech4works/gopen-gateway/internal/app/factory"
-	"github.com/tech4works/gopen-gateway/internal/app/middleware"
+	"github.com/tech4works/gopen-gateway/internal/app/interceptor"
 	"github.com/tech4works/gopen-gateway/internal/app/model/dto"
 	"github.com/tech4works/gopen-gateway/internal/app/usecase"
 	"github.com/tech4works/gopen-gateway/internal/domain"
-	domainFactory "github.com/tech4works/gopen-gateway/internal/domain/factory"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
 	"github.com/tech4works/gopen-gateway/internal/domain/service"
-	"golang.ngrok.com/ngrok"
-	"golang.ngrok.com/ngrok/config"
 )
 
 type http struct {
-	net                     *nethttp.Server
-	gopen                   *vo.Gopen
-	log                     app.BootLog
-	router                  app.Router
-	panicRecoveryMiddleware middleware.PanicRecovery
-	logMiddleware           middleware.Log
-	securityCorsMiddleware  middleware.SecurityCors
-	timeoutMiddleware       middleware.Timeout
-	limiterMiddleware       middleware.Limiter
-	validateMiddleware      middleware.PreValidation
-	cacheMiddleware         middleware.Cache
-	staticController        controller.Static
-	endpointController      controller.Endpoint
+	net                      *nethttp.Server
+	gopen                    *vo.GopenConfig
+	log                      app.BootLog
+	router                   app.Router
+	panicRecoveryInterceptor interceptor.PanicRecovery
+	logInterceptor           interceptor.Log
+	securityCorsInterceptor  interceptor.SecurityCors
+	timeoutInterceptor       interceptor.Timeout
+	limiterInterceptor       interceptor.Limiter
+	staticController         controller.Static
+	endpointController       controller.Endpoint
 }
 
 type HTTP interface {
@@ -89,25 +84,24 @@ func New(
 	buildPipelineService := service.NewBuildPipeline(modifierService, joinService, mapperService, projectorService,
 		omitterService, nomenclatureService, contentService, aggregatorService, dynamicValueService)
 	limiterService := service.NewLimiter()
-	securityCorsService := service.NewSecurityCors()
-	cacheService := service.NewCache(store)
+	securityCorsService := service.NewSecurityCors(dynamicValueService)
+	cacheService := service.NewCache(dynamicValueService, store)
 
 	log.PrintInfo("Building factories...")
-	httpBackendFactory := domainFactory.NewBackend(buildPipelineService)
-	httpResponseFactory := domainFactory.NewHTTPResponse(aggregatorService, buildPipelineService)
+	backendRequestFactory := factory.NewBackendRequest(buildPipelineService)
+	backendResponseFactory := factory.NewBackendResponse(buildPipelineService)
+	endpointResponseFactory := factory.NewEndpointResponse(aggregatorService, buildPipelineService)
 
 	log.PrintInfo("Building use cases...")
-	endpointUseCase := usecase.NewEndpoint(dynamicValueService, httpBackendFactory, httpResponseFactory, httpClient,
-		publisherClient, endpointLog, backendLog)
+	endpointUseCase := usecase.NewEndpoint(dynamicValueService, cacheService, backendRequestFactory,
+		backendResponseFactory, endpointResponseFactory, httpClient, publisherClient, endpointLog, backendLog)
 
 	log.PrintInfo("Building middlewares...")
-	panicRecoveryMiddleware := middleware.NewPanicRecovery(middlewareLog)
-	logMiddleware := middleware.NewLog(httpLog)
-	securityCorsMiddleware := middleware.NewSecurityCors(securityCorsService)
-	timeoutMiddleware := middleware.NewTimeout()
-	validateMiddleware := middleware.NewPrevalidate()
-	limiterMiddleware := middleware.NewLimiter(limiterService)
-	cacheMiddleware := middleware.NewCache(cacheService, middlewareLog)
+	panicRecoveryInterceptor := interceptor.NewPanicRecovery(middlewareLog)
+	logInterceptor := interceptor.NewLog(httpLog)
+	securityCorsInterceptor := interceptor.NewSecurityCors(securityCorsService)
+	timeoutInterceptor := interceptor.NewTimeout()
+	limiterInterceptor := interceptor.NewLimiter(limiterService)
 
 	log.PrintInfo("Building controllers...")
 	staticController := controller.NewStatic(gopen)
@@ -115,24 +109,22 @@ func New(
 
 	log.PrintInfo("Building value objects...")
 	return &http{
-		gopen:                   factory.BuildGopen(gopen),
-		log:                     log,
-		router:                  router,
-		panicRecoveryMiddleware: panicRecoveryMiddleware,
-		logMiddleware:           logMiddleware,
-		timeoutMiddleware:       timeoutMiddleware,
-		limiterMiddleware:       limiterMiddleware,
-		validateMiddleware:      validateMiddleware,
-		cacheMiddleware:         cacheMiddleware,
-		securityCorsMiddleware:  securityCorsMiddleware,
-		staticController:        staticController,
-		endpointController:      endpointController,
+		gopen:                    factory.BuildGopen(gopen),
+		log:                      log,
+		router:                   router,
+		panicRecoveryInterceptor: panicRecoveryInterceptor,
+		logInterceptor:           logInterceptor,
+		timeoutInterceptor:       timeoutInterceptor,
+		limiterInterceptor:       limiterInterceptor,
+		securityCorsInterceptor:  securityCorsInterceptor,
+		staticController:         staticController,
+		endpointController:       endpointController,
 	}
 }
 
 func (h *http) ListenAndServe() {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	//ctx, cancel := context.WithCancel(context.Background())
+	//defer cancel()
 
 	h.log.PrintInfo("Configuring routes...")
 
@@ -145,22 +137,27 @@ func (h *http) ListenAndServe() {
 
 	var listener net.Listener
 	var err error
-	if h.gopen.HasProxy() {
-		h.log.PrintInfo("Configuring proxy...")
 
-		var opts []config.HTTPEndpointOption
-		for _, d := range h.gopen.Proxy().Domains() {
-			opts = append(opts, config.WithDomain(d))
-		}
+	// todo: revisar
+	//if h.gopen.HasProxy() {
+	//	h.log.PrintInfo("Configuring proxy...")
+	//
+	//	var opts []config.HTTPEndpointOption
+	//	for _, d := range h.gopen.Proxy().Domains() {
+	//		opts = append(opts, config.WithDomain(d))
+	//	}
+	//
+	//	listener, err = ngrok.Listen(
+	//		ctx,
+	//		config.HTTPEndpoint(opts...),
+	//		ngrok.WithAuthtoken(h.gopen.Proxy().Token()),
+	//	)
+	//} else {
+	//	listener, err = net.Listen("tcp", fmt.Sprint(":", os.Getenv("PORT")))
+	//}
 
-		listener, err = ngrok.Listen(
-			ctx,
-			config.HTTPEndpoint(opts...),
-			ngrok.WithAuthtoken(h.gopen.Proxy().Token()),
-		)
-	} else {
-		listener, err = net.Listen("tcp", fmt.Sprint(":", os.Getenv("PORT")))
-	}
+	listener, err = net.Listen("tcp", fmt.Sprint(":", os.Getenv("PORT")))
+
 	if checker.NonNil(err) {
 		panic(err)
 	}
@@ -195,46 +192,35 @@ func (h *http) buildStaticRoutes() {
 
 	versionEndpoint := h.buildStaticVersionRoute()
 	h.log.PrintInfof(formatLog, versionEndpoint.Method(), versionEndpoint.Path())
-
-	settingsEndpoint := h.buildStaticSettingsRoute()
-	h.log.PrintInfof(formatLog, settingsEndpoint.Method(), settingsEndpoint.Path())
 }
 
-func (h *http) buildStaticPingRoute() *vo.Endpoint {
-	endpoint := vo.NewEndpointStatic("/ping", nethttp.MethodGet)
+func (h *http) buildStaticPingRoute() *vo.EndpointConfig {
+	endpoint := vo.NewEndpointConfigStatic("/ping", nethttp.MethodGet)
 	h.buildStaticRoute(&endpoint, h.staticController.Ping)
 	return &endpoint
 }
 
-func (h *http) buildStaticVersionRoute() *vo.Endpoint {
-	endpoint := vo.NewEndpointStatic("/version", nethttp.MethodGet)
+func (h *http) buildStaticVersionRoute() *vo.EndpointConfig {
+	endpoint := vo.NewEndpointConfigStatic("/version", nethttp.MethodGet)
 	h.buildStaticRoute(&endpoint, h.staticController.Version)
 	return &endpoint
 }
 
-func (h *http) buildStaticSettingsRoute() *vo.Endpoint {
-	endpoint := vo.NewEndpointStatic("/settings", nethttp.MethodGet)
-	h.buildStaticRoute(&endpoint, h.staticController.Settings)
-	return &endpoint
-}
-
-func (h *http) buildStaticRoute(endpointStatic *vo.Endpoint, handler app.HandlerFunc) {
-	timeoutHandler := h.timeoutMiddleware.Do
-	panicHandler := h.panicRecoveryMiddleware.Do
-	logHandler := h.logMiddleware.Do
-	limiterHandler := h.limiterMiddleware.Do
+func (h *http) buildStaticRoute(endpointStatic *vo.EndpointConfig, handler app.HandlerFunc) {
+	timeoutHandler := h.timeoutInterceptor.Do
+	panicHandler := h.panicRecoveryInterceptor.Do
+	logHandler := h.logInterceptor.Do
+	limiterHandler := h.limiterInterceptor.Do
 	h.router.Handle(h.gopen, endpointStatic, timeoutHandler, panicHandler, logHandler, limiterHandler, handler)
 }
 
 func (h *http) buildEndpointHandles() []app.HandlerFunc {
 	return []app.HandlerFunc{
-		h.timeoutMiddleware.Do,
-		h.panicRecoveryMiddleware.Do,
-		h.logMiddleware.Do,
-		h.securityCorsMiddleware.Do,
-		h.limiterMiddleware.Do,
-		h.validateMiddleware.Do,
-		h.cacheMiddleware.Do,
-		h.endpointController.Execute,
+		h.panicRecoveryInterceptor.Do,
+		h.timeoutInterceptor.Do,
+		h.logInterceptor.Do,
+		h.securityCorsInterceptor.Do,
+		h.limiterInterceptor.Do,
+		h.endpointController.Do,
 	}
 }

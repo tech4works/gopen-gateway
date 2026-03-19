@@ -21,100 +21,100 @@ import (
 	"github.com/tech4works/converter"
 	"github.com/tech4works/errors"
 	"github.com/tech4works/gopen-gateway/internal/domain"
-	"github.com/tech4works/gopen-gateway/internal/domain/mapper"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/aggregate"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
 )
 
-type aggregatorService struct {
+type aggregator struct {
 	jsonPath domain.JSONPath
 }
 
 type Aggregator interface {
-	AggregateHeaders(base, header vo.Header) vo.Header
-	AggregateBodyToKey(key string, body *vo.Body) (*vo.Body, error)
-	AggregateBodiesIntoSlice(history *aggregate.History) (*vo.Body, []error)
-	AggregateBodies(history *aggregate.History) (*vo.Body, []error)
+	AggregateMetadata(base, value vo.Metadata, ignoreKeys []string) vo.Metadata
+	AggregatePayloadToKey(key string, payload *vo.Payload) (*vo.Payload, error)
+	AggregatePayloadsIntoSlice(history *aggregate.History) (*vo.Payload, []error)
+	AggregatePayloads(history *aggregate.History) (*vo.Payload, []error)
 }
 
 func NewAggregator(jsonPath domain.JSONPath) Aggregator {
-	return aggregatorService{
+	return aggregator{
 		jsonPath: jsonPath,
 	}
 }
 
-func (a aggregatorService) AggregateHeaders(base, value vo.Header) vo.Header {
+func (a aggregator) AggregateMetadata(base, value vo.Metadata, ignoreKeys []string) vo.Metadata {
 	aggregated := base.Copy()
 	for _, key := range value.Keys() {
-		if mapper.IsNotHeaderMandatoryKey(key) {
+		if checker.NotContains(ignoreKeys, key) {
 			aggregated[key] = append(aggregated[key], value.GetAll(key)...)
 		}
 	}
-	return vo.NewHeader(aggregated)
+	return vo.NewMetadata(aggregated)
 }
 
-func (a aggregatorService) AggregateBodyToKey(key string, body *vo.Body) (*vo.Body, error) {
-	if checker.IsEmpty(key) || body.ContentType().IsNotJSON() || checker.IsNil(body) {
-		return body, nil
+func (a aggregator) AggregatePayloadToKey(key string, payload *vo.Payload) (*vo.Payload, error) {
+	if checker.IsEmpty(key) ||
+		checker.IsNil(payload) ||
+		(payload.ContentType().IsNotJSON() && payload.ContentType().IsNotPlainText()) {
+		return payload, nil
 	}
 
-	raw, err := body.Raw()
+	raw, err := payload.Raw()
 	if checker.NonNil(err) {
-		return body, errors.Inheritf(err, "aggregator failed: op=raw key=%s", key)
+		return payload, errors.Inheritf(err, "aggregator failed: op=raw key=%s", key)
 	}
 
 	jsonValue, err := a.jsonPath.Set("{}", key, raw)
 	if checker.NonNil(err) {
-		return body, errors.Inheritf(err, "aggregator failed: op=set key=%s", key)
+		return payload, errors.Inheritf(err, "aggregator failed: op=set key=%s", key)
 	}
 
 	buffer, err := converter.ToBufferWithErr(jsonValue)
 	if checker.NonNil(err) {
-		return body, errors.Inheritf(err, "aggregator failed: op=buffer key=%s", key)
+		return payload, errors.Inheritf(err, "aggregator failed: op=buffer key=%s", key)
 	}
 
-	return vo.NewBodyWithContentType(vo.NewContentTypeJson(), buffer), nil
+	return vo.NewPayloadJSON(buffer), nil
 }
 
-func (a aggregatorService) AggregateBodiesIntoSlice(history *aggregate.History) (*vo.Body, []error) {
+func (a aggregator) AggregatePayloadsIntoSlice(history *aggregate.History) (*vo.Payload, []error) {
 	result := "[]"
 
 	var errs []error
 	for i := 0; checker.IsLessThan(i, history.Size()); i++ {
-		backendResponse := history.GetBackendResponse(i)
-		if !backendResponse.Executed() {
+		backendResponse := history.GetResponse(i)
+		if !backendResponse.ShouldInFinalResponse() {
 			continue
 		}
 
 		var err error
 		var raw string
 
-		backendID := history.GetBackendID(i)
-		defaultJSON := a.buildBodyDefaultForSlice(backendResponse)
+		backendID := history.GetID(i)
+		defaultJSON := a.buildPayloadDefaultForSlice(backendResponse)
 
 		if !backendResponse.HasBody() {
 			result, err = a.jsonPath.AppendOnArray(result, defaultJSON)
 			if checker.NonNil(err) {
-				errs = append(errs, errors.Inheritf(
-					err, "aggregator failed: op=append-default idx=%d backend=%s", i, backendID))
+				errs = append(errs, errors.Inheritf(err, "aggregator failed: op=append-default idx=%d backend=%s",
+					i, backendID))
 			}
 			continue
 		}
 
-		raw, err = backendResponse.Body().Raw()
+		raw, err = backendResponse.Payload().Raw()
 		if checker.NonNil(err) {
-			errs = append(errs, errors.Inheritf(err,
-				"aggregator failed: op=raw idx=%d backend=%s", i, backendID))
+			errs = append(errs, errors.Inheritf(err, "aggregator failed: op=raw idx=%d backend=%s", i, backendID))
 
 			result, err = a.jsonPath.AppendOnArray(result, defaultJSON)
 			if checker.NonNil(err) {
-				errs = append(errs, errors.Inheritf(err,
-					"aggregator failed: op=append-default idx=%d backend=%s", i, backendID))
+				errs = append(errs, errors.Inheritf(err, "aggregator failed: op=append-default idx=%d backend=%s",
+					i, backendID))
 			}
 			continue
 		}
 
-		newJsonStr, mergeErrs := a.merge(defaultJSON, backendID, raw)
+		newJSONStr, mergeErrs := a.merge(defaultJSON, backendID, raw)
 		if checker.IsNotEmpty(mergeErrs) {
 			for _, me := range mergeErrs {
 				errs = append(errs, errors.Inheritf(me, "aggregator failed: op=merge idx=%d backend=%s", i, backendID))
@@ -128,7 +128,7 @@ func (a aggregatorService) AggregateBodiesIntoSlice(history *aggregate.History) 
 			continue
 		}
 
-		result, err = a.jsonPath.AppendOnArray(result, newJsonStr)
+		result, err = a.jsonPath.AppendOnArray(result, newJSONStr)
 		if checker.NonNil(err) {
 			errs = append(errs, errors.Inheritf(err, "aggregator failed: op=append-merged idx=%d backend=%s",
 				i, backendID))
@@ -142,31 +142,31 @@ func (a aggregatorService) AggregateBodiesIntoSlice(history *aggregate.History) 
 		}
 	}
 
-	return a.buildBodyJson(result, errs)
+	return a.buildPayloadJSON(result, errs)
 }
 
-func (a aggregatorService) AggregateBodies(history *aggregate.History) (*vo.Body, []error) {
+func (a aggregator) AggregatePayloads(history *aggregate.History) (*vo.Payload, []error) {
 	result := "{}"
 
 	var errs []error
 	for i := 0; checker.IsLessThan(i, history.Size()); i++ {
-		backendResponse := history.GetBackendResponse(i)
-		if !backendResponse.Executed() {
+		backendResponse := history.GetResponse(i)
+		if !backendResponse.ShouldInFinalResponse() {
 			continue
 		}
 
 		var err error
 		var raw string
 
-		backendID := history.GetBackendID(i)
+		backendID := history.GetID(i)
 
-		raw, err = backendResponse.Body().Raw()
+		raw, err = backendResponse.Payload().Raw()
 		if checker.NonNil(err) {
 			errs = append(errs, errors.Inheritf(err, "aggregator failed: op=raw idx=%d backend=%s", i, backendID))
 			continue
 		}
 
-		newJsonStr, mergeErrs := a.merge(result, backendID, raw)
+		newJSONStr, mergeErrs := a.merge(result, backendID, raw)
 		if checker.IsNotEmpty(mergeErrs) {
 			for _, me := range mergeErrs {
 				errs = append(errs, errors.Inheritf(me, "aggregator failed: op=merge idx=%d backend=%s", i, backendID))
@@ -174,36 +174,36 @@ func (a aggregatorService) AggregateBodies(history *aggregate.History) (*vo.Body
 			continue
 		}
 
-		result = newJsonStr
+		result = newJSONStr
 	}
 
-	return a.buildBodyJson(result, errs)
+	return a.buildPayloadJSON(result, errs)
 }
 
-func (a aggregatorService) buildBodyDefaultForSlice(backendResponse vo.BackendPolymorphicResponse) string {
+func (a aggregator) buildPayloadDefaultForSlice(backendResponse *vo.BackendResponse) string {
 	jsonStr := "{}"
 	jsonStr, _ = a.jsonPath.Set(jsonStr, "ok", converter.ToString(backendResponse.OK()))
-	jsonStr, _ = a.jsonPath.Set(jsonStr, "code", backendResponse.StatusCode().String())
+	jsonStr, _ = a.jsonPath.Set(jsonStr, "code", backendResponse.Status().String())
 
 	return jsonStr
 }
 
-func (a aggregatorService) merge(jsonStr, key, raw string) (string, []error) {
+func (a aggregator) merge(jsonStr, key, raw string) (string, []error) {
 	if checker.IsNotJSON(raw) || checker.IsSlice(raw) {
 		return a.mergeJSONInKey(jsonStr, key, raw)
 	}
 	return a.mergeJSON(jsonStr, raw)
 }
 
-func (a aggregatorService) mergeJSONInKey(jsonStr, key, raw string) (string, []error) {
-	newJsonStr, err := a.jsonPath.Set(jsonStr, key, raw)
+func (a aggregator) mergeJSONInKey(jsonStr, key, raw string) (string, []error) {
+	newJSONStr, err := a.jsonPath.Set(jsonStr, key, raw)
 	if checker.NonNil(err) {
 		return jsonStr, errors.InheritAsSlicef(err, "aggregator failed: op=set backendKey=%s", key)
 	}
-	return newJsonStr, nil
+	return newJSONStr, nil
 }
 
-func (a aggregatorService) mergeJSON(jsonStr, raw string) (string, []error) {
+func (a aggregator) mergeJSON(jsonStr, raw string) (string, []error) {
 	var result string
 	var errs []error
 
@@ -221,11 +221,11 @@ func (a aggregatorService) mergeJSON(jsonStr, raw string) (string, []error) {
 	return result, errs
 }
 
-func (a aggregatorService) buildBodyJson(result string, errs []error) (*vo.Body, []error) {
+func (a aggregator) buildPayloadJSON(result string, errs []error) (*vo.Payload, []error) {
 	buffer, err := converter.ToBufferWithErr(result)
 	if checker.NonNil(err) {
 		return nil, append(errs, errors.Inherit(err, "aggregator failed: op=buffer"))
 	}
 
-	return vo.NewBodyWithContentType(vo.NewContentTypeJson(), buffer), errs
+	return vo.NewPayloadJSON(buffer), errs
 }

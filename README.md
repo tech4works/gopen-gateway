@@ -1,6 +1,6 @@
 <img src="assets/logo.png" alt="">
 
-[![Project status](https://img.shields.io/badge/version-v2.0.0-gree.svg)](https://github.com/tech4works/gopen-gateway/releases/tag/v2.0.0)
+[![Project status](https://img.shields.io/badge/version-v2.0.0_BETA-yellow.svg)](https://github.com/tech4works/gopen-gateway/releases/tag/v2.0.0-beta)
 [![Playground](https://img.shields.io/badge/%F0%9F%8F%90-playground-9900cc.svg)](https://github.com/tech4works/gopen-gateway-playground)
 [![Docker](https://badgen.net/badge/icon/docker?icon=docker&label)](https://hub.docker.com/r/tech4works/gopen-gateway)
 [![Go Report Card](https://goreportcard.com/badge/github.com/tech4works/gopen-gateway)](https://goreportcard.com/report/github.com/tech4works/gopen-gateway)
@@ -21,7 +21,7 @@ para uma aplicação, induzindo-o a fazer o upgrade.
 Com essa nova API Gateway você não precisará equilibrar pratos para economizar na sua infraestrutura e arquitetura,
 e ainda otimizará o seu desenvolvimento, veja abaixo todos os recursos disponíveis:
 
-- Json de configuração e ENVs simplificado para múltiplos ambientes.
+- JSON de configuração e ENVs simplificado para múltiplos ambientes.
 
 
 - Timeout granular, com uma configuração padrão, mas podendo especificar para cada endpoint.
@@ -2046,7 +2046,7 @@ Vamos ver alguns exemplos abaixo para melhor entendimento.
 Nesse exemplo trabalharemos apenas com um único backend, veja como a API Gateway se comportará ao responder
 a esse cenário:
 
-Json de configuração
+JSON de configuração
 
 ```json
 {
@@ -2140,7 +2140,7 @@ como esses backends são omitidos ao cliente final se tiverem sucesso, vamos sim
 para que o [beforeware](#endpointbeforewares) retorne um erro, e depois um [afterware](#endpointafterwares) que
 responderá também um erro, pois não existe, vamos lá!
 
-Json de configuração
+JSON de configuração
 
 ```json
 {
@@ -2252,7 +2252,7 @@ Veja mais sobre a [resposta abortada](#resposta-abortada).
 
 Nesse exemplo iremos trabalhar com três [backends](#endpointbackends) principais no endpoint, então, vamos lá!
 
-Json de configuração
+JSON de configuração
 
 ```json
 {
@@ -2416,7 +2416,7 @@ resposta, ele não seguirá nenhuma diretriz mostrada no tópico em questão e s
 Nesse exemplo iremos utilizar uma configuração parecida com JSON de configuração do exemplo acima, porém com
 campo [endpoint.response.aggregate](#endpointresponseaggregate) com o valor `true`.
 
-Json de configuração
+JSON de configuração
 
 ```json
 {
@@ -2812,7 +2812,7 @@ Corpo
 
 ```json
 {
-  "file": "middleware/panic_recovery.go",
+  "file": "interceptor/panic_recovery.go",
   "line": 27,
   "endpoint": "/users",
   "message": "gateway panic error occurred! detail: runtime error: invalid memory address or nil pointer dereference",
@@ -2867,7 +2867,7 @@ Corpo
 
 ```json
 {
-  "file": "middleware/timeout.go",
+  "file": "interceptor/timeout.go",
   "line": 81,
   "endpoint": "/users/version",
   "message": "gateway timeout: 5m",

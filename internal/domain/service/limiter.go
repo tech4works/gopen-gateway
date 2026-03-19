@@ -22,72 +22,74 @@ import (
 	"sync"
 
 	"github.com/tech4works/checker"
-	"github.com/tech4works/gopen-gateway/internal/domain/mapper"
+	"github.com/tech4works/gopen-gateway/internal/app"
+	"github.com/tech4works/gopen-gateway/internal/domain"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
 	timerate "golang.org/x/time/rate"
 )
 
-type limiterService struct {
+type limiter struct {
 	keys  map[string]*timerate.Limiter
 	mutex *sync.RWMutex
 }
 
 type Limiter interface {
-	AllowRate(request *vo.HTTPRequest, rate vo.Rate) error
-	AllowSize(request *vo.HTTPRequest, limiter vo.Limiter) error
+	AllowSize(config *vo.LimiterSizeConfig, request *vo.EndpointRequest) error
+	AllowRate(config *vo.LimiterRateConfig, request *vo.EndpointRequest) error
 }
 
 func NewLimiter() Limiter {
-	return &limiterService{
+	return &limiter{
 		keys:  map[string]*timerate.Limiter{},
 		mutex: &sync.RWMutex{},
 	}
 }
 
-func (s *limiterService) AllowRate(request *vo.HTTPRequest, rate vo.Rate) (err error) {
-	if rate.IsEmpty() {
+func (s *limiter) AllowSize(config *vo.LimiterSizeConfig, request *vo.EndpointRequest) error {
+	if checker.IsNil(config) {
+		return nil
+	}
+
+	maxMetadataSize := config.MaxMetadata()
+	if checker.IsGreaterThan(request.Metadata().Size(), maxMetadataSize) {
+		return domain.NewErrLimiterMetadataTooLarge(maxMetadataSize.String())
+	}
+
+	if !request.HasPayload() {
+		return nil
+	}
+
+	maxPayloadSize := config.MaxPayload()
+
+	reader := http.MaxBytesReader(nil, io.NopCloser(request.Payload().Buffer()), int64(maxPayloadSize))
+	defer reader.Close()
+
+	_, err := io.ReadAll(reader)
+	if checker.NonNil(err) {
+		return domain.NewErrLimiterPayloadTooLarge(maxPayloadSize.String())
+	}
+
+	return nil
+}
+
+func (s *limiter) AllowRate(config *vo.LimiterRateConfig, request *vo.EndpointRequest) error {
+	if checker.IsNil(config) {
 		return nil
 	}
 
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	clientIP := request.Header().GetFirst(mapper.XForwardedFor)
+	clientIP := request.Metadata().GetFirst(app.XForwardedFor)
 
 	rateLimiter, exists := s.keys[clientIP]
 	if !exists {
-		rateLimiter = timerate.NewLimiter(timerate.Every(rate.EveryTime()), rate.Capacity())
+		rateLimiter = timerate.NewLimiter(timerate.Every(config.EveryTime()), config.Capacity())
 		s.keys[clientIP] = rateLimiter
 	}
 
 	if !rateLimiter.Allow() {
-		err = mapper.NewErrLimiterTooManyRequests(rate.Capacity(), rate.EveryTime())
-	}
-
-	return err
-}
-
-func (s *limiterService) AllowSize(request *vo.HTTPRequest, limiter vo.Limiter) error {
-	maxHeaderSize := limiter.MaxHeaderSize()
-	if checker.IsGreaterThan(request.Header().Size(), maxHeaderSize) {
-		return mapper.NewErrLimiterHeaderTooLarge(maxHeaderSize.String())
-	}
-
-	maxBodySize := limiter.MaxBodySize()
-	if checker.ContainsIgnoreCase(request.Header().Get(mapper.ContentType), "multipart/form-data") {
-		maxBodySize = limiter.MaxMultipartMemorySize()
-	}
-
-	if !request.HasBody() {
-		return nil
-	}
-
-	reader := http.MaxBytesReader(nil, io.NopCloser(request.Body().Buffer()), int64(maxBodySize))
-	defer reader.Close()
-
-	_, err := io.ReadAll(reader)
-	if checker.NonNil(err) {
-		return mapper.NewErrLimiterPayloadTooLarge(maxBodySize.String())
+		return domain.NewErrLimiterTooManyRequests(config.Capacity(), config.EveryTime())
 	}
 
 	return nil

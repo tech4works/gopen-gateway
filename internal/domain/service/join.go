@@ -29,134 +29,143 @@ import (
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
 )
 
-type joinService struct {
+type join struct {
 	jsonPath            domain.JSONPath
 	dynamicValueService DynamicValue
 }
 
 type Join interface {
-	ExecuteBodyJoins(joins []vo.Join, body *vo.Body, request *vo.HTTPRequest, history *aggregate.History) (*vo.Body, []error)
-	JoinBody(join vo.Join, body *vo.Body, request *vo.HTTPRequest, history *aggregate.History) (*vo.Body, []error)
+	ExecutePayloadJoins(
+		configs []vo.JoinConfig,
+		payload *vo.Payload,
+		request *vo.EndpointRequest,
+		history *aggregate.History,
+	) (*vo.Payload, []error)
+	JoinPayload(
+		config *vo.JoinConfig,
+		payload *vo.Payload,
+		request *vo.EndpointRequest,
+		history *aggregate.History,
+	) (*vo.Payload, []error)
 }
 
 func NewJoin(jsonPath domain.JSONPath, dynamicValueService DynamicValue) Join {
-	return joinService{
+	return join{
 		jsonPath:            jsonPath,
 		dynamicValueService: dynamicValueService,
 	}
 }
 
-func (s joinService) ExecuteBodyJoins(
-	joins []vo.Join,
-	body *vo.Body,
-	request *vo.HTTPRequest,
+func (s join) ExecutePayloadJoins(
+	configs []vo.JoinConfig,
+	payload *vo.Payload,
+	request *vo.EndpointRequest,
 	history *aggregate.History,
-) (*vo.Body, []error) {
-	if checker.IsNil(body) {
+) (*vo.Payload, []error) {
+	if checker.IsNil(payload) {
 		return nil, nil
 	}
 
 	var allErrs []error
 
-	for _, join := range joins {
-		newBody, errs := s.JoinBody(join, body, request, history)
+	for _, config := range configs {
+		newPayload, errs := s.JoinPayload(&config, payload, request, history)
 		if checker.IsNotEmpty(errs) {
 			allErrs = append(allErrs, errs...)
 		}
-		body = newBody
+		payload = newPayload
 	}
 
-	return body, allErrs
+	return payload, allErrs
 }
 
-func (s joinService) JoinBody(
-	join vo.Join,
-	body *vo.Body,
-	request *vo.HTTPRequest,
+func (s join) JoinPayload(
+	config *vo.JoinConfig,
+	payload *vo.Payload,
+	request *vo.EndpointRequest,
 	history *aggregate.History,
-) (*vo.Body, []error) {
-	if checker.IsNil(body) || body.ContentType().IsNotJSON() {
-		return body, nil
+) (*vo.Payload, []error) {
+	if checker.IsNil(payload) || payload.ContentType().IsNotJSON() {
+		return payload, nil
 	}
 
-	shouldRun, err := s.evalJoinGuards(join, request, history)
+	shouldRun, err := s.evalJoinGuards(config, request, history)
 	if checker.NonNil(err) {
-		return body, errors.InheritAsSlicef(err, "join failed: op=eval-guards source.path=%s target.path=%s",
-			join.Source().Path(), join.Target().Path())
-	}
-	if !shouldRun {
-		return body, nil
+		return payload, errors.InheritAsSlicef(err, "join failed: op=eval-guards source.path=%s target.path=%s",
+			config.Source().Path(), config.Target().Path())
+	} else if !shouldRun {
+		return payload, nil
 	}
 
-	source, err := s.getSourceByPath(join, request, history)
+	source, err := s.getSourceByPath(config, request, history)
 	if checker.NonNil(err) {
-		return body, errors.InheritAsSlicef(err, "join failed: op=get-source source.path=%s",
-			join.Source().Path())
+		return payload, errors.InheritAsSlicef(err, "join failed: op=get-source source.path=%s",
+			config.Source().Path())
 	}
 
-	target, err := s.getTargetByPath(join, body)
+	target, err := s.getTargetByPath(config, payload)
 	if checker.NonNil(err) {
-		return body, errors.InheritAsSlicef(err, "join failed: op=get-target target.path=%s",
-			join.Target().Path())
+		return payload, errors.InheritAsSlicef(err, "join failed: op=get-target target.path=%s",
+			config.Target().Path())
 	}
 
-	if err = s.assertPathsAndTypes(join, source, target); checker.NonNil(err) {
-		return body, errors.InheritAsSlicef(err, "join failed: op=assert-paths-types source.path=%s target.path=%s",
-			join.Source().Path(), join.Target().Path())
+	if err = s.assertPathsAndTypes(config, source, target); checker.NonNil(err) {
+		return payload, errors.InheritAsSlicef(err, "join failed: op=assert-paths-types source.path=%s target.path=%s",
+			config.Source().Path(), config.Target().Path())
 	}
 
 	var allErrs []error
 
-	newBody, errs := s.joinByShape(join, body, source, target)
+	newPayload, errs := s.joinByShape(config, payload, source, target)
 	if checker.IsNotEmpty(errs) {
 		for _, e := range errs {
 			allErrs = append(allErrs, errors.Inheritf(e,
 				"join failed: op=join-by-shape source.path=%s source.key=%s target.path=%s target.key=%s target.as=%s",
-				join.Source().Path(), join.Source().Key(), join.Target().Path(), join.Target().Key(),
-				join.Target().As()))
+				config.Source().Path(), config.Source().Key(), config.Target().Path(), config.Target().Key(),
+				config.Target().As()))
 		}
 	}
 
-	newBody, errs = s.applyTargetKeyPolicy(join.Target(), newBody)
+	newPayload, errs = s.applyTargetKeyPolicy(config.Target(), newPayload)
 	if checker.NonNil(err) {
 		for _, e := range errs {
 			allErrs = append(allErrs, errors.Inheritf(e,
 				"join failed: op=apply-target-key-policy source.path=%s source.key=%s target.path=%s target.key=%s target.as=%s",
-				join.Source().Path(), join.Source().Key(), join.Target().Path(), join.Target().Key(),
-				join.Target().As()))
+				config.Source().Path(), config.Source().Key(), config.Target().Path(), config.Target().Key(),
+				config.Target().As()))
 		}
 	}
 
-	return newBody, allErrs
+	return newPayload, allErrs
 }
 
-func (s joinService) joinByShape(
-	join vo.Join,
-	body *vo.Body,
+func (s join) joinByShape(
+	config *vo.JoinConfig,
+	payload *vo.Payload,
 	source,
 	target domain.JSONValue,
-) (*vo.Body, []error) {
+) (*vo.Payload, []error) {
 	switch {
 	case source.Exists() && source.IsArray() && target.Exists() && target.IsArray():
-		return s.joinArrayToArray(join, body, source, target)
+		return s.joinArrayToArray(config, payload, source, target)
 	case source.Exists() && source.IsObject() && target.Exists() && target.IsArray():
-		return s.joinObjectToArray(join, body, source, target)
+		return s.joinObjectToArray(config, payload, source, target)
 	case source.Exists() && source.IsArray() && target.Exists() && target.IsObject():
-		return s.joinArrayToObject(join, body, source, target)
+		return s.joinArrayToObject(config, payload, source, target)
 	case source.Exists() && source.IsObject() && target.Exists() && target.IsObject():
-		return s.joinObjectToObject(join, body, source, target)
+		return s.joinObjectToObject(config, payload, source, target)
 	default:
-		return body, nil
+		return payload, nil
 	}
 }
 
-func (s joinService) joinArrayToArray(
-	join vo.Join,
-	body *vo.Body,
+func (s join) joinArrayToArray(
+	config *vo.JoinConfig,
+	payload *vo.Payload,
 	source,
 	target domain.JSONValue,
-) (*vo.Body, []error) {
-	index := s.buildIndexFromArray(source, join.Source().Key())
+) (*vo.Payload, []error) {
+	index := s.buildIndexFromArray(source, config.Source().Key())
 	out := target.Raw()
 
 	var errs []error
@@ -164,41 +173,41 @@ func (s joinService) joinArrayToArray(
 	target.ForEach(func(_ string, item domain.JSONValue) bool {
 		var err error
 
-		setPath := s.targetJSONPathOnArray(join.Target(), i)
-		targetKey := item.Get(join.Target().Key())
+		setPath := s.targetJSONPathOnArray(config.Target(), i)
+		targetKey := item.Get(config.Target().Key())
 
-		out, err = s.applyMatchOnArrayItem(join, out, setPath, i, targetKey, index)
+		out, err = s.applyMatchOnArrayItem(config, out, setPath, i, targetKey, index)
 		if checker.NonNil(err) {
 			errs = append(errs, errors.Inheritf(err,
 				"join failed: op=apply-match array idx=%d setPath=%s target.key=%s", i, setPath,
-				join.Target().Key()))
+				config.Target().Key()))
 		}
 
 		i++
 		return true
 	})
 
-	newBody, err := s.newBodyByString(body, out)
+	newPayload, err := s.newPayloadByString(payload, out)
 	if checker.NonNil(err) {
 		errs = append(errs, errors.Inheritf(err, "join failed: op=buffer array out"))
 	}
 
-	return newBody, errs
+	return newPayload, errs
 }
 
-func (s joinService) joinObjectToArray(
-	join vo.Join,
-	body *vo.Body,
+func (s join) joinObjectToArray(
+	config *vo.JoinConfig,
+	payload *vo.Payload,
 	source,
 	target domain.JSONValue,
-) (*vo.Body, []error) {
-	sourceKey := strings.TrimSpace(source.Get(join.Source().Key()).String())
+) (*vo.Payload, []error) {
+	sourceKey := strings.TrimSpace(source.Get(config.Source().Key()).String())
 	if checker.IsEmpty(sourceKey) {
-		if join.Target().IsOnMissingError() {
-			return body, errors.NewAsSlicef("join failed: source key missing/empty: source.path=%s; source.key=%s",
-				join.Source().Path(), join.Source().Key())
+		if config.Target().IsOnMissingError() {
+			return payload, errors.NewAsSlicef("join failed: source key missing/empty: source.path=%s; source.key=%s",
+				config.Source().Path(), config.Source().Key())
 		}
-		return body, nil
+		return payload, nil
 	}
 
 	out := target.Raw()
@@ -208,86 +217,86 @@ func (s joinService) joinObjectToArray(
 	target.ForEach(func(_ string, item domain.JSONValue) bool {
 		var err error
 
-		setPath := s.targetJSONPathOnArray(join.Target(), i)
-		targetKey := item.Get(join.Target().Key())
+		setPath := s.targetJSONPathOnArray(config.Target(), i)
+		targetKey := item.Get(config.Target().Key())
 
-		out, err = s.applyObjectMatchOnArrayItem(join, out, setPath, i, targetKey, sourceKey, source.Raw())
+		out, err = s.applyObjectMatchOnArrayItem(config, out, setPath, i, targetKey, sourceKey, source.Raw())
 		if checker.NonNil(err) {
 			errs = append(errs, errors.Inheritf(err, "join failed: op=apply-match array idx=%d setPath=%s target.key=%s",
-				i, setPath, join.Target().Key()))
+				i, setPath, config.Target().Key()))
 		}
 
 		i++
 		return true
 	})
 
-	newBody, err := s.newBodyByString(body, out)
+	newPayload, err := s.newPayloadByString(payload, out)
 	if checker.NonNil(err) {
 		errs = append(errs, errors.Inheritf(err, "join failed: op=buffer array out"))
 	}
 
-	return newBody, errs
+	return newPayload, errs
 }
 
-func (s joinService) joinArrayToObject(
-	join vo.Join,
-	body *vo.Body,
+func (s join) joinArrayToObject(
+	config *vo.JoinConfig,
+	payload *vo.Payload,
 	source,
 	target domain.JSONValue,
-) (*vo.Body, []error) {
-	index := s.buildIndexFromArray(source, join.Source().Key())
-	setPath := s.targetJSONPathOnObject(join.Target())
-	tgtKey := target.Get(join.Target().Key())
+) (*vo.Payload, []error) {
+	index := s.buildIndexFromArray(source, config.Source().Key())
+	setPath := s.targetJSONPathOnObject(config.Target())
+	tgtKey := target.Get(config.Target().Key())
 
 	if tgtKey.NotExists() {
-		return s.onMissingAndRebuildBody(body, target.Raw(), setPath, join, -1, "", "target-key-not-found")
+		return s.onMissingAndRebuildPayload(config, payload, target.Raw(), setPath, -1, "", "target-key-not-found")
 	} else if tgtKey.IsArray() {
-		return s.joinObjectTargetFromIDArray(join, body, target.Raw(), setPath, tgtKey, index)
+		return s.joinObjectTargetFromIDArray(config, payload, target.Raw(), setPath, tgtKey, index)
 	} else {
-		return s.joinObjectTargetFromSingleID(join, body, target.Raw(), setPath, tgtKey, index)
+		return s.joinObjectTargetFromSingleID(config, payload, target.Raw(), setPath, tgtKey, index)
 	}
 }
 
-func (s joinService) joinObjectTargetFromIDArray(
-	join vo.Join,
-	body *vo.Body,
+func (s join) joinObjectTargetFromIDArray(
+	config *vo.JoinConfig,
+	payload *vo.Payload,
 	raw string,
 	setPath string,
 	tgtKey domain.JSONValue,
 	index map[string]string,
-) (*vo.Body, []error) {
-	jsonArr, errs := s.mapTargetIDsToJSONArray(join, -1, tgtKey, index)
+) (*vo.Payload, []error) {
+	jsonArr, errs := s.mapTargetIDsToJSONArray(config, -1, tgtKey, index)
 
 	out, err := s.jsonPath.Set(raw, setPath, jsonArr)
 	if checker.NonNil(err) {
 		errs = append(errs, errors.Inheritf(err, "join failed: op=set setPath=%s mode=array target.path=%s target.as=%s",
-			setPath, join.Target().Path(), join.Target().As()))
+			setPath, config.Target().Path(), config.Target().As()))
 	}
 
-	newBody, err := s.newBodyByString(body, out)
+	newPayload, err := s.newPayloadByString(payload, out)
 	if checker.NonNil(err) {
-		errs = append(errs, errors.Inheritf(err, "join failed: op=build-body array->object"))
+		errs = append(errs, errors.Inheritf(err, "join failed: op=build-payload array->object"))
 	}
 
-	return newBody, errs
+	return newPayload, errs
 }
 
-func (s joinService) joinObjectTargetFromSingleID(
-	join vo.Join,
-	body *vo.Body,
+func (s join) joinObjectTargetFromSingleID(
+	config *vo.JoinConfig,
+	payload *vo.Payload,
 	raw,
 	setPath string,
 	tgtKey domain.JSONValue,
 	index map[string]string,
-) (*vo.Body, []error) {
+) (*vo.Payload, []error) {
 	id := strings.TrimSpace(tgtKey.String())
 	if checker.IsEmpty(id) {
-		return s.onMissingAndRebuildBody(body, raw, setPath, join, -1, id, "target-key-empty")
+		return s.onMissingAndRebuildPayload(config, payload, raw, setPath, -1, id, "target-key-empty")
 	}
 
 	srcRaw, ok := index[id]
 	if !ok {
-		return s.onMissingAndRebuildBody(body, raw, setPath, join, -1, id, "source-not-found")
+		return s.onMissingAndRebuildPayload(config, payload, raw, setPath, -1, id, "source-not-found")
 	}
 
 	var errs []error
@@ -295,34 +304,34 @@ func (s joinService) joinObjectTargetFromSingleID(
 	out, err := s.jsonPath.Set(raw, setPath, srcRaw)
 	if checker.NonNil(err) {
 		errs = append(errs, errors.Inheritf(err, "join failed: op=set setPath=%s mode=single id=%s target.path=%s target.as=%s",
-			setPath, id, join.Target().Path(), join.Target().As()))
+			setPath, id, config.Target().Path(), config.Target().As()))
 	}
 
-	newBody, err := s.newBodyByString(body, out)
+	newPayload, err := s.newPayloadByString(payload, out)
 	if checker.NonNil(err) {
-		errs = append(errs, errors.Inheritf(err, "join failed: op=build-body array->object"))
+		errs = append(errs, errors.Inheritf(err, "join failed: op=build-payload array->object"))
 	}
 
-	return newBody, errs
+	return newPayload, errs
 }
 
-func (s joinService) joinObjectToObject(
-	join vo.Join,
-	body *vo.Body,
+func (s join) joinObjectToObject(
+	config *vo.JoinConfig,
+	payload *vo.Payload,
 	source,
 	target domain.JSONValue,
-) (*vo.Body, []error) {
-	setPath := s.targetJSONPathOnObject(join.Target())
+) (*vo.Payload, []error) {
+	setPath := s.targetJSONPathOnObject(config.Target())
 
-	srcID := strings.TrimSpace(source.Get(join.Source().Key()).String())
-	tgtID := strings.TrimSpace(target.Get(join.Target().Key()).String())
+	srcID := strings.TrimSpace(source.Get(config.Source().Key()).String())
+	tgtID := strings.TrimSpace(target.Get(config.Target().Key()).String())
 
 	raw := target.Raw()
 
 	if checker.IsEmpty(srcID) || checker.IsEmpty(tgtID) {
-		return s.onMissingAndRebuildBody(body, raw, setPath, join, -1, tgtID, "source-or-target-key-empty")
+		return s.onMissingAndRebuildPayload(config, payload, raw, setPath, -1, tgtID, "source-or-target-key-empty")
 	} else if checker.NotEquals(srcID, tgtID) {
-		return s.onMissingAndRebuildBody(body, raw, setPath, join, -1, tgtID, "target-not-equals-source")
+		return s.onMissingAndRebuildPayload(config, payload, raw, setPath, -1, tgtID, "target-not-equals-source")
 	}
 
 	var errs []error
@@ -331,43 +340,43 @@ func (s joinService) joinObjectToObject(
 	if checker.NonNil(err) {
 		errs = append(errs, errors.Inheritf(err,
 			"join failed: op=set reason=target-equals-source setPath=%s id=%s target.as=%s",
-			setPath, tgtID, join.Target().As()))
+			setPath, tgtID, config.Target().As()))
 	}
 
-	newBody, err := s.newBodyByString(body, out)
+	newPayload, err := s.newPayloadByString(payload, out)
 	if checker.NonNil(err) {
-		errs = append(errs, errors.Inheritf(err, "join failed: op=build-body object->object"))
+		errs = append(errs, errors.Inheritf(err, "join failed: op=build-payload object->object"))
 	}
 
-	return newBody, errs
+	return newPayload, errs
 }
 
-func (s joinService) onMissingAndRebuildBody(
-	body *vo.Body,
+func (s join) onMissingAndRebuildPayload(
+	config *vo.JoinConfig,
+	payload *vo.Payload,
 	raw,
 	setPath string,
-	join vo.Join,
 	targetIndex int,
 	targetKeyValue,
 	reason string,
-) (*vo.Body, []error) {
+) (*vo.Payload, []error) {
 	var errs []error
 
-	out, err := s.applyOnMissingSingle(raw, setPath, join, targetIndex, targetKeyValue, reason)
+	out, err := s.applyOnMissingSingle(config, raw, setPath, targetIndex, targetKeyValue, reason)
 	if checker.NonNil(err) {
 		errs = append(errs, errors.Inheritf(err, "join failed: op=apply-missing-single"))
 	}
 
-	newBody, err := s.newBodyByString(body, out)
+	newPayload, err := s.newPayloadByString(payload, out)
 	if checker.NonNil(err) {
-		errs = append(errs, errors.Inheritf(err, "join failed: op=build-body"))
+		errs = append(errs, errors.Inheritf(err, "join failed: op=build-payload"))
 	}
 
-	return newBody, errs
+	return newPayload, errs
 }
 
-func (s joinService) applyMatchOnArrayItem(
-	join vo.Join,
+func (s join) applyMatchOnArrayItem(
+	config *vo.JoinConfig,
 	raw string,
 	setPath string,
 	targetIndex int,
@@ -375,9 +384,9 @@ func (s joinService) applyMatchOnArrayItem(
 	index map[string]string,
 ) (string, error) {
 	if targetKey.NotExists() {
-		return s.applyOnMissingSingle(raw, setPath, join, targetIndex, "", "target-key-not-found")
+		return s.applyOnMissingSingle(config, raw, setPath, targetIndex, "", "target-key-not-found")
 	} else if targetKey.IsArray() {
-		jsonArr, errs := s.mapTargetIDsToJSONArray(join, targetIndex, targetKey, index)
+		jsonArr, errs := s.mapTargetIDsToJSONArray(config, targetIndex, targetKey, index)
 
 		out, err := s.jsonPath.Set(raw, setPath, jsonArr)
 		if checker.NonNil(err) {
@@ -389,7 +398,7 @@ func (s joinService) applyMatchOnArrayItem(
 
 	id := strings.TrimSpace(targetKey.String())
 	if checker.IsEmpty(id) {
-		return s.applyOnMissingSingle(raw, setPath, join, targetIndex, id, "target-key-empty")
+		return s.applyOnMissingSingle(config, raw, setPath, targetIndex, id, "target-key-empty")
 	}
 
 	if srcRaw, ok := index[id]; ok {
@@ -400,11 +409,11 @@ func (s joinService) applyMatchOnArrayItem(
 		return out, nil
 	}
 
-	return s.applyOnMissingSingle(raw, setPath, join, targetIndex, id, "source-not-found")
+	return s.applyOnMissingSingle(config, raw, setPath, targetIndex, id, "source-not-found")
 }
 
-func (s joinService) applyObjectMatchOnArrayItem(
-	join vo.Join,
+func (s join) applyObjectMatchOnArrayItem(
+	config *vo.JoinConfig,
 	raw string,
 	setPath string,
 	targetIndex int,
@@ -413,7 +422,7 @@ func (s joinService) applyObjectMatchOnArrayItem(
 	sourceRaw string,
 ) (string, error) {
 	if targetKey.NotExists() {
-		return s.applyOnMissingSingle(raw, setPath, join, targetIndex, "", "target-key-not-found")
+		return s.applyOnMissingSingle(config, raw, setPath, targetIndex, "", "target-key-not-found")
 	}
 
 	if targetKey.IsArray() {
@@ -434,12 +443,12 @@ func (s joinService) applyObjectMatchOnArrayItem(
 			return out, nil
 		}
 
-		return s.applyOnMissingSingle(raw, setPath, join, targetIndex, sourceKey, "target-array-not-contains-source")
+		return s.applyOnMissingSingle(config, raw, setPath, targetIndex, sourceKey, "target-array-not-contains-source")
 	}
 
 	id := strings.TrimSpace(targetKey.String())
 	if checker.IsEmpty(id) {
-		return s.applyOnMissingSingle(raw, setPath, join, targetIndex, id, "target-key-empty")
+		return s.applyOnMissingSingle(config, raw, setPath, targetIndex, id, "target-key-empty")
 	}
 
 	if checker.Equals(id, sourceKey) {
@@ -450,68 +459,69 @@ func (s joinService) applyObjectMatchOnArrayItem(
 		return out, nil
 	}
 
-	return s.applyOnMissingSingle(raw, setPath, join, targetIndex, id, "target-not-equals-source")
+	return s.applyOnMissingSingle(config, raw, setPath, targetIndex, id, "target-not-equals-source")
 }
 
-func (s joinService) applyTargetKeyPolicy(joinTarget vo.JoinTarget, body *vo.Body) (*vo.Body, []error) {
-	if joinTarget.KeepKey() {
-		return body, nil
+func (s join) applyTargetKeyPolicy(targetConfig vo.JoinConfigTarget, payload *vo.Payload) (*vo.Payload, []error) {
+	if targetConfig.KeepKey() {
+		return payload, nil
 	}
 
-	raw, err := body.Raw()
+	raw, err := payload.Raw()
 	if checker.NonNil(err) {
-		return body, errors.InheritAsSlicef(err, "join failed: op=raw path=%s key=%s", joinTarget.Path(), joinTarget.Key())
+		return payload, errors.InheritAsSlicef(err, "join failed: op=raw path=%s key=%s", targetConfig.Path(),
+			targetConfig.Key())
 	}
 
-	target := s.jsonPath.Get(raw, joinTarget.Path())
+	target := s.jsonPath.Get(raw, targetConfig.Path())
 	if target.NotExists() {
-		return body, nil
+		return payload, nil
 	}
 
 	out := raw
 
 	var errs []error
-	switch joinTarget.Policy() {
+	switch targetConfig.Policy() {
 	case enum.JoinTargetDropKeyAlways:
-		out, errs = s.removeTargetKeyAll(joinTarget, raw, target)
+		out, errs = s.removeTargetKeyAll(targetConfig, raw, target)
 	case enum.JoinTargetDropKeyOnMerged:
-		out, errs = s.removeTargetKeyOnlyMerged(joinTarget, raw, target)
+		out, errs = s.removeTargetKeyOnlyMerged(targetConfig, raw, target)
 	default:
-		return body, nil
+		return payload, nil
 	}
 
-	newBody, err := s.newBodyByString(body, out)
+	newPayload, err := s.newPayloadByString(payload, out)
 	if checker.NonNil(err) {
-		errs = append(errs, errors.Inheritf(err, "join failed: op=build-body"))
+		errs = append(errs, errors.Inheritf(err, "join failed: op=build-payload"))
 	}
 
-	return newBody, errs
+	return newPayload, errs
 }
 
-func (s joinService) getTargetByPath(join vo.Join, body *vo.Body) (domain.JSONValue, error) {
-	targetRaw, err := body.Raw()
+func (s join) getTargetByPath(config *vo.JoinConfig, payload *vo.Payload) (domain.JSONValue, error) {
+	targetRaw, err := payload.Raw()
 	if checker.NonNil(err) {
 		return nil, errors.Inheritf(err, "join failed: op=raw")
 	}
 
-	return s.jsonPath.Get(targetRaw, join.Target().Path()), nil
+	return s.jsonPath.Get(targetRaw, config.Target().Path()), nil
 }
 
-func (s joinService) getSourceByPath(
-	join vo.Join,
-	request *vo.HTTPRequest,
+func (s join) getSourceByPath(
+	config *vo.JoinConfig,
+	request *vo.EndpointRequest,
 	history *aggregate.History,
 ) (domain.JSONValue, error) {
-	sourceValue, sourceErrs := s.dynamicValueService.Get(join.Source().Path(), request, history)
+	sourceValue, sourceErrs := s.dynamicValueService.Get(config.Source().Path(), request, history)
 	if checker.IsNotEmpty(sourceErrs) {
 		return nil, errors.JoinInheritf(sourceErrs, ", ", "join failed: op=resolve-source path=%s key=%s",
-			join.Source().Path(), join.Source().Key())
+			config.Source().Path(), config.Source().Key())
 	}
 	return s.jsonPath.Parse(strings.TrimSpace(sourceValue)), nil
 }
 
-func (s joinService) mapTargetIDsToJSONArray(
-	join vo.Join,
+func (s join) mapTargetIDsToJSONArray(
+	config *vo.JoinConfig,
 	targetIndex int,
 	targetIDs domain.JSONValue,
 	index map[string]string,
@@ -523,7 +533,7 @@ func (s joinService) mapTargetIDsToJSONArray(
 		id := strings.TrimSpace(v.String())
 
 		if checker.IsEmpty(id) {
-			appendIt, value, err := s.applyOnMissingCollection(join, targetIndex, id, "target-key-item-empty")
+			appendIt, value, err := s.applyOnMissingCollection(config, targetIndex, id, "target-key-item-empty")
 			if checker.NonNil(err) {
 				errs = append(errs, errors.Inherit(err, "join failed: missing collection item (empty)"))
 			} else if appendIt {
@@ -537,7 +547,7 @@ func (s joinService) mapTargetIDsToJSONArray(
 			return true
 		}
 
-		appendIt, value, err := s.applyOnMissingCollection(join, targetIndex, id, "source-not-found")
+		appendIt, value, err := s.applyOnMissingCollection(config, targetIndex, id, "source-not-found")
 		if checker.NonNil(err) {
 			errs = append(errs, errors.Inheritf(err, "join failed: source not found: id=%s", id))
 		} else if appendIt {
@@ -549,8 +559,8 @@ func (s joinService) mapTargetIDsToJSONArray(
 	return s.buildJSONArrayRaw(out), errs
 }
 
-func (s joinService) removeTargetKeyAll(
-	joinTarget vo.JoinTarget,
+func (s join) removeTargetKeyAll(
+	joinTarget vo.JoinConfigTarget,
 	raw string,
 	target domain.JSONValue,
 ) (string, []error) {
@@ -586,8 +596,8 @@ func (s joinService) removeTargetKeyAll(
 	return out, errs
 }
 
-func (s joinService) removeTargetKeyOnlyMerged(
-	joinTarget vo.JoinTarget,
+func (s join) removeTargetKeyOnlyMerged(
+	joinTarget vo.JoinConfigTarget,
 	raw string,
 	target domain.JSONValue,
 ) (string, []error) {
@@ -626,7 +636,7 @@ func (s joinService) removeTargetKeyOnlyMerged(
 	return out, errs
 }
 
-func (s joinService) buildJSONArrayRaw(items []string) string {
+func (s join) buildJSONArrayRaw(items []string) string {
 	var b strings.Builder
 	b.WriteByte('[')
 
@@ -647,29 +657,29 @@ func (s joinService) buildJSONArrayRaw(items []string) string {
 	return b.String()
 }
 
-func (s joinService) targetJSONPathOnArray(target vo.JoinTarget, i int) string {
+func (s join) targetJSONPathOnArray(target vo.JoinConfigTarget, i int) string {
 	return fmt.Sprintf("%s.%d.%s", target.Path(), i, target.As())
 }
 
-func (s joinService) targetJSONPathOnObject(target vo.JoinTarget) string {
+func (s join) targetJSONPathOnObject(target vo.JoinConfigTarget) string {
 	return fmt.Sprintf("%s.%s", target.Path(), target.As())
 }
 
-func (s joinService) targetKeyJSONPathOnArray(target vo.JoinTarget, i int) string {
+func (s join) targetKeyJSONPathOnArray(target vo.JoinConfigTarget, i int) string {
 	return fmt.Sprintf("%s.%d.%s", target.Path(), i, target.Key())
 }
 
-func (s joinService) targetKeyJSONPathOnObject(target vo.JoinTarget) string {
+func (s join) targetKeyJSONPathOnObject(target vo.JoinConfigTarget) string {
 	return fmt.Sprintf("%s.%s", target.Path(), target.Key())
 }
 
-func (s joinService) assertPathsAndTypes(join vo.Join, source, target domain.JSONValue) error {
-	if !join.Target().IsOnMissingError() {
+func (s join) assertPathsAndTypes(config *vo.JoinConfig, source, target domain.JSONValue) error {
+	if !config.Target().IsOnMissingError() {
 		return nil
 	} else if !source.Exists() {
-		return errors.Newf("join failed: source path not found: source.path=%s", join.Source().Path())
+		return errors.Newf("join failed: source path not found: source.path=%s", config.Source().Path())
 	} else if !target.Exists() {
-		return errors.Newf("join failed: target path not found: target.path=%s", join.Target().Path())
+		return errors.Newf("join failed: target path not found: target.path=%s", config.Target().Path())
 	}
 
 	if !(source.IsArray() || source.IsObject()) || !(target.IsArray() || target.IsObject()) {
@@ -677,27 +687,27 @@ func (s joinService) assertPathsAndTypes(join vo.Join, source, target domain.JSO
 			"join failed: source/target must be array or object: source.type=%s; target.type=%s; source.path=%s; target.path=%s",
 			source.Type(),
 			target.Type(),
-			join.Source().Path(),
-			join.Target().Path(),
+			config.Source().Path(),
+			config.Target().Path(),
 		)
 	}
 
 	return nil
 }
 
-func (s joinService) evalJoinGuards(
-	join vo.Join,
-	request *vo.HTTPRequest,
+func (s join) evalJoinGuards(
+	config *vo.JoinConfig,
+	request *vo.EndpointRequest,
 	history *aggregate.History,
 ) (bool, error) {
-	shouldRun, _, errs := s.dynamicValueService.EvalGuards(join.OnlyIf(), join.IgnoreIf(), request, history)
+	shouldRun, _, errs := s.dynamicValueService.EvalGuards(config.OnlyIf(), config.IgnoreIf(), request, history)
 	if checker.IsNotEmpty(errs) {
 		return false, errors.JoinInherit(errs, ", ", "failed to evaluate guard for join")
 	}
 	return shouldRun, nil
 }
 
-func (s joinService) buildIndexFromArray(arr domain.JSONValue, key string) map[string]string {
+func (s join) buildIndexFromArray(arr domain.JSONValue, key string) map[string]string {
 	index := map[string]string{}
 	if arr.NotExists() || !arr.IsArray() {
 		return index
@@ -723,41 +733,41 @@ func (s joinService) buildIndexFromArray(arr domain.JSONValue, key string) map[s
 	return index
 }
 
-func (s joinService) applyOnMissingSingle(
+func (s join) applyOnMissingSingle(
+	config *vo.JoinConfig,
 	raw,
 	setPath string,
-	join vo.Join,
 	targetIndex int,
 	targetKeyValue,
 	reason string,
 ) (string, error) {
-	switch join.Target().OnMissing() {
+	switch config.Target().OnMissing() {
 	case enum.JoinTargetOnMissingOmit:
 		return raw, nil
 	case enum.JoinTargetOnMissingError:
 		return raw, errors.Newf(
 			"join failed (missing data): reason=%s; target.path=%s; target.key=%s; target.index=%d; target.value=%s; source.path=%s; source.key=%s; target.as=%s",
 			reason,
-			join.Target().Path(),
-			join.Target().Key(),
+			config.Target().Path(),
+			config.Target().Key(),
 			targetIndex,
 			targetKeyValue,
-			join.Source().Path(),
-			join.Source().Key(),
-			join.Target().As(),
+			config.Source().Path(),
+			config.Source().Key(),
+			config.Target().As(),
 		)
 	default:
 		return s.jsonPath.Set(raw, setPath, "null")
 	}
 }
 
-func (s joinService) applyOnMissingCollection(
-	join vo.Join,
+func (s join) applyOnMissingCollection(
+	config *vo.JoinConfig,
 	targetIndex int,
 	targetKeyValue string,
 	reason string,
 ) (bool, string, error) {
-	switch join.Target().OnMissing() {
+	switch config.Target().OnMissing() {
 	case enum.JoinTargetOnMissingOmit:
 		return false, "", nil
 	case enum.JoinTargetOnMissingNull:
@@ -766,24 +776,24 @@ func (s joinService) applyOnMissingCollection(
 		return false, "", errors.Newf(
 			"join failed (missing data): reason=%s; target.path=%s; target.key=%s; target.index=%d; target.value=%s; source.path=%s; source.key=%s; target.as=%s",
 			reason,
-			join.Target().Path(),
-			join.Target().Key(),
+			config.Target().Path(),
+			config.Target().Key(),
 			targetIndex,
 			targetKeyValue,
-			join.Source().Path(),
-			join.Source().Key(),
-			join.Target().As(),
+			config.Source().Path(),
+			config.Source().Key(),
+			config.Target().As(),
 		)
 	default:
 		return true, "null", nil
 	}
 }
 
-func (s joinService) newBodyByString(body *vo.Body, modifiedBodyJson string) (*vo.Body, error) {
-	buffer, err := converter.ToBufferWithErr(modifiedBodyJson)
+func (s join) newPayloadByString(payload *vo.Payload, modifiedPayload string) (*vo.Payload, error) {
+	buffer, err := converter.ToBufferWithErr(modifiedPayload)
 	if checker.NonNil(err) {
-		return body, err
+		return payload, err
 	}
 
-	return vo.NewBodyWithContentType(body.ContentType(), buffer), nil
+	return vo.NewPayloadWithContentType(payload.ContentType(), buffer), nil
 }

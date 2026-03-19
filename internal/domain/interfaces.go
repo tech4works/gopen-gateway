@@ -18,9 +18,9 @@ package domain
 
 import (
 	"context"
+	"time"
 
 	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
-	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
 )
 
 type Converter interface {
@@ -55,12 +55,12 @@ type JSONValue interface {
 }
 
 type Nomenclature interface {
-	Parse(nomenclature enum.Nomenclature, key string) string
+	Parse(config enum.Nomenclature, key string) string
 }
 
 type Store interface {
-	Set(ctx context.Context, key string, value *vo.CacheResponse) error
+	Set(ctx context.Context, key, value string, ttl time.Duration) error
 	Del(ctx context.Context, key string) error
-	Get(ctx context.Context, key string) (*vo.CacheResponse, error)
+	Get(ctx context.Context, key string) (string, error)
 	Close() error
 }

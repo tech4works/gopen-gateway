@@ -24,242 +24,304 @@ import (
 	"github.com/tech4works/converter"
 	"github.com/tech4works/errors"
 	"github.com/tech4works/gopen-gateway/internal/domain"
-	"github.com/tech4works/gopen-gateway/internal/domain/mapper"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/aggregate"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
 )
 
-type modifierService struct {
+type modifier struct {
 	jsonPath            domain.JSONPath
 	dynamicValueService DynamicValue
 }
 
 type Modifier interface {
-	ExecuteURLPathModifiers(modifiers []vo.Modifier, urlPath vo.URLPath, request *vo.HTTPRequest, history *aggregate.History) (vo.URLPath, []error)
-	ExecuteHeaderModifiers(modifiers []vo.Modifier, header vo.Header, request *vo.HTTPRequest, history *aggregate.History) (vo.Header, []error)
-	ExecuteQueryModifiers(modifiers []vo.Modifier, query vo.Query, request *vo.HTTPRequest, history *aggregate.History) (vo.Query, []error)
-	ExecuteBodyModifiers(modifiers []vo.Modifier, body *vo.Body, request *vo.HTTPRequest, history *aggregate.History) (*vo.Body, []error)
+	ExecuteURLPathModifiers(
+		configs []vo.ModifierConfig,
+		urlPath vo.URLPath,
+		request *vo.EndpointRequest,
+		history *aggregate.History,
+	) (vo.URLPath, []error)
+	ExecuteMetadataModifiers(
+		configs []vo.ModifierConfig,
+		metadata vo.Metadata,
+		ignoreKeys []string,
+		request *vo.EndpointRequest,
+		history *aggregate.History,
+	) (vo.Metadata, []error)
+	ExecuteQueryModifiers(
+		configs []vo.ModifierConfig,
+		query vo.Query,
+		request *vo.EndpointRequest,
+		history *aggregate.History,
+	) (vo.Query, []error)
+	ExecutePayloadModifiers(
+		configs []vo.ModifierConfig,
+		payload *vo.Payload,
+		request *vo.EndpointRequest,
+		history *aggregate.History,
+	) (*vo.Payload, []error)
 
-	ModifyURLPath(modifier *vo.Modifier, urlPath vo.URLPath, request *vo.HTTPRequest, history *aggregate.History) (vo.URLPath, error)
-	ModifyHeader(modifier *vo.Modifier, header vo.Header, request *vo.HTTPRequest, history *aggregate.History) (vo.Header, error)
-	ModifyQuery(modifier *vo.Modifier, query vo.Query, request *vo.HTTPRequest, history *aggregate.History) (vo.Query, error)
-	ModifyBody(modifier *vo.Modifier, body *vo.Body, request *vo.HTTPRequest, history *aggregate.History) (*vo.Body, error)
+	ModifyURLPath(config *vo.ModifierConfig, urlPath vo.URLPath, request *vo.EndpointRequest, history *aggregate.History,
+	) (vo.URLPath, error)
+	ModifyMetadata(
+		config *vo.ModifierConfig,
+		metadata vo.Metadata,
+		ignoreKeys []string,
+		request *vo.EndpointRequest,
+		history *aggregate.History,
+	) (vo.Metadata, error)
+	ModifyQuery(config *vo.ModifierConfig, query vo.Query, request *vo.EndpointRequest, history *aggregate.History) (
+		vo.Query, error)
+	ModifyPayload(config *vo.ModifierConfig, payload *vo.Payload, request *vo.EndpointRequest, history *aggregate.History,
+	) (*vo.Payload, error)
 }
 
 func NewModifier(jsonPath domain.JSONPath, dynamicValueService DynamicValue) Modifier {
-	return modifierService{
+	return modifier{
 		jsonPath:            jsonPath,
 		dynamicValueService: dynamicValueService,
 	}
 }
 
-func (s modifierService) ExecuteBodyModifiers(modifiers []vo.Modifier, body *vo.Body, request *vo.HTTPRequest,
-	history *aggregate.History) (*vo.Body, []error) {
+func (s modifier) ExecutePayloadModifiers(
+	configs []vo.ModifierConfig,
+	payload *vo.Payload,
+	request *vo.EndpointRequest,
+	history *aggregate.History,
+) (*vo.Payload, []error) {
 	var allErrs []error
-	for _, modifier := range modifiers {
+	for _, config := range configs {
 		var err error
 
-		body, err = s.ModifyBody(&modifier, body, request, history)
+		payload, err = s.ModifyPayload(&config, payload, request, history)
 		if checker.NonNil(err) {
-			allErrs = append(allErrs, errors.Inheritf(err, "modifier failed: op=execute kind=body action=%s key=%s value=%s",
-				modifier.Action(), modifier.Key(), modifier.Value()))
+			allErrs = append(allErrs, errors.Inheritf(err, "modifier failed: op=execute kind=payload action=%s key=%s value=%s",
+				config.Action(), config.Key(), config.Value()))
 		}
 	}
-
-	return body, allErrs
+	return payload, allErrs
 }
 
-func (s modifierService) ExecuteURLPathModifiers(modifiers []vo.Modifier, urlPath vo.URLPath, request *vo.HTTPRequest,
-	history *aggregate.History) (vo.URLPath, []error) {
+func (s modifier) ExecuteURLPathModifiers(
+	configs []vo.ModifierConfig,
+	urlPath vo.URLPath,
+	request *vo.EndpointRequest,
+	history *aggregate.History,
+) (vo.URLPath, []error) {
 	var allErrs []error
 
-	for _, modifier := range modifiers {
+	for _, config := range configs {
 		var err error
 
-		urlPath, err = s.ModifyURLPath(&modifier, urlPath, request, history)
+		urlPath, err = s.ModifyURLPath(&config, urlPath, request, history)
 		if checker.NonNil(err) {
 			allErrs = append(allErrs, errors.Inheritf(err, "modifier failed: op=execute kind=url-path action=%s key=%s value=%s",
-				modifier.Action(), modifier.Key(), modifier.Value()))
+				config.Action(), config.Key(), config.Value()))
 		}
 	}
 
 	return urlPath, allErrs
 }
 
-func (s modifierService) ExecuteHeaderModifiers(modifiers []vo.Modifier, header vo.Header, request *vo.HTTPRequest,
-	history *aggregate.History) (vo.Header, []error) {
+func (s modifier) ExecuteMetadataModifiers(
+	configs []vo.ModifierConfig,
+	metadata vo.Metadata,
+	ignoreKeys []string,
+	request *vo.EndpointRequest,
+	history *aggregate.History,
+) (vo.Metadata, []error) {
 	var allErrs []error
 
-	for _, modifier := range modifiers {
+	for _, config := range configs {
 		var err error
 
-		header, err = s.ModifyHeader(&modifier, header, request, history)
+		metadata, err = s.ModifyMetadata(&config, metadata, ignoreKeys, request, history)
 		if checker.NonNil(err) {
-			allErrs = append(allErrs, errors.Inheritf(err, "modifier failed: op=execute kind=header action=%s key=%s value=%s",
-				modifier.Action(), modifier.Key(), modifier.Value()))
+			allErrs = append(allErrs, errors.Inheritf(err, "modifier failed: op=execute kind=metadata action=%s key=%s value=%s",
+				config.Action(), config.Key(), config.Value()))
 		}
 	}
 
-	return header, allErrs
+	return metadata, allErrs
 }
 
-func (s modifierService) ExecuteQueryModifiers(modifiers []vo.Modifier, query vo.Query, request *vo.HTTPRequest,
+func (s modifier) ExecuteQueryModifiers(configs []vo.ModifierConfig, query vo.Query, request *vo.EndpointRequest,
 	history *aggregate.History) (vo.Query, []error) {
 	var allErrs []error
 
-	for _, modifier := range modifiers {
+	for _, config := range configs {
 		var err error
 
-		query, err = s.ModifyQuery(&modifier, query, request, history)
+		query, err = s.ModifyQuery(&config, query, request, history)
 		if checker.NonNil(err) {
 			allErrs = append(allErrs, errors.Inheritf(err, "modifier failed: op=execute kind=query action=%s key=%s value=%s",
-				modifier.Action(), modifier.Key(), modifier.Value()))
+				config.Action(), config.Key(), config.Value()))
 		}
 	}
 
 	return query, allErrs
 }
 
-func (s modifierService) ModifyURLPath(modifier *vo.Modifier, urlPath vo.URLPath, request *vo.HTTPRequest,
+func (s modifier) ModifyURLPath(config *vo.ModifierConfig, urlPath vo.URLPath, request *vo.EndpointRequest,
 	history *aggregate.History) (vo.URLPath, error) {
-	shouldRun, err := s.evalModifierGuards("url path", modifier, request, history)
+	shouldRun, err := s.evalModifierGuards(config, "url-path", request, history)
 	if checker.NonNil(err) {
-		return urlPath, s.wrapModifierErr("url-path", "eval-guards", modifier, err, "")
+		return urlPath, s.wrapModifierErr(config, "url-path", "eval-guards", err, "")
 	} else if !shouldRun {
 		return urlPath, nil
 	}
 
-	action := modifier.Action()
-	key := modifier.Key()
-	value, errs := s.dynamicValueService.Get(modifier.Value(), request, history)
+	action := config.Action()
+	key := config.Key()
+	value, errs := s.dynamicValueService.Get(config.Value(), request, history)
 	if checker.IsNotEmpty(errs) {
-		return urlPath, s.joinDynamicValueErr("url-path", modifier, errs)
+		return urlPath, s.joinDynamicValueErr("url-path", config, errs)
 	}
 
 	switch action {
 	case enum.ModifierActionSet:
 		return s.setURLPath(urlPath, key, value)
-	case enum.ModifierActionRpl:
+	case enum.ModifierActionReplace:
 		return s.replaceURLPath(urlPath, key, value)
-	case enum.ModifierActionDel:
+	case enum.ModifierActionDelete:
 		return s.deleteURLPath(urlPath, key)
 	default:
-		return urlPath, mapper.NewErrModifierActionNotImplemented("url-path", action)
+		return urlPath, domain.NewErrModifierActionNotImplemented("url-path", action)
 	}
 }
 
-func (s modifierService) ModifyHeader(modifier *vo.Modifier, header vo.Header, request *vo.HTTPRequest,
-	history *aggregate.History) (vo.Header, error) {
-	shouldRun, err := s.evalModifierGuards("header", modifier, request, history)
-	if checker.NonNil(err) {
-		return header, s.wrapModifierErr("header", "eval-guards", modifier, err, "")
-	} else if !shouldRun {
-		return header, nil
+func (s modifier) ModifyMetadata(
+	config *vo.ModifierConfig,
+	metadata vo.Metadata,
+	ignoreKeys []string,
+	request *vo.EndpointRequest,
+	history *aggregate.History,
+) (vo.Metadata, error) {
+	if checker.Contains(ignoreKeys, config.Key()) {
+		return metadata, nil
 	}
 
-	action := modifier.Action()
-	key := modifier.Key()
-	values, errs := s.dynamicValueService.GetAsSliceOfString(modifier.Value(), request, history)
+	shouldRun, err := s.evalModifierGuards(config, "metadata", request, history)
+	if checker.NonNil(err) {
+		return metadata, s.wrapModifierErr(config, "metadata", "eval-guards", err, "")
+	} else if !shouldRun {
+		return metadata, nil
+	}
+
+	action := config.Action()
+	key := config.Key()
+	values, errs := s.dynamicValueService.GetAsSliceOfString(config.Value(), request, history)
 	if checker.IsNotEmpty(errs) {
-		return header, s.joinDynamicValueErr("header", modifier, errs)
+		return metadata, s.joinDynamicValueErr("metadata", config, errs)
 	}
 
 	switch action {
 	case enum.ModifierActionAdd:
-		return s.addHeader(header, key, values)
-	case enum.ModifierActionApd:
-		return s.appendHeader(header, key, values)
+		return s.addMetadata(metadata, key, values)
+	case enum.ModifierActionAppend:
+		return s.appendMetadata(metadata, key, values)
 	case enum.ModifierActionSet:
-		return s.setHeader(header, key, values)
-	case enum.ModifierActionRpl:
-		return s.replaceHeader(header, key, values)
-	case enum.ModifierActionDel:
-		return s.deleteHeader(header, key)
+		return s.setMetadata(metadata, key, values)
+	case enum.ModifierActionReplace:
+		return s.replaceMetadata(metadata, key, values)
+	case enum.ModifierActionDelete:
+		return s.deleteMetadata(metadata, key)
 	default:
-		return header, mapper.NewErrModifierActionNotImplemented("header", action)
+		return metadata, domain.NewErrModifierActionNotImplemented("metadata", action)
 	}
 }
 
-func (s modifierService) ModifyQuery(modifier *vo.Modifier, query vo.Query, request *vo.HTTPRequest, history *aggregate.History,
+func (s modifier) ModifyQuery(
+	config *vo.ModifierConfig,
+	query vo.Query,
+	request *vo.EndpointRequest,
+	history *aggregate.History,
 ) (vo.Query, error) {
-	shouldRun, err := s.evalModifierGuards("query", modifier, request, history)
+	shouldRun, err := s.evalModifierGuards(config, "query", request, history)
 	if checker.NonNil(err) {
-		return query, s.wrapModifierErr("query", "eval-guards", modifier, err, "")
+		return query, s.wrapModifierErr(config, "query", "eval-guards", err, "")
 	} else if !shouldRun {
 		return query, nil
 	}
 
-	action := modifier.Action()
-	key := modifier.Key()
-	values, errs := s.dynamicValueService.GetAsSliceOfString(modifier.Value(), request, history)
+	action := config.Action()
+	key := config.Key()
+	values, errs := s.dynamicValueService.GetAsSliceOfString(config.Value(), request, history)
 	if checker.IsNotEmpty(errs) {
-		return query, s.joinDynamicValueErr("query", modifier, errs)
+		return query, s.joinDynamicValueErr("query", config, errs)
 	}
 
 	switch action {
 	case enum.ModifierActionAdd:
 		return s.addQuery(query, key, values)
-	case enum.ModifierActionApd:
+	case enum.ModifierActionAppend:
 		return s.appendQuery(query, key, values)
 	case enum.ModifierActionSet:
 		return s.setQuery(query, key, values)
-	case enum.ModifierActionRpl:
+	case enum.ModifierActionReplace:
 		return s.replaceQuery(query, key, values)
-	case enum.ModifierActionDel:
+	case enum.ModifierActionDelete:
 		return s.deleteQuery(query, key)
 	default:
-		return query, mapper.NewErrModifierActionNotImplemented("query", action)
+		return query, domain.NewErrModifierActionNotImplemented("query", action)
 	}
 }
 
-func (s modifierService) ModifyBody(modifier *vo.Modifier, body *vo.Body, request *vo.HTTPRequest, history *aggregate.History,
-) (*vo.Body, error) {
-	if checker.IsNil(body) {
+func (s modifier) ModifyPayload(
+	config *vo.ModifierConfig,
+	payload *vo.Payload,
+	request *vo.EndpointRequest,
+	history *aggregate.History,
+) (*vo.Payload, error) {
+	if checker.IsNil(payload) {
 		return nil, nil
 	}
 
-	shouldRun, err := s.evalModifierGuards("body", modifier, request, history)
+	shouldRun, err := s.evalModifierGuards(config, "payload", request, history)
 	if checker.NonNil(err) {
-		return body, s.wrapModifierErr("body", "eval-guards", modifier, err, "")
+		return payload, s.wrapModifierErr(config, "payload", "eval-guards", err, "")
 	} else if !shouldRun {
-		return body, nil
+		return payload, nil
 	}
 
-	action := modifier.Action()
-	key := modifier.Key()
-	value, errs := s.dynamicValueService.Get(modifier.Value(), request, history)
+	action := config.Action()
+	key := config.Key()
+	value, errs := s.dynamicValueService.Get(config.Value(), request, history)
 	if checker.IsNotEmpty(errs) {
-		return body, s.joinDynamicValueErr("body", modifier, errs)
+		return payload, s.joinDynamicValueErr("payload", config, errs)
 	}
 
 	switch action {
 	case enum.ModifierActionAdd:
-		return s.addBody(body, key, value)
-	case enum.ModifierActionApd:
-		return s.appendBody(body, key, value)
+		return s.addPayload(payload, key, value)
+	case enum.ModifierActionAppend:
+		return s.appendPayload(payload, key, value)
 	case enum.ModifierActionSet:
-		return s.setBody(body, key, value)
-	case enum.ModifierActionRpl:
-		return s.replaceBody(body, key, value)
-	case enum.ModifierActionDel:
-		return s.deleteBody(body, key)
+		return s.setPayload(payload, key, value)
+	case enum.ModifierActionReplace:
+		return s.replacePayload(payload, key, value)
+	case enum.ModifierActionDelete:
+		return s.deletePayload(payload, key)
 	default:
-		return body, mapper.NewErrModifierActionNotImplemented("body", action)
+		return payload, domain.NewErrModifierActionNotImplemented("payload", action)
 	}
 }
 
-func (s modifierService) evalModifierGuards(kind string, modifier *vo.Modifier, request *vo.HTTPRequest, history *aggregate.History,
+func (s modifier) evalModifierGuards(
+	config *vo.ModifierConfig,
+	kind string,
+	request *vo.EndpointRequest,
+	history *aggregate.History,
 ) (bool, error) {
-	shouldRun, _, errs := s.dynamicValueService.EvalGuards(modifier.OnlyIf(), modifier.IgnoreIf(), request, history)
+	shouldRun, _, errs := s.dynamicValueService.EvalGuards(config.OnlyIf(), config.IgnoreIf(), request, history)
 	if checker.IsNotEmpty(errs) {
 		return false, errors.JoinInheritf(errs, ", ", "modifier failed: op=eval-guards kind=%s action=%s key=%s",
-			kind, modifier.Action(), modifier.Key())
+			kind, config.Action(), config.Key())
 	}
 	return shouldRun, nil
 }
 
-func (s modifierService) setURLPath(urlPath vo.URLPath, key, value string) (vo.URLPath, error) {
+func (s modifier) setURLPath(urlPath vo.URLPath, key, value string) (vo.URLPath, error) {
 	path := urlPath.Raw()
 	paramValues := urlPath.Params().Copy()
 
@@ -271,7 +333,7 @@ func (s modifierService) setURLPath(urlPath vo.URLPath, key, value string) (vo.U
 	return vo.NewURLPath(path, paramValues), nil
 }
 
-func (s modifierService) replaceURLPath(urlPath vo.URLPath, key, value string) (vo.URLPath, error) {
+func (s modifier) replaceURLPath(urlPath vo.URLPath, key, value string) (vo.URLPath, error) {
 	if urlPath.NotExists(key) {
 		return urlPath, nil
 	}
@@ -279,7 +341,7 @@ func (s modifierService) replaceURLPath(urlPath vo.URLPath, key, value string) (
 	return s.setURLPath(urlPath, key, value)
 }
 
-func (s modifierService) deleteURLPath(urlPath vo.URLPath, key string) (vo.URLPath, error) {
+func (s modifier) deleteURLPath(urlPath vo.URLPath, key string) (vo.URLPath, error) {
 	path := strings.ReplaceAll(urlPath.Raw(), fmt.Sprintf("/:%s", key), "")
 
 	paramValues := urlPath.Params().Copy()
@@ -288,66 +350,53 @@ func (s modifierService) deleteURLPath(urlPath vo.URLPath, key string) (vo.URLPa
 	return vo.NewURLPath(path, paramValues), nil
 }
 
-func (s modifierService) addHeader(header vo.Header, key string, value []string) (vo.Header, error) {
-	if mapper.IsHeaderMandatoryKey(key) {
-		return header, nil
-	}
+func (s modifier) addMetadata(metadata vo.Metadata, key string, value []string) (vo.Metadata, error) {
+	values := metadata.Copy()
+	values[key] = append(metadata.GetAll(key), value...)
 
-	values := header.Copy()
-	values[key] = append(header.GetAll(key), value...)
-
-	return vo.NewHeader(values), nil
+	return vo.NewMetadata(values), nil
 }
 
-func (s modifierService) appendHeader(header vo.Header, key string, value []string) (vo.Header, error) {
-	if mapper.IsHeaderMandatoryKey(key) || header.NotExists(key) {
-		return header, nil
+func (s modifier) appendMetadata(metadata vo.Metadata, key string, value []string) (vo.Metadata, error) {
+	if metadata.NotExists(key) {
+		return metadata, nil
 	}
 
-	values := header.Copy()
-	values[key] = append(header.GetAll(key), value...)
+	values := metadata.Copy()
+	values[key] = append(metadata.GetAll(key), value...)
 
-	return vo.NewHeader(values), nil
+	return vo.NewMetadata(values), nil
 }
 
-func (s modifierService) setHeader(header vo.Header, key string, value []string) (vo.Header, error) {
-	if mapper.IsHeaderMandatoryKey(key) {
-		return header, nil
-	}
-
-	values := header.Copy()
+func (s modifier) setMetadata(metadata vo.Metadata, key string, value []string) (vo.Metadata, error) {
+	values := metadata.Copy()
 	values[key] = value
 
-	return vo.NewHeader(values), nil
+	return vo.NewMetadata(values), nil
 }
 
-func (s modifierService) replaceHeader(header vo.Header, key string, value []string) (vo.Header, error) {
-	if mapper.IsHeaderMandatoryKey(key) || header.NotExists(key) {
-		return header, nil
+func (s modifier) replaceMetadata(metadata vo.Metadata, key string, value []string) (vo.Metadata, error) {
+	if metadata.NotExists(key) {
+		return metadata, nil
 	}
-
-	return s.setHeader(header, key, value)
+	return s.setMetadata(metadata, key, value)
 }
 
-func (s modifierService) deleteHeader(header vo.Header, key string) (vo.Header, error) {
-	if mapper.IsHeaderMandatoryKey(key) {
-		return header, nil
-	}
-
-	values := header.Copy()
+func (s modifier) deleteMetadata(metadata vo.Metadata, key string) (vo.Metadata, error) {
+	values := metadata.Copy()
 	delete(values, key)
 
-	return vo.NewHeader(values), nil
+	return vo.NewMetadata(values), nil
 }
 
-func (s modifierService) addQuery(query vo.Query, key string, value []string) (vo.Query, error) {
+func (s modifier) addQuery(query vo.Query, key string, value []string) (vo.Query, error) {
 	values := query.Copy()
 	values[key] = append(query.GetAll(key), value...)
 
 	return vo.NewQuery(values), nil
 }
 
-func (s modifierService) appendQuery(query vo.Query, key string, value []string) (vo.Query, error) {
+func (s modifier) appendQuery(query vo.Query, key string, value []string) (vo.Query, error) {
 	if query.NotExists(key) {
 		return query, nil
 	}
@@ -358,14 +407,14 @@ func (s modifierService) appendQuery(query vo.Query, key string, value []string)
 	return vo.NewQuery(values), nil
 }
 
-func (s modifierService) setQuery(query vo.Query, key string, value []string) (vo.Query, error) {
+func (s modifier) setQuery(query vo.Query, key string, value []string) (vo.Query, error) {
 	values := query.Copy()
 	values[key] = value
 
 	return vo.NewQuery(values), nil
 }
 
-func (s modifierService) replaceQuery(query vo.Query, key string, value []string) (vo.Query, error) {
+func (s modifier) replaceQuery(query vo.Query, key string, value []string) (vo.Query, error) {
 	if query.NotExists(key) {
 		return query, nil
 	}
@@ -373,7 +422,7 @@ func (s modifierService) replaceQuery(query vo.Query, key string, value []string
 	return s.setQuery(query, key, value)
 }
 
-func (s modifierService) deleteQuery(query vo.Query, key string) (vo.Query, error) {
+func (s modifier) deleteQuery(query vo.Query, key string) (vo.Query, error) {
 	values := query.Copy()
 
 	delete(values, key)
@@ -381,185 +430,188 @@ func (s modifierService) deleteQuery(query vo.Query, key string) (vo.Query, erro
 	return vo.NewQuery(values), nil
 }
 
-func (s modifierService) addBody(body *vo.Body, key, value string) (*vo.Body, error) {
-	if body.ContentType().IsText() {
-		return s.addBodyText(body, value)
-	} else if body.ContentType().IsJSON() {
-		return s.addBodyJson(body, key, value)
+func (s modifier) addPayload(payload *vo.Payload, key, value string) (*vo.Payload, error) {
+	if payload.ContentType().IsPlainText() {
+		return s.addPayloadPlainText(payload, value)
+	} else if payload.ContentType().IsJSON() {
+		return s.addPayloadJSON(payload, key, value)
 	} else {
-		return body, mapper.NewErrModifierIncompatibleBodyType("add-body", body.ContentType().String())
+		return payload, domain.NewErrModifierIncompatibleContentType("add-payload", payload.ContentType().String())
 	}
 }
 
-func (s modifierService) addBodyText(body *vo.Body, value string) (*vo.Body, error) {
-	bodyStr, err := body.String()
+func (s modifier) addPayloadPlainText(payload *vo.Payload, value string) (*vo.Payload, error) {
+	str, err := payload.String()
 	if checker.NonNil(err) {
-		return body, err
+		return payload, err
 	}
 
-	modifiedBodyText := fmt.Sprintf("%s%s", bodyStr, value)
-	return s.newBodyByString(body, modifiedBodyText)
+	modifiedPayloadText := fmt.Sprintf("%s%s", str, value)
+	return s.newPayloadByString(payload, modifiedPayloadText)
 }
 
-func (s modifierService) addBodyJson(body *vo.Body, key, value string) (*vo.Body, error) {
-	bodyRaw, err := body.Raw()
+func (s modifier) addPayloadJSON(payload *vo.Payload, key, value string) (*vo.Payload, error) {
+	payloadRaw, err := payload.Raw()
 	if checker.NonNil(err) {
-		return body, err
+		return payload, err
 	}
 
-	modifiedBodyJson, err := s.jsonPath.Add(bodyRaw, key, value)
+	modifiedPayloadJSON, err := s.jsonPath.Add(payloadRaw, key, value)
 	if checker.NonNil(err) {
-		return body, err
+		return payload, err
 	}
 
-	return s.newBodyByString(body, modifiedBodyJson)
+	return s.newPayloadByString(payload, modifiedPayloadJSON)
 }
 
-func (s modifierService) appendBody(body *vo.Body, key, value string) (*vo.Body, error) {
-	if body.ContentType().IsText() {
-		return s.appendBodyText(body, value)
-	} else if body.ContentType().IsJSON() {
-		return s.appendBodyJson(body, key, value)
-	}
-	return body, mapper.NewErrModifierIncompatibleBodyType("append-body", body.ContentType().String())
-}
-
-func (s modifierService) appendBodyText(body *vo.Body, value string) (*vo.Body, error) {
-	bodyStr, err := body.String()
-	if checker.NonNil(err) {
-		return body, err
-	}
-
-	modifiedBodyText := fmt.Sprintf("%s\n%s", bodyStr, value)
-	return s.newBodyByString(body, modifiedBodyText)
-}
-
-func (s modifierService) appendBodyJson(body *vo.Body, key, value string) (*vo.Body, error) {
-	bodyRaw, err := body.Raw()
-	if checker.NonNil(err) {
-		return body, err
-	}
-
-	if s.jsonPath.Parse(bodyRaw).Get(key).NotExists() {
-		return body, nil
-	}
-
-	modifiedBodyJson, err := s.jsonPath.Add(bodyRaw, key, value)
-	if checker.NonNil(err) {
-		return body, err
-	}
-
-	return s.newBodyByString(body, modifiedBodyJson)
-}
-
-func (s modifierService) setBody(body *vo.Body, key, value string) (*vo.Body, error) {
-	if body.ContentType().IsText() {
-		return s.setBodyText(body, value)
-	} else if body.ContentType().IsJSON() {
-		return s.setBodyJson(body, key, value)
-	}
-	return body, mapper.NewErrModifierIncompatibleBodyType("set-body", body.ContentType().String())
-}
-
-func (s modifierService) setBodyText(body *vo.Body, value string) (*vo.Body, error) {
-	return s.newBodyByString(body, value)
-}
-
-func (s modifierService) setBodyJson(body *vo.Body, key, value string) (*vo.Body, error) {
-	bodyRaw, err := body.Raw()
-	if checker.NonNil(err) {
-		return body, err
-	}
-
-	modifiedBodyJson, err := s.jsonPath.Set(bodyRaw, key, value)
-	if checker.NonNil(err) {
-		return body, err
-	}
-
-	return s.newBodyByString(body, modifiedBodyJson)
-}
-
-func (s modifierService) replaceBody(body *vo.Body, key, value string) (*vo.Body, error) {
-	if body.ContentType().IsText() {
-		return s.replaceBodyText(body, key, value)
-	} else if body.ContentType().IsJSON() {
-		return s.replaceBodyJson(body, key, value)
+func (s modifier) appendPayload(payload *vo.Payload, key, value string) (*vo.Payload, error) {
+	if payload.ContentType().IsPlainText() {
+		return s.appendPayloadPlainText(payload, value)
+	} else if payload.ContentType().IsJSON() {
+		return s.appendPayloadJSON(payload, key, value)
 	} else {
-		return body, mapper.NewErrModifierIncompatibleBodyType("replace-body", body.ContentType().String())
+		return payload, domain.NewErrModifierIncompatibleContentType("append-payload", payload.ContentType().String())
 	}
 }
 
-func (s modifierService) replaceBodyText(body *vo.Body, key, value string) (*vo.Body, error) {
-	bodyStr, err := body.String()
+func (s modifier) appendPayloadPlainText(payload *vo.Payload, value string) (*vo.Payload, error) {
+	str, err := payload.String()
 	if checker.NonNil(err) {
-		return body, err
+		return payload, err
 	}
 
-	modifiedBodyText := strings.ReplaceAll(bodyStr, key, value)
-	return s.newBodyByString(body, modifiedBodyText)
+	modifiedPayloadText := fmt.Sprintf("%s\n%s", str, value)
+	return s.newPayloadByString(payload, modifiedPayloadText)
 }
 
-func (s modifierService) replaceBodyJson(body *vo.Body, key, value string) (*vo.Body, error) {
-	bodyRaw, err := body.Raw()
+func (s modifier) appendPayloadJSON(payload *vo.Payload, key, value string) (*vo.Payload, error) {
+	raw, err := payload.Raw()
 	if checker.NonNil(err) {
-		return body, err
+		return payload, err
 	}
 
-	if s.jsonPath.Parse(bodyRaw).Get(key).NotExists() {
-		return body, nil
+	if s.jsonPath.Parse(raw).Get(key).NotExists() {
+		return payload, nil
 	}
 
-	modifiedBodyJson, err := s.jsonPath.Set(bodyRaw, key, value)
+	modifiedPayloadJSON, err := s.jsonPath.Add(raw, key, value)
 	if checker.NonNil(err) {
-		return body, err
+		return payload, err
 	}
 
-	return s.newBodyByString(body, modifiedBodyJson)
+	return s.newPayloadByString(payload, modifiedPayloadJSON)
 }
 
-func (s modifierService) deleteBody(body *vo.Body, key string) (*vo.Body, error) {
-	if body.ContentType().IsText() {
-		return s.deleteBodyText(body, key)
-	} else if body.ContentType().IsJSON() {
-		return s.deleteBodyJson(body, key)
+func (s modifier) setPayload(payload *vo.Payload, key, value string) (*vo.Payload, error) {
+	if payload.ContentType().IsPlainText() {
+		return s.setPayloadPlainText(payload, value)
+	} else if payload.ContentType().IsJSON() {
+		return s.setPayloadJSON(payload, key, value)
+	} else {
+		return payload, domain.NewErrModifierIncompatibleContentType("set-payload", payload.ContentType().String())
 	}
-	return body, mapper.NewErrModifierIncompatibleBodyType("delete-body", body.ContentType().String())
 }
 
-func (s modifierService) deleteBodyText(body *vo.Body, key string) (*vo.Body, error) {
-	bodyStr, err := body.String()
-	if checker.NonNil(err) {
-		return body, err
-	}
-
-	modifiedBodyText := strings.ReplaceAll(bodyStr, key, "")
-	return s.newBodyByString(body, modifiedBodyText)
+func (s modifier) setPayloadPlainText(payload *vo.Payload, value string) (*vo.Payload, error) {
+	return s.newPayloadByString(payload, value)
 }
 
-func (s modifierService) deleteBodyJson(body *vo.Body, key string) (*vo.Body, error) {
-	bodyRaw, err := body.Raw()
+func (s modifier) setPayloadJSON(payload *vo.Payload, key, value string) (*vo.Payload, error) {
+	raw, err := payload.Raw()
 	if checker.NonNil(err) {
-		return body, err
+		return payload, err
 	}
 
-	modifiedBodyJson, err := s.jsonPath.Delete(bodyRaw, key)
+	modifiedPayloadJSON, err := s.jsonPath.Set(raw, key, value)
 	if checker.NonNil(err) {
-		return body, err
+		return payload, err
 	}
 
-	return s.newBodyByString(body, modifiedBodyJson)
+	return s.newPayloadByString(payload, modifiedPayloadJSON)
 }
 
-func (s modifierService) newBodyByString(body *vo.Body, modifiedBodyJson string) (*vo.Body, error) {
-	buffer, err := converter.ToBufferWithErr(modifiedBodyJson)
-	if checker.NonNil(err) {
-		return body, err
+func (s modifier) replacePayload(payload *vo.Payload, key, value string) (*vo.Payload, error) {
+	if payload.ContentType().IsPlainText() {
+		return s.replacePayloadPlainText(payload, key, value)
+	} else if payload.ContentType().IsJSON() {
+		return s.replacePayloadJSON(payload, key, value)
+	} else {
+		return payload, domain.NewErrModifierIncompatibleContentType("replace-payload", payload.ContentType().String())
 	}
-
-	return vo.NewBodyWithContentType(body.ContentType(), buffer), nil
 }
 
-func (s modifierService) wrapModifierErr(kind, op string, modifier *vo.Modifier, err error, format string, args ...any) error {
+func (s modifier) replacePayloadPlainText(payload *vo.Payload, key, value string) (*vo.Payload, error) {
+	str, err := payload.String()
+	if checker.NonNil(err) {
+		return payload, err
+	}
+
+	modifiedPayloadText := strings.ReplaceAll(str, key, value)
+	return s.newPayloadByString(payload, modifiedPayloadText)
+}
+
+func (s modifier) replacePayloadJSON(payload *vo.Payload, key, value string) (*vo.Payload, error) {
+	raw, err := payload.Raw()
+	if checker.NonNil(err) {
+		return payload, err
+	}
+
+	if s.jsonPath.Parse(raw).Get(key).NotExists() {
+		return payload, nil
+	}
+
+	modifiedPayloadJSON, err := s.jsonPath.Set(raw, key, value)
+	if checker.NonNil(err) {
+		return payload, err
+	}
+
+	return s.newPayloadByString(payload, modifiedPayloadJSON)
+}
+
+func (s modifier) deletePayload(payload *vo.Payload, key string) (*vo.Payload, error) {
+	if payload.ContentType().IsPlainText() {
+		return s.deletePayloadPlainText(payload, key)
+	} else if payload.ContentType().IsJSON() {
+		return s.deletePayloadJSON(payload, key)
+	} else {
+		return payload, domain.NewErrModifierIncompatibleContentType("delete-payload", payload.ContentType().String())
+	}
+}
+
+func (s modifier) deletePayloadPlainText(payload *vo.Payload, key string) (*vo.Payload, error) {
+	str, err := payload.String()
+	if checker.NonNil(err) {
+		return payload, err
+	}
+
+	modifiedPayloadText := strings.ReplaceAll(str, key, "")
+	return s.newPayloadByString(payload, modifiedPayloadText)
+}
+
+func (s modifier) deletePayloadJSON(payload *vo.Payload, key string) (*vo.Payload, error) {
+	raw, err := payload.Raw()
+	if checker.NonNil(err) {
+		return payload, err
+	}
+
+	modifiedPayloadJSON, err := s.jsonPath.Delete(raw, key)
+	if checker.NonNil(err) {
+		return payload, err
+	}
+
+	return s.newPayloadByString(payload, modifiedPayloadJSON)
+}
+
+func (s modifier) newPayloadByString(payload *vo.Payload, raw string) (*vo.Payload, error) {
+	buffer, err := converter.ToBufferWithErr(raw)
+	if checker.NonNil(err) {
+		return payload, err
+	}
+
+	return vo.NewPayloadWithContentType(payload.ContentType(), buffer), nil
+}
+
+func (s modifier) wrapModifierErr(config *vo.ModifierConfig, kind, op string, err error, format string, args ...any) error {
 	if checker.IsNil(err) {
 		return nil
 	}
@@ -568,8 +620,8 @@ func (s modifierService) wrapModifierErr(kind, op string, modifier *vo.Modifier,
 		"modifier failed: op=%s kind=%s action=%s key=%s",
 		op,
 		kind,
-		modifier.Action(),
-		modifier.Key(),
+		config.Action(),
+		config.Key(),
 	)
 
 	if checker.IsNotEmpty(format) {
@@ -579,7 +631,7 @@ func (s modifierService) wrapModifierErr(kind, op string, modifier *vo.Modifier,
 	return errors.Inheritf(err, base)
 }
 
-func (s modifierService) joinDynamicValueErr(kind string, modifier *vo.Modifier, errs []error) error {
+func (s modifier) joinDynamicValueErr(kind string, modifier *vo.ModifierConfig, errs []error) error {
 	if checker.IsEmpty(errs) {
 		return nil
 	}

@@ -40,6 +40,7 @@
         "PUT",
         "PATCH",
         "DELETE",
+        "OPTIONS",
         "GET"
       ]
     },
@@ -305,6 +306,9 @@
           "items": {
             "type": "string"
           }
+        },
+        "allow-credentials": {
+          "type": "boolean"
         }
       },
       "additionalProperties": false
@@ -332,6 +336,9 @@
           "items": {
             "type": "string"
           }
+        },
+        "allow-credentials": {
+          "type": "boolean"
         }
       },
       "required": [

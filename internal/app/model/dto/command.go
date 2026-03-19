@@ -21,9 +21,7 @@ import (
 )
 
 type ExecuteEndpoint struct {
-	TraceID  string
-	ClientIP string
-	Gopen    *vo.Gopen
-	Endpoint *vo.Endpoint
-	Request  *vo.HTTPRequest
+	Gopen    *vo.GopenConfig
+	Endpoint *vo.EndpointConfig
+	Request  *vo.EndpointRequest
 }

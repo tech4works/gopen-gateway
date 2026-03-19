@@ -1,3 +1,19 @@
+/*
+ * Copyright 2024 Tech4Works
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package service
 
 import (
@@ -8,34 +24,64 @@ import (
 	"github.com/tech4works/converter"
 	"github.com/tech4works/errors"
 	"github.com/tech4works/gopen-gateway/internal/domain"
-	"github.com/tech4works/gopen-gateway/internal/domain/mapper"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/aggregate"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
 )
 
-type dynamicValueService struct {
+var funcs = []string{
+	"length",
+	"distinct",
+}
+
+var boolFuncs = []string{
+	"isnull",
+	"isnotnull",
+	"isempty",
+	"isnullorempty",
+	"isnotempty",
+	"isnotnullorempty",
+	"isgreaterthan",
+	"isgreaterthanorequal",
+	"islessthan",
+	"islessthanorequal",
+	"equals",
+	"equalsignorecase",
+	"notequals",
+	"notequalsignorecase",
+	"contains",
+	"containsignorecase",
+	"notcontains",
+	"notcontainsignorecase",
+	"islengthgreaterthan",
+	"islengthlessthan",
+	"islengthgreaterthanorequal",
+	"islengthlessthanorequal",
+	"islengthequals",
+}
+
+type dynamicValue struct {
 	jsonPath domain.JSONPath
 }
 
 type DynamicValue interface {
-	Get(value string, request *vo.HTTPRequest, history *aggregate.History) (string, []error)
-	GetAsSliceOfString(value string, request *vo.HTTPRequest, history *aggregate.History) ([]string, []error)
-	EvalBool(exprs []string, request *vo.HTTPRequest, history *aggregate.History) (bool, []error)
-	EvalAny(expr string, request *vo.HTTPRequest, history *aggregate.History) (any, []error)
-	EvalGuards(onlyIf, ignoreIf []string, request *vo.HTTPRequest, history *aggregate.History) (bool, string, []error)
-	EvalGuardsWithErr(onlyIf, ignoreIf []string, request *vo.HTTPRequest, history *aggregate.History) []error
+	Get(value string, request *vo.EndpointRequest, history *aggregate.History) (string, []error)
+	GetAsSliceOfString(value string, request *vo.EndpointRequest, history *aggregate.History) ([]string, []error)
+	EvalBool(exprs []string, request *vo.EndpointRequest, history *aggregate.History) (bool, []error)
+	EvalFunc(expr string, request *vo.EndpointRequest, history *aggregate.History) (any, []error)
+	EvalGuards(onlyIf, ignoreIf []string, request *vo.EndpointRequest, history *aggregate.History) (bool, string, []error)
+	EvalGuardsWithErr(onlyIf, ignoreIf []string, request *vo.EndpointRequest, history *aggregate.History) []error
 }
 
 func NewDynamicValue(jsonPath domain.JSONPath) DynamicValue {
-	return dynamicValueService{
+	return dynamicValue{
 		jsonPath: jsonPath,
 	}
 }
 
-func (d dynamicValueService) Get(value string, request *vo.HTTPRequest, history *aggregate.History) (string, []error) {
+func (d dynamicValue) Get(value string, request *vo.EndpointRequest, history *aggregate.History) (string, []error) {
 	var allErrs []error
 
-	apply := func(stage string, fn func(string, *vo.HTTPRequest, *aggregate.History) (string, []error)) {
+	apply := func(stage string, fn func(string, *vo.EndpointRequest, *aggregate.History) (string, []error)) {
 		v, errs := fn(value, request, history)
 		if checker.IsNotEmpty(errs) {
 			for _, e := range errs {
@@ -46,14 +92,15 @@ func (d dynamicValueService) Get(value string, request *vo.HTTPRequest, history 
 
 	}
 
-	apply("any-expressions", d.replaceAllAnyExpressions)
+	apply("ternary-expressions", d.replaceAllTernaryExpressions)
+	apply("func-expressions", d.replaceAllFuncExpressions)
 	apply("bool-expressions", d.replaceAllBoolExpressions)
-	apply("all-expressions", d.replaceAllExpressions)
+	apply("value-expressions", d.replaceAllValueExpressions)
 
 	return value, allErrs
 }
 
-func (d dynamicValueService) GetAsSliceOfString(value string, request *vo.HTTPRequest, history *aggregate.History) (
+func (d dynamicValue) GetAsSliceOfString(value string, request *vo.EndpointRequest, history *aggregate.History) (
 	[]string, []error) {
 	newValue, errs := d.Get(value, request, history)
 
@@ -69,7 +116,7 @@ func (d dynamicValueService) GetAsSliceOfString(value string, request *vo.HTTPRe
 	return []string{newValue}, errs
 }
 
-func (d dynamicValueService) EvalBool(exprs []string, request *vo.HTTPRequest, history *aggregate.History) (bool, []error) {
+func (d dynamicValue) EvalBool(exprs []string, request *vo.EndpointRequest, history *aggregate.History) (bool, []error) {
 	for _, expr := range exprs {
 		expr = strings.TrimSpace(expr)
 		if checker.IsEmpty(expr) {
@@ -86,7 +133,7 @@ func (d dynamicValueService) EvalBool(exprs []string, request *vo.HTTPRequest, h
 	return false, nil
 }
 
-func (d dynamicValueService) EvalAny(expr string, request *vo.HTTPRequest, history *aggregate.History) (any, []error) {
+func (d dynamicValue) EvalFunc(expr string, request *vo.EndpointRequest, history *aggregate.History) (any, []error) {
 	expr = strings.TrimSpace(expr)
 
 	if !(strings.HasPrefix(expr, "$") && strings.Contains(expr, "(") && strings.HasSuffix(expr, ")")) {
@@ -98,20 +145,20 @@ func (d dynamicValueService) EvalAny(expr string, request *vo.HTTPRequest, histo
 		return nil, errors.InheritAsSlicef(err, "dynamic-value failed: op=parse expr=%s", expr)
 	}
 
-	v, errs := d.evalFuncAny(name, args, request, history)
+	v, errs := d.evalFuncExpr(name, args, request, history)
 	if checker.IsNotEmpty(errs) {
 		for i, e := range errs {
-			errs[i] = errors.Inheritf(e, "dynamic-value failed: op=eval-func-any func=%s expr=%s", name, expr)
+			errs[i] = errors.Inheritf(e, "dynamic-value failed: op=eval-func func=%s expr=%s", name, expr)
 		}
 	}
 
 	return v, errs
 }
 
-func (d dynamicValueService) EvalGuards(
+func (d dynamicValue) EvalGuards(
 	onlyIf,
 	ignoreIf []string,
-	request *vo.HTTPRequest,
+	request *vo.EndpointRequest,
 	history *aggregate.History,
 ) (bool, string, []error) {
 	if checker.IsNotEmpty(onlyIf) {
@@ -140,25 +187,25 @@ func (d dynamicValueService) EvalGuards(
 	return true, "", nil
 }
 
-func (d dynamicValueService) EvalGuardsWithErr(
+func (d dynamicValue) EvalGuardsWithErr(
 	onlyIf,
 	ignoreIf []string,
-	request *vo.HTTPRequest,
+	request *vo.EndpointRequest,
 	history *aggregate.History,
 ) []error {
 	shouldRun, reason, errs := d.EvalGuards(onlyIf, ignoreIf, request, history)
 	if checker.IsNotEmpty(errs) {
 		return errs
 	} else if !shouldRun {
-		return converter.ToSlice(mapper.NewErrEvalGuards(reason))
+		return converter.ToSlice(domain.NewErrEvalGuards(reason))
 	} else {
 		return nil
 	}
 }
 
-func (d dynamicValueService) resolveToString(
+func (d dynamicValue) resolveToString(
 	expr string,
-	request *vo.HTTPRequest,
+	request *vo.EndpointRequest,
 	history *aggregate.History,
 	treatNotFoundAsEmpty bool,
 ) (string, []error) {
@@ -169,7 +216,7 @@ func (d dynamicValueService) resolveToString(
 	for _, tok := range tokens {
 		val, err := d.getValueBySyntax(tok, request, history)
 		if checker.NonNil(err) {
-			if errors.Is(err, mapper.ErrDynamicValueNotFound) && treatNotFoundAsEmpty {
+			if errors.Is(err, domain.ErrDynamicValueNotFound) && treatNotFoundAsEmpty {
 				return "", nil
 			}
 			return "", errors.InheritAsSlicef(err, "dynamic-value failed: op=get-value-by-syntax token=%s expr=%s", tok, expr)
@@ -180,9 +227,9 @@ func (d dynamicValueService) resolveToString(
 	return expr, nil
 }
 
-func (d dynamicValueService) resolveToAny(
+func (d dynamicValue) resolveToAny(
 	expr string,
-	request *vo.HTTPRequest,
+	request *vo.EndpointRequest,
 	history *aggregate.History,
 	treatNotFoundAsEmpty bool,
 ) (any, []error) {
@@ -217,12 +264,12 @@ func (d dynamicValueService) resolveToAny(
 	return unq, nil
 }
 
-func (d dynamicValueService) replaceAllExpressions(value string, request *vo.HTTPRequest, history *aggregate.History) (
+func (d dynamicValue) replaceAllValueExpressions(value string, request *vo.EndpointRequest, history *aggregate.History) (
 	string, []error) {
 	var errs []error
 	for _, word := range d.findAllBySyntax(value) {
 		result, err := d.getValueBySyntax(word, request, history)
-		if errors.Is(err, mapper.ErrDynamicValueNotFound) {
+		if errors.Is(err, domain.ErrDynamicValueNotFound) {
 			continue
 		} else if checker.NonNil(err) {
 			errs = append(errs, errors.Inheritf(err, "dynamic-value failed: op=get-value-by-syntax word=%s", word))
@@ -233,34 +280,36 @@ func (d dynamicValueService) replaceAllExpressions(value string, request *vo.HTT
 	return value, errs
 }
 
-func (d dynamicValueService) replaceAllBoolExpressions(
+func (d dynamicValue) replaceAllTernaryExpressions(
 	value string,
-	request *vo.HTTPRequest,
+	request *vo.EndpointRequest,
 	history *aggregate.History,
 ) (string, []error) {
-	exprs := d.findAllFuncExpressions(value)
-	if checker.IsEmpty(exprs) {
-		return value, nil
-	}
-
 	var errs []error
-	for _, expr := range exprs {
-		b, es := d.EvalBool([]string{expr}, request, history)
+
+	for {
+		expr, ok := d.findFirstTernaryExpression(value)
+		if !ok {
+			break
+		}
+
+		repl, es := d.evalTernaryExpr(expr, request, history)
 		if checker.IsNotEmpty(es) {
 			for _, e := range es {
-				errs = append(errs, errors.Inheritf(e, "dynamic-value failed: op=eval-bool expr=%s", expr))
+				errs = append(errs, errors.Inheritf(e, "dynamic-value failed: op=eval-ternary expr=%s", expr))
 			}
-			continue
+			break
 		}
-		value = strings.Replace(value, expr, converter.ToString(b), 1)
+
+		value = strings.Replace(value, expr, repl, 1)
 	}
 
 	return value, errs
 }
 
-func (d dynamicValueService) replaceAllAnyExpressions(
+func (d dynamicValue) replaceAllFuncExpressions(
 	value string,
-	request *vo.HTTPRequest,
+	request *vo.EndpointRequest,
 	history *aggregate.History,
 ) (string, []error) {
 	exprs := d.findAllFuncExpressions(value)
@@ -270,10 +319,15 @@ func (d dynamicValueService) replaceAllAnyExpressions(
 
 	var errs []error
 	for _, expr := range exprs {
-		v, es := d.EvalAny(expr, request, history)
+		name, _, err := d.parseFuncCall(expr)
+		if checker.NonNil(err) || !d.isFunc(name) {
+			continue
+		}
+
+		v, es := d.EvalFunc(expr, request, history)
 		if checker.IsNotEmpty(es) {
 			for _, e := range es {
-				errs = append(errs, errors.Inheritf(e, "dynamic-value failed: op=eval-bool expr=%s", expr))
+				errs = append(errs, errors.Inheritf(e, "dynamic-value failed: op=eval-func expr=%s", expr))
 			}
 			continue
 		}
@@ -290,7 +344,37 @@ func (d dynamicValueService) replaceAllAnyExpressions(
 	return value, errs
 }
 
-func (d dynamicValueService) findAllBySyntax(value string) []string {
+func (d dynamicValue) replaceAllBoolExpressions(
+	value string,
+	request *vo.EndpointRequest,
+	history *aggregate.History,
+) (string, []error) {
+	exprs := d.findAllFuncExpressions(value)
+	if checker.IsEmpty(exprs) {
+		return value, nil
+	}
+
+	var errs []error
+	for _, expr := range exprs {
+		if !d.isBoolExpr(expr) {
+			continue
+		}
+
+		b, es := d.EvalBool([]string{expr}, request, history)
+		if checker.IsNotEmpty(es) {
+			for _, e := range es {
+				errs = append(errs, errors.Inheritf(e, "dynamic-value failed: op=eval-bool expr=%s", expr))
+			}
+			continue
+		}
+
+		value = strings.Replace(value, expr, converter.ToString(b), 1)
+	}
+
+	return value, errs
+}
+
+func (d dynamicValue) findAllBySyntax(value string) []string {
 	// - token simples: #request.body.x
 	// - responses por índice: #responses[0].body.x
 	// - responses por id:     #responses[ms-auth/v1/validate].body.x
@@ -302,7 +386,7 @@ func (d dynamicValueService) findAllBySyntax(value string) []string {
 	return regex.FindAllString(value, -1)
 }
 
-func (d dynamicValueService) findAllFuncExpressions(s string) []string {
+func (d dynamicValue) findAllFuncExpressions(s string) []string {
 	var out []string
 
 	inQuotes := false
@@ -365,7 +449,56 @@ func (d dynamicValueService) findAllFuncExpressions(s string) []string {
 	return out
 }
 
-func (d dynamicValueService) scanBalancedParens(s string, openIdx int) int {
+func (d dynamicValue) findFirstTernaryExpression(value string) (string, bool) {
+	inQuotes := false
+	var quote byte
+
+	for i := 0; checker.IsLengthLessThan(value, i); i++ {
+		ch := value[i]
+
+		if (checker.Equals(ch, '"') || checker.Equals(ch, '\'')) &&
+			(checker.Equals(i, 0) || checker.NotEquals(value[i-1], '\\')) {
+			if !inQuotes {
+				inQuotes = true
+				quote = ch
+			} else if checker.Equals(quote, ch) {
+				inQuotes = false
+				quote = 0
+			}
+			continue
+		}
+		if inQuotes {
+			continue
+		}
+
+		if checker.NotEquals(ch, '(') {
+			continue
+		}
+
+		end := d.scanBalancedParens(value, i)
+		if checker.IsLessThanOrEqual(end, 0) {
+			continue
+		}
+
+		fullExpr := value[i:end]
+		inside := strings.TrimSpace(fullExpr[1 : len(fullExpr)-1])
+
+		if _, _, _, ok := d.splitTernaryTopLevel(inside); ok {
+			return fullExpr, true
+		}
+
+		i = end - 1
+	}
+
+	trimmed := strings.TrimSpace(value)
+	if _, _, _, ok := d.splitTernaryTopLevel(trimmed); ok {
+		return trimmed, true
+	}
+
+	return "", false
+}
+
+func (d dynamicValue) scanBalancedParens(s string, openIdx int) int {
 	if checker.IsLessThan(openIdx, 0) ||
 		checker.IsGreaterThanOrEqual(openIdx, len(s)) ||
 		checker.NotEquals(s[openIdx], '(') {
@@ -409,7 +542,7 @@ func (d dynamicValueService) scanBalancedParens(s string, openIdx int) int {
 	return 0
 }
 
-func (d dynamicValueService) getValueBySyntax(word string, request *vo.HTTPRequest, history *aggregate.History) (string, error) {
+func (d dynamicValue) getValueBySyntax(word string, request *vo.EndpointRequest, history *aggregate.History) (string, error) {
 	// Operador de fallback/coalesce: tenta da esquerda para a direita
 	// Ex.: "#request.body.cpf || #request.query.cpf"
 	if strings.Contains(word, "||") {
@@ -423,7 +556,7 @@ func (d dynamicValueService) getValueBySyntax(word string, request *vo.HTTPReque
 			}
 
 			result, err := d.getSingleValueBySyntax(part, request, history)
-			if errors.Is(err, mapper.ErrDynamicValueNotFound) {
+			if errors.Is(err, domain.ErrDynamicValueNotFound) {
 				lastNotFound = err
 				continue
 			} else if checker.NonNil(err) {
@@ -443,7 +576,7 @@ func (d dynamicValueService) getValueBySyntax(word string, request *vo.HTTPReque
 	return d.getSingleValueBySyntax(word, request, history)
 }
 
-func (d dynamicValueService) getSingleValueBySyntax(word string, request *vo.HTTPRequest, history *aggregate.History) (string,
+func (d dynamicValue) getSingleValueBySyntax(word string, request *vo.EndpointRequest, history *aggregate.History) (string,
 	error) {
 	cleanSintaxe := strings.ReplaceAll(word, "#", "")
 	dotSplit := strings.Split(cleanSintaxe, ".")
@@ -453,15 +586,15 @@ func (d dynamicValueService) getSingleValueBySyntax(word string, request *vo.HTT
 
 	prefix := dotSplit[0]
 	if checker.Contains(prefix, "request") {
-		return d.getRequestValueByJsonPath(cleanSintaxe, request)
+		return d.getRequestValueByJSONPath(cleanSintaxe, request)
 	} else if checker.Contains(prefix, "responses") {
-		return d.getResponseValueByJsonPath(cleanSintaxe, history)
+		return d.getResponseValueByJSONPath(cleanSintaxe, history)
 	} else {
 		return "", errors.Newf("dynamic-value failed: op=get-first-dot-split invalid-prefix=%s token=%s", prefix, word)
 	}
 }
 
-func (d dynamicValueService) getRequestValueByJsonPath(jsonPath string, request *vo.HTTPRequest) (string, error) {
+func (d dynamicValue) getRequestValueByJSONPath(jsonPath string, request *vo.EndpointRequest) (string, error) {
 	jsonPath = strings.Replace(jsonPath, "request.", "", 1)
 
 	jsonRequest, err := request.Map()
@@ -474,18 +607,20 @@ func (d dynamicValueService) getRequestValueByJsonPath(jsonPath string, request 
 		return result.String(), nil
 	}
 
-	return "", mapper.NewErrDynamicValueNotFound(jsonPath)
+	return "", domain.NewErrDynamicValueNotFound(jsonPath)
 }
 
-func (d dynamicValueService) getResponseValueByJsonPath(jsonPath string, history *aggregate.History) (string, error) {
-	if strings.HasPrefix(jsonPath, "responses[") {
-		return d.getResponseValueByBracketJsonPath(jsonPath, history)
+func (d dynamicValue) getResponseValueByJSONPath(jsonPath string, history *aggregate.History) (string, error) {
+	if checker.IsNil(history) {
+		return "", errors.Newf("dynamic-value failed: op=history.nil path=%s", jsonPath)
+	} else if strings.HasPrefix(jsonPath, "responses[") {
+		return d.getResponseValueByBracketJSONPath(jsonPath, history)
 	}
 
 	return "", errors.Newf("dynamic-value failed: invalid syntax=%s", jsonPath)
 }
 
-func (d dynamicValueService) getResponseValueByBracketJsonPath(jsonPath string, history *aggregate.History) (string, error) {
+func (d dynamicValue) getResponseValueByBracketJSONPath(jsonPath string, history *aggregate.History) (string, error) {
 	closeIndex := strings.Index(jsonPath, "]")
 	if checker.IsLengthLessThan(closeIndex, 0) {
 		return "", errors.Newf("dynamic-value failed: invalid syntax=%s missing ']'", jsonPath)
@@ -507,7 +642,7 @@ func (d dynamicValueService) getResponseValueByBracketJsonPath(jsonPath string, 
 	return d.getResponseValueByID(key, rest, history)
 }
 
-func (d dynamicValueService) getResponseValueByIndex(index string, rest string, history *aggregate.History) (string, error) {
+func (d dynamicValue) getResponseValueByIndex(index string, rest string, history *aggregate.History) (string, error) {
 	jsonResponses, err := history.ResponsesMap()
 	if checker.NonNil(err) {
 		return "", errors.Inheritf(err, "dynamic-value failed: op=history.map index=%s rest=%s", index, rest)
@@ -523,10 +658,10 @@ func (d dynamicValueService) getResponseValueByIndex(index string, rest string, 
 		return result.String(), nil
 	}
 
-	return "", mapper.NewErrDynamicValueNotFound("responses[" + index + "]." + rest)
+	return "", domain.NewErrDynamicValueNotFound("responses[" + index + "]." + rest)
 }
 
-func (d dynamicValueService) getResponseValueByID(id string, rest string, history *aggregate.History) (string, error) {
+func (d dynamicValue) getResponseValueByID(id string, rest string, history *aggregate.History) (string, error) {
 	jsonResponses, err := history.ResponsesMapByID()
 	if checker.NonNil(err) {
 		return "", errors.Inheritf(err, "dynamic-value failed: op=history.map id=%s rest=%s", id, rest)
@@ -542,10 +677,35 @@ func (d dynamicValueService) getResponseValueByID(id string, rest string, histor
 		return result.String(), nil
 	}
 
-	return "", mapper.NewErrDynamicValueNotFound("responses[" + id + "]." + rest)
+	return "", domain.NewErrDynamicValueNotFound("responses[" + id + "]." + rest)
 }
 
-func (d dynamicValueService) evalBoolExpr(expr string, request *vo.HTTPRequest, history *aggregate.History) (bool, []error) {
+func (d dynamicValue) evalTernaryExpr(
+	expr string,
+	request *vo.EndpointRequest,
+	history *aggregate.History,
+) (string, []error) {
+	expr = strings.TrimSpace(expr)
+	expr = d.trimOuterParens(expr)
+
+	cond, left, right, ok := d.splitTernaryTopLevel(expr)
+	if !ok {
+		return "", errors.NewAsSlicef("dynamic-value failed: invalid ternary expr=%s", expr)
+	}
+
+	b, errs := d.EvalBool([]string{cond}, request, history)
+	if checker.IsNotEmpty(errs) {
+		return "", errs
+	}
+
+	if b {
+		return strings.TrimSpace(left), nil
+	}
+
+	return strings.TrimSpace(right), nil
+}
+
+func (d dynamicValue) evalBoolExpr(expr string, request *vo.EndpointRequest, history *aggregate.History) (bool, []error) {
 	expr = strings.TrimSpace(expr)
 	expr = d.trimOuterParens(expr)
 
@@ -593,10 +753,10 @@ func (d dynamicValueService) evalBoolExpr(expr string, request *vo.HTTPRequest, 
 	return false, errors.NewAsSlicef("dynamic-value failed: unsupported expr=%s", expr)
 }
 
-func (d dynamicValueService) evalFuncAny(
+func (d dynamicValue) evalFuncExpr(
 	name string,
 	args []string,
-	request *vo.HTTPRequest,
+	request *vo.EndpointRequest,
 	history *aggregate.History,
 ) (any, []error) {
 	n := strings.ToLower(strings.TrimSpace(name))
@@ -627,7 +787,7 @@ func (d dynamicValueService) evalFuncAny(
 	return false, errors.NewAsSlicef("dynamic-value failed: unsupported func=%s", name)
 }
 
-func (d dynamicValueService) evalLength(arg string, request *vo.HTTPRequest, history *aggregate.History) (int, []error) {
+func (d dynamicValue) evalLength(arg string, request *vo.EndpointRequest, history *aggregate.History) (int, []error) {
 	v, errs := d.resolveToAny(arg, request, history, true)
 	if checker.IsNotEmpty(errs) {
 		return 0, errs
@@ -641,7 +801,7 @@ func (d dynamicValueService) evalLength(arg string, request *vo.HTTPRequest, his
 	return ln, nil
 }
 
-func (d dynamicValueService) evalDistinct(arg string, request *vo.HTTPRequest, history *aggregate.History) (any, []error) {
+func (d dynamicValue) evalDistinct(arg string, request *vo.EndpointRequest, history *aggregate.History) (any, []error) {
 	v, errs := d.resolveToAny(arg, request, history, true)
 	if checker.IsNotEmpty(errs) {
 		return nil, errs
@@ -665,7 +825,7 @@ func (d dynamicValueService) evalDistinct(arg string, request *vo.HTTPRequest, h
 	return out, nil
 }
 
-func (d dynamicValueService) evalFuncBool(name string, args []string, request *vo.HTTPRequest, history *aggregate.History) (
+func (d dynamicValue) evalFuncBool(name string, args []string, request *vo.EndpointRequest, history *aggregate.History) (
 	bool, []error) {
 	n := strings.ToLower(strings.TrimSpace(name))
 
@@ -856,7 +1016,7 @@ func (d dynamicValueService) evalFuncBool(name string, args []string, request *v
 	return false, errors.NewAsSlicef("dynamic-value failed: unsupported func=%s", name)
 }
 
-func (d dynamicValueService) evalIsNull(arg string, request *vo.HTTPRequest, history *aggregate.History, treatNotFoundAsEmpty bool) (bool, []error) {
+func (d dynamicValue) evalIsNull(arg string, request *vo.EndpointRequest, history *aggregate.History, treatNotFoundAsEmpty bool) (bool, []error) {
 	v, errs := d.resolveToAny(arg, request, history, treatNotFoundAsEmpty)
 	if checker.IsNotEmpty(errs) {
 		return false, errs
@@ -873,7 +1033,7 @@ func (d dynamicValueService) evalIsNull(arg string, request *vo.HTTPRequest, his
 	return false, nil
 }
 
-func (d dynamicValueService) evalEmpty(arg string, request *vo.HTTPRequest, history *aggregate.History, treatNotFoundAsEmpty bool,
+func (d dynamicValue) evalEmpty(arg string, request *vo.EndpointRequest, history *aggregate.History, treatNotFoundAsEmpty bool,
 ) (bool, []error) {
 	s, errs := d.resolveToString(arg, request, history, treatNotFoundAsEmpty)
 	if checker.IsNotEmpty(errs) {
@@ -884,7 +1044,7 @@ func (d dynamicValueService) evalEmpty(arg string, request *vo.HTTPRequest, hist
 	return false, nil
 }
 
-func (d dynamicValueService) evalNullOrEmpty(arg string, request *vo.HTTPRequest, history *aggregate.History,
+func (d dynamicValue) evalNullOrEmpty(arg string, request *vo.EndpointRequest, history *aggregate.History,
 	treatNotFoundAsEmpty bool) (bool, []error) {
 	s, errs := d.resolveToString(arg, request, history, treatNotFoundAsEmpty)
 	if checker.IsNotEmpty(errs) {
@@ -901,7 +1061,7 @@ func (d dynamicValueService) evalNullOrEmpty(arg string, request *vo.HTTPRequest
 	return false, nil
 }
 
-func (d dynamicValueService) evalAsBool(arg string, request *vo.HTTPRequest, history *aggregate.History) (bool, []error) {
+func (d dynamicValue) evalAsBool(arg string, request *vo.EndpointRequest, history *aggregate.History) (bool, []error) {
 	s, errs := d.resolveToString(arg, request, history, false)
 	if checker.IsNotEmpty(errs) {
 		return false, errs
@@ -916,7 +1076,7 @@ func (d dynamicValueService) evalAsBool(arg string, request *vo.HTTPRequest, his
 	}
 }
 
-func (d dynamicValueService) evalCompareNumber(left string, right string, request *vo.HTTPRequest,
+func (d dynamicValue) evalCompareNumber(left string, right string, request *vo.EndpointRequest,
 	history *aggregate.History, cmp func(a, b float64) bool) (bool, []error) {
 	ls, errs := d.resolveToString(left, request, history, false)
 	if checker.IsNotEmpty(errs) {
@@ -941,7 +1101,7 @@ func (d dynamicValueService) evalCompareNumber(left string, right string, reques
 	return cmp(lf, rf), nil
 }
 
-func (d dynamicValueService) evalEquals(left string, right string, request *vo.HTTPRequest, history *aggregate.History,
+func (d dynamicValue) evalEquals(left string, right string, request *vo.EndpointRequest, history *aggregate.History,
 	treatNotFoundAsEmpty bool) (bool, []error) {
 	ls, errs := d.resolveToString(left, request, history, treatNotFoundAsEmpty)
 	if checker.IsNotEmpty(errs) {
@@ -959,7 +1119,7 @@ func (d dynamicValueService) evalEquals(left string, right string, request *vo.H
 	return checker.Equals(ls, rs), nil
 }
 
-func (d dynamicValueService) evalEqualsIgnoreCase(left string, right string, request *vo.HTTPRequest,
+func (d dynamicValue) evalEqualsIgnoreCase(left string, right string, request *vo.EndpointRequest,
 	history *aggregate.History, treatNotFoundAsEmpty bool) (bool, []error) {
 	ls, errs := d.resolveToString(left, request, history, treatNotFoundAsEmpty)
 	if checker.IsNotEmpty(errs) {
@@ -977,7 +1137,7 @@ func (d dynamicValueService) evalEqualsIgnoreCase(left string, right string, req
 	return checker.EqualsIgnoreCase(ls, rs), nil
 }
 
-func (d dynamicValueService) evalContains(left string, right string, request *vo.HTTPRequest,
+func (d dynamicValue) evalContains(left string, right string, request *vo.EndpointRequest,
 	history *aggregate.History, negate bool) (bool, []error) {
 	lv, errs := d.resolveToAny(left, request, history, true)
 	if checker.IsNotEmpty(errs) {
@@ -996,7 +1156,7 @@ func (d dynamicValueService) evalContains(left string, right string, request *vo
 	return found, nil
 }
 
-func (d dynamicValueService) evalContainsIgnoreCase(left string, right string, request *vo.HTTPRequest,
+func (d dynamicValue) evalContainsIgnoreCase(left string, right string, request *vo.EndpointRequest,
 	history *aggregate.History, negate bool) (bool, []error) {
 	ls, errs := d.resolveToString(left, request, history, true)
 	if checker.IsNotEmpty(errs) {
@@ -1018,7 +1178,7 @@ func (d dynamicValueService) evalContainsIgnoreCase(left string, right string, r
 	return found, nil
 }
 
-func (d dynamicValueService) evalLengthCompare(left string, right string, request *vo.HTTPRequest,
+func (d dynamicValue) evalLengthCompare(left string, right string, request *vo.EndpointRequest,
 	history *aggregate.History, op string) (bool, []error) {
 	lv, errs := d.resolveToAny(left, request, history, true)
 	if checker.IsNotEmpty(errs) {
@@ -1064,7 +1224,7 @@ func (d dynamicValueService) evalLengthCompare(left string, right string, reques
 	}
 }
 
-func (d dynamicValueService) parseFuncCall(expr string) (string, []string, error) {
+func (d dynamicValue) parseFuncCall(expr string) (string, []string, error) {
 	expr = strings.TrimSpace(expr)
 	if !strings.HasPrefix(expr, "$") {
 		return "", nil, errors.Newf("dynamic-value failed: unsupported expr=%s", expr)
@@ -1090,7 +1250,121 @@ func (d dynamicValueService) parseFuncCall(expr string) (string, []string, error
 	return name, args, nil
 }
 
-func (d dynamicValueService) splitArgsTopLevel(s string) []string {
+func (d dynamicValue) splitTernaryTopLevel(expr string) (string, string, string, bool) {
+	expr = strings.TrimSpace(expr)
+	if checker.IsEmpty(expr) {
+		return "", "", "", false
+	}
+
+	inQuotes := false
+	var quote byte
+	depth := 0
+	qIndex := -1
+
+	for i := 0; checker.IsLengthLessThan(expr, i); i++ {
+		ch := expr[i]
+
+		if (checker.Equals(ch, '"') || checker.Equals(ch, '\'')) &&
+			(checker.Equals(i, 0) || checker.NotEquals(expr[i-1], '\\')) {
+			if !inQuotes {
+				inQuotes = true
+				quote = ch
+			} else if checker.Equals(quote, ch) {
+				inQuotes = false
+				quote = 0
+			}
+			continue
+		}
+		if inQuotes {
+			continue
+		}
+
+		if checker.Equals(ch, '(') {
+			depth++
+			continue
+		}
+		if checker.Equals(ch, ')') && checker.IsGreaterThan(depth, 0) {
+			depth--
+			continue
+		}
+
+		if checker.Equals(depth, 0) && checker.Equals(ch, '?') {
+			qIndex = i
+			break
+		}
+	}
+
+	if checker.IsLessThan(qIndex, 0) {
+		return "", "", "", false
+	}
+
+	inQuotes = false
+	quote = 0
+	depth = 0
+	nestedTernary := 0
+	colonIndex := -1
+
+	for i := qIndex + 1; checker.IsLengthLessThan(expr, i); i++ {
+		ch := expr[i]
+
+		if (checker.Equals(ch, '"') || checker.Equals(ch, '\'')) &&
+			(checker.Equals(i, 0) || checker.NotEquals(expr[i-1], '\\')) {
+			if !inQuotes {
+				inQuotes = true
+				quote = ch
+			} else if checker.Equals(quote, ch) {
+				inQuotes = false
+				quote = 0
+			}
+			continue
+		}
+		if inQuotes {
+			continue
+		}
+
+		if checker.Equals(ch, '(') {
+			depth++
+			continue
+		}
+		if checker.Equals(ch, ')') && checker.IsGreaterThan(depth, 0) {
+			depth--
+			continue
+		}
+
+		if checker.NotEquals(depth, 0) {
+			continue
+		}
+
+		if checker.Equals(ch, '?') {
+			nestedTernary++
+			continue
+		}
+
+		if checker.Equals(ch, ':') {
+			if checker.Equals(nestedTernary, 0) {
+				colonIndex = i
+				break
+			}
+			nestedTernary--
+		}
+	}
+
+	if checker.IsLessThan(colonIndex, 0) {
+		return "", "", "", false
+	}
+
+	cond := strings.TrimSpace(expr[:qIndex])
+	left := strings.TrimSpace(expr[qIndex+1 : colonIndex])
+	right := strings.TrimSpace(expr[colonIndex+1:])
+
+	if checker.IsEmpty(cond) || checker.IsEmpty(left) || checker.IsEmpty(right) {
+		return "", "", "", false
+	}
+
+	return cond, left, right, true
+}
+
+func (d dynamicValue) splitArgsTopLevel(s string) []string {
 	var out []string
 	var cur strings.Builder
 	var depth int
@@ -1137,7 +1411,7 @@ func (d dynamicValueService) splitArgsTopLevel(s string) []string {
 	return out
 }
 
-func (d dynamicValueService) splitTopLevel(expr string, op string) ([]string, bool) {
+func (d dynamicValue) splitTopLevel(expr string, op string) ([]string, bool) {
 	var parts []string
 	depth := 0
 	inQuotes := false
@@ -1175,7 +1449,7 @@ func (d dynamicValueService) splitTopLevel(expr string, op string) ([]string, bo
 	return parts, true
 }
 
-func (d dynamicValueService) trimOuterParens(s string) string {
+func (d dynamicValue) trimOuterParens(s string) string {
 	s = strings.TrimSpace(s)
 	if checker.IsLengthLessThan(s, 2) || checker.NotEquals(s[0], '(') || checker.NotEquals(s[len(s)-1], ')') {
 		return s
@@ -1208,7 +1482,7 @@ func (d dynamicValueService) trimOuterParens(s string) string {
 	return s
 }
 
-func (d dynamicValueService) parseBoolLiteral(s string) (bool, bool) {
+func (d dynamicValue) parseBoolLiteral(s string) (bool, bool) {
 	switch strings.ToLower(strings.TrimSpace(d.stripQuotes(s))) {
 	case "true":
 		return true, true
@@ -1219,7 +1493,7 @@ func (d dynamicValueService) parseBoolLiteral(s string) (bool, bool) {
 	}
 }
 
-func (d dynamicValueService) stripQuotes(s string) string {
+func (d dynamicValue) stripQuotes(s string) string {
 	s = strings.TrimSpace(s)
 	if checker.IsLengthLessThan(s, 2) {
 		return s
@@ -1230,4 +1504,29 @@ func (d dynamicValueService) stripQuotes(s string) string {
 	} else {
 		return s
 	}
+}
+
+func (d dynamicValue) isFunc(name string) bool {
+	name = strings.ToLower(strings.TrimSpace(name))
+	return checker.Contains(funcs, name)
+}
+
+func (d dynamicValue) isBoolFunc(name string) bool {
+	name = strings.ToLower(strings.TrimSpace(name))
+	return checker.Contains(boolFuncs, name)
+}
+
+func (d dynamicValue) isBoolExpr(expr string) bool {
+	expr = strings.TrimSpace(expr)
+
+	if strings.HasPrefix(expr, "$(") && strings.HasSuffix(expr, ")") {
+		return true
+	}
+
+	name, _, err := d.parseFuncCall(expr)
+	if checker.NonNil(err) {
+		return false
+	}
+
+	return d.isBoolFunc(name)
 }

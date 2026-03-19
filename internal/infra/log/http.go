@@ -18,6 +18,7 @@ package log
 
 import (
 	"fmt"
+
 	"github.com/tech4works/gopen-gateway/internal/app"
 )
 
@@ -29,11 +30,11 @@ func NewHTTPLog() app.HTTPLog {
 }
 
 func (a httpLog) PrintRequest(ctx app.Context) {
-	header := ctx.Request().Header()
+	header := ctx.Request().Metadata()
 
 	text := fmt.Sprintf("header.user-agent: %s | header.size: %s", header.Get("User-Agent"), header.SizeStr())
-	if ctx.Request().HasBody() {
-		body := ctx.Request().Body()
+	if ctx.Request().HasPayload() {
+		body := ctx.Request().Payload()
 		text += fmt.Sprintf(" | body.content-type: %s | body.size: %s", body.ContentType().String(), body.SizeInByteUnit())
 	}
 
@@ -41,7 +42,7 @@ func (a httpLog) PrintRequest(ctx app.Context) {
 }
 
 func (a httpLog) PrintResponse(ctx app.Context) {
-	statusCode := BuildStatusCodeText(ctx.Response().StatusCode())
+	statusCode := BuildStatusCodeText(ctx.Response().Status())
 	duration := ctx.Duration().Milliseconds()
 
 	prefix := a.prefix(ctx)
@@ -51,11 +52,11 @@ func (a httpLog) PrintResponse(ctx app.Context) {
 
 func (a httpLog) prefix(ctx app.Context) string {
 	path := ctx.Request().Path().Raw()
-	traceID := BuildTraceIDText(ctx.TraceID())
-	ip := ctx.ClientIP()
+	traceID := BuildTraceIDText(ctx.Request().TraceID())
+	ip := ctx.Request().ClientIP()
 
-	method := BuildTintText(ctx.Request().Method())
-	url := BuildUriText(ctx.Request().URL())
+	method := BuildTintText(ctx.Request().Operation())
+	url := BuildURIText(ctx.Request().Route())
 
 	return fmt.Sprintf("[%s | %s | %s |%s| %s]", path, ip, traceID, method, url)
 }

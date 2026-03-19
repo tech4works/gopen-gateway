@@ -20,6 +20,8 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -29,37 +31,53 @@ import (
 	"github.com/tech4works/errors"
 	"github.com/tech4works/gopen-gateway/internal/app"
 	"github.com/tech4works/gopen-gateway/internal/app/model/dto"
-	"github.com/tech4works/gopen-gateway/internal/domain/mapper"
+	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
 	"go.elastic.co/apm/v2"
 	"golang.org/x/net/context"
+	"google.golang.org/grpc/codes"
+
+	"github.com/google/uuid"
 )
 
 type Context struct {
 	startTime time.Time
 	mutex     *sync.RWMutex
-	engine    *gin.Context
-	gopen     *vo.Gopen
-	endpoint  *vo.Endpoint
-	request   *vo.HTTPRequest
-	response  *vo.HTTPResponse
+	engine    *engine
+	gopen     *vo.GopenConfig
+	endpoint  *vo.EndpointConfig
+	request   *vo.EndpointRequest
+	response  *vo.EndpointResponse
 }
 
-func newContext(gin *gin.Context, gopen *vo.Gopen, endpoint *vo.Endpoint) app.Context {
+type engine struct {
+	http *gin.Context
+}
+
+func newHTTPContext(gin *gin.Context, gopen *vo.GopenConfig, endpoint *vo.EndpointConfig) app.Context {
 	request := buildHTTPRequest(gin)
 	return &Context{
 		startTime: time.Now(),
 		mutex:     &sync.RWMutex{},
-		engine:    gin,
+		engine:    &engine{http: gin},
 		gopen:     gopen,
 		endpoint:  endpoint,
 		request:   request,
 	}
 }
 
-func buildHTTPRequest(gin *gin.Context) *vo.HTTPRequest {
-	gin.Request.Header.Set(mapper.XForwardedFor, gin.ClientIP())
-	header := vo.NewHeader(gin.Request.Header)
+func buildHTTPRequest(gin *gin.Context) *vo.EndpointRequest {
+	requestID := uuid.New().String()
+
+	var traceID string
+	tx := apm.TransactionFromContext(gin.Request.Context())
+	if checker.NonNil(tx) {
+		traceID = tx.TraceContext().Trace.String()
+	}
+
+	clientIP := gin.ClientIP()
+
+	header := vo.NewMetadata(gin.Request.Header)
 
 	query := vo.NewQuery(gin.Request.URL.Query())
 	url := gin.Request.URL.Path
@@ -78,13 +96,13 @@ func buildHTTPRequest(gin *gin.Context) *vo.HTTPRequest {
 		panic(err)
 	}
 
-	body := vo.NewBody(gin.GetHeader(mapper.ContentType), gin.GetHeader(mapper.ContentEncoding), bytes.NewBuffer(bodyBytes))
+	body := vo.NewPayload(gin.GetHeader(app.ContentType), gin.GetHeader(app.ContentEncoding), bytes.NewBuffer(bodyBytes))
 
-	return vo.NewHTTPRequest(path, url, gin.Request.Method, header, query, body)
+	return vo.NewHTTPEndpointRequest(requestID, traceID, clientIP, url, path, query, gin.Request.Method, header, body)
 }
 
 func (c *Context) Context() context.Context {
-	return c.engine.Request.Context()
+	return c.engine.http.Request.Context()
 }
 
 func (c *Context) Done() <-chan struct{} {
@@ -92,151 +110,278 @@ func (c *Context) Done() <-chan struct{} {
 }
 
 func (c *Context) WithContext(ctx context.Context) {
-	c.engine.Request = c.engine.Request.WithContext(ctx)
+	c.engine.http.Request = c.engine.http.Request.WithContext(ctx)
 }
 
 func (c *Context) Next() {
-	c.engine.Next()
+	c.engine.http.Next()
+}
+
+func (c *Context) Abort() {
+	c.engine.http.Abort()
+}
+
+func (c *Context) IsAborted() bool {
+	return c.engine.http.IsAborted()
 }
 
 func (c *Context) Duration() time.Duration {
 	return time.Now().Sub(c.startTime)
 }
 
-func (c *Context) TraceID() string {
-	tx := apm.TransactionFromContext(c.Context())
-	if checker.NonNil(tx) {
-		return tx.TraceContext().Trace.String()
-	}
-	return "undefined"
-}
-
-func (c *Context) ClientIP() string {
-	return c.Request().Header().GetFirst(mapper.XForwardedFor)
-}
-
-func (c *Context) Gopen() *vo.Gopen {
+func (c *Context) Gopen() *vo.GopenConfig {
 	return c.gopen
 }
 
-func (c *Context) Endpoint() *vo.Endpoint {
+func (c *Context) Endpoint() *vo.EndpointConfig {
 	return c.endpoint
 }
 
-func (c *Context) Request() *vo.HTTPRequest {
+func (c *Context) Request() *vo.EndpointRequest {
 	return c.request
 }
 
-func (c *Context) Response() *vo.HTTPResponse {
+func (c *Context) Response() *vo.EndpointResponse {
 	return c.response
 }
 
-func (c *Context) Write(response *vo.HTTPResponse) {
+func (c *Context) Write(response *vo.EndpointResponse) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
-	if c.engine.IsAborted() {
+	c.writeHTTPResponse(response)
+}
+
+func (c *Context) WriteError(status enum.ResponseStatus, err error) {
+	wrapped := errors.Wrap(err)
+	payload := vo.NewPayloadJSON(converter.ToBuffer(dto.ErrorPayload{
+		File:      wrapped.File(),
+		Line:      wrapped.Line(),
+		Endpoint:  c.endpoint.Path(),
+		Message:   wrapped.Message(),
+		Timestamp: time.Now(),
+	}))
+
+	c.Write(vo.NewEndpointResponseWithOnlyStatusAndPayload(vo.NewResponseStatusByValue(status), payload))
+}
+
+func (c *Context) WriteStatus(status enum.ResponseStatus) {
+	c.Write(vo.NewEndpointResponseWithOnlyStatus(vo.NewResponseStatusByValue(status)))
+}
+
+func (c *Context) WriteString(status enum.ResponseStatus, s string) {
+	payload := vo.NewPayloadWithContentType(vo.NewContentTypeTextPlain(), converter.ToBuffer(s))
+
+	c.Write(vo.NewEndpointResponseWithOnlyStatusAndPayload(vo.NewResponseStatusByValue(status), payload))
+}
+
+func (c *Context) WriteJSON(status enum.ResponseStatus, a any) {
+	payload := vo.NewPayloadWithContentType(vo.NewContentTypeJSON(), converter.ToBuffer(a))
+
+	c.Write(vo.NewEndpointResponseWithOnlyStatusAndPayload(vo.NewResponseStatusByValue(status), payload))
+}
+
+func (c *Context) WriteMetadata(metadata vo.Metadata) {
+	for _, key := range metadata.Keys() {
+		c.engine.http.Header(key, metadata.Get(key))
+	}
+}
+
+func (c *Context) writeHTTPResponse(response *vo.EndpointResponse) {
+	if c.IsAborted() {
 		return
+	}
+
+	var statusCode int
+	if response.Status().HasRaw() && converter.CouldBeInt(response.Status().Raw()) {
+		statusCode = converter.ToInt(response.Status().Raw())
+	} else {
+		statusCode = c.parseResponseStatusToHTTPStatusCode(response.Status().Value())
 	}
 
 	var contentType vo.ContentType
 	var rawBodyBytes []byte
-	if response.HasBody() {
-		contentType = response.Body().ContentType()
-		rawBodyBytes = response.Body().RawBytes()
+	if response.HasPayload() {
+		contentType = response.Payload().ContentType()
+		rawBodyBytes = response.Payload().RawBytes()
 	}
 
-	c.writeHeader(response.Header())
+	for _, key := range response.Metadata().Keys() {
+		c.engine.http.Header(key, response.Metadata().Get(key))
+	}
+
+	c.decorateHTTPTransportHeaders(response, statusCode)
+
 	if checker.IsNotEmpty(rawBodyBytes) {
-		c.writeBody(response.StatusCode(), contentType.String(), rawBodyBytes)
+		c.engine.http.Data(statusCode, contentType.String(), rawBodyBytes)
 	} else {
-		c.writeStatusCode(response.StatusCode())
+		c.engine.http.Status(statusCode)
 	}
 
-	c.engine.Abort()
+	c.Abort()
 	c.response = response
 }
 
-func (c *Context) WriteError(code int, err error) {
-	statusCode := vo.NewStatusCode(code)
-
-	details := errors.Wrap(err)
-	buffer := converter.ToBuffer(dto.ErrorBody{
-		File:      details.File(),
-		Line:      details.Line(),
-		Endpoint:  c.endpoint.Path(),
-		Message:   details.Message(),
-		Timestamp: time.Now(),
-	})
-	body := vo.NewBodyJson(buffer)
-	header := c.buildHeader(false, statusCode, body)
-
-	c.Write(vo.NewHTTPResponse(statusCode, header, body))
-}
-
-func (c *Context) WriteCacheResponse(cacheResponse *vo.CacheResponse) {
-	c.Write(vo.NewHTTPResponse(cacheResponse.StatusCode, c.buildCacheHeader(cacheResponse), cacheResponse.Body))
-}
-
-func (c *Context) WriteStatusCode(code int) {
-	statusCode := vo.NewStatusCode(code)
-	header := c.buildHeader(true, statusCode, nil)
-
-	c.Write(vo.NewHTTPResponseStatusCode(statusCode, header))
-}
-
-func (c *Context) WriteString(code int, s string) {
-	statusCode := vo.NewStatusCode(code)
-	body := vo.NewBodyWithContentType(vo.NewContentTypeTextPlain(), converter.ToBuffer(s))
-	header := c.buildHeader(true, statusCode, body)
-
-	c.Write(vo.NewHTTPResponse(statusCode, header, body))
-}
-
-func (c *Context) WriteJson(code int, a any) {
-	statusCode := vo.NewStatusCode(code)
-	body := vo.NewBodyWithContentType(vo.NewContentTypeJson(), converter.ToBuffer(a))
-	header := c.buildHeader(true, statusCode, body)
-
-	c.Write(vo.NewHTTPResponse(statusCode, header, body))
-}
-
-func (c *Context) buildHeader(complete bool, statusCode vo.StatusCode, body *vo.Body) vo.Header {
-	mapHeader := map[string][]string{
-		mapper.XGopenCache:    {"false"},
-		mapper.XGopenComplete: {converter.ToString(complete)},
-		mapper.XGopenSuccess:  {converter.ToString(statusCode.OK())},
-	}
-	if checker.NonNil(body) {
-		mapHeader[mapper.ContentType] = []string{body.ContentType().String()}
-		mapHeader[mapper.ContentLength] = []string{body.SizeInString()}
-	}
-	return vo.NewHeader(mapHeader)
-}
-
-func (c *Context) buildCacheHeader(cacheResponse *vo.CacheResponse) vo.Header {
-	copied := cacheResponse.Header.Copy()
-	copied[mapper.XGopenCache] = []string{"true"}
-	copied[mapper.XGopenCacheTTL] = []string{cacheResponse.TTL()}
-	return vo.NewHeader(copied)
-}
-
-func (c *Context) writeStatusCode(statusCode vo.StatusCode) {
-	if c.engine.IsAborted() {
-		return
-	}
-	c.engine.Status(statusCode.Code())
-}
-
-func (c *Context) writeHeader(header vo.Header) {
-	for _, key := range header.Keys() {
-		c.engine.Header(key, header.Get(key))
+func (c *Context) parseResponseStatusToHTTPStatusCode(responseStatus enum.ResponseStatus) int {
+	switch responseStatus {
+	case enum.ResponseStatusOK:
+		return http.StatusOK
+	case enum.ResponseStatusCancelled:
+		return http.StatusRequestTimeout
+	case enum.ResponseStatusInvalidArgument:
+		return http.StatusBadRequest
+	case enum.ResponseStatusDeadlineExceeded:
+		return http.StatusGatewayTimeout
+	case enum.ResponseStatusNotFound:
+		return http.StatusNotFound
+	case enum.ResponseStatusAlreadyExists:
+		return http.StatusConflict
+	case enum.ResponseStatusPermissionDenied:
+		return http.StatusForbidden
+	case enum.ResponseStatusUnauthenticated:
+		return http.StatusUnauthorized
+	case enum.ResponseStatusResourceExhausted:
+		return http.StatusTooManyRequests
+	case enum.ResponseStatusFailedPrecondition:
+		return http.StatusPreconditionFailed
+	case enum.ResponseStatusAborted:
+		return http.StatusConflict
+	case enum.ResponseStatusOutOfRange:
+		return http.StatusBadRequest
+	case enum.ResponseStatusUnimplemented:
+		return http.StatusNotImplemented
+	case enum.ResponseStatusInternalError:
+		return http.StatusInternalServerError
+	case enum.ResponseStatusUnavailable:
+		return http.StatusServiceUnavailable
+	case enum.ResponseStatusDataLoss:
+		return http.StatusInternalServerError
+	case enum.ResponseStatusConflict:
+		return http.StatusConflict
+	case enum.ResponseStatusBadGateway:
+		return http.StatusBadGateway
+	default:
+		return http.StatusInternalServerError
 	}
 }
 
-func (c *Context) writeBody(statusCode vo.StatusCode, contentType string, body []byte) {
-	if c.engine.IsAborted() {
-		return
+func (c *Context) parseResponseStatusToGRPCCode(responseStatus enum.ResponseStatus) codes.Code {
+	switch responseStatus {
+	case enum.ResponseStatusOK:
+		return codes.OK
+	case enum.ResponseStatusCancelled:
+		return codes.Canceled
+	case enum.ResponseStatusInvalidArgument:
+		return codes.InvalidArgument
+	case enum.ResponseStatusDeadlineExceeded:
+		return codes.DeadlineExceeded
+	case enum.ResponseStatusNotFound:
+		return codes.NotFound
+	case enum.ResponseStatusAlreadyExists:
+		return codes.AlreadyExists
+	case enum.ResponseStatusPermissionDenied:
+		return codes.PermissionDenied
+	case enum.ResponseStatusUnauthenticated:
+		return codes.Unauthenticated
+	case enum.ResponseStatusResourceExhausted:
+		return codes.ResourceExhausted
+	case enum.ResponseStatusFailedPrecondition:
+		return codes.FailedPrecondition
+	case enum.ResponseStatusAborted:
+		return codes.Aborted
+	case enum.ResponseStatusOutOfRange:
+		return codes.OutOfRange
+	case enum.ResponseStatusUnimplemented:
+		return codes.Unimplemented
+	case enum.ResponseStatusInternalError:
+		return codes.Internal
+	case enum.ResponseStatusUnavailable:
+		return codes.Unavailable
+	case enum.ResponseStatusDataLoss:
+		return codes.DataLoss
+	case enum.ResponseStatusConflict:
+		return codes.Aborted
+	case enum.ResponseStatusBadGateway:
+		return codes.Unavailable
+	default:
+		return codes.Unknown
 	}
-	c.engine.Data(statusCode.Code(), contentType, body)
+}
+
+func (c *Context) decorateHTTPTransportHeaders(response *vo.EndpointResponse, statusCode int) {
+	c.engine.http.Header(app.XGopenRequestID, c.request.ID())
+
+	if checker.IsNotEmpty(c.request.TraceID()) {
+		c.engine.http.Header(app.XGopenTraceID, c.request.TraceID())
+	}
+
+	//c.engine.http.Header(app.XForwardedFor, c.request.ClientIP())
+
+	c.engine.http.Header(app.XGopenCache, converter.ToString(response.ComesFromCache()))
+	c.engine.http.Header(app.XGopenSuccess, converter.ToString(response.Execution().AllOK()))
+	c.engine.http.Header(app.XGopenComplete, converter.ToString(response.Execution().AllExecuted()))
+	c.engine.http.Header(app.XGopenDegraded, converter.ToString(response.Degradation().Any()))
+
+	if response.ComesFromCache() {
+		c.engine.http.Header(app.XGopenCacheTTL, converter.ToString(response.Cache().RemainingTTL().Time().Milliseconds()))
+	}
+
+	degradation := response.Degradation()
+
+	c.engine.http.Header(
+		app.XGopenHeaderDegraded,
+		converter.ToString(degradation.Has(enum.DegradationKindMetadata)),
+	)
+	c.engine.http.Header(
+		app.XGopenMetadataDegraded,
+		converter.ToString(degradation.Has(enum.DegradationKindMetadata)),
+	)
+	c.engine.http.Header(
+		app.XGopenQueryDegraded,
+		converter.ToString(degradation.Has(enum.DegradationKindQuery)),
+	)
+	c.engine.http.Header(
+		app.XGopenURLPathDegraded,
+		converter.ToString(degradation.Has(enum.DegradationKindURLPath)),
+	)
+	c.engine.http.Header(
+		app.XGopenBodyDegraded,
+		converter.ToString(degradation.Has(enum.DegradationKindPayload)),
+	)
+	c.engine.http.Header(
+		app.XGopenPayloadDegraded,
+		converter.ToString(degradation.Has(enum.DegradationKindPayload)),
+	)
+	c.engine.http.Header(
+		app.XGopenDeduplicationIDDegraded,
+		converter.ToString(degradation.Has(enum.DegradationKindDeduplicationID)),
+	)
+	c.engine.http.Header(
+		app.XGopenGroupIDDegraded,
+		converter.ToString(degradation.Has(enum.DegradationKindGroupID)),
+	)
+	c.engine.http.Header(
+		app.XGopenAttributeDegraded,
+		converter.ToString(degradation.Has(enum.DegradationKindAttributes)),
+	)
+
+	backendsDegraded := response.Execution().Degradations()
+	if checker.IsNotEmpty(backendsDegraded) {
+		ids := make([]string, len(backendsDegraded))
+		for i, backendDegraded := range backendsDegraded {
+			ids[i] = backendDegraded.ID()
+		}
+
+		c.engine.http.Header(app.XGopenDegradedBackendCount, converter.ToString(len(ids)))
+		c.engine.http.Header(app.XGopenDegradedBackends, strings.Join(ids, ", "))
+	}
+
+	if response.HasPayload() {
+		c.engine.http.Header(app.ContentType, response.Payload().ContentType().String())
+		c.engine.http.Header(app.ContentLength, response.Payload().SizeInString())
+
+		if response.Payload().HasContentEncoding() {
+			c.engine.http.Header(app.ContentEncoding, response.Payload().ContentEncoding().String())
+		}
+	}
 }

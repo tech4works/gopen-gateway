@@ -29,8 +29,8 @@ func New() domain.Nomenclature {
 	return provider{}
 }
 
-func (p provider) Parse(nomenclature enum.Nomenclature, key string) string {
-	switch nomenclature {
+func (p provider) Parse(config enum.Nomenclature, key string) string {
+	switch config {
 	case enum.NomenclatureCamel:
 		return strcase.ToCamel(key)
 	case enum.NomenclatureLowerCamel:

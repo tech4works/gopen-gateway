@@ -39,7 +39,11 @@ func (c ContentEncoding) String() string {
 }
 
 func (c ContentEncoding) IsSupported() bool {
-	return c.IsGzip() || c.IsDeflate()
+	return c.IsGzip() || c.IsDeflate() || c.IsNone()
+}
+
+func (c ContentEncoding) IsUnsupported() bool {
+	return !c.IsSupported()
 }
 
 func (c ContentEncoding) Valid() bool {
@@ -56,4 +60,14 @@ func (c ContentEncoding) IsGzip() bool {
 
 func (c ContentEncoding) IsDeflate() bool {
 	return checker.EqualsIgnoreCase(c, "deflate")
+}
+
+func (c ContentEncoding) IsNone() bool {
+	return checker.EqualsIgnoreCase(c, "none")
+}
+
+func (c ContentEncoding) Equals(another ContentEncoding) bool {
+	return checker.Equals(c.IsGzip(), another.IsGzip()) ||
+		checker.Equals(c.IsDeflate(), another.IsDeflate()) ||
+		checker.Equals(c.IsNone(), another.IsNone())
 }

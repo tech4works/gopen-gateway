@@ -59,10 +59,10 @@ func (e endpointLog) PrintError(executeData dto.ExecuteEndpoint, msg ...any) {
 
 func (e endpointLog) prefix(executeData dto.ExecuteEndpoint) string {
 	path := executeData.Endpoint.Path()
-	traceIDText := BuildTraceIDText(executeData.TraceID)
+	traceIDText := BuildTraceIDText(executeData.Request.TraceID())
 
 	method := BuildTintText(executeData.Endpoint.Method())
-	url := BuildUriText(executeData.Request.URL())
+	url := BuildURIText(executeData.Request.Route())
 
-	return fmt.Sprintf("[%s | %s | %s |%s| %s]", path, executeData.ClientIP, traceIDText, method, url)
+	return fmt.Sprintf("[%s | %s | %s |%s| %s]", path, executeData.Request.ClientIP(), traceIDText, method, url)
 }

@@ -27,125 +27,145 @@ import (
 type History struct {
 	mu sync.RWMutex
 
-	backends           []*vo.Backend
-	httpRequests       []*vo.HTTPBackendRequest
-	httpResponses      []*vo.HTTPBackendResponse
-	publisherRequests  []*vo.PublisherBackendRequest
-	publisherResponses []*vo.PublisherBackendResponse
+	backends  []*vo.BackendConfig
+	responses []*vo.BackendResponse
 }
 
 func NewHistoryWithSize(backendsSize int) *History {
 	return &History{
-		backends:           make([]*vo.Backend, backendsSize),
-		httpRequests:       make([]*vo.HTTPBackendRequest, backendsSize),
-		httpResponses:      make([]*vo.HTTPBackendResponse, backendsSize),
-		publisherRequests:  make([]*vo.PublisherBackendRequest, backendsSize),
-		publisherResponses: make([]*vo.PublisherBackendResponse, backendsSize),
+		backends:  make([]*vo.BackendConfig, backendsSize),
+		responses: make([]*vo.BackendResponse, backendsSize),
 	}
 }
 
-func (h *History) AddBackend(
-	i int,
-	backend *vo.Backend,
-	httpRequest *vo.HTTPBackendRequest,
-	httpResponse *vo.HTTPBackendResponse,
-	publisherRequest *vo.PublisherBackendRequest,
-	publisherResponse *vo.PublisherBackendResponse,
-) {
+func (h *History) Add(i int, backend *vo.BackendConfig, response *vo.BackendResponse) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	nb := h.backends
-	nhr := h.httpRequests
-	nhs := h.httpResponses
-	npr := h.publisherRequests
-	nps := h.publisherResponses
-
-	nb[i] = backend
-	nhr[i] = httpRequest
-	nhs[i] = httpResponse
-	npr[i] = publisherRequest
-	nps[i] = publisherResponse
+	h.backends[i] = backend
+	h.responses[i] = response
 }
 
-func (h *History) GetHTTPBackend(i int) (*vo.Backend, *vo.HTTPBackendRequest, *vo.HTTPBackendResponse) {
-	return h.backends[i], h.httpRequests[i], h.httpResponses[i]
+func (h *History) Get(i int) (*vo.BackendConfig, *vo.BackendResponse) {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	return h.backends[i], h.responses[i]
 }
 
-func (h *History) GetPublisherBackend(i int) (*vo.Backend, *vo.PublisherBackendRequest, *vo.PublisherBackendResponse) {
-	return h.backends[i], h.publisherRequests[i], h.publisherResponses[i]
-}
+func (h *History) GetID(i int) string {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
 
-func (h *History) GetBackend(i int) (
-	*vo.Backend,
-	*vo.HTTPBackendRequest,
-	*vo.HTTPBackendResponse,
-	*vo.PublisherBackendRequest,
-	*vo.PublisherBackendResponse,
-) {
-	return h.backends[i], h.httpRequests[i], h.httpResponses[i], h.publisherRequests[i], h.publisherResponses[i]
-}
-
-func (h *History) GetBackendID(i int) string {
 	return h.backends[i].ID()
 }
 
-func (h *History) GetBackendResponse(i int) vo.BackendPolymorphicResponse {
-	if h.backends[i].IsHTTP() {
-		return h.httpResponses[i]
-	} else if h.backends[i].IsPublisher() {
-		return h.publisherResponses[i]
-	}
-	return nil
+func (h *History) GetResponse(i int) *vo.BackendResponse {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	return h.responses[i]
 }
 
-func (h *History) IsSingleResponse() bool {
-	return checker.Equals(h.SizeOfExecuted(), 1)
-}
+func (h *History) GetResponseLastest() *vo.BackendResponse {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
 
-func (h *History) IsMultipleResponses() bool {
-	return checker.IsGreaterThan(h.SizeOfExecuted(), 1)
-}
-
-func (h *History) BackendResponseLastest() vo.BackendPolymorphicResponse {
-	for i := h.Size() - 1; checker.IsGreaterThanOrEqual(i, 0); i-- {
-		backendResponse := h.GetBackendResponse(i)
-		if backendResponse.Executed() {
-			return backendResponse
+	for i := h.sizeUnlocked() - 1; checker.IsGreaterThanOrEqual(i, 0); i-- {
+		resp := h.responses[i]
+		if checker.NonNil(resp) {
+			return resp
 		}
 	}
 	return nil
+}
+
+func (h *History) GetLatest() (*vo.BackendConfig, *vo.BackendResponse) {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	for i := h.sizeUnlocked() - 1; checker.IsGreaterThanOrEqual(i, 0); i-- {
+		resp := h.responses[i]
+		if checker.NonNil(resp) {
+			return h.backends[i], resp
+		}
+	}
+	return nil, nil
+}
+
+func (h *History) DependenciesSatisfied(backend *vo.BackendConfig) bool {
+	if !backend.HasDependencies() {
+		return true
+	}
+
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	for _, idx := range backend.Dependencies().Indexes() {
+		resp := h.responses[idx]
+		if checker.IsNil(resp) || !resp.Executed() {
+			return false
+		}
+	}
+
+	return true
+}
+
+func (h *History) IsSingleFinalResponse() bool {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	return checker.Equals(h.sizeForFinalResponseUnlocked(), 1)
+}
+
+func (h *History) IsMultipleFinalResponse() bool {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	return checker.IsGreaterThan(h.sizeForFinalResponseUnlocked(), 1)
 }
 
 func (h *History) Size() int {
-	return len(h.backends)
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	return h.sizeUnlocked()
 }
 
-func (h *History) SizeOfExecuted() int {
-	count := 0
-	for i := 0; checker.IsLessThan(i, h.Size()); i++ {
-		backendResponse := h.GetBackendResponse(i)
-		if backendResponse.Executed() {
-			count++
+func (h *History) Degradations() []vo.BackendDegradation {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	var degradations []vo.BackendDegradation
+	for i := 0; checker.IsLessThan(i, h.sizeForFinalResponseUnlocked()); i++ {
+		resp := h.responses[i]
+		if checker.NonNil(resp) && resp.ShouldInFinalResponse() && resp.Degraded() {
+			degradations = append(degradations, vo.NewBackendDegradation(h.backends[i].ID(), resp.Degradation()))
 		}
 	}
-	return count
+	return degradations
 }
 
 func (h *History) AllOK() bool {
-	for i := 0; checker.IsLessThan(i, h.Size()); i++ {
-		backendResponse := h.GetBackendResponse(i)
-		if backendResponse.Executed() && !backendResponse.OK() {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	for i := 0; checker.IsLessThan(i, h.sizeUnlocked()); i++ {
+		resp := h.responses[i]
+		if checker.IsNil(resp) || !resp.OK() {
 			return false
 		}
 	}
 	return true
 }
 
-func (h *History) AllBackendsExecuted() bool {
-	for i := 0; checker.IsLessThan(i, h.Size()); i++ {
-		backendResponse := h.GetBackendResponse(i)
-		if !backendResponse.Executed() {
+func (h *History) AllExecuted() bool {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	for i := 0; checker.IsLessThan(i, h.sizeUnlocked()); i++ {
+		resp := h.responses[i]
+		if checker.IsNil(resp) || !resp.Executed() {
 			return false
 		}
 	}
@@ -153,15 +173,18 @@ func (h *History) AllBackendsExecuted() bool {
 }
 
 func (h *History) ResponsesMap() (string, error) {
-	sliceOfMap := make([]any, h.Size())
+	h.mu.RLock()
+	defer h.mu.RUnlock()
 
-	for i := 0; checker.IsLessThan(i, h.Size()); i++ {
-		backendResponse := h.GetBackendResponse(i)
-		if !backendResponse.Executed() {
+	sliceOfMap := make([]any, h.sizeUnlocked())
+
+	for i := 0; checker.IsLessThan(i, h.sizeUnlocked()); i++ {
+		resp := h.responses[i]
+		if checker.IsNil(resp) {
 			continue
 		}
 
-		responseMap, err := backendResponse.Map()
+		responseMap, err := resp.Map()
 		if checker.NonNil(err) {
 			return "", err
 		}
@@ -173,20 +196,23 @@ func (h *History) ResponsesMap() (string, error) {
 }
 
 func (h *History) ResponsesMapByID() (string, error) {
-	byID := make(map[string]any, h.Size())
+	h.mu.RLock()
+	defer h.mu.RUnlock()
 
-	for i := 0; checker.IsLessThan(i, h.Size()); i++ {
+	byID := make(map[string]any, h.sizeUnlocked())
+
+	for i := 0; checker.IsLessThan(i, h.sizeUnlocked()); i++ {
 		backend := h.backends[i]
-		if checker.IsNil(backend) || checker.IsEmpty(backend.ID()) {
+		if checker.IsNil(backend) {
 			continue
 		}
 
-		backendResponse := h.GetBackendResponse(i)
-		if checker.IsNil(backendResponse) {
+		resp := h.responses[i]
+		if checker.IsNil(resp) {
 			continue
 		}
 
-		responseMap, err := backendResponse.Map()
+		responseMap, err := resp.Map()
 		if checker.NonNil(err) {
 			return "", err
 		}
@@ -195,4 +221,19 @@ func (h *History) ResponsesMapByID() (string, error) {
 	}
 
 	return converter.ToStringWithErr(byID)
+}
+
+func (h *History) sizeUnlocked() int {
+	return len(h.backends)
+}
+
+func (h *History) sizeForFinalResponseUnlocked() int {
+	count := 0
+	for i := 0; checker.IsLessThan(i, h.sizeUnlocked()); i++ {
+		resp := h.responses[i]
+		if checker.NonNil(resp) && resp.ShouldInFinalResponse() {
+			count++
+		}
+	}
+	return count
 }

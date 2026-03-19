@@ -23,6 +23,7 @@ import (
 
 	"github.com/tech4works/gopen-gateway/internal/app/model/dto"
 	"github.com/tech4works/gopen-gateway/internal/app/model/publisher"
+	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
 )
 
@@ -47,7 +48,7 @@ type HandlerFunc func(ctx Context)
 
 type Router interface {
 	Engine() http.Handler
-	Handle(gopen *vo.Gopen, endpoint *vo.Endpoint, handles ...HandlerFunc)
+	Handle(gopen *vo.GopenConfig, endpoint *vo.EndpointConfig, handles ...HandlerFunc)
 }
 
 type Context interface {
@@ -55,27 +56,28 @@ type Context interface {
 	WithContext(ctx context.Context)
 	Done() <-chan struct{}
 	Next()
+	Abort()
+	IsAborted() bool
 	Duration() time.Duration
-	TraceID() string
-	ClientIP() string
-	Gopen() *vo.Gopen
-	Endpoint() *vo.Endpoint
-	Request() *vo.HTTPRequest
-	Response() *vo.HTTPResponse
-	Write(response *vo.HTTPResponse)
-	WriteCacheResponse(cacheResponse *vo.CacheResponse)
-	WriteError(code int, err error)
-	WriteString(code int, s string)
-	WriteJson(code int, a any)
-	WriteStatusCode(code int)
+	Gopen() *vo.GopenConfig
+	Endpoint() *vo.EndpointConfig
+	Request() *vo.EndpointRequest
+	Response() *vo.EndpointResponse
+	Write(response *vo.EndpointResponse)
+	WriteError(status enum.ResponseStatus, err error)
+	WriteString(status enum.ResponseStatus, s string)
+	WriteJSON(status enum.ResponseStatus, a any)
+	WriteStatus(status enum.ResponseStatus)
+	WriteMetadata(metadata vo.Metadata)
 }
 
 type HTTPClient interface {
-	MakeRequest(ctx context.Context, request *vo.HTTPBackendRequest) (*http.Response, error)
+	MakeRequest(ctx context.Context, parent *vo.EndpointRequest, request *vo.HTTPBackendRequest) (*http.Response, error)
 }
 
 type PublisherClient interface {
-	Publish(ctx context.Context, request *vo.PublisherBackendRequest) (*publisher.Response, error)
+	Publish(ctx context.Context, parent *vo.EndpointRequest, request *vo.PublisherBackendRequest) (*publisher.Response,
+		error)
 }
 
 type HTTPLog interface {
@@ -102,14 +104,13 @@ type EndpointLog interface {
 }
 
 type BackendLog interface {
-	PrintHTTPRequest(executeData dto.ExecuteEndpoint, backend *vo.Backend, request *vo.HTTPBackendRequest)
-	PrintHTTPResponse(executeData dto.ExecuteEndpoint, backend *vo.Backend, response *vo.HTTPBackendResponse, duration time.Duration)
-	PrintPublisherRequest(executeData dto.ExecuteEndpoint, backend *vo.Backend, request *vo.PublisherBackendRequest)
-	PrintPublisherResponse(executeData dto.ExecuteEndpoint, backend *vo.Backend, response *vo.PublisherBackendResponse, duration time.Duration)
-	PrintInfof(executeData dto.ExecuteEndpoint, backend *vo.Backend, format string, msg ...any)
-	PrintInfo(executeData dto.ExecuteEndpoint, backend *vo.Backend, msg ...any)
-	PrintWarnf(executeData dto.ExecuteEndpoint, backend *vo.Backend, format string, msg ...any)
-	PrintWarn(executeData dto.ExecuteEndpoint, backend *vo.Backend, msg ...any)
-	PrintErrorf(executeData dto.ExecuteEndpoint, backend *vo.Backend, format string, msg ...any)
-	PrintError(executeData dto.ExecuteEndpoint, backend *vo.Backend, msg ...any)
+	PrintHTTPRequest(executeData dto.ExecuteEndpoint, backend *vo.BackendConfig, request *vo.HTTPBackendRequest)
+	PrintPublisherRequest(executeData dto.ExecuteEndpoint, backend *vo.BackendConfig, request *vo.PublisherBackendRequest)
+	PrintResponse(executeData dto.ExecuteEndpoint, backend *vo.BackendConfig, response *vo.BackendResponse)
+	PrintInfof(executeData dto.ExecuteEndpoint, backend *vo.BackendConfig, format string, msg ...any)
+	PrintInfo(executeData dto.ExecuteEndpoint, backend *vo.BackendConfig, msg ...any)
+	PrintWarnf(executeData dto.ExecuteEndpoint, backend *vo.BackendConfig, format string, msg ...any)
+	PrintWarn(executeData dto.ExecuteEndpoint, backend *vo.BackendConfig, msg ...any)
+	PrintErrorf(executeData dto.ExecuteEndpoint, backend *vo.BackendConfig, format string, msg ...any)
+	PrintError(executeData dto.ExecuteEndpoint, backend *vo.BackendConfig, msg ...any)
 }

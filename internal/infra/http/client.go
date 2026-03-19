@@ -19,57 +19,82 @@ package http
 import (
 	"context"
 	"io"
-	net "net/http"
+	"net/http"
 	"time"
 
 	"github.com/tech4works/checker"
 	"github.com/tech4works/converter"
 	"github.com/tech4works/gopen-gateway/internal/app"
-	"github.com/tech4works/gopen-gateway/internal/domain/mapper"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
 	"go.elastic.co/apm/module/apmhttp/v2"
 )
 
 type client struct {
-	net *net.Client
+	engine *http.Client
 }
 
 func NewClient() app.HTTPClient {
 	return client{
-		net: apmhttp.WrapClient(&net.Client{}),
+		engine: apmhttp.WrapClient(&http.Client{}),
 	}
 }
 
-func (c client) MakeRequest(ctx context.Context, request *vo.HTTPBackendRequest) (*net.Response, error) {
-	httpRequest, err := c.buildNetHTTPRequest(ctx, request)
+func (c client) MakeRequest(ctx context.Context, parent *vo.EndpointRequest, request *vo.HTTPBackendRequest) (
+	*http.Response, error) {
+	httpRequest, err := c.buildNetHTTPRequest(ctx, parent, request)
 	if checker.NonNil(err) {
 		return nil, err
 	}
-	return c.net.Do(httpRequest)
+	return c.engine.Do(httpRequest)
 }
 
-func (c client) buildNetHTTPRequest(ctx context.Context, request *vo.HTTPBackendRequest) (*net.Request, error) {
+func (c client) buildNetHTTPRequest(ctx context.Context, parent *vo.EndpointRequest, request *vo.HTTPBackendRequest) (
+	*http.Request, error) {
+	httpRequest, err := http.NewRequestWithContext(ctx, request.Method(), request.URL(), c.buildNetHTTPRequestBody(request))
+	if checker.NonNil(err) {
+		return nil, err
+	}
+
+	httpRequest.Header = c.buildNetHTTPRequestHeader(ctx, parent, request)
+	httpRequest.URL.RawQuery = request.Query().Encode()
+
+	return httpRequest, nil
+}
+
+func (c client) buildNetHTTPRequestHeader(ctx context.Context, parent *vo.EndpointRequest, request *vo.HTTPBackendRequest,
+) http.Header {
+	httpHeader := http.Header(request.Header().Copy())
+
+	httpHeader.Set(app.XForwardedFor, parent.ClientIP())
+	httpHeader.Set(app.XGopenRequestID, parent.ID())
+	httpHeader.Set(app.XGopenDegraded, converter.ToString(request.Degraded()))
+	httpHeader.Set(app.XGopenURLPathDegraded, converter.ToString(request.URLPathDegraded()))
+	httpHeader.Set(app.XGopenHeaderDegraded, converter.ToString(request.HeaderDegraded()))
+	httpHeader.Set(app.XGopenQueryDegraded, converter.ToString(request.QueryDegraded()))
+	httpHeader.Set(app.XGopenBodyDegraded, converter.ToString(request.BodyDegraded()))
+
+	if request.HasBody() {
+		httpHeader.Set(app.ContentType, request.Body().ContentType().String())
+		httpHeader.Set(app.ContentLength, request.Body().SizeInString())
+
+		if request.Body().HasContentEncoding() {
+			httpHeader.Set(app.ContentEncoding, request.Body().ContentEncoding().String())
+		}
+	}
+
+	timeout, ok := ctx.Deadline()
+	if ok {
+		remaining := time.Until(timeout)
+		httpHeader.Set(app.XGopenTimeout, converter.ToString(remaining.Milliseconds()))
+	}
+
+	return httpHeader
+}
+
+func (c client) buildNetHTTPRequestBody(request *vo.HTTPBackendRequest) io.Reader {
 	var body io.ReadCloser
 	if request.HasBody() {
 		body = io.NopCloser(request.Body().Buffer())
 	}
-	httpRequest, err := net.NewRequestWithContext(ctx, request.Method(), request.URL(), body)
-	if checker.NonNil(err) {
-		return nil, err
-	}
-
-	header := request.Header()
-	query := request.Query()
-
-	httpHeader := header.Http()
-	timeout, ok := ctx.Deadline()
-	if ok {
-		remaining := time.Until(timeout)
-		httpHeader.Set(mapper.XGopenTimeout, converter.ToString(remaining.Milliseconds()))
-	}
-
-	httpRequest.Header = httpHeader
-	httpRequest.URL.RawQuery = query.Encode()
-
-	return httpRequest, nil
+	return body
 }

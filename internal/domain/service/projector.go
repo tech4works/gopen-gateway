@@ -21,168 +21,194 @@ import (
 	"github.com/tech4works/converter"
 	"github.com/tech4works/errors"
 	"github.com/tech4works/gopen-gateway/internal/domain"
-	"github.com/tech4works/gopen-gateway/internal/domain/mapper"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/aggregate"
-	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
+	vo "github.com/tech4works/gopen-gateway/internal/domain/model/vo"
 )
 
-type projectorService struct {
+type projector struct {
 	jsonPath            domain.JSONPath
 	dynamicValueService DynamicValue
 }
 
 type Projector interface {
-	ProjectHeader(projector *vo.Projector, header vo.Header, request *vo.HTTPRequest, history *aggregate.History) (vo.Header, error)
-	ProjectQuery(projector *vo.Projector, query vo.Query, request *vo.HTTPRequest, history *aggregate.History) (vo.Query, error)
-	ProjectBody(projector *vo.Projector, body *vo.Body, request *vo.HTTPRequest, history *aggregate.History) (*vo.Body, []error)
+	ProjectMetadata(
+		config *vo.ProjectorConfig,
+		metadata vo.Metadata,
+		ignoreKeys []string,
+		request *vo.EndpointRequest,
+		history *aggregate.History,
+	) (vo.Metadata, error)
+	ProjectQuery(config *vo.ProjectorConfig, query vo.Query, request *vo.EndpointRequest, history *aggregate.History,
+	) (vo.Query, error)
+	ProjectPayload(config *vo.ProjectorConfig, payload *vo.Payload, request *vo.EndpointRequest, history *aggregate.History,
+	) (*vo.Payload, []error)
 }
 
 func NewProjector(jsonPath domain.JSONPath, dynamicValueService DynamicValue) Projector {
-	return projectorService{
+	return projector{
 		jsonPath:            jsonPath,
 		dynamicValueService: dynamicValueService,
 	}
 }
 
-func (s projectorService) ProjectHeader(projector *vo.Projector, header vo.Header, request *vo.HTTPRequest,
-	history *aggregate.History) (vo.Header, error) {
-	if checker.IsNil(projector) || projector.Project().IsEmpty() {
-		return header, nil
+func (s projector) ProjectMetadata(
+	config *vo.ProjectorConfig,
+	metadata vo.Metadata,
+	ignoreKeys []string,
+	request *vo.EndpointRequest,
+	history *aggregate.History,
+) (vo.Metadata, error) {
+	if checker.IsNil(config) || config.Project().IsEmpty() {
+		return metadata, nil
 	}
 
-	shouldRun, err := s.evalProjectorGuards("header", projector, request, history)
+	shouldRun, err := s.evalProjectorGuards(config, "metadata", request, history)
 	if checker.NonNil(err) {
-		return header, err
+		return metadata, err
 	} else if !shouldRun {
-		return header, nil
+		return metadata, nil
 	}
 
-	if projector.Project().IsAllRejection() {
-		return s.projectRejectionHeader(projector.Project(), header)
+	if config.Project().IsAllRejection() {
+		return s.projectRejectionMetadata(config.Project(), metadata, ignoreKeys)
 	} else {
-		return s.projectAdditionHeader(projector.Project(), header)
+		return s.projectAdditionMetadata(config.Project(), metadata, ignoreKeys)
 	}
 }
 
-func (s projectorService) ProjectQuery(projector *vo.Projector, query vo.Query, request *vo.HTTPRequest,
-	history *aggregate.History) (vo.Query, error) {
-	if checker.IsNil(projector) || projector.Project().IsEmpty() {
+func (s projector) ProjectQuery(
+	config *vo.ProjectorConfig,
+	query vo.Query,
+	request *vo.EndpointRequest,
+	history *aggregate.History,
+) (vo.Query, error) {
+	if checker.IsNil(config) || config.Project().IsEmpty() {
 		return query, nil
 	}
 
-	shouldRun, err := s.evalProjectorGuards("query", projector, request, history)
+	shouldRun, err := s.evalProjectorGuards(config, "query", request, history)
 	if checker.NonNil(err) {
 		return query, err
 	} else if !shouldRun {
 		return query, nil
 	}
 
-	if projector.Project().IsAllRejection() {
-		return s.projectRejectionQuery(projector.Project(), query)
+	if config.Project().IsAllRejection() {
+		return s.projectRejectionQuery(config.Project(), query)
 	} else {
-		return s.projectAdditionQuery(projector.Project(), query)
+		return s.projectAdditionQuery(config.Project(), query)
 	}
 }
 
-func (s projectorService) ProjectBody(projector *vo.Projector, body *vo.Body, request *vo.HTTPRequest,
-	history *aggregate.History) (*vo.Body, []error) {
-	if checker.IsNil(projector) || projector.Project().IsEmpty() || checker.IsNil(body) || body.ContentType().IsNotJSON() {
-		return body, nil
+func (s projector) ProjectPayload(
+	config *vo.ProjectorConfig,
+	payload *vo.Payload,
+	request *vo.EndpointRequest,
+	history *aggregate.History,
+) (*vo.Payload, []error) {
+	if checker.IsNil(config) || config.Project().IsEmpty() || checker.IsNil(payload) || payload.ContentType().IsNotJSON() {
+		return payload, nil
 	}
 
-	shouldRun, err := s.evalProjectorGuards("body", projector, request, history)
+	shouldRun, err := s.evalProjectorGuards(config, "payload", request, history)
 	if checker.NonNil(err) {
-		return body, converter.ToSlice(err)
+		return payload, converter.ToSlice(err)
 	} else if !shouldRun {
-		return body, nil
+		return payload, nil
 	}
 
-	bodyStr, err := body.String()
+	str, err := payload.String()
 	if checker.NonNil(err) {
-		return body, errors.InheritAsSlice(err, "projector failed: failed to stringify body")
+		return payload, errors.InheritAsSlice(err, "projector failed: failed to stringify payload")
 	}
 
-	var projectedBody string
+	var projectedPayload string
 	var errs []error
 
-	parsedJson := s.jsonPath.Parse(bodyStr)
-	if parsedJson.IsArray() {
-		projectedBody, errs = s.projectBodyJsonArray(projector.Project(), parsedJson)
+	parsedJSON := s.jsonPath.Parse(str)
+	if parsedJSON.IsArray() {
+		projectedPayload, errs = s.projectPayloadJSONArray(config.Project(), parsedJSON)
 	} else {
-		projectedBody, errs = s.projectBodyJsonObject(projector.Project(), parsedJson)
+		projectedPayload, errs = s.projectPayloadJSONObject(config.Project(), parsedJSON)
 	}
 
-	buffer, err := converter.ToBufferWithErr(projectedBody)
+	buffer, err := converter.ToBufferWithErr(projectedPayload)
 	if checker.NonNil(err) {
-		return body, append(errs, errors.Inherit(err, "projector failed: failed to build buffer from projected body"))
+		return payload, append(errs, errors.Inherit(err, "projector failed: failed to build buffer from projected payload"))
 	}
 
-	return vo.NewBodyWithContentType(body.ContentType(), buffer), errs
+	return vo.NewPayloadWithContentType(payload.ContentType(), buffer), errs
 }
 
-func (s projectorService) evalProjectorGuards(kind string, projector *vo.Projector, request *vo.HTTPRequest,
-	history *aggregate.History) (bool, error) {
-	shouldRun, _, errs := s.dynamicValueService.EvalGuards(projector.OnlyIf(), projector.IgnoreIf(), request, history)
+func (s projector) evalProjectorGuards(
+	config *vo.ProjectorConfig,
+	kind string,
+	request *vo.EndpointRequest,
+	history *aggregate.History,
+) (bool, error) {
+	shouldRun, _, errs := s.dynamicValueService.EvalGuards(config.OnlyIf(), config.IgnoreIf(), request, history)
 	if checker.IsNotEmpty(errs) {
 		return false, errors.JoinInheritf(errs, ", ", "failed to evaluate guard for %s projector", kind)
 	}
 	return shouldRun, nil
 }
 
-func (s projectorService) projectRejectionHeader(project *vo.Project, header vo.Header) (vo.Header, error) {
-	values := header.Copy()
-	for _, key := range header.Keys() {
-		if mapper.IsNotHeaderMandatoryKey(key) && project.Exists(key) {
+func (s projector) projectRejectionMetadata(config *vo.ProjectConfig, metadata vo.Metadata, ignoreKeys []string) (
+	vo.Metadata, error) {
+	values := metadata.Copy()
+	for _, key := range metadata.Keys() {
+		if checker.NotContains(ignoreKeys, key) && config.Exists(key) {
 			delete(values, key)
 		}
 	}
-	return vo.NewHeader(values), nil
+	return vo.NewMetadata(values), nil
 }
 
-func (s projectorService) projectAdditionHeader(project *vo.Project, header vo.Header) (vo.Header, error) {
+func (s projector) projectAdditionMetadata(config *vo.ProjectConfig, metadata vo.Metadata, ignoreKeys []string) (
+	vo.Metadata, error) {
 	values := map[string][]string{}
-	for _, key := range header.Keys() {
-		if mapper.IsHeaderMandatoryKey(key) || project.IsAddition(key) {
-			values[key] = header.GetAll(key)
+	for _, key := range metadata.Keys() {
+		if checker.Contains(ignoreKeys, key) || config.IsAddition(key) {
+			values[key] = metadata.GetAll(key)
 		}
 	}
-	return vo.NewHeader(values), nil
+	return vo.NewMetadata(values), nil
 }
 
-func (s projectorService) projectRejectionQuery(project *vo.Project, query vo.Query) (vo.Query, error) {
+func (s projector) projectRejectionQuery(config *vo.ProjectConfig, query vo.Query) (vo.Query, error) {
 	values := query.Copy()
 	for _, key := range query.Keys() {
-		if project.Exists(key) {
+		if config.Exists(key) {
 			delete(values, key)
 		}
 	}
 	return vo.NewQuery(values), nil
 }
 
-func (s projectorService) projectAdditionQuery(project *vo.Project, query vo.Query) (vo.Query, error) {
+func (s projector) projectAdditionQuery(config *vo.ProjectConfig, query vo.Query) (vo.Query, error) {
 	values := map[string][]string{}
 	for _, key := range query.Keys() {
-		if project.IsAddition(key) {
+		if config.IsAddition(key) {
 			values[key] = query.GetAll(key)
 		}
 	}
 	return vo.NewQuery(values), nil
 }
 
-func (s projectorService) projectBodyJsonObject(project *vo.Project, jsonObject domain.JSONValue) (string, []error) {
-	if project.IsAllRejection() {
-		return s.projectRejectionBodyJsonObject(project, jsonObject)
+func (s projector) projectPayloadJSONObject(config *vo.ProjectConfig, jsonObject domain.JSONValue) (string, []error) {
+	if config.IsAllRejection() {
+		return s.projectRejectionPayloadJSONObject(config, jsonObject)
 	}
-	return s.projectionAdditionBodyJsonObject(project, jsonObject)
+	return s.projectionAdditionPayloadJSONObject(config, jsonObject)
 }
 
-func (s projectorService) projectionAdditionBodyJsonObject(project *vo.Project, jsonObject domain.JSONValue) (string,
+func (s projector) projectionAdditionPayloadJSONObject(config *vo.ProjectConfig, jsonObject domain.JSONValue) (string,
 	[]error) {
-	var projectedJson = "{}"
+	var projectedJSON = "{}"
 	var errs []error
 
-	for _, key := range project.Keys() {
-		if project.IsRejection(key) {
+	for _, key := range config.Keys() {
+		if config.IsRejection(key) {
 			continue
 		}
 
@@ -191,43 +217,43 @@ func (s projectorService) projectionAdditionBodyJsonObject(project *vo.Project, 
 			continue
 		}
 
-		newProjectedJson, err := s.jsonPath.Set(projectedJson, key, jsonValue.Raw())
+		newProjectedJSON, err := s.jsonPath.Set(projectedJSON, key, jsonValue.Raw())
 		if checker.NonNil(err) {
 			errs = append(errs, errors.Inheritf(err, "projector failed: op=set mode=addition path=%s", key))
 			continue
 		}
 
-		projectedJson = newProjectedJson
+		projectedJSON = newProjectedJSON
 	}
 
-	return projectedJson, errs
+	return projectedJSON, errs
 }
 
-func (s projectorService) projectRejectionBodyJsonObject(project *vo.Project, jsonObject domain.JSONValue) (string,
+func (s projector) projectRejectionPayloadJSONObject(config *vo.ProjectConfig, jsonObject domain.JSONValue) (string,
 	[]error) {
-	var projectionJson = jsonObject.Raw()
+	var projectionJSON = jsonObject.Raw()
 	var errs []error
 
-	for _, key := range project.Keys() {
-		newProjectionJson, err := s.jsonPath.Delete(projectionJson, key)
+	for _, key := range config.Keys() {
+		newProjectionJSON, err := s.jsonPath.Delete(projectionJSON, key)
 		if checker.NonNil(err) {
 			errs = append(errs, errors.Inherit(err, "projector failed: op=delete mode=rejection path=%s", key))
 			continue
 		}
 
-		projectionJson = newProjectionJson
+		projectionJSON = newProjectionJSON
 	}
 
-	return projectionJson, errs
+	return projectionJSON, errs
 }
 
-func (s projectorService) projectBodyJsonArray(project *vo.Project, jsonArray domain.JSONValue) (string, []error) {
-	projectedArray, errs := s.projectBodyJsonArrayNormalKeys(project, jsonArray)
+func (s projector) projectPayloadJSONArray(config *vo.ProjectConfig, jsonArray domain.JSONValue) (string, []error) {
+	projectedArray, errs := s.projectPayloadJSONArrayNormalKeys(config, jsonArray)
 	if checker.IsNotEmpty(errs) {
 		return projectedArray, errs
 	}
 
-	projectedArray, errs = s.projectBodyJsonArrayNumericKeys(project, projectedArray)
+	projectedArray, errs = s.projectPayloadJSONArrayNumericKeys(config, projectedArray)
 	if checker.IsNotEmpty(errs) {
 		return projectedArray, errs
 	}
@@ -235,7 +261,7 @@ func (s projectorService) projectBodyJsonArray(project *vo.Project, jsonArray do
 	return projectedArray, errs
 }
 
-func (s projectorService) projectBodyJsonArrayNormalKeys(project *vo.Project, jsonArray domain.JSONValue) (string,
+func (s projector) projectPayloadJSONArrayNormalKeys(config *vo.ProjectConfig, jsonArray domain.JSONValue) (string,
 	[]error) {
 	var projectedArray = "[]"
 	var errs []error
@@ -244,20 +270,20 @@ func (s projectorService) projectBodyJsonArrayNormalKeys(project *vo.Project, js
 		var newProjectedArray string
 		var err error
 		if value.IsObject() {
-			childObject, childErrs := s.projectBodyJsonObject(project, value)
+			childObject, childErrs := s.projectPayloadJSONObject(config, value)
 			if checker.IsNotEmpty(childErrs) {
 				for _, ce := range childErrs {
-					errs = append(errs, errors.Inheritf(ce, "projector failed: op=project-body-json-object idx=%s",
+					errs = append(errs, errors.Inheritf(ce, "projector failed: op=project-payload-json-object idx=%s",
 						key))
 				}
 				return true
 			}
 			newProjectedArray, err = s.jsonPath.AppendOnArray(projectedArray, childObject)
 		} else if value.IsArray() {
-			childArray, childErrs := s.projectBodyJsonArray(project, value)
+			childArray, childErrs := s.projectPayloadJSONArray(config, value)
 			if checker.IsNotEmpty(childErrs) {
 				for _, ce := range childErrs {
-					errs = append(errs, errors.Inheritf(ce, "projector failed: op=project-body-json-array idx=%s",
+					errs = append(errs, errors.Inheritf(ce, "projector failed: op=project-payload-json-array idx=%s",
 						key))
 				}
 				return true
@@ -279,22 +305,22 @@ func (s projectorService) projectBodyJsonArrayNormalKeys(project *vo.Project, js
 	return projectedArray, errs
 }
 
-func (s projectorService) projectBodyJsonArrayNumericKeys(project *vo.Project, projectedArray string) (string, []error) {
-	if project.NotContainsNumericKey() {
+func (s projector) projectPayloadJSONArrayNumericKeys(config *vo.ProjectConfig, projectedArray string) (string, []error) {
+	if config.NotContainsNumericKey() {
 		return projectedArray, nil
-	} else if project.IsAllRejection() {
-		return s.projectRejectionBodyJsonArray(project, projectedArray)
+	} else if config.IsAllRejection() {
+		return s.projectRejectionPayloadJSONArray(config, projectedArray)
 	} else {
-		return s.projectAdditionBodyJsonArray(project, projectedArray)
+		return s.projectAdditionPayloadJSONArray(config, projectedArray)
 	}
 }
 
-func (s projectorService) projectRejectionBodyJsonArray(project *vo.Project, projectedJson string) (string, []error) {
+func (s projector) projectRejectionPayloadJSONArray(config *vo.ProjectConfig, projectedJSON string) (string, []error) {
 	var projectedArray = "[]"
 	var errs []error
 
-	s.jsonPath.ForEach(projectedJson, func(key string, value domain.JSONValue) bool {
-		if checker.Contains(project.Keys(), key) {
+	s.jsonPath.ForEach(projectedJSON, func(key string, value domain.JSONValue) bool {
+		if checker.Contains(config.Keys(), key) {
 			return true
 		}
 
@@ -311,17 +337,17 @@ func (s projectorService) projectRejectionBodyJsonArray(project *vo.Project, pro
 	return projectedArray, errs
 }
 
-func (s projectorService) projectAdditionBodyJsonArray(project *vo.Project, projectedJson string) (string, []error) {
+func (s projector) projectAdditionPayloadJSONArray(config *vo.ProjectConfig, projectedJSON string) (string, []error) {
 	var projectedArray = "[]"
 	var errs []error
 
-	parsedProjectedJson := s.jsonPath.Parse(projectedJson)
-	for _, key := range project.Keys() {
-		if checker.IsNotNumeric(key) || project.IsRejection(key) {
+	parsedProjectedJSON := s.jsonPath.Parse(projectedJSON)
+	for _, key := range config.Keys() {
+		if checker.IsNotNumeric(key) || config.IsRejection(key) {
 			continue
 		}
 
-		jsonValue := parsedProjectedJson.Get(key)
+		jsonValue := parsedProjectedJSON.Get(key)
 		if !jsonValue.Exists() {
 			continue
 		}

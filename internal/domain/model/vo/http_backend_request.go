@@ -20,33 +20,61 @@ import (
 	"fmt"
 
 	"github.com/tech4works/checker"
+	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
 )
 
 type HTTPBackendRequest struct {
-	host   string
-	path   URLPath
-	method string
-	header Header
-	query  Query
-	body   *Body
+	degradation Degradation
+	host        string
+	path        URLPath
+	method      string
+	header      Metadata
+	query       Query
+	body        *Payload
 }
 
 func NewHTTPBackendRequest(
+	degradation Degradation,
 	host,
 	method string,
 	path URLPath,
-	header Header,
+	header Metadata,
 	query Query,
-	body *Body,
+	body *Payload,
 ) *HTTPBackendRequest {
 	return &HTTPBackendRequest{
-		host:   host,
-		path:   path,
-		method: method,
-		header: header,
-		query:  query,
-		body:   body,
+		degradation: degradation,
+		host:        host,
+		path:        path,
+		method:      method,
+		header:      header,
+		query:       query,
+		body:        body,
 	}
+}
+
+func (b HTTPBackendRequest) Degradation() Degradation {
+	return b.degradation
+}
+
+func (b *HTTPBackendRequest) Degraded() bool {
+	return b.Degradation().Any()
+}
+
+func (b *HTTPBackendRequest) HeaderDegraded() bool {
+	return b.Degradation().Has(enum.DegradationKindMetadata)
+}
+
+func (b *HTTPBackendRequest) URLPathDegraded() bool {
+	return b.Degradation().Has(enum.DegradationKindURLPath)
+}
+
+func (b *HTTPBackendRequest) QueryDegraded() bool {
+	return b.Degradation().Has(enum.DegradationKindQuery)
+}
+
+func (b *HTTPBackendRequest) BodyDegraded() bool {
+	return b.Degradation().Has(enum.DegradationKindPayload)
 }
 
 func (b *HTTPBackendRequest) Path() URLPath {
@@ -73,7 +101,7 @@ func (b *HTTPBackendRequest) Method() string {
 	return b.method
 }
 
-func (b *HTTPBackendRequest) Header() Header {
+func (b *HTTPBackendRequest) Header() Metadata {
 	return b.header
 }
 
@@ -81,7 +109,7 @@ func (b *HTTPBackendRequest) Query() Query {
 	return b.query
 }
 
-func (b *HTTPBackendRequest) Body() *Body {
+func (b *HTTPBackendRequest) Body() *Payload {
 	return b.body
 }
 

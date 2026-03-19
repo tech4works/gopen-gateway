@@ -21,7 +21,6 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/tech4works/checker"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
 )
@@ -42,25 +41,24 @@ func BuildTintText(method string) string {
 	return fmt.Sprint(tintTextStyle(method), " ", method, " ", StyleReset)
 }
 
-func BuildUriText(uri string) string {
+func BuildURIText(uri string) string {
 	return strconv.Quote(uri)
 }
 
-func BuildStatusCodeText(statusCode vo.StatusCode) string {
-	return fmt.Sprint(statusCodeTextStyle(statusCode.Code()), " ", statusCode.Code(), " ", StyleReset)
+func BuildStatusCodeText(status vo.ResponseStatus) string {
+	return fmt.Sprint(statusCodeTextStyle(status), " ", status.Value(), " ", StyleReset)
 }
 
-func statusCodeTextStyle(code int) string {
-	if checker.IsGreaterThanOrEqual(code, 200) && checker.IsLessThan(code, 299) {
+func statusCodeTextStyle(status vo.ResponseStatus) string {
+	if status.OK() {
 		return BackgroundGreen
-	} else if checker.IsGreaterThanOrEqual(code, 300) && checker.IsLessThan(code, 400) {
-		return BackgroundCyan
-	} else if checker.IsGreaterThanOrEqual(code, 400) && checker.IsLessThan(code, 500) {
+	} else if status.ClientError() {
 		return BackgroundYellow
-	} else if checker.IsGreaterThanOrEqual(code, 500) {
+	} else if status.ServerError() {
 		return BackgroundRed
+	} else {
+		return BackgroundCyan
 	}
-	return StyleBold
 }
 
 func tintTextStyle(s string) string {

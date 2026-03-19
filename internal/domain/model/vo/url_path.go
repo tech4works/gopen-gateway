@@ -18,8 +18,9 @@ package vo
 
 import (
 	"fmt"
-	"github.com/tech4works/checker"
 	"strings"
+
+	"github.com/tech4works/checker"
 )
 
 type URLPath struct {
