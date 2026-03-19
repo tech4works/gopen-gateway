@@ -5,20 +5,20 @@ import (
 )
 
 type AttributeValueConfig struct {
-	dataType enum.AttributeValueDataType
-	value    string
+	mType enum.AttributeValueType
+	value string
 }
 
-func NewAttributeValueConfig(dataType enum.AttributeValueDataType, value string,
+func NewAttributeValueConfig(mType enum.AttributeValueType, value string,
 ) AttributeValueConfig {
 	return AttributeValueConfig{
-		dataType: dataType,
-		value:    value,
+		mType: mType,
+		value: value,
 	}
 }
 
-func (a AttributeValueConfig) DataType() enum.AttributeValueDataType {
-	return a.dataType
+func (a AttributeValueConfig) Type() enum.AttributeValueType {
+	return a.mType
 }
 
 func (a AttributeValueConfig) Value() string {

@@ -474,7 +474,7 @@ func buildAttributeValues(attributes map[string]dto.AttributeValue) map[string]v
 
 	var result = make(map[string]vo.AttributeValueConfig)
 	for key, value := range attributes {
-		result[key] = vo.NewAttributeValueConfig(value.DataType, value.Value)
+		result[key] = vo.NewAttributeValueConfig(value.Type, value.Value)
 	}
 	return result
 }

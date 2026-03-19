@@ -188,18 +188,18 @@ func (c client) buildMessageAttributes(
 	messageAttributes := map[string]messageAttribute{}
 
 	for key, attribute := range request.Attributes() {
-		switch attribute.DataType() {
-		case enum.AttributeValueDataTypeString:
+		switch attribute.Type() {
+		case enum.AttributeValueTypeString:
 			messageAttributes[key] = messageAttribute{
 				dataType: dataTypeString,
 				value:    attribute.Value(),
 			}
-		case enum.AttributeValueDataTypeNumber:
+		case enum.AttributeValueTypeNumber:
 			messageAttributes[key] = messageAttribute{
 				dataType: dataTypeNumber,
 				value:    attribute.Value(),
 			}
-		case enum.AttributeValueDataTypeBinary:
+		case enum.AttributeValueTypeBinary:
 			messageAttributes[key] = messageAttribute{
 				dataType: dataTypeBinary,
 				binary:   converter.ToBytes(attribute.Value()),

@@ -271,7 +271,7 @@ func (p BuildPipeline) ApplyAttributes(
 							"pipeline failed: op=build-message-attribute key=%s value=%s", key, attribute.Value()))
 						continue
 					}
-					attributes[key] = vo.NewAttributeValueConfig(attribute.DataType(), value)
+					attributes[key] = vo.NewAttributeValueConfig(attribute.Type(), value)
 				}
 
 				return attributes, allErrs

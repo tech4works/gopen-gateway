@@ -50,7 +50,7 @@ type ExecutionMode string
 
 type ExecutionOn string
 
-type AttributeValueDataType string
+type AttributeValueType string
 
 type ResponseStatus string
 
@@ -129,17 +129,14 @@ const (
 	ExecutionModeBestEffort ExecutionMode = "BEST_EFFORT"
 )
 const (
-	ExecutionOnBuild         ExecutionOn = "BUILD"
-	ExecutionOnBuildRequest  ExecutionOn = "BUILD_REQUEST"
-	ExecutionOnBuildMessage  ExecutionOn = "BUILD_MESSAGE"
-	ExecutionOnBuildResponse ExecutionOn = "BUILD_BACKEND_RESPONSE"
-	ExecutionOnClientError   ExecutionOn = "CLIENT_ERROR"
-	ExecutionOnServerError   ExecutionOn = "SERVER_ERROR"
+	ExecutionOnBuild       ExecutionOn = "BUILD"
+	ExecutionOnClientError ExecutionOn = "CLIENT_ERROR"
+	ExecutionOnServerError ExecutionOn = "SERVER_ERROR"
 )
 const (
-	AttributeValueDataTypeString AttributeValueDataType = "STRING"
-	AttributeValueDataTypeNumber AttributeValueDataType = "NUMBER"
-	AttributeValueDataTypeBinary AttributeValueDataType = "BINARY"
+	AttributeValueTypeString AttributeValueType = "STRING"
+	AttributeValueTypeNumber AttributeValueType = "NUMBER"
+	AttributeValueTypeBinary AttributeValueType = "BINARY"
 )
 const (
 	ResponseStatusUnknown            ResponseStatus = "UNKNOWN"
@@ -335,16 +332,16 @@ func (o ExecutionOn) IsEnumValid() bool {
 	return false
 }
 
-func (p AttributeValueDataType) IsEnumValid() bool {
+func (p AttributeValueType) IsEnumValid() bool {
 	switch p {
-	case AttributeValueDataTypeString, AttributeValueDataTypeNumber,
-		AttributeValueDataTypeBinary:
+	case AttributeValueTypeString, AttributeValueTypeNumber,
+		AttributeValueTypeBinary:
 		return true
 	}
 	return false
 }
 
-func (p AttributeValueDataType) String() string {
+func (p AttributeValueType) String() string {
 	return string(p)
 }
 

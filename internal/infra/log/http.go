@@ -34,8 +34,9 @@ func (a httpLog) PrintRequest(ctx app.Context) {
 
 	text := fmt.Sprintf("header.user-agent: %s | header.size: %s", header.Get("User-Agent"), header.SizeStr())
 	if ctx.Request().HasPayload() {
-		body := ctx.Request().Payload()
-		text += fmt.Sprintf(" | body.content-type: %s | body.size: %s", body.ContentType().String(), body.SizeInByteUnit())
+		payload := ctx.Request().Payload()
+		text += fmt.Sprintf(" | body.content-type: %s | body.size: %s", payload.ContentType().String(),
+			payload.SizeInByteUnit())
 	}
 
 	Print(InfoLevel, "REQ", a.prefix(ctx), text)

@@ -275,8 +275,8 @@ type PublisherMessage struct {
 }
 
 type AttributeValue struct {
-	DataType enum.AttributeValueDataType `json:"data-type,omitempty"`
-	Value    string                      `json:"value,omitempty"`
+	Type  enum.AttributeValueType `json:"type,omitempty"`
+	Value string                  `json:"value,omitempty"`
 }
 
 type Mapper struct {

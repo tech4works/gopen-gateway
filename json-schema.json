@@ -46,7 +46,7 @@
     },
     "json-path": {
       "type": "string",
-      "minimum": 1,
+      "minLength": 1,
       "pattern": "^[\\w-]+(\\.[\\w-]+)*$"
     },
     "nomenclature": {
@@ -90,6 +90,69 @@
         "FULL"
       ]
     },
+    "execution-mode": {
+      "type": "string",
+      "enum": [
+        "FAIL_FAST",
+        "BEST_EFFORT"
+      ]
+    },
+    "execution-on": {
+      "type": "string",
+      "enum": [
+        "BUILD",
+        "CLIENT_ERROR",
+        "SERVER_ERROR"
+      ]
+    },
+    "modifier-action": {
+      "type": "string",
+      "enum": [
+        "ADD",
+        "APPEND",
+        "SET",
+        "REPLACE",
+        "DELETE"
+      ]
+    },
+    "attribute-value-type": {
+      "type": "string",
+      "enum": [
+        "STRING",
+        "NUMBER",
+        "BINARY"
+      ]
+    },
+    "backend-broker": {
+      "type": "string",
+      "enum": [
+        "AWS/SQS",
+        "AWS/SNS"
+      ]
+    },
+    "mapper-policy": {
+      "type": "string",
+      "enum": [
+        "KEEP_UNMAPPED",
+        "DROP_UNMAPPED"
+      ]
+    },
+    "join-target-on-missing": {
+      "type": "string",
+      "enum": [
+        "OMIT",
+        "NULL",
+        "ERROR"
+      ]
+    },
+    "join-target-policy": {
+      "type": "string",
+      "enum": [
+        "KEEP_KEY",
+        "DROP_KEY_ON_MERGED",
+        "DROP_KEY_ALWAYS"
+      ]
+    },
     "template": {
       "type": "object",
       "properties": {
@@ -106,29 +169,132 @@
       ],
       "additionalProperties": false
     },
-    "proxy": {
+    "templates": {
       "type": "object",
       "properties": {
-        "provider": {
-          "type": "string",
-          "enum": [
-            "NGROK"
-          ]
-        },
-        "token": {
+        "@comment": {
           "type": "string"
         },
-        "domains": {
-          "type": "array",
-          "items": {
-            "type": "string"
+        "beforewares": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "$ref": "#/definitions/backend-middleware"
+          }
+        },
+        "backends": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "$ref": "#/definitions/backend-normal"
+          }
+        },
+        "afterwares": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "$ref": "#/definitions/backend-middleware"
           }
         }
       },
-      "required": [
-        "provider",
-        "token"
+      "anyOf": [
+        {
+          "required": [
+            "beforewares"
+          ]
+        },
+        {
+          "required": [
+            "backends"
+          ]
+        },
+        {
+          "required": [
+            "afterwares"
+          ]
+        }
       ],
+      "additionalProperties": false
+    },
+    "request-client-propagate": {
+      "type": "object",
+      "properties": {
+        "request": {
+          "type": "string"
+        },
+        "response": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "request-client-value": {
+      "type": "object",
+      "properties": {
+        "headers": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "fallback": {
+          "type": "boolean"
+        },
+        "propagate": {
+          "$ref": "#/definitions/request-client-propagate"
+        }
+      },
+      "additionalProperties": false
+    },
+    "request-client-ip": {
+      "type": "object",
+      "properties": {
+        "headers": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "trusted-proxies": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "propagate": {
+          "$ref": "#/definitions/request-client-propagate"
+        }
+      },
+      "additionalProperties": false
+    },
+    "request-client": {
+      "type": "object",
+      "properties": {
+        "request-id": {
+          "$ref": "#/definitions/request-client-value"
+        },
+        "trace": {
+          "$ref": "#/definitions/request-client-value"
+        },
+        "ip": {
+          "$ref": "#/definitions/request-client-ip"
+        }
+      },
+      "additionalProperties": false
+    },
+    "request": {
+      "type": "object",
+      "properties": {
+        "client": {
+          "$ref": "#/definitions/request-client"
+        }
+      },
       "additionalProperties": false
     },
     "store": {
@@ -155,80 +321,80 @@
       ],
       "additionalProperties": false
     },
+    "cache-decision": {
+      "type": "object",
+      "properties": {
+        "only-if": {
+          "$ref": "#/definitions/only-if"
+        },
+        "ignore-if": {
+          "$ref": "#/definitions/ignore-if"
+        }
+      },
+      "minProperties": 1,
+      "additionalProperties": false
+    },
     "cache": {
       "type": "object",
       "properties": {
-        "duration": {
+        "read": {
+          "$ref": "#/definitions/cache-decision"
+        },
+        "write": {
+          "$ref": "#/definitions/cache-decision"
+        },
+        "key": {
+          "type": "string"
+        },
+        "ttl": {
           "$ref": "#/definitions/duration"
-        },
-        "strategy-headers": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "only-if-status-codes": {
-          "type": "array",
-          "items": {
-            "type": "integer",
-            "minimum": 100,
-            "maximum": 599
-          }
-        },
-        "only-if-methods": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/http-method"
-          }
-        },
-        "allow-cache-control": {
-          "type": "boolean"
         }
       },
       "required": [
-        "duration"
+        "key",
+        "ttl"
       ],
       "additionalProperties": false
     },
-    "endpoint-cache": {
+    "limiter-size": {
       "type": "object",
       "properties": {
-        "enabled": {
-          "type": "boolean"
+        "only-if": {
+          "$ref": "#/definitions/only-if"
         },
-        "ignore-query": {
-          "type": "boolean"
+        "ignore-if": {
+          "$ref": "#/definitions/ignore-if"
         },
-        "duration": {
-          "$ref": "#/definitions/duration"
+        "max-header": {
+          "$ref": "#/definitions/byte-unit"
         },
-        "strategy-headers": {
-          "type": "array",
-          "items": {
-            "type": "string",
-            "minLength": 1
-          }
-        },
-        "only-if-status-codes": {
-          "type": "array",
-          "items": {
-            "type": "integer",
-            "minimum": 100,
-            "maximum": 599
-          }
-        },
-        "allow-cache-control": {
-          "type": "boolean"
+        "max-body": {
+          "$ref": "#/definitions/byte-unit"
         }
       },
-      "required": [
-        "enabled"
+      "anyOf": [
+        {
+          "required": [
+            "max-header"
+          ]
+        },
+        {
+          "required": [
+            "max-body"
+          ]
+        }
       ],
       "additionalProperties": false
     },
     "limiter-rate": {
       "type": "object",
       "properties": {
+        "only-if": {
+          "$ref": "#/definitions/only-if"
+        },
+        "ignore-if": {
+          "$ref": "#/definitions/ignore-if"
+        },
         "capacity": {
           "type": "integer",
           "minimum": 1
@@ -238,7 +404,8 @@
         }
       },
       "required": [
-        "capacity"
+        "capacity",
+        "every"
       ],
       "additionalProperties": false
     },
@@ -246,49 +413,24 @@
       "type": "object",
       "minProperties": 1,
       "properties": {
-        "max-header-size": {
-          "$ref": "#/definitions/byte-unit"
-        },
-        "max-body-size": {
-          "$ref": "#/definitions/byte-unit"
-        },
-        "max-multipart-memory-size": {
-          "$ref": "#/definitions/byte-unit"
+        "size": {
+          "$ref": "#/definitions/limiter-size"
         },
         "rate": {
           "$ref": "#/definitions/limiter-rate"
         }
       },
-      "additionalProperties": false
-    },
-    "endpoint-limiter": {
-      "type": "object",
-      "properties": {
-        "enabled": {
-          "type": "boolean"
-        },
-        "max-header-size": {
-          "$ref": "#/definitions/byte-unit"
-        },
-        "max-body-size": {
-          "$ref": "#/definitions/byte-unit"
-        },
-        "max-multipart-memory-size": {
-          "$ref": "#/definitions/byte-unit"
-        },
-        "rate": {
-          "$ref": "#/definitions/limiter-rate"
-        }
-      },
-      "required": [
-        "enabled"
-      ],
       "additionalProperties": false
     },
     "security-cors": {
       "type": "object",
-      "minProperties": 1,
       "properties": {
+        "only-if": {
+          "$ref": "#/definitions/only-if"
+        },
+        "ignore-if": {
+          "$ref": "#/definitions/ignore-if"
+        },
         "allow-origins": {
           "type": "array",
           "items": {
@@ -311,38 +453,114 @@
           "type": "boolean"
         }
       },
+      "anyOf": [
+        {
+          "required": [
+            "allow-origins"
+          ]
+        },
+        {
+          "required": [
+            "allow-methods"
+          ]
+        },
+        {
+          "required": [
+            "allow-headers"
+          ]
+        },
+        {
+          "required": [
+            "allow-credentials"
+          ]
+        }
+      ],
       "additionalProperties": false
     },
-    "endpoint-security-cors": {
+    "endpoint-execution": {
       "type": "object",
       "properties": {
-        "enabled": {
+        "@comment": {
+          "type": "string"
+        },
+        "parallelism": {
           "type": "boolean"
         },
-        "allow-origins": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
+        "mode": {
+          "$ref": "#/definitions/execution-mode"
         },
-        "allow-methods": {
+        "on": {
           "type": "array",
+          "minItems": 1,
           "items": {
-            "$ref": "#/definitions/http-method"
+            "$ref": "#/definitions/execution-on"
           }
-        },
-        "allow-headers": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "allow-credentials": {
-          "type": "boolean"
         }
       },
-      "required": [
-        "enabled"
+      "anyOf": [
+        {
+          "required": [
+            "parallelism"
+          ]
+        },
+        {
+          "required": [
+            "mode"
+          ]
+        },
+        {
+          "required": [
+            "on"
+          ]
+        }
+      ],
+      "additionalProperties": false
+    },
+    "backend-execution": {
+      "type": "object",
+      "properties": {
+        "@comment": {
+          "type": "string"
+        },
+        "concurrent": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "async": {
+          "type": "boolean"
+        },
+        "mode": {
+          "$ref": "#/definitions/execution-mode"
+        },
+        "on": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/execution-on"
+          }
+        }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "concurrent"
+          ]
+        },
+        {
+          "required": [
+            "async"
+          ]
+        },
+        {
+          "required": [
+            "mode"
+          ]
+        },
+        {
+          "required": [
+            "on"
+          ]
+        }
       ],
       "additionalProperties": false
     },
@@ -359,14 +577,7 @@
           "$ref": "#/definitions/ignore-if"
         },
         "action": {
-          "type": "string",
-          "enum": [
-            "ADD",
-            "APD",
-            "SET",
-            "RPL",
-            "DEL"
-          ]
+          "$ref": "#/definitions/modifier-action"
         },
         "propagate": {
           "type": "boolean"
@@ -381,59 +592,7 @@
       "if": {
         "properties": {
           "action": {
-            "const": "DEL"
-          }
-        }
-      },
-      "then": {
-        "required": [
-          "action",
-          "key"
-        ]
-      },
-      "else": {
-        "required": [
-          "action",
-          "key",
-          "value"
-        ]
-      },
-      "additionalProperties": false
-    },
-    "param-modifier": {
-      "type": "object",
-      "properties": {
-        "@comment": {
-          "type": "string"
-        },
-        "only-if": {
-          "$ref": "#/definitions/only-if"
-        },
-        "ignore-if": {
-          "$ref": "#/definitions/ignore-if"
-        },
-        "action": {
-          "type": "string",
-          "enum": [
-            "SET",
-            "RPL",
-            "DEL"
-          ]
-        },
-        "propagate": {
-          "type": "boolean"
-        },
-        "key": {
-          "type": "string"
-        },
-        "value": {
-          "type": "string"
-        }
-      },
-      "if": {
-        "properties": {
-          "action": {
-            "const": "DEL"
+            "const": "DELETE"
           }
         }
       },
@@ -465,14 +624,7 @@
           "$ref": "#/definitions/ignore-if"
         },
         "action": {
-          "type": "string",
-          "enum": [
-            "ADD",
-            "APD",
-            "SET",
-            "RPL",
-            "DEL"
-          ]
+          "$ref": "#/definitions/modifier-action"
         },
         "key": {
           "type": "string"
@@ -484,7 +636,7 @@
       "if": {
         "properties": {
           "action": {
-            "const": "DEL"
+            "const": "DELETE"
           }
         }
       },
@@ -503,7 +655,7 @@
       },
       "additionalProperties": false
     },
-    "publisher-modifier": {
+    "mapper": {
       "type": "object",
       "properties": {
         "@comment": {
@@ -515,43 +667,20 @@
         "ignore-if": {
           "$ref": "#/definitions/ignore-if"
         },
-        "action": {
-          "type": "string",
-          "enum": [
-            "ADD",
-            "APD",
-            "SET",
-            "RPL",
-            "DEL"
-          ]
+        "policy": {
+          "$ref": "#/definitions/mapper-policy"
         },
-        "key": {
-          "type": "string"
-        },
-        "value": {
-          "type": "string"
-        }
-      },
-      "if": {
-        "properties": {
-          "action": {
-            "const": "DEL"
+        "map": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "$ref": "#/definitions/json-path"
           }
         }
       },
-      "then": {
-        "required": [
-          "action",
-          "key"
-        ]
-      },
-      "else": {
-        "required": [
-          "action",
-          "key",
-          "value"
-        ]
-      },
+      "required": [
+        "map"
+      ],
       "additionalProperties": false
     },
     "projector": {
@@ -581,41 +710,55 @@
       ],
       "additionalProperties": false
     },
-    "mapper": {
+    "join-source": {
       "type": "object",
       "properties": {
-        "@comment": {
-          "type": "string"
-        },
-        "only-if": {
-          "$ref": "#/definitions/only-if"
-        },
-        "ignore-if": {
-          "$ref": "#/definitions/ignore-if"
-        },
-        "policy": {
+        "path": {
           "type": "string",
-          "enum": [
-            "KEEP_UNMAPPED",
-            "DROP_UNMAPPED"
-          ]
+          "minLength": 1
         },
-        "map": {
-          "type": "object",
-          "minProperties": 1,
-          "additionalProperties": {
-            "$ref": "#/definitions/json-path"
-          }
+        "key": {
+          "type": "string",
+          "minLength": 1
         }
       },
       "required": [
-        "map"
+        "path",
+        "key"
+      ],
+      "additionalProperties": false
+    },
+    "join-target": {
+      "type": "object",
+      "properties": {
+        "policy": {
+          "$ref": "#/definitions/join-target-policy"
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "key": {
+          "type": "string",
+          "minLength": 1
+        },
+        "as": {
+          "type": "string",
+          "minLength": 1
+        },
+        "on-missing": {
+          "$ref": "#/definitions/join-target-on-missing"
+        }
+      },
+      "required": [
+        "path",
+        "key",
+        "as"
       ],
       "additionalProperties": false
     },
     "join": {
       "type": "object",
-      "additionalProperties": false,
       "properties": {
         "@comment": {
           "type": "string"
@@ -636,72 +779,10 @@
       "required": [
         "source",
         "target"
-      ]
+      ],
+      "additionalProperties": false
     },
-    "join-source": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "@comment": {
-          "type": "string"
-        },
-        "path": {
-          "type": "string",
-          "minLength": 1
-        },
-        "key": {
-          "type": "string",
-          "minLength": 1
-        }
-      },
-      "required": [
-        "path",
-        "key"
-      ]
-    },
-    "join-target": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "@comment": {
-          "type": "string"
-        },
-        "policy": {
-          "type": "string",
-          "enum": [
-            "KEEP_KEY",
-            "DROP_KEY_ON_MERGED",
-            "DROP_KEY_ALWAYS"
-          ]
-        },
-        "path": {
-          "type": "string",
-          "minLength": 1
-        },
-        "key": {
-          "type": "string",
-          "minLength": 1
-        },
-        "as": {
-          "type": "string",
-          "minLength": 1
-        },
-        "on-missing": {
-          "type": "string",
-          "enum": [
-            "OMIT",
-            "NULL",
-            "ERROR"
-          ]
-        }
-      },
-      "required": [
-        "path",
-        "key",
-        "as"
-      ]
-    },
-    "backend-request-header": {
+    "metadata-transformation": {
       "type": "object",
       "properties": {
         "@comment": {
@@ -748,7 +829,54 @@
       ],
       "additionalProperties": false
     },
-    "backend-request-param": {
+    "response-metadata-transformation": {
+      "type": "object",
+      "properties": {
+        "@comment": {
+          "type": "string"
+        },
+        "omit": {
+          "type": "boolean"
+        },
+        "mapper": {
+          "$ref": "#/definitions/mapper"
+        },
+        "projector": {
+          "$ref": "#/definitions/projector"
+        },
+        "modifiers": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/response-modifier"
+          }
+        }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "omit"
+          ]
+        },
+        {
+          "required": [
+            "mapper"
+          ]
+        },
+        {
+          "required": [
+            "projector"
+          ]
+        },
+        {
+          "required": [
+            "modifiers"
+          ]
+        }
+      ],
+      "additionalProperties": false
+    },
+    "url-path-transformation": {
       "type": "object",
       "properties": {
         "@comment": {
@@ -758,20 +886,16 @@
           "type": "array",
           "minItems": 1,
           "items": {
-            "$ref": "#/definitions/param-modifier"
+            "$ref": "#/definitions/request-modifier"
           }
         }
       },
-      "anyOf": [
-        {
-          "required": [
-            "modifiers"
-          ]
-        }
+      "required": [
+        "modifiers"
       ],
       "additionalProperties": false
     },
-    "backend-request-query": {
+    "query-transformation": {
       "type": "object",
       "properties": {
         "@comment": {
@@ -818,11 +942,15 @@
       ],
       "additionalProperties": false
     },
-    "backend-request-body": {
+    "backend-request-payload-transformation": {
       "type": "object",
       "properties": {
         "@comment": {
           "type": "string"
+        },
+        "group": {
+          "type": "string",
+          "minLength": 1
         },
         "omit": {
           "type": "boolean"
@@ -839,6 +967,12 @@
         "nomenclature": {
           "$ref": "#/definitions/nomenclature"
         },
+        "mapper": {
+          "$ref": "#/definitions/mapper"
+        },
+        "projector": {
+          "$ref": "#/definitions/projector"
+        },
         "modifiers": {
           "type": "array",
           "minItems": 1,
@@ -852,6 +986,190 @@
           "items": {
             "$ref": "#/definitions/join"
           }
+        }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "aggregate"
+          ]
+        },
+        {
+          "required": [
+            "group"
+          ]
+        },
+        {
+          "required": [
+            "omit"
+          ]
+        },
+        {
+          "required": [
+            "omit-empty"
+          ]
+        },
+        {
+          "required": [
+            "content-type"
+          ]
+        },
+        {
+          "required": [
+            "content-encoding"
+          ]
+        },
+        {
+          "required": [
+            "nomenclature"
+          ]
+        },
+        {
+          "required": [
+            "mapper"
+          ]
+        },
+        {
+          "required": [
+            "projector"
+          ]
+        },
+        {
+          "required": [
+            "modifiers"
+          ]
+        },
+        {
+          "required": [
+            "joins"
+          ]
+        }
+      ],
+      "additionalProperties": false
+    },
+    "backend-response-payload-transformation": {
+      "type": "object",
+      "properties": {
+        "@comment": {
+          "type": "string"
+        },
+        "group": {
+          "type": "string",
+          "minLength": 1
+        },
+        "omit": {
+          "type": "boolean"
+        },
+        "omit-empty": {
+          "type": "boolean"
+        },
+        "mapper": {
+          "$ref": "#/definitions/mapper"
+        },
+        "projector": {
+          "$ref": "#/definitions/projector"
+        },
+        "modifiers": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/request-modifier"
+          }
+        },
+        "joins": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/join"
+          }
+        }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "aggregate"
+          ]
+        },
+        {
+          "required": [
+            "group"
+          ]
+        },
+        {
+          "required": [
+            "omit"
+          ]
+        },
+        {
+          "required": [
+            "omit-empty"
+          ]
+        },
+        {
+          "required": [
+            "content-type"
+          ]
+        },
+        {
+          "required": [
+            "content-encoding"
+          ]
+        },
+        {
+          "required": [
+            "nomenclature"
+          ]
+        },
+        {
+          "required": [
+            "mapper"
+          ]
+        },
+        {
+          "required": [
+            "projector"
+          ]
+        },
+        {
+          "required": [
+            "modifiers"
+          ]
+        },
+        {
+          "required": [
+            "joins"
+          ]
+        }
+      ],
+      "additionalProperties": false
+    },
+    "endpoint-response-payload-transformation": {
+      "type": "object",
+      "properties": {
+        "@comment": {
+          "type": "string"
+        },
+        "aggregate": {
+          "type": "boolean"
+        },
+        "group": {
+          "type": "string",
+          "minLength": 1
+        },
+        "omit": {
+          "type": "boolean"
+        },
+        "omit-empty": {
+          "type": "boolean"
+        },
+        "content-type": {
+          "$ref": "#/definitions/content-type"
+        },
+        "content-encoding": {
+          "$ref": "#/definitions/content-encoding"
+        },
+        "nomenclature": {
+          "$ref": "#/definitions/nomenclature"
         },
         "mapper": {
           "$ref": "#/definitions/mapper"
@@ -861,6 +1179,16 @@
         }
       },
       "anyOf": [
+        {
+          "required": [
+            "aggregate"
+          ]
+        },
+        {
+          "required": [
+            "group"
+          ]
+        },
         {
           "required": [
             "omit"
@@ -915,32 +1243,20 @@
         "@comment": {
           "type": "string"
         },
-        "continue-on-error": {
-          "type": "boolean"
-        },
-        "concurrent": {
-          "type": "integer",
-          "minimum": 1
-        },
         "header": {
-          "$ref": "#/definitions/backend-request-header"
+          "$ref": "#/definitions/metadata-transformation"
         },
         "param": {
-          "$ref": "#/definitions/backend-request-param"
+          "$ref": "#/definitions/url-path-transformation"
         },
         "query": {
-          "$ref": "#/definitions/backend-request-query"
+          "$ref": "#/definitions/query-transformation"
         },
         "body": {
-          "$ref": "#/definitions/backend-request-body"
+          "$ref": "#/definitions/backend-request-payload-transformation"
         }
       },
       "anyOf": [
-        {
-          "required": [
-            "concurrent"
-          ]
-        },
         {
           "required": [
             "header"
@@ -964,116 +1280,44 @@
       ],
       "additionalProperties": false
     },
-    "backend-response-header": {
+    "backend-propagate": {
       "type": "object",
       "properties": {
         "@comment": {
           "type": "string"
         },
-        "omit": {
-          "type": "boolean"
+        "header": {
+          "$ref": "#/definitions/metadata-transformation"
         },
-        "mapper": {
-          "$ref": "#/definitions/mapper"
+        "url-path": {
+          "$ref": "#/definitions/url-path-transformation"
         },
-        "projector": {
-          "$ref": "#/definitions/projector"
+        "query": {
+          "$ref": "#/definitions/query-transformation"
         },
-        "modifiers": {
-          "type": "array",
-          "minItems": 1,
-          "items": {
-            "$ref": "#/definitions/response-modifier"
-          }
+        "body": {
+          "$ref": "#/definitions/backend-request-payload-transformation"
         }
       },
       "anyOf": [
         {
           "required": [
-            "omit"
+            "header"
           ]
         },
         {
           "required": [
-            "mapper"
+            "url-path"
           ]
         },
         {
           "required": [
-            "projector"
+            "query"
           ]
         },
         {
           "required": [
-            "modifiers"
-          ]
-        }
-      ],
-      "additionalProperties": false
-    },
-    "backend-response-body": {
-      "type": "object",
-      "properties": {
-        "@comment": {
-          "type": "string"
-        },
-        "omit": {
-          "type": "boolean"
-        },
-        "group": {
-          "type": "string",
-          "minLength": 1
-        },
-        "modifiers": {
-          "type": "array",
-          "minItems": 1,
-          "items": {
-            "$ref": "#/definitions/response-modifier"
-          }
-        },
-        "joins": {
-          "type": "array",
-          "minItems": 1,
-          "items": {
-            "$ref": "#/definitions/join"
-          }
-        },
-        "mapper": {
-          "$ref": "#/definitions/mapper"
-        },
-        "projector": {
-          "$ref": "#/definitions/projector"
-        }
-      },
-      "anyOf": [
-        {
-          "required": [
-            "omit"
-          ]
-        },
-        {
-          "required": [
-            "group"
-          ]
-        },
-        {
-          "required": [
-            "mapper"
-          ]
-        },
-        {
-          "required": [
-            "projector"
-          ]
-        },
-        {
-          "required": [
-            "modifiers"
-          ]
-        },
-        {
-          "required": [
-            "joins"
+            "body"
           ]
         }
       ],
@@ -1085,17 +1329,14 @@
         "@comment": {
           "type": "string"
         },
-        "continue-on-error": {
-          "type": "boolean"
-        },
         "omit": {
           "type": "boolean"
         },
         "header": {
-          "$ref": "#/definitions/backend-response-header"
+          "$ref": "#/definitions/response-metadata-transformation"
         },
         "body": {
-          "$ref": "#/definitions/backend-response-body"
+          "$ref": "#/definitions/backend-response-payload-transformation"
         }
       },
       "anyOf": [
@@ -1117,144 +1358,19 @@
       ],
       "additionalProperties": false
     },
-    "middleware-backend-propagate": {
-      "type": "object",
-      "properties": {
-        "@comment": {
-          "type": "string"
-        },
-        "continue-on-error": {
-          "type": "boolean"
-        },
-        "header": {
-          "$ref": "#/definitions/backend-request-header"
-        },
-        "param": {
-          "$ref": "#/definitions/backend-request-param"
-        },
-        "query": {
-          "$ref": "#/definitions/backend-request-query"
-        },
-        "body": {
-          "$ref": "#/definitions/backend-request-body"
-        }
-      },
-      "anyOf": [
-        {
-          "required": [
-            "header"
-          ]
-        },
-        {
-          "required": [
-            "param"
-          ]
-        },
-        {
-          "required": [
-            "query"
-          ]
-        },
-        {
-          "required": [
-            "body"
-          ]
-        }
-      ],
-      "additionalProperties": false
-    },
-    "backend-broker": {
-      "type": "string",
-      "enum": [
-        "AWS/SQS",
-        "AWS/SNS"
-      ]
-    },
     "publisher-message-attribute": {
       "type": "object",
       "properties": {
-        "data-type": {
-          "type": "string",
-          "enum": [
-            "String",
-            "Number",
-            "Binary"
-          ]
+        "type": {
+          "$ref": "#/definitions/attribute-value-type"
         },
         "value": {
           "type": "string"
         }
       },
-      "anyOf": [
-        {
-          "required": [
-            "data-type"
-          ]
-        },
-        {
-          "required": [
-            "value"
-          ]
-        }
-      ],
-      "additionalProperties": false
-    },
-    "publisher-message-body": {
-      "type": "object",
-      "properties": {
-        "@comment": {
-          "type": "string"
-        },
-        "omit-empty": {
-          "type": "boolean"
-        },
-        "modifiers": {
-          "type": "array",
-          "minItems": 1,
-          "items": {
-            "$ref": "#/definitions/publisher-modifier"
-          }
-        },
-        "joins": {
-          "type": "array",
-          "minItems": 1,
-          "items": {
-            "$ref": "#/definitions/join"
-          }
-        },
-        "mapper": {
-          "$ref": "#/definitions/mapper"
-        },
-        "projector": {
-          "$ref": "#/definitions/projector"
-        }
-      },
-      "anyOf": [
-        {
-          "required": [
-            "omit-empty"
-          ]
-        },
-        {
-          "required": [
-            "mapper"
-          ]
-        },
-        {
-          "required": [
-            "projector"
-          ]
-        },
-        {
-          "required": [
-            "modifiers"
-          ]
-        },
-        {
-          "required": [
-            "joins"
-          ]
-        }
+      "required": [
+        "type",
+        "value"
       ],
       "additionalProperties": false
     },
@@ -1263,9 +1379,6 @@
       "properties": {
         "@comment": {
           "type": "string"
-        },
-        "continue-on-error": {
-          "type": "boolean"
         },
         "only-if": {
           "$ref": "#/definitions/only-if"
@@ -1280,13 +1393,40 @@
           }
         },
         "body": {
-          "$ref": "#/definitions/publisher-message-body"
+          "$ref": "#/definitions/backend-request-payload-transformation"
         }
       },
       "anyOf": [
         {
           "required": [
             "attributes"
+          ]
+        },
+        {
+          "required": [
+            "body"
+          ]
+        }
+      ],
+      "additionalProperties": false
+    },
+    "endpoint-response": {
+      "type": "object",
+      "properties": {
+        "@comment": {
+          "type": "string"
+        },
+        "header": {
+          "$ref": "#/definitions/response-metadata-transformation"
+        },
+        "body": {
+          "$ref": "#/definitions/endpoint-response-payload-transformation"
+        }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "header"
           ]
         },
         {
@@ -1307,6 +1447,9 @@
           "type": "string",
           "minLength": 1
         },
+        "execution": {
+          "$ref": "#/definitions/backend-execution"
+        },
         "dependencies": {
           "type": "array",
           "items": {
@@ -1320,17 +1463,20 @@
         "ignore-if": {
           "$ref": "#/definitions/ignore-if"
         },
-        "template": {
-          "$ref": "#/definitions/template"
-        },
         "kind": {
           "$ref": "#/definitions/backend-kind"
         },
-        "broker": {
-          "$ref": "#/definitions/backend-broker"
+        "template": {
+          "$ref": "#/definitions/template"
         },
         "async": {
           "type": "boolean"
+        },
+        "timeout": {
+          "$ref": "#/definitions/duration"
+        },
+        "cache": {
+          "$ref": "#/definitions/cache"
         },
         "hosts": {
           "type": "array",
@@ -1348,11 +1494,11 @@
         "request": {
           "$ref": "#/definitions/backend-request"
         },
-        "response": {
-          "$ref": "#/definitions/backend-response"
-        },
         "propagate": {
-          "$ref": "#/definitions/middleware-backend-propagate"
+          "$ref": "#/definitions/backend-propagate"
+        },
+        "broker": {
+          "$ref": "#/definitions/backend-broker"
         },
         "group-id": {
           "type": "string"
@@ -1365,6 +1511,9 @@
         },
         "message": {
           "$ref": "#/definitions/publisher-message"
+        },
+        "response": {
+          "$ref": "#/definitions/backend-response"
         }
       },
       "additionalProperties": false
@@ -1468,6 +1617,11 @@
                       "required": [
                         "request"
                       ]
+                    },
+                    {
+                      "required": [
+                        "cache"
+                      ]
                     }
                   ]
                 }
@@ -1528,6 +1682,20 @@
                 "id"
               ]
             }
+          }
+        },
+        {
+          "not": {
+            "properties": {
+              "response": {
+                "required": [
+                  "body"
+                ]
+              }
+            },
+            "required": [
+              "response"
+            ]
           }
         },
         {
@@ -1622,6 +1790,11 @@
                       "required": [
                         "request"
                       ]
+                    },
+                    {
+                      "required": [
+                        "cache"
+                      ]
                     }
                   ]
                 }
@@ -1665,165 +1838,14 @@
         }
       ]
     },
-    "templates": {
-      "type": "object",
-      "properties": {
-        "@comment": {
-          "type": "string"
-        },
-        "beforewares": {
-          "type": "object",
-          "minProperties": 1,
-          "additionalProperties": {
-            "$ref": "#/definitions/backend-middleware"
-          }
-        },
-        "backends": {
-          "type": "object",
-          "minProperties": 1,
-          "additionalProperties": {
-            "$ref": "#/definitions/backend-normal"
-          }
-        },
-        "afterwares": {
-          "type": "object",
-          "minProperties": 1,
-          "additionalProperties": {
-            "$ref": "#/definitions/backend-middleware"
-          }
-        }
-      },
-      "additionalProperties": false
-    },
-    "endpoint-response-header": {
-      "type": "object",
-      "properties": {
-        "@comment": {
-          "type": "string"
-        },
-        "mapper": {
-          "$ref": "#/definitions/mapper"
-        },
-        "projector": {
-          "$ref": "#/definitions/projector"
-        }
-      },
-      "anyOf": [
-        {
-          "required": [
-            "mapper"
-          ]
-        },
-        {
-          "required": [
-            "projector"
-          ]
-        }
-      ],
-      "additionalProperties": false
-    },
-    "endpoint-response-body": {
-      "type": "object",
-      "properties": {
-        "@comment": {
-          "type": "string"
-        },
-        "aggregate": {
-          "type": "boolean"
-        },
-        "omit-empty": {
-          "type": "boolean"
-        },
-        "content-type": {
-          "$ref": "#/definitions/content-type"
-        },
-        "content-encoding": {
-          "$ref": "#/definitions/content-encoding"
-        },
-        "nomenclature": {
-          "$ref": "#/definitions/nomenclature"
-        },
-        "mapper": {
-          "$ref": "#/definitions/mapper"
-        },
-        "projector": {
-          "$ref": "#/definitions/projector"
-        }
-      },
-      "anyOf": [
-        {
-          "required": [
-            "aggregate"
-          ]
-        },
-        {
-          "required": [
-            "omit-empty"
-          ]
-        },
-        {
-          "required": [
-            "content-type"
-          ]
-        },
-        {
-          "required": [
-            "content-encoding"
-          ]
-        },
-        {
-          "required": [
-            "nomenclature"
-          ]
-        },
-        {
-          "required": [
-            "mapper"
-          ]
-        },
-        {
-          "required": [
-            "projector"
-          ]
-        }
-      ],
-      "additionalProperties": false
-    },
-    "endpoint-response": {
-      "type": "object",
-      "properties": {
-        "@comment": {
-          "type": "string"
-        },
-        "continue-on-error": {
-          "type": "boolean"
-        },
-        "header": {
-          "$ref": "#/definitions/endpoint-response-header"
-        },
-        "body": {
-          "$ref": "#/definitions/endpoint-response-body"
-        }
-      },
-      "anyOf": [
-        {
-          "required": [
-            "header"
-          ]
-        },
-        {
-          "required": [
-            "body"
-          ]
-        }
-      ],
-      "additionalProperties": false
-    },
     "endpoint": {
       "type": "object",
       "properties": {
         "@comment": {
           "type": "string"
+        },
+        "execution": {
+          "$ref": "#/definitions/endpoint-execution"
         },
         "path": {
           "$ref": "#/definitions/path"
@@ -1835,27 +1857,13 @@
           "$ref": "#/definitions/duration"
         },
         "security-cors": {
-          "$ref": "#/definitions/endpoint-security-cors"
+          "$ref": "#/definitions/security-cors"
         },
         "limiter": {
-          "$ref": "#/definitions/endpoint-limiter"
+          "$ref": "#/definitions/limiter"
         },
         "cache": {
-          "$ref": "#/definitions/endpoint-cache"
-        },
-        "abort-if-status-codes": {
-          "type": "array",
-          "items": {
-            "type": "integer",
-            "minimum": 100,
-            "maximum": 599
-          }
-        },
-        "response": {
-          "$ref": "#/definitions/endpoint-response"
-        },
-        "parallelism": {
-          "type": "boolean"
+          "$ref": "#/definitions/cache"
         },
         "beforewares": {
           "type": "array",
@@ -1875,6 +1883,9 @@
           "items": {
             "$ref": "#/definitions/backend-middleware"
           }
+        },
+        "response": {
+          "$ref": "#/definitions/endpoint-response"
         }
       },
       "required": [
@@ -1882,6 +1893,13 @@
         "method"
       ],
       "additionalProperties": false
+    },
+    "endpoints": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/definitions/endpoint"
+      }
     }
   },
   "properties": {
@@ -1897,8 +1915,8 @@
     "hot-reload": {
       "type": "boolean"
     },
-    "proxy": {
-      "$ref": "#/definitions/proxy"
+    "request": {
+      "$ref": "#/definitions/request"
     },
     "store": {
       "$ref": "#/definitions/store"
@@ -1906,24 +1924,20 @@
     "timeout": {
       "$ref": "#/definitions/duration"
     },
-    "cache": {
-      "$ref": "#/definitions/cache"
+    "security-cors": {
+      "$ref": "#/definitions/security-cors"
     },
     "limiter": {
       "$ref": "#/definitions/limiter"
     },
-    "security-cors": {
-      "$ref": "#/definitions/security-cors"
+    "cache": {
+      "$ref": "#/definitions/cache"
     },
     "templates": {
       "$ref": "#/definitions/templates"
     },
     "endpoints": {
-      "type": "array",
-      "minItems": 1,
-      "items": {
-        "$ref": "#/definitions/endpoint"
-      }
+      "$ref": "#/definitions/endpoints"
     }
   },
   "required": [
