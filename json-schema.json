@@ -1286,6 +1286,17 @@
         "@comment": {
           "type": "string"
         },
+        "request": {
+          "$ref": "#/definitions/backend-propagate-request"
+        }
+      }
+    },
+    "backend-propagate-request": {
+      "type": "object",
+      "properties": {
+        "@comment": {
+          "type": "string"
+        },
         "header": {
           "$ref": "#/definitions/metadata-transformation"
         },
