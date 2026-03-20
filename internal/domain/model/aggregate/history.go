@@ -176,7 +176,7 @@ func (h *History) ResponsesMap() (string, error) {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 
-	sliceOfMap := make([]any, h.sizeUnlocked())
+	result := map[string]any{}
 
 	for i := 0; checker.IsLessThan(i, h.sizeUnlocked()); i++ {
 		resp := h.responses[i]
@@ -189,17 +189,20 @@ func (h *History) ResponsesMap() (string, error) {
 			return "", err
 		}
 
-		sliceOfMap[i] = responseMap
+		result[converter.ToString(h.backends[i])] = responseMap
 	}
 
-	return converter.ToStringWithErr(sliceOfMap)
+	result["ok"] = h.AllOK()
+	result["executed"] = h.AllExecuted()
+
+	return converter.ToStringWithErr(result)
 }
 
 func (h *History) ResponsesMapByID() (string, error) {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 
-	byID := make(map[string]any, h.sizeUnlocked())
+	result := map[string]any{}
 
 	for i := 0; checker.IsLessThan(i, h.sizeUnlocked()); i++ {
 		backend := h.backends[i]
@@ -217,10 +220,13 @@ func (h *History) ResponsesMapByID() (string, error) {
 			return "", err
 		}
 
-		byID[backend.ID()] = responseMap
+		result[backend.ID()] = responseMap
 	}
 
-	return converter.ToStringWithErr(byID)
+	result["ok"] = h.AllOK()
+	result["executed"] = h.AllExecuted()
+
+	return converter.ToStringWithErr(result)
 }
 
 func (h *History) sizeUnlocked() int {
