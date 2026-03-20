@@ -69,6 +69,10 @@ func (p *Payload) IsValid() bool {
 	return checker.NonNil(p.Validate())
 }
 
+func (p *Payload) IsNotValid() bool {
+	return !p.IsValid()
+}
+
 func (p *Payload) Validate() error {
 	bs, err := p.Bytes()
 	if checker.NonNil(err) {

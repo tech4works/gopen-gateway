@@ -153,6 +153,9 @@ func (p BuildPipeline) ApplyPayload(
 		return payload, nil
 	} else if spec.Omit() || checker.IsNil(payload) {
 		return nil, nil
+	} else if payload.IsNotValid() || payload.ContentType().IsUnsupported() {
+		return payload, errors.NewAsSlicef("payload is not valid or unsupported to transforms content-type=%s isValid=%v",
+			payload.ContentType().String(), payload.IsValid())
 	}
 	return apply(
 		payload,
