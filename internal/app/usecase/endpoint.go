@@ -225,7 +225,7 @@ func (e endpointUseCase) executeAllBackends(
 }
 
 func (e endpointUseCase) executeBackend(
-	ctx context.Context,
+	parentCtx context.Context,
 	executeData dto.ExecuteEndpoint,
 	backend *vo.BackendConfig,
 	history *aggregate.History,
@@ -234,12 +234,15 @@ func (e endpointUseCase) executeBackend(
 
 	defer func() {
 		if r := recover(); checker.NonNil(r) {
-			err := e.panicAsError(ctx, backend.ID(), r)
+			err := e.panicAsError(parentCtx, backend.ID(), r)
 			backendResponse = e.backendResponseFactory.BuildResponseByError(executeData.Endpoint, backend, err,
 				time.Since(startTime))
 		}
-		e.writeBackendResponseOnCacheIfNeeded(ctx, executeData, backend, history, backendResponse)
+		e.writeBackendResponseOnCacheIfNeeded(parentCtx, executeData, backend, history, backendResponse)
 	}()
+
+	ctx, cancel := context.WithTimeout(parentCtx, backend.Timeout().Time())
+	defer cancel()
 
 	if err := e.checkIfCanBackendBeRun(executeData, backend, history); checker.NonNil(err) {
 		backendResponse = e.backendResponseFactory.BuildResponseByError(executeData.Endpoint, backend, err,
@@ -368,21 +371,12 @@ func (e endpointUseCase) makeConcurrentBackendHTTPRequest(
 }
 
 func (e endpointUseCase) makeBackendHTTPRequest(
-	parent context.Context,
+	ctx context.Context,
 	executeData dto.ExecuteEndpoint,
 	backend *vo.BackendConfig,
 	startTime time.Time,
 	request *vo.HTTPBackendRequest,
 ) *vo.BackendResponse {
-	if checker.NonNil(parent.Err()) {
-		return e.backendResponseFactory.BuildResponseByError(executeData.Endpoint, backend, parent.Err(), time.Since(startTime))
-	}
-
-	timeout, _ := parent.Deadline()
-
-	ctx, cancel := context.WithTimeout(parent, time.Until(timeout))
-	defer cancel()
-
 	e.backendLog.PrintHTTPRequest(executeData, backend, request)
 
 	httpResponse, err := e.httpClient.MakeRequest(ctx, executeData.Request, request)
@@ -400,21 +394,12 @@ func (e endpointUseCase) makeBackendHTTPRequest(
 }
 
 func (e endpointUseCase) makeBackendPublisherRequest(
-	parent context.Context,
+	ctx context.Context,
 	executeData dto.ExecuteEndpoint,
 	backend *vo.BackendConfig,
 	startTime time.Time,
 	publisherBackendRequest *vo.PublisherBackendRequest,
 ) *vo.BackendResponse {
-	if checker.NonNil(parent.Err()) {
-		return e.backendResponseFactory.BuildResponseByError(executeData.Endpoint, backend, parent.Err(), time.Since(startTime))
-	}
-
-	timeout, _ := parent.Deadline()
-
-	ctx, cancel := context.WithTimeout(parent, time.Until(timeout))
-	defer cancel()
-
 	e.backendLog.PrintPublisherRequest(executeData, backend, publisherBackendRequest)
 
 	publisherResponse, err := e.publishClient.Publish(ctx, executeData.Request, publisherBackendRequest)

@@ -90,6 +90,10 @@ func (b *BackendConfig) Dependencies() *BackendDependenciesConfig {
 	return b.dependencies
 }
 
+func (b *BackendConfig) Timeout() Duration {
+	return b.timeout
+}
+
 func (b *BackendConfig) HasCache() bool {
 	return checker.NonNil(b.cache)
 }
