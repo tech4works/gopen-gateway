@@ -178,9 +178,6 @@ type Backend struct {
 	Kind     enum.BackendKind `json:"kind,omitempty"`
 	Template *Template        `json:"template,omitempty"`
 
-	Async   *bool       `json:"async,omitempty"`
-	Timeout vo.Duration `json:"timeout,omitempty"`
-
 	// ---- HTTP ----
 	Cache *Cache `json:"cache,omitempty"`
 

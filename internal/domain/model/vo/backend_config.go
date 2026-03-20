@@ -29,7 +29,6 @@ type BackendConfig struct {
 	execution    BackendExecutionConfig
 	dependencies *BackendDependenciesConfig
 	kind         enum.BackendKind
-	timeout      Duration
 	cache        *CacheConfig
 	http         *BackendHTTPConfig
 	publisher    *BackendPublisherConfig
@@ -44,7 +43,6 @@ func NewBackendConfig(
 	execution BackendExecutionConfig,
 	dependencies *BackendDependenciesConfig,
 	kind enum.BackendKind,
-	timeout Duration,
 	cache *CacheConfig,
 	http *BackendHTTPConfig,
 	publisher *BackendPublisherConfig,
@@ -58,7 +56,6 @@ func NewBackendConfig(
 		execution:    execution,
 		dependencies: dependencies,
 		kind:         kind,
-		timeout:      timeout,
 		cache:        cache,
 		http:         http,
 		publisher:    publisher,
@@ -88,10 +85,6 @@ func (b *BackendConfig) HasDependencies() bool {
 
 func (b *BackendConfig) Dependencies() *BackendDependenciesConfig {
 	return b.dependencies
-}
-
-func (b *BackendConfig) Timeout() Duration {
-	return b.timeout
 }
 
 func (b *BackendConfig) HasCache() bool {

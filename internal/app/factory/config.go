@@ -248,10 +248,7 @@ func buildEndpointResponse(endpointResponse *dto.EndpointResponse) vo.EndpointRe
 	)
 }
 
-func buildBackends(
-	templates *dto.Templates,
-	endpoint dto.Endpoint,
-) []vo.BackendConfig {
+func buildBackends(templates *dto.Templates, endpoint dto.Endpoint) []vo.BackendConfig {
 	var result []vo.BackendConfig
 	var ps propagateState
 	var backendIndex int
@@ -386,7 +383,6 @@ func buildBackendUnified(
 		resolveBackendExecution(endpoint.Execution, backend.Execution),
 		buildBackendDependencies(backend.Dependencies, idToIndex),
 		backend.Kind,
-		backend.Timeout,
 		buildBackendCache(backend.Cache),
 		http,
 		publisher,
@@ -692,8 +688,8 @@ func mergeBackendFULL(tpl dto.Backend, cur dto.Backend) dto.Backend {
 	if cur.Kind.IsEnumValid() {
 		out.Kind = cur.Kind
 	}
-	if checker.NonNil(cur.Async) {
-		out.Async = cur.Async
+	if checker.NonNil(cur.Execution) {
+		out.Execution = cur.Execution
 	}
 	if checker.IsNotEmpty(cur.Hosts) {
 		out.Hosts = cur.Hosts

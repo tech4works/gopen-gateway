@@ -1469,12 +1469,6 @@
         "template": {
           "$ref": "#/definitions/template"
         },
-        "async": {
-          "type": "boolean"
-        },
-        "timeout": {
-          "$ref": "#/definitions/duration"
-        },
         "cache": {
           "$ref": "#/definitions/cache"
         },

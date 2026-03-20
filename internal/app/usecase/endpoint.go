@@ -241,7 +241,14 @@ func (e endpointUseCase) executeBackend(
 		e.writeBackendResponseOnCacheIfNeeded(parentCtx, executeData, backend, history, backendResponse)
 	}()
 
-	ctx, cancel := context.WithTimeout(parentCtx, backend.Timeout().Time())
+	timeout, ok := parentCtx.Deadline()
+
+	if !ok {
+		return e.backendResponseFactory.BuildResponseByError(executeData.Endpoint, backend, parentCtx.Err(),
+			time.Since(startTime))
+	}
+
+	ctx, cancel := context.WithTimeout(parentCtx, time.Until(timeout))
 	defer cancel()
 
 	if err := e.checkIfCanBackendBeRun(executeData, backend, history); checker.NonNil(err) {
