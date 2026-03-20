@@ -1,5 +1,5 @@
 # Build phase (Go binary creation)
-FROM golang:1.23.1 AS builder
+FROM golang:1.24.0 AS builder
 
 # Set the working directory
 WORKDIR /app
@@ -15,11 +15,11 @@ COPY ./json-schema.json ./json-schema.json
 COPY ./cmd/main.go ./cmd/main.go
 COPY ./internal ./internal
 
-# Change to the directory containing core.go
+# Change to the directory containing main.go
 WORKDIR /app/cmd
 
 # Build the Go app for Linux/amd64 architecture
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -installsuffix cgo -o core .
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -installsuffix cgo -o main .
 
 # Execution phase (using Alpine to run the binary)
 FROM alpine:latest
@@ -40,7 +40,7 @@ COPY --from=builder /app/json-schema.json ./json-schema.json
 RUN mkdir -p ./runtime
 
 # Check the binary executable exists
-RUN chmod +x ./core
+RUN chmod +x ./main
 
 # Command to run the Go application
 CMD ["/app/main"]
