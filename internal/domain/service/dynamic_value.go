@@ -57,6 +57,8 @@ var boolFuncs = []string{
 	"islengthgreaterthanorequal",
 	"islengthlessthanorequal",
 	"islengthequals",
+	"matchesregex",
+	"notmatchesregex",
 }
 
 type dynamicValue struct {
@@ -1011,6 +1013,18 @@ func (d dynamicValue) evalFuncBool(name string, args []string, request *vo.Endpo
 			return false, errs
 		}
 		return d.evalLengthCompare(l, r, request, history, "eq")
+	case "matchesregex":
+		l, r, errs := need2()
+		if checker.IsNotEmpty(errs) {
+			return false, errs
+		}
+		return d.evalMatchesRegex(l, r, request, history, false)
+	case "notmatchesregex":
+		l, r, errs := need2()
+		if checker.IsNotEmpty(errs) {
+			return false, errs
+		}
+		return d.evalMatchesRegex(l, r, request, history, true)
 	}
 
 	return false, errors.NewAsSlicef("dynamic-value failed: unsupported func=%s", name)
@@ -1176,6 +1190,33 @@ func (d dynamicValue) evalContainsIgnoreCase(left string, right string, request 
 		return !found, nil
 	}
 	return found, nil
+}
+
+func (d dynamicValue) evalMatchesRegex(left string, right string, request *vo.EndpointRequest,
+	history *aggregate.History, negate bool) (bool, []error) {
+	ls, errs := d.resolveToString(left, request, history, true)
+	if checker.IsNotEmpty(errs) {
+		return false, errs
+	}
+
+	rs, errs := d.resolveToString(right, request, history, true)
+	if checker.IsNotEmpty(errs) {
+		return false, errs
+	}
+
+	ls = d.stripQuotes(strings.TrimSpace(ls))
+	rs = d.stripQuotes(strings.TrimSpace(rs))
+
+	re, err := regexp.Compile(rs)
+	if checker.NonNil(err) {
+		return false, errors.NewAsSlicef("dynamic-value failed: matchesRegex invalid pattern=%s err=%s", rs, err)
+	}
+
+	matched := re.MatchString(ls)
+	if negate {
+		return !matched, nil
+	}
+	return matched, nil
 }
 
 func (d dynamicValue) evalLengthCompare(left string, right string, request *vo.EndpointRequest,

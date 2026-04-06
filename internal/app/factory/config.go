@@ -22,6 +22,7 @@ import (
 
 	"github.com/tech4works/checker"
 	"github.com/tech4works/errors"
+
 	"github.com/tech4works/gopen-gateway/internal/app/model/dto"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
@@ -214,31 +215,60 @@ func buildEndpointCache(cache *dto.Cache, endpointCache *dto.Cache) *vo.CacheCon
 		return nil
 	}
 
-	var read, write dto.CacheDecision
-	var key string
-	var ttl vo.Duration
-
-	if checker.NonNil(cache) {
-		read = cache.Read
-		write = cache.Write
-		key = cache.Key
-		ttl = cache.TTL
-	}
-
-	if checker.NonNil(endpointCache) {
-		read = endpointCache.Read
-		write = endpointCache.Write
-		key = endpointCache.Key
-		ttl = endpointCache.TTL
-	}
+	effective := mergeCacheDTO(cache, endpointCache)
 
 	return vo.NewCacheConfig(
 		enum.CacheKindEndpoint,
-		vo.NewCacheDecisionConfig(read.OnlyIf, read.IgnoreIf),
-		vo.NewCacheDecisionConfig(write.OnlyIf, write.IgnoreIf),
-		key,
-		ttl,
+		vo.NewCacheDecisionConfig(
+			mergeCacheConditions(effective.OnlyIf, effective.Read.OnlyIf),
+			mergeCacheConditions(effective.IgnoreIf, effective.Read.IgnoreIf),
+		),
+		vo.NewCacheDecisionConfig(
+			mergeCacheConditions(effective.OnlyIf, effective.Write.OnlyIf),
+			mergeCacheConditions(effective.IgnoreIf, effective.Write.IgnoreIf),
+		),
+		effective.Key,
+		effective.TTL,
 	)
+}
+
+func mergeCacheDTO(base, override *dto.Cache) dto.Cache {
+	if checker.IsNil(base) {
+		return *override
+	}
+	if checker.IsNil(override) {
+		return *base
+	}
+	result := *base
+	if checker.IsNotEmpty(override.OnlyIf) {
+		result.OnlyIf = override.OnlyIf
+	}
+	if checker.IsNotEmpty(override.IgnoreIf) {
+		result.IgnoreIf = override.IgnoreIf
+	}
+	if checker.IsNotEmpty(override.Read.OnlyIf) {
+		result.Read.OnlyIf = override.Read.OnlyIf
+	}
+	if checker.IsNotEmpty(override.Read.IgnoreIf) {
+		result.Read.IgnoreIf = override.Read.IgnoreIf
+	}
+	if checker.IsNotEmpty(override.Write.OnlyIf) {
+		result.Write.OnlyIf = override.Write.OnlyIf
+	}
+	if checker.IsNotEmpty(override.Write.IgnoreIf) {
+		result.Write.IgnoreIf = override.Write.IgnoreIf
+	}
+	if checker.IsNotEmpty(override.Key) {
+		result.Key = override.Key
+	}
+	if override.TTL > 0 {
+		result.TTL = override.TTL
+	}
+	return result
+}
+
+func mergeCacheConditions(base, specific []string) []string {
+	return append(base, specific...)
 }
 
 func buildEndpointResponse(endpointResponse *dto.EndpointResponse) vo.EndpointResponseConfig {
@@ -411,8 +441,14 @@ func buildBackendCache(cache *dto.Cache) *vo.CacheConfig {
 	}
 	return vo.NewCacheConfig(
 		enum.CacheKindBackend,
-		vo.NewCacheDecisionConfig(cache.Read.OnlyIf, cache.Read.IgnoreIf),
-		vo.NewCacheDecisionConfig(cache.Write.OnlyIf, cache.Write.IgnoreIf),
+		vo.NewCacheDecisionConfig(
+			mergeCacheConditions(cache.OnlyIf, cache.Read.OnlyIf),
+			mergeCacheConditions(cache.IgnoreIf, cache.Read.IgnoreIf),
+		),
+		vo.NewCacheDecisionConfig(
+			mergeCacheConditions(cache.OnlyIf, cache.Write.OnlyIf),
+			mergeCacheConditions(cache.IgnoreIf, cache.Write.IgnoreIf),
+		),
 		cache.Key,
 		cache.TTL,
 	)

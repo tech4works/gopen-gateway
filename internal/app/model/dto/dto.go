@@ -78,10 +78,12 @@ type Redis struct {
 }
 
 type Cache struct {
-	Read  CacheDecision `json:"read,omitempty"`
-	Write CacheDecision `json:"write,omitempty"`
-	Key   string        `json:"key,omitempty"`
-	TTL   vo.Duration   `json:"ttl,omitempty"`
+	OnlyIf   []string      `json:"only-if,omitempty"`
+	IgnoreIf []string      `json:"ignore-if,omitempty"`
+	Read     CacheDecision `json:"read,omitempty"`
+	Write    CacheDecision `json:"write,omitempty"`
+	Key      string        `json:"key,omitempty"`
+	TTL      vo.Duration   `json:"ttl,omitempty"`
 }
 
 type CacheDecision struct {
