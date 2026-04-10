@@ -337,6 +337,12 @@
     "cache": {
       "type": "object",
       "properties": {
+         "only-if": {
+          "$ref": "#/definitions/only-if"
+        },
+        "ignore-if": {
+          "$ref": "#/definitions/ignore-if"
+        },
         "read": {
           "$ref": "#/definitions/cache-decision"
         },
