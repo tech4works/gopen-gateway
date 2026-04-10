@@ -280,6 +280,9 @@ func mergeCacheConditions(base, specific []string) []string {
 }
 
 func buildEndpointResponse(endpointResponse *dto.EndpointResponse) vo.EndpointResponseConfig {
+	if checker.IsNil(endpointResponse) {
+		return vo.NewEndpointResponseConfig(nil, nil)
+	}
 	return vo.NewEndpointResponseConfig(
 		buildMetadata(endpointResponse.Header),
 		buildPayload(endpointResponse.Body),
