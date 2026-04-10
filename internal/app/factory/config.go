@@ -217,6 +217,14 @@ func buildEndpointCache(cache *dto.Cache, endpointCache *dto.Cache) *vo.CacheCon
 
 	effective := mergeCacheDTO(cache, endpointCache)
 
+	// Validate that key and ttl are present (either from root or endpoint level)
+	if checker.IsEmpty(effective.Key) {
+		panic(errors.Newf("endpoint cache requires 'key' property (either at root level or endpoint level)"))
+	}
+	if checker.IsLessThanOrEqual(effective.TTL, 0) {
+		panic(errors.Newf("endpoint cache requires 'ttl' property (either at root level or endpoint level)"))
+	}
+
 	return vo.NewCacheConfig(
 		enum.CacheKindEndpoint,
 		vo.NewCacheDecisionConfig(
@@ -439,6 +447,15 @@ func buildBackendCache(cache *dto.Cache) *vo.CacheConfig {
 	if checker.IsNil(cache) {
 		return nil
 	}
+
+	// Validate that key and ttl are present
+	if checker.IsEmpty(cache.Key) {
+		panic(errors.Newf("backend cache requires 'key' property"))
+	}
+	if checker.IsLessThanOrEqual(cache.TTL, 0) {
+		panic(errors.Newf("backend cache requires 'ttl' property"))
+	}
+
 	return vo.NewCacheConfig(
 		enum.CacheKindBackend,
 		vo.NewCacheDecisionConfig(

@@ -336,6 +336,7 @@
     },
     "cache": {
       "type": "object",
+      "description": "Global cache configuration. When defined at root level, key and ttl are required.",
       "properties": {
          "only-if": {
           "$ref": "#/definitions/only-if"
@@ -350,16 +351,45 @@
           "$ref": "#/definitions/cache-decision"
         },
         "key": {
-          "type": "string"
+          "type": "string",
+          "description": "Cache key template. Required at root level."
         },
         "ttl": {
-          "$ref": "#/definitions/duration"
+          "$ref": "#/definitions/duration",
+          "description": "Time to live for cached entries. Required at root level."
         }
       },
       "required": [
         "key",
         "ttl"
       ],
+      "additionalProperties": false
+    },
+    "cache-endpoint": {
+      "type": "object",
+      "description": "Endpoint/Backend cache configuration. If root cache is defined, key and ttl are inherited and optional here. If root cache is NOT defined, key and ttl must be provided (validated at runtime).",
+      "properties": {
+         "only-if": {
+          "$ref": "#/definitions/only-if"
+        },
+        "ignore-if": {
+          "$ref": "#/definitions/ignore-if"
+        },
+        "read": {
+          "$ref": "#/definitions/cache-decision"
+        },
+        "write": {
+          "$ref": "#/definitions/cache-decision"
+        },
+        "key": {
+          "type": "string",
+          "description": "Cache key template. Optional if root cache is defined (inherits from root). Required if no root cache exists."
+        },
+        "ttl": {
+          "$ref": "#/definitions/duration",
+          "description": "Time to live for cached entries. Optional if root cache is defined (inherits from root). Required if no root cache exists."
+        }
+      },
       "additionalProperties": false
     },
     "limiter-size": {
@@ -1487,7 +1517,7 @@
           "$ref": "#/definitions/template"
         },
         "cache": {
-          "$ref": "#/definitions/cache"
+          "$ref": "#/definitions/cache-endpoint"
         },
         "hosts": {
           "type": "array",
@@ -1874,7 +1904,7 @@
           "$ref": "#/definitions/limiter"
         },
         "cache": {
-          "$ref": "#/definitions/cache"
+          "$ref": "#/definitions/cache-endpoint"
         },
         "beforewares": {
           "type": "array",
