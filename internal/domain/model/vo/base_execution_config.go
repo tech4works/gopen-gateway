@@ -2,6 +2,7 @@ package vo
 
 import (
 	"github.com/tech4works/checker"
+
 	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
 )
 
@@ -27,7 +28,7 @@ func NewBaseExecutionConfig(mode enum.ExecutionMode, on []enum.ExecutionOn) Base
 }
 
 func (b BaseExecutionConfig) HasOn(v enum.ExecutionOn) bool {
-	return checker.Contains(b.on, v)
+	return checker.NonNil(b.on) && checker.Contains(b.on, v)
 }
 
 func (b BaseExecutionConfig) IsBestEffort() bool {

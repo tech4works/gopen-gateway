@@ -22,7 +22,9 @@ import (
 	"strings"
 
 	jsoniter "github.com/json-iterator/go"
+
 	"github.com/tech4works/checker"
+
 	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
 )
 
@@ -62,7 +64,7 @@ func (p *ProjectConfig) IsEmpty() bool {
 }
 
 func (p *ProjectConfig) Exists(key string) bool {
-	return checker.Contains(p.keys, key)
+	return checker.IsNotEmpty(p.keys) && checker.Contains(p.keys, key)
 }
 
 func (p *ProjectConfig) ContainsNumericKey() bool {

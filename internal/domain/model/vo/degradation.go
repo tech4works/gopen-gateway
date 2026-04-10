@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 
 	"github.com/tech4works/checker"
+
 	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
 )
 
@@ -22,7 +23,7 @@ func NewDegradation(kinds ...enum.DegradationKind) Degradation {
 }
 
 func (d Degradation) Has(kind enum.DegradationKind) bool {
-	return checker.Contains(d.kinds, kind)
+	return checker.IsNotEmpty(d.kinds) && checker.Contains(d.kinds, kind)
 }
 
 func (d Degradation) Any() bool {

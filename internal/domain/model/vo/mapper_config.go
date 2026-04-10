@@ -22,7 +22,9 @@ import (
 	"strings"
 
 	jsoniter "github.com/json-iterator/go"
+
 	"github.com/tech4works/checker"
+
 	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
 )
 
@@ -72,7 +74,7 @@ func (m *MapConfig) IsNotEmpty() bool {
 }
 
 func (m *MapConfig) Exists(key string) bool {
-	return checker.Contains(m.keys, key)
+	return checker.IsNotEmpty(m.keys) && checker.Contains(m.keys, key)
 }
 
 func (m *MapConfig) Keys() []string {
