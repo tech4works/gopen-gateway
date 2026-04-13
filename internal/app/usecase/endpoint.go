@@ -23,8 +23,11 @@ import (
 	"net/url"
 	"time"
 
+	"go.elastic.co/apm/v2"
+
 	"github.com/tech4works/checker"
 	"github.com/tech4works/errors"
+
 	"github.com/tech4works/gopen-gateway/internal/app"
 	"github.com/tech4works/gopen-gateway/internal/app/factory"
 	"github.com/tech4works/gopen-gateway/internal/app/model/dto"
@@ -33,7 +36,6 @@ import (
 	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
 	"github.com/tech4works/gopen-gateway/internal/domain/service"
-	"go.elastic.co/apm/v2"
 )
 
 type endpointUseCase struct {
@@ -137,6 +139,9 @@ func (e endpointUseCase) executeAllBackends(
 	history := aggregate.NewHistoryWithSize(len(backends))
 
 	waitDependencies := func(b *vo.BackendConfig) {
+		if !b.HasDependencies() {
+			return
+		}
 		for _, dependencyIndex := range b.Dependencies().Indexes() {
 			select {
 			case <-seqCtx.Done():

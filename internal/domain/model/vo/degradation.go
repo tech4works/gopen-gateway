@@ -41,7 +41,7 @@ func (d Degradation) MarshalJSON() ([]byte, error) {
 func (d *Degradation) UnmarshalJSON(data []byte) error {
 	var kinds []enum.DegradationKind
 
-	if err := json.Unmarshal(data, &kinds); err != nil {
+	if err := json.Unmarshal(data, &kinds); checker.NonNil(err) {
 		return err
 	}
 
