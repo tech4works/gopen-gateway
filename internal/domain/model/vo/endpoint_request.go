@@ -22,6 +22,7 @@ import (
 	"github.com/tech4works/checker"
 	"github.com/tech4works/converter"
 	"github.com/tech4works/errors"
+
 	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
 )
 
@@ -166,19 +167,24 @@ func (r *EndpointRequest) Map() (string, error) {
 	switch r.protocol {
 	case enum.ProtocolHTTP, enum.ProtocolWebSocket:
 		return converter.ToStringWithErr(map[string]any{
-			"url":    r.Route(),
-			"header": r.Metadata().Map(),
-			"method": r.Operation(),
-			"params": r.Params().Map(),
-			"query":  r.Query().Map(),
-			"body":   payload,
+			"id":        r.ID(),
+			"client-ip": r.ClientIP(),
+			"url":       r.Route(),
+			"path":      r.Path().String(),
+			"header":    r.Metadata().Map(),
+			"method":    r.Operation(),
+			"params":    r.Params().Map(),
+			"query":     r.Query().Map(),
+			"body":      payload,
 		})
 	case enum.ProtocolGRPC:
 		return converter.ToStringWithErr(map[string]any{
-			"fullMethod": r.Route(),
-			"metadata":   r.Metadata().Map(),
-			"operation":  r.Operation(),
-			"payload":    payload,
+			"id":          r.ID(),
+			"client-ip":   r.ClientIP(),
+			"full-method": r.Route(),
+			"metadata":    r.Metadata().Map(),
+			"operation":   r.Operation(),
+			"payload":     payload,
 		})
 	default:
 		return "", errors.New("unknown protocol to map request")

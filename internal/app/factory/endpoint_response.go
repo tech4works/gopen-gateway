@@ -22,6 +22,7 @@ import (
 	"github.com/tech4works/checker"
 	"github.com/tech4works/converter"
 	"github.com/tech4works/errors"
+
 	"github.com/tech4works/gopen-gateway/internal/app"
 	"github.com/tech4works/gopen-gateway/internal/app/model/dto"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/aggregate"
@@ -58,6 +59,7 @@ func (f endpointResponse) BuildErrorResponse(endpoint *vo.EndpointConfig, err er
 		Line:      wrapped.Line(),
 		Endpoint:  endpoint.Path(),
 		Message:   wrapped.Message(),
+		Stack:     wrapped.Stack(),
 		Timestamp: time.Now(),
 	}))
 	metadata := vo.NewEmptyMetadata()
@@ -157,7 +159,7 @@ func (f endpointResponse) buildMetadataByHistory(
 	metadata := vo.NewEmptyMetadata()
 	for i := 0; checker.IsLessThan(i, history.Size()); i++ {
 		response := history.GetResponse(i)
-		if response.ShouldInFinalResponse() {
+		if history.ShouldContributeMetadata(i) {
 			metadata = f.aggregatorService.AggregateMetadata(metadata, response.Metadata(), app.TransportHTTPHeaderKeys())
 			buildDegraded = buildDegraded || response.MetadataDegraded()
 		}
@@ -177,7 +179,7 @@ func (f endpointResponse) buildStatusFromMultipleResponses(history *aggregate.Hi
 	statuses := make(map[vo.ResponseStatus]int)
 	for i := 0; checker.IsLessThan(i, history.Size()); i++ {
 		response := history.GetResponse(i)
-		if response.ShouldInFinalResponse() {
+		if history.ShouldBeInFinalResponse(i) {
 			statuses[response.Status()]++
 		}
 	}

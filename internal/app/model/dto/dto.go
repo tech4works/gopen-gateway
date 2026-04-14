@@ -24,19 +24,27 @@ import (
 )
 
 type Gopen struct {
-	Comment      string        `json:"@comment,omitempty"`
-	Version      string        `json:"version,omitempty"`
-	HotReload    bool          `json:"hot-reload,omitempty"`
-	Store        *Store        `json:"store,omitempty"`
-	Timeout      vo.Duration   `json:"timeout,omitempty"`
-	SecurityCors *SecurityCors `json:"security-cors,omitempty"`
-	Limiter      *Limiter      `json:"limiter,omitempty"`
-	Cache        *Cache        `json:"cache,omitempty"`
-	Templates    *Templates    `json:"templates,omitempty"`
-	Endpoints    []Endpoint    `json:"endpoints,omitempty"`
+	Comment      string          `json:"@comment,omitempty"`
+	Version      string          `json:"version,omitempty"`
+	HotReload    bool            `json:"hot-reload,omitempty"`
+	Store        *Store          `json:"store,omitempty"`
+	Timeout      vo.Duration     `json:"timeout,omitempty"`
+	Execution    *GopenExecution `json:"execution,omitempty"`
+	SecurityCors *SecurityCors   `json:"security-cors,omitempty"`
+	Limiter      *Limiter        `json:"limiter,omitempty"`
+	Cache        *Cache          `json:"cache,omitempty"`
+	Request      *Request        `json:"request,omitempty"`
+	Templates    *Templates      `json:"templates,omitempty"`
+	Endpoints    []Endpoint      `json:"endpoints,omitempty"`
 }
 
-type Proxy struct { // todo: pensar melhor
+type GopenExecution struct {
+	Comment string             `json:"@comment,omitempty"`
+	Mode    enum.ExecutionMode `json:"mode,omitempty"`
+	On      []enum.ExecutionOn `json:"on,omitempty"`
+}
+
+type Proxy struct {
 	Token   string   `json:"token,omitempty"`
 	Domains []string `json:"domains,omitempty"`
 }
@@ -46,9 +54,29 @@ type Request struct {
 }
 
 type RequestClient struct {
-	RequestID *RequestClientValue `json:"request-id,omitempty"`
-	Trace     *RequestClientValue `json:"trace,omitempty"`
-	IP        *RequestClientIP    `json:"ip,omitempty"`
+	RequestID        *RequestClientValue            `json:"request-id,omitempty"`
+	Trace            *RequestClientValue            `json:"trace,omitempty"`
+	IP               *RequestClientIP               `json:"ip,omitempty"`
+	TransportHeaders *RequestClientTransportHeaders `json:"transport-headers,omitempty"`
+}
+
+// RequestClientTransportHeaders controls which groups of transport headers are injected.
+type RequestClientTransportHeaders struct {
+	Request  *RequestClientTransportHeadersRequest  `json:"request,omitempty"`
+	Response *RequestClientTransportHeadersResponse `json:"response,omitempty"`
+}
+
+// RequestClientTransportHeadersRequest controls headers injected in the request to the backend.
+type RequestClientTransportHeadersRequest struct {
+	Degradation *bool `json:"degradation,omitempty"`
+	Timeout     *bool `json:"timeout,omitempty"`
+}
+
+// RequestClientTransportHeadersResponse controls headers injected in the response to the client.
+type RequestClientTransportHeadersResponse struct {
+	Cache           *bool `json:"cache,omitempty"`
+	ExecutionStatus *bool `json:"execution-status,omitempty"`
+	Degradation     *bool `json:"degradation,omitempty"`
 }
 
 type RequestClientValue struct {
@@ -338,5 +366,6 @@ type ErrorPayload struct {
 	Line      int       `json:"line"`
 	Endpoint  string    `json:"endpoint"`
 	Message   string    `json:"message"`
+	Stack     string    `json:"stack,omitempty"`
 	Timestamp time.Time `json:"timestamp"`
 }

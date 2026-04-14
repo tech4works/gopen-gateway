@@ -22,7 +22,6 @@ const (
 	ContentLength                 = "Content-Length"
 	XForwardedFor                 = "X-Forwarded-For"
 	XGopenRequestID               = "X-Gopen-Request-Id"
-	XGopenTraceID                 = "X-Gopen-Trace-Id"
 	XGopenHeaderDegraded          = "X-Gopen-Header-Degraded"
 	XGopenMetadataDegraded        = "X-Gopen-Metadata-Degraded"
 	XGopenQueryDegraded           = "X-Gopen-Query-Degraded"

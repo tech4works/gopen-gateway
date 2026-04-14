@@ -72,7 +72,7 @@ type Context interface {
 }
 
 type HTTPClient interface {
-	MakeRequest(ctx context.Context, parent *vo.EndpointRequest, request *vo.HTTPBackendRequest) (*http.Response, error)
+	MakeRequest(ctx context.Context, endpoint *vo.EndpointConfig, parent *vo.EndpointRequest, request *vo.HTTPBackendRequest) (*http.Response, error)
 }
 
 type PublisherClient interface {

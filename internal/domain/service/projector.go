@@ -20,6 +20,7 @@ import (
 	"github.com/tech4works/checker"
 	"github.com/tech4works/converter"
 	"github.com/tech4works/errors"
+
 	"github.com/tech4works/gopen-gateway/internal/domain"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/aggregate"
 	vo "github.com/tech4works/gopen-gateway/internal/domain/model/vo"
@@ -168,7 +169,7 @@ func (s projector) projectAdditionMetadata(config *vo.ProjectConfig, metadata vo
 	vo.Metadata, error) {
 	values := map[string][]string{}
 	for _, key := range metadata.Keys() {
-		if checker.Contains(ignoreKeys, key) || config.IsAddition(key) {
+		if checker.ContainsIgnoreCase(ignoreKeys, key) || config.IsAddition(key) {
 			values[key] = metadata.GetAll(key)
 		}
 	}

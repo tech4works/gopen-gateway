@@ -20,9 +20,10 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
+
 	"github.com/tech4works/gopen-gateway/internal/app"
 	vo2 "github.com/tech4works/gopen-gateway/internal/domain/model/vo"
-	"go.elastic.co/apm/module/apmgin/v2"
 )
 
 type router struct {
@@ -33,7 +34,7 @@ func NewRouter() app.Router {
 	gin.SetMode(gin.ReleaseMode)
 
 	engine := gin.New()
-	engine.Use(apmgin.Middleware(engine))
+	engine.Use(otelgin.Middleware("gopen-gateway"))
 
 	return router{
 		engine: engine,

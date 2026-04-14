@@ -21,6 +21,7 @@ import (
 
 	"github.com/tech4works/checker"
 	"github.com/tech4works/converter"
+
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
 )
 
@@ -137,10 +138,9 @@ func (h *History) Degradations() []vo.BackendDegradation {
 	defer h.mu.RUnlock()
 
 	var degradations []vo.BackendDegradation
-	for i := 0; checker.IsLessThan(i, h.sizeForFinalResponseUnlocked()); i++ {
-		resp := h.responses[i]
-		if checker.NonNil(resp) && resp.ShouldInFinalResponse() && resp.Degraded() {
-			degradations = append(degradations, vo.NewBackendDegradation(h.backends[i].ID(), resp.Degradation()))
+	for i := 0; checker.IsLessThan(i, h.sizeUnlocked()); i++ {
+		if h.shouldBeInFinalResponseUnlocked(i) && h.responses[i].Degraded() {
+			degradations = append(degradations, vo.NewBackendDegradation(h.backends[i].ID(), h.responses[i].Degradation()))
 		}
 	}
 	return degradations
@@ -172,11 +172,11 @@ func (h *History) AllExecuted() bool {
 	return true
 }
 
-func (h *History) ResponsesMap() (string, error) {
+func (h *History) ResponsesMapByIndex() (string, error) {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 
-	result := map[string]any{}
+	result := make([]any, h.sizeUnlocked())
 
 	for i := 0; checker.IsLessThan(i, h.sizeUnlocked()); i++ {
 		resp := h.responses[i]
@@ -189,11 +189,8 @@ func (h *History) ResponsesMap() (string, error) {
 			return "", err
 		}
 
-		result[converter.ToString(h.backends[i])] = responseMap
+		result[i] = responseMap
 	}
-
-	result["ok"] = h.AllOK()
-	result["executed"] = h.AllExecuted()
 
 	return converter.ToStringWithErr(result)
 }
@@ -223,9 +220,6 @@ func (h *History) ResponsesMapByID() (string, error) {
 		result[backend.ID()] = responseMap
 	}
 
-	result["ok"] = h.AllOK()
-	result["executed"] = h.AllExecuted()
-
 	return converter.ToStringWithErr(result)
 }
 
@@ -233,11 +227,37 @@ func (h *History) sizeUnlocked() int {
 	return len(h.backends)
 }
 
+func (h *History) ShouldBeInFinalResponse(i int) bool {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	return h.shouldBeInFinalResponseUnlocked(i)
+}
+
+func (h *History) ShouldContributeMetadata(i int) bool {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	return h.shouldContributeMetadataUnlocked(i)
+}
+
+func (h *History) shouldBeInFinalResponseUnlocked(i int) bool {
+	backend := h.backends[i]
+	resp := h.responses[i]
+	return checker.NonNil(backend) && !backend.IsMiddleware() &&
+		checker.NonNil(resp) && resp.ShouldInFinalResponse()
+}
+
+func (h *History) shouldContributeMetadataUnlocked(i int) bool {
+	backend := h.backends[i]
+	resp := h.responses[i]
+	return checker.NonNil(backend) && checker.NonNil(resp) && resp.Executed()
+}
+
 func (h *History) sizeForFinalResponseUnlocked() int {
 	count := 0
 	for i := 0; checker.IsLessThan(i, h.sizeUnlocked()); i++ {
-		resp := h.responses[i]
-		if checker.NonNil(resp) && resp.ShouldInFinalResponse() {
+		if h.shouldBeInFinalResponseUnlocked(i) {
 			count++
 		}
 	}

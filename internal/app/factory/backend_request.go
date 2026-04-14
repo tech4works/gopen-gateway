@@ -18,6 +18,7 @@ package factory
 
 import (
 	"github.com/tech4works/checker"
+
 	"github.com/tech4works/gopen-gateway/internal/app"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/aggregate"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
@@ -61,7 +62,7 @@ func (f backendRequest) BuildHTTPRequest(
 
 	host := f.buildPipelineService.ApplyHost(backendHTTP)
 	body, bodyDegraded, bodyErrs = f.buildHTTPRequestBody(backendHTTP.Request().Body(), request, history, useFallback)
-	urlPath, urlPathDegraded, urlPathErrs = f.buildHTTPRequestURLPath(backendHTTP.Request().URLPath(), request, history, useFallback)
+	urlPath, urlPathDegraded, urlPathErrs = f.buildHTTPRequestURLPath(backendHTTP, request, history, useFallback)
 	query, queryDegraded, queryErrs = f.buildHTTPRequestQuery(backendHTTP.Request().Query(), request, history, useFallback)
 	header, headerDegraded, headerErrs = f.buildHTTPRequestHeader(backendHTTP.Request().Header(), request, history, useFallback)
 
@@ -142,13 +143,16 @@ func (f backendRequest) buildHTTPRequestBody(
 }
 
 func (f backendRequest) buildHTTPRequestURLPath(
-	spec vo.URLPathPipelineSpec,
+	httpConfig *vo.BackendHTTPConfig,
 	request *vo.EndpointRequest,
 	history *aggregate.History,
 	useFallback bool,
 ) (vo.URLPath, bool, []error) {
-	urlPath, errs := f.buildPipelineService.ApplyURLPath(spec, request.Path(), request, history)
-	return fallbackIf(useFallback, errs, urlPath, request.Path()), isDegraded(spec, errs), errs
+	spec := httpConfig.Request().URLPath()
+	urlPathRaw := vo.NewURLPath(httpConfig.Path(), request.Params().Copy())
+
+	urlPath, errs := f.buildPipelineService.ApplyURLPath(spec, urlPathRaw, request, history)
+	return fallbackIf(useFallback, errs, urlPath, urlPathRaw), isDegraded(spec, errs), errs
 }
 
 func (f backendRequest) buildHTTPRequestQuery(

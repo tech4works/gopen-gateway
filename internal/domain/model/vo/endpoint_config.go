@@ -24,15 +24,16 @@ import (
 )
 
 type EndpointConfig struct {
-	execution    EndpointExecutionConfig
-	path         string
-	method       string
-	timeout      Duration
-	securityCors *SecurityCorsConfig
-	limiter      *LimiterConfig
-	cache        *CacheConfig
-	backends     []BackendConfig
-	response     EndpointResponseConfig
+	execution     EndpointExecutionConfig
+	path          string
+	method        string
+	timeout       Duration
+	securityCors  *SecurityCorsConfig
+	limiter       *LimiterConfig
+	cache         *CacheConfig
+	backends      []BackendConfig
+	response      EndpointResponseConfig
+	requestClient *RequestClientConfig
 }
 
 func NewEndpointConfig(
@@ -45,17 +46,19 @@ func NewEndpointConfig(
 	cache *CacheConfig,
 	backends []BackendConfig,
 	response EndpointResponseConfig,
+	requestClient *RequestClientConfig,
 ) EndpointConfig {
 	return EndpointConfig{
-		execution:    execution,
-		path:         path,
-		method:       method,
-		timeout:      timeout,
-		securityCors: securityCors,
-		limiter:      limiter,
-		cache:        cache,
-		backends:     backends,
-		response:     response,
+		execution:     execution,
+		path:          path,
+		method:        method,
+		timeout:       timeout,
+		securityCors:  securityCors,
+		limiter:       limiter,
+		cache:         cache,
+		backends:      backends,
+		response:      response,
+		requestClient: requestClient,
 	}
 }
 
@@ -158,6 +161,10 @@ func (e *EndpointConfig) CountAllDataTransforms() (count int) {
 
 func (e *EndpointConfig) Response() EndpointResponseConfig {
 	return e.response
+}
+
+func (e *EndpointConfig) RequestClient() *RequestClientConfig {
+	return e.requestClient
 }
 
 func (e *EndpointConfig) Resume() string {

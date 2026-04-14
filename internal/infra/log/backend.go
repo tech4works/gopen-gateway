@@ -20,6 +20,7 @@ import (
 	"fmt"
 
 	"github.com/tech4works/checker"
+
 	"github.com/tech4works/gopen-gateway/internal/app"
 	"github.com/tech4works/gopen-gateway/internal/app/model/dto"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
@@ -44,7 +45,7 @@ func (b backendLog) PrintHTTPRequest(
 		text += fmt.Sprintf(" | body.content-type: %s | body.size: %s", body.ContentType().String(), body.SizeInByteUnit())
 	}
 
-	Printf(InfoLevel, backend.Flow().Abbreviation(), b.prefix(executeData, backend), text)
+	Print(InfoLevel, backend.Flow().Abbreviation(), b.prefix(executeData, backend), text)
 }
 
 func (b backendLog) PrintPublisherRequest(executeData dto.ExecuteEndpoint, backend *vo.BackendConfig, request *vo.PublisherBackendRequest) {
@@ -70,7 +71,7 @@ func (b backendLog) PrintResponse(
 	text := fmt.Sprintf("%s RES ok: %v | duration: %vms", backend.Kind(), response.OK(),
 		response.Duration().Milliseconds())
 
-	Printf(InfoLevel, backend.Flow().Abbreviation(), b.prefix(executeData, backend), text)
+	Print(InfoLevel, backend.Flow().Abbreviation(), b.prefix(executeData, backend), text)
 }
 
 func (b backendLog) PrintInfof(executeData dto.ExecuteEndpoint, backend *vo.BackendConfig, format string, msg ...any) {
@@ -108,7 +109,7 @@ func (b backendLog) prefix(executeData dto.ExecuteEndpoint, backend *vo.BackendC
 	}
 
 	traceID := BuildTraceIDText(executeData.Request.TraceID())
-	ip := executeData.Request.ClientIP
+	ip := executeData.Request.ClientIP()
 	tintText = BuildTintText(tintText)
 
 	return fmt.Sprintf("[%s | %s | %s |%s]", id, ip, traceID, tintText)

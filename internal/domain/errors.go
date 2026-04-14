@@ -22,6 +22,7 @@ import (
 
 	"github.com/tech4works/checker"
 	"github.com/tech4works/errors"
+
 	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
 )
 

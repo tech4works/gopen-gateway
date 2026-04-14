@@ -21,9 +21,11 @@ import (
 
 	"github.com/tech4works/checker"
 	"github.com/tech4works/errors"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
+
 	"github.com/tech4works/gopen-gateway/internal/app"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
-	"go.elastic.co/apm/v2"
 )
 
 type panicRecoveryMiddleware struct {
@@ -47,12 +49,9 @@ func (p panicRecoveryMiddleware) Do(ctx app.Context) {
 
 			err := errors.New("Gateway panic error occurred! detail:", r)
 
-			tx := apm.TransactionFromContext(ctx.Context())
-			if checker.NonNil(tx) {
-				apmErr := apm.DefaultTracer().NewError(err)
-				apmErr.SetTransaction(tx)
-				apmErr.Send()
-			}
+			span := trace.SpanFromContext(ctx.Context())
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
 
 			ctx.WriteError(enum.ResponseStatusInternalError, err)
 		}

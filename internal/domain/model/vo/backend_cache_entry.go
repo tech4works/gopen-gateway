@@ -19,7 +19,9 @@ package vo
 import (
 	"time"
 
+	"github.com/tech4works/checker"
 	"github.com/tech4works/converter"
+
 	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
 )
 
@@ -51,7 +53,14 @@ func (b BackendCacheEntry) Entry() (string, error) {
 	return converter.ToCompactStringWithErr(b)
 }
 
+func (b BackendCacheEntry) IsZero() bool {
+	return checker.IsEmpty(b.Status.Value()) && checker.IsNil(b.Metadata.values) && checker.IsNil(b.Payload)
+}
+
 func (b BackendCacheEntry) Response(duration time.Duration) *BackendResponse {
+	if b.IsZero() {
+		return nil
+	}
 	return NewBackendResponseWithAll(
 		b.Kind,
 		NewCacheInfo(true, b.TTL, NewDuration(b.TTL.Time()-time.Since(b.CreatedAt))),

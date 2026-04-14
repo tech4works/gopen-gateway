@@ -14,23 +14,25 @@
  * limitations under the License.
  */
 
-package main
+package vo
 
-import (
-	"os"
-	"os/signal"
+// RequestClientPropagateConfig configures the header names for propagation.
+type RequestClientPropagateConfig struct {
+	request  string
+	response string
+}
 
-	"github.com/tech4works/gopen-gateway/internal/infra/boot"
-)
+func NewRequestClientPropagateConfig(request, response string) *RequestClientPropagateConfig {
+	return &RequestClientPropagateConfig{
+		request:  request,
+		response: response,
+	}
+}
 
-func main() {
-	cmd := boot.New()
+func (r *RequestClientPropagateConfig) Request() string {
+	return r.request
+}
 
-	gopen := cmd.Init()
-	go cmd.Start(gopen)
-
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt)
-	<-c
-	cmd.Stop()
+func (r *RequestClientPropagateConfig) Response() string {
+	return r.response
 }

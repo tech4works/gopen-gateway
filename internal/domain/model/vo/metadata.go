@@ -17,6 +17,7 @@
 package vo
 
 import (
+	"net/http"
 	"strings"
 
 	"github.com/tech4works/checker"
@@ -138,5 +139,5 @@ func (m *Metadata) UnmarshalJSON(data []byte) error {
 }
 
 func normalizeKey(key string) string {
-	return strings.ToLower(strings.TrimSpace(key))
+	return http.CanonicalHeaderKey(strings.TrimSpace(key))
 }

@@ -48,7 +48,7 @@ func (a httpLog) PrintResponse(ctx app.Context) {
 
 	prefix := a.prefix(ctx)
 
-	Printf(InfoLevel, "RES", prefix, "status-code:%s| duration: %vms", statusCode, duration)
+	Printf(InfoLevel, "RES", prefix, "status:%s| duration: %vms", statusCode, duration)
 }
 
 func (a httpLog) prefix(ctx app.Context) string {

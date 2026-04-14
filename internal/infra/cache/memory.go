@@ -21,12 +21,16 @@ import (
 	"time"
 
 	"github.com/jellydator/ttlcache/v2"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+
 	"github.com/tech4works/checker"
 	"github.com/tech4works/compressor"
 	"github.com/tech4works/decompressor"
 	"github.com/tech4works/errors"
+
 	"github.com/tech4works/gopen-gateway/internal/domain"
-	"go.elastic.co/apm/v2"
+	"github.com/tech4works/gopen-gateway/internal/infra/telemetry"
 )
 
 type memoryStore struct {
@@ -42,13 +46,15 @@ func NewMemoryStore() domain.Store {
 }
 
 func (m memoryStore) Set(ctx context.Context, key, value string, ttl time.Duration) error {
-	span, ctx := apm.StartSpan(ctx, "local.write", "cache")
+	ctx, span := telemetry.Tracer().Start(ctx, "cache.local.write")
 	defer span.End()
 
-	span.Context.SetLabel("key", key)
+	span.SetAttributes(attribute.String("cache.key", key))
 
 	b64, err := compressor.ToGzipBase64WithErr(value)
 	if checker.NonNil(err) {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return err
 	}
 
@@ -60,15 +66,17 @@ func (m memoryStore) Del(_ context.Context, key string) error {
 }
 
 func (m memoryStore) Get(ctx context.Context, key string) (string, error) {
-	span, ctx := apm.StartSpan(ctx, "local.read", "cache")
+	ctx, span := telemetry.Tracer().Start(ctx, "cache.local.read")
 	defer span.End()
 
-	span.Context.SetLabel("key", key)
+	span.SetAttributes(attribute.String("cache.key", key))
 
 	cacheGzipBase64, err := m.ttlCache.Get(key)
 	if errors.Is(err, ttlcache.ErrNotFound) {
 		return "", domain.NewErrCacheNotFound(key)
 	} else if checker.NonNil(err) {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return "", err
 	}
 

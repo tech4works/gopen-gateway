@@ -23,14 +23,19 @@ import (
 	snsTypes "github.com/aws/aws-sdk-go-v2/service/sns/types"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	sqsTypes "github.com/aws/aws-sdk-go-v2/service/sqs/types"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
+
 	"github.com/tech4works/checker"
 	"github.com/tech4works/converter"
 	"github.com/tech4works/errors"
+
 	"github.com/tech4works/gopen-gateway/internal/app"
 	"github.com/tech4works/gopen-gateway/internal/app/model/publisher"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
-	"go.elastic.co/apm/v2"
+	"github.com/tech4works/gopen-gateway/internal/infra/telemetry"
 )
 
 type client struct {
@@ -62,19 +67,30 @@ func (c client) Publish(
 	parent *vo.EndpointRequest,
 	request *vo.PublisherBackendRequest,
 ) (*publisher.Response, error) {
-	span, ctx := apm.StartSpan(ctx, "messaging.publish", "publisher")
+	ctx, span := telemetry.Tracer().Start(ctx, "messaging.publish")
 	defer span.End()
 
-	c.fillContextSpanLabels(span, request)
+	c.fillSpanAttributes(span, request)
+
+	var resp *publisher.Response
+	var err error
 
 	switch request.Broker() {
 	case enum.BackendBrokerAwsSqs:
-		return c.publishSQS(ctx, parent, request)
+		resp, err = c.publishSQS(ctx, parent, request)
 	case enum.BackendBrokerAwsSns:
-		return c.publishSNS(ctx, parent, request)
+		resp, err = c.publishSNS(ctx, parent, request)
 	default:
-		return nil, app.NewErrBackendBrokerNotImplemented(request.Broker().String())
+		err = app.NewErrBackendBrokerNotImplemented(request.Broker().String())
 	}
+
+	if checker.NonNil(err) {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return nil, err
+	}
+
+	return resp, nil
 }
 
 func (c client) publishSQS(
@@ -304,29 +320,32 @@ func (c client) parseBodyToPointerString(request *vo.PublisherBackendRequest) (*
 	return converter.ToPointer(compactString), nil
 }
 
-func (c client) fillContextSpanLabels(span *apm.Span, request *vo.PublisherBackendRequest) {
-	span.Context.SetLabel("broker", request.Broker())
-	span.Context.SetLabel("path", request.Path())
+func (c client) fillSpanAttributes(span trace.Span, request *vo.PublisherBackendRequest) {
+	span.SetAttributes(
+		attribute.String("messaging.broker", request.Broker().String()),
+		attribute.String("messaging.path", request.Path()),
+	)
 
-	c.setOptionalSpanLabel(span, "group-id", request.GroupID())
-	c.setOptionalSpanLabel(span, "deduplication-id", request.DeduplicationID())
+	if checker.IsNil(request.GroupID()) {
+		span.SetAttributes(attribute.String("messaging.group_id", "<nil>"))
+	} else {
+		span.SetAttributes(attribute.String("messaging.group_id", *request.GroupID()))
+	}
+
+	if checker.IsNil(request.DeduplicationID()) {
+		span.SetAttributes(attribute.String("messaging.deduplication_id", "<nil>"))
+	} else {
+		span.SetAttributes(attribute.String("messaging.deduplication_id", *request.DeduplicationID()))
+	}
 
 	if request.HasBody() {
 		bodyCompactString, err := request.Body().CompactString()
 		if checker.NonNil(err) {
-			span.Context.SetLabel("body", err.Error())
+			span.SetAttributes(attribute.String("messaging.body", err.Error()))
 		} else {
-			span.Context.SetLabel("body", bodyCompactString)
+			span.SetAttributes(attribute.String("messaging.body", bodyCompactString))
 		}
 	} else {
-		span.Context.SetLabel("body", "<nil>")
+		span.SetAttributes(attribute.String("messaging.body", "<nil>"))
 	}
-}
-
-func (c client) setOptionalSpanLabel(span *apm.Span, key string, value *string) {
-	if checker.IsNil(value) {
-		span.Context.SetLabel(key, "<nil>")
-		return
-	}
-	span.Context.SetLabel(key, *value)
 }

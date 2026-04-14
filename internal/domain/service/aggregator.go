@@ -20,6 +20,7 @@ import (
 	"github.com/tech4works/checker"
 	"github.com/tech4works/converter"
 	"github.com/tech4works/errors"
+
 	"github.com/tech4works/gopen-gateway/internal/domain"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/aggregate"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
@@ -83,7 +84,7 @@ func (a aggregator) AggregatePayloadsIntoSlice(history *aggregate.History) (*vo.
 	var errs []error
 	for i := 0; checker.IsLessThan(i, history.Size()); i++ {
 		backendResponse := history.GetResponse(i)
-		if !backendResponse.ShouldInFinalResponse() {
+		if !history.ShouldBeInFinalResponse(i) {
 			continue
 		}
 
@@ -151,7 +152,7 @@ func (a aggregator) AggregatePayloads(history *aggregate.History) (*vo.Payload, 
 	var errs []error
 	for i := 0; checker.IsLessThan(i, history.Size()); i++ {
 		backendResponse := history.GetResponse(i)
-		if !backendResponse.ShouldInFinalResponse() {
+		if !history.ShouldBeInFinalResponse(i) {
 			continue
 		}
 
@@ -183,7 +184,12 @@ func (a aggregator) AggregatePayloads(history *aggregate.History) (*vo.Payload, 
 func (a aggregator) buildPayloadDefaultForSlice(backendResponse *vo.BackendResponse) string {
 	jsonStr := "{}"
 	jsonStr, _ = a.jsonPath.Set(jsonStr, "ok", converter.ToString(backendResponse.OK()))
-	jsonStr, _ = a.jsonPath.Set(jsonStr, "code", backendResponse.Status().String())
+	jsonStr, _ = a.jsonPath.Set(jsonStr, "status", converter.ToString((backendResponse.Status().Value())))
+
+	// if backendResponse.Status().HasRaw() {
+	// 	jsonStr, _ = a.jsonPath.Set(jsonStr, "code", converter.ToString((backendResponse.Status().Raw())))
+	// }
+	// jsonStr, _ = a.jsonPath.Set(jsonStr, "description", converter.ToString((backendResponse.Status().Description())))
 
 	return jsonStr
 }
@@ -209,7 +215,7 @@ func (a aggregator) mergeJSON(jsonStr, raw string) (string, []error) {
 
 	result = jsonStr
 	a.jsonPath.Parse(raw).ForEach(func(key string, value domain.JSONValue) bool {
-		newResult, err := a.jsonPath.Add(result, key, value.Raw())
+		newResult, err := a.jsonPath.Set(result, key, value.Raw())
 		if checker.NonNil(err) {
 			errs = append(errs, errors.Inheritf(err, "aggregator failed: op=add path=%s", key))
 			return true

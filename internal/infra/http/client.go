@@ -22,11 +22,13 @@ import (
 	"net/http"
 	"time"
 
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+
 	"github.com/tech4works/checker"
 	"github.com/tech4works/converter"
+
 	"github.com/tech4works/gopen-gateway/internal/app"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
-	"go.elastic.co/apm/module/apmhttp/v2"
 )
 
 type client struct {
@@ -35,43 +37,68 @@ type client struct {
 
 func NewClient() app.HTTPClient {
 	return client{
-		engine: apmhttp.WrapClient(&http.Client{}),
+		engine: &http.Client{
+			Transport: otelhttp.NewTransport(http.DefaultTransport),
+		},
 	}
 }
 
-func (c client) MakeRequest(ctx context.Context, parent *vo.EndpointRequest, request *vo.HTTPBackendRequest) (
+func (c client) MakeRequest(ctx context.Context, endpoint *vo.EndpointConfig, parent *vo.EndpointRequest, request *vo.HTTPBackendRequest) (
 	*http.Response, error) {
-	httpRequest, err := c.buildNetHTTPRequest(ctx, parent, request)
+	httpRequest, err := c.buildNetHTTPRequest(ctx, endpoint, parent, request)
 	if checker.NonNil(err) {
 		return nil, err
 	}
 	return c.engine.Do(httpRequest)
 }
 
-func (c client) buildNetHTTPRequest(ctx context.Context, parent *vo.EndpointRequest, request *vo.HTTPBackendRequest) (
-	*http.Request, error) {
+func (c client) buildNetHTTPRequest(ctx context.Context, endpoint *vo.EndpointConfig, parent *vo.EndpointRequest,
+	request *vo.HTTPBackendRequest) (*http.Request, error) {
 	httpRequest, err := http.NewRequestWithContext(ctx, request.Method(), request.URL(), c.buildNetHTTPRequestBody(request))
 	if checker.NonNil(err) {
 		return nil, err
 	}
 
-	httpRequest.Header = c.buildNetHTTPRequestHeader(ctx, parent, request)
+	var clientCfg *vo.RequestClientConfig
+	if checker.NonNil(endpoint) {
+		clientCfg = endpoint.RequestClient()
+	}
+	httpRequest.Header = c.buildNetHTTPRequestHeader(ctx, clientCfg, parent, request)
 	httpRequest.URL.RawQuery = request.Query().Encode()
 
 	return httpRequest, nil
 }
 
-func (c client) buildNetHTTPRequestHeader(ctx context.Context, parent *vo.EndpointRequest, request *vo.HTTPBackendRequest,
-) http.Header {
+func (c client) buildNetHTTPRequestHeader(ctx context.Context, clientCfg *vo.RequestClientConfig, parent *vo.EndpointRequest,
+	request *vo.HTTPBackendRequest) http.Header {
 	httpHeader := http.Header(request.Header().Copy())
 
-	httpHeader.Set(app.XForwardedFor, parent.ClientIP())
-	httpHeader.Set(app.XGopenRequestID, parent.ID())
-	httpHeader.Set(app.XGopenDegraded, converter.ToString(request.Degraded()))
-	httpHeader.Set(app.XGopenURLPathDegraded, converter.ToString(request.URLPathDegraded()))
-	httpHeader.Set(app.XGopenHeaderDegraded, converter.ToString(request.HeaderDegraded()))
-	httpHeader.Set(app.XGopenQueryDegraded, converter.ToString(request.QueryDegraded()))
-	httpHeader.Set(app.XGopenBodyDegraded, converter.ToString(request.BodyDegraded()))
+	// Prevent net/http from injecting "User-Agent: Go-http-client/x.x" automatically.
+	// The gateway should be transparent — if User-Agent was deleted by a modifier it must not reappear.
+	if _, exists := httpHeader["User-Agent"]; !exists {
+		httpHeader["User-Agent"] = []string{""}
+	}
+
+	// IP propagation (replaces unconditional X-Forwarded-For injection)
+	if checker.NonNil(clientCfg) && clientCfg.IP().HasPropagateRequest() {
+		httpHeader.Set(clientCfg.IP().Propagate().Request(), parent.ClientIP())
+	}
+
+	th := clientCfg.TransportHeadersRequest()
+
+	// request-id: only inject if propagate.request is explicitly configured
+	if checker.NonNil(clientCfg) && checker.NonNil(clientCfg.RequestID()) && clientCfg.RequestID().HasPropagateRequest() {
+		httpHeader.Set(clientCfg.RequestID().Propagate().Request(), parent.ID())
+	}
+
+	// degradation group
+	if th.DegradationEnabled() {
+		httpHeader.Set(app.XGopenDegraded, converter.ToString(request.Degraded()))
+		httpHeader.Set(app.XGopenURLPathDegraded, converter.ToString(request.URLPathDegraded()))
+		httpHeader.Set(app.XGopenHeaderDegraded, converter.ToString(request.HeaderDegraded()))
+		httpHeader.Set(app.XGopenQueryDegraded, converter.ToString(request.QueryDegraded()))
+		httpHeader.Set(app.XGopenBodyDegraded, converter.ToString(request.BodyDegraded()))
+	}
 
 	if request.HasBody() {
 		httpHeader.Set(app.ContentType, request.Body().ContentType().String())
@@ -82,10 +109,11 @@ func (c client) buildNetHTTPRequestHeader(ctx context.Context, parent *vo.Endpoi
 		}
 	}
 
-	timeout, ok := ctx.Deadline()
-	if ok {
-		remaining := time.Until(timeout)
-		httpHeader.Set(app.XGopenTimeout, converter.ToString(remaining.Milliseconds()))
+	// timeout group
+	if th.TimeoutEnabled() {
+		if timeout, ok := ctx.Deadline(); ok {
+			httpHeader.Set(app.XGopenTimeout, converter.ToString(time.Until(timeout).Milliseconds()))
+		}
 	}
 
 	return httpHeader

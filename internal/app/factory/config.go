@@ -65,16 +65,21 @@ func buildEndpoints(gopen *dto.Gopen) []vo.EndpointConfig {
 }
 
 func buildEndpoint(gopen *dto.Gopen, endpoint dto.Endpoint) vo.EndpointConfig {
+	var requestClient *dto.RequestClient
+	if checker.NonNil(gopen.Request) {
+		requestClient = gopen.Request.Client
+	}
 	return vo.NewEndpointConfig(
-		resolveEndpointExecution(endpoint.Execution),
+		resolveEndpointExecution(gopen.Execution, endpoint.Execution),
 		endpoint.Path,
 		endpoint.Method,
 		buildTimeout(gopen.Timeout, endpoint.Timeout),
 		buildSecurityCors(gopen.SecurityCors, endpoint.SecurityCors),
 		buildLimiter(gopen.Limiter, endpoint.Limiter),
 		buildEndpointCache(gopen.Cache, endpoint.Cache),
-		buildBackends(gopen.Templates, endpoint),
+		buildBackends(gopen.Templates, gopen.Execution, endpoint),
 		buildEndpointResponse(endpoint.Response),
+		buildRequestClient(requestClient),
 	)
 }
 
@@ -289,7 +294,7 @@ func buildEndpointResponse(endpointResponse *dto.EndpointResponse) vo.EndpointRe
 	)
 }
 
-func buildBackends(templates *dto.Templates, endpoint dto.Endpoint) []vo.BackendConfig {
+func buildBackends(templates *dto.Templates, gopenExec *dto.GopenExecution, endpoint dto.Endpoint) []vo.BackendConfig {
 	var result []vo.BackendConfig
 	var ps propagateState
 	var backendIndex int
@@ -307,6 +312,7 @@ func buildBackends(templates *dto.Templates, endpoint dto.Endpoint) []vo.Backend
 
 			result = append(result, buildBackendUnified(
 				endpoint,
+				gopenExec,
 				effective,
 				flow,
 				&ps,
@@ -386,6 +392,7 @@ func markBackendSeen(endpoint dto.Endpoint, flow enum.BackendFlow, backendIndex 
 
 func buildBackendUnified(
 	endpoint dto.Endpoint,
+	gopenExec *dto.GopenExecution,
 	backend dto.Backend,
 	flow enum.BackendFlow,
 	ps *propagateState,
@@ -421,7 +428,7 @@ func buildBackendUnified(
 		backend.OnlyIf,
 		backend.IgnoreIf,
 		backend.ID,
-		resolveBackendExecution(endpoint.Execution, backend.Execution),
+		resolveBackendExecution(endpoint.Execution, gopenExec, backend.Execution),
 		buildBackendDependencies(backend.Dependencies, idToIndex),
 		backend.Kind,
 		buildBackendCache(backend.Cache),
@@ -1053,15 +1060,36 @@ func onlyPropagate(in []dto.Modifier) []dto.Modifier {
 	return out
 }
 
-func resolveEndpointExecution(endpointExec *dto.EndpointExecution) vo.EndpointExecutionConfig {
-	if checker.IsNil(endpointExec) {
+func resolveEndpointExecution(gopenExec *dto.GopenExecution, endpointExec *dto.EndpointExecution) vo.EndpointExecutionConfig {
+	var mode enum.ExecutionMode
+	var on []enum.ExecutionOn
+
+	if checker.NonNil(gopenExec) {
+		if gopenExec.Mode.IsEnumValid() {
+			mode = gopenExec.Mode
+		}
+		if checker.IsNotEmpty(gopenExec.On) {
+			on = gopenExec.On
+		}
+	}
+
+	if checker.NonNil(endpointExec) {
+		if endpointExec.Mode.IsEnumValid() {
+			mode = endpointExec.Mode
+		}
+		if checker.IsNotEmpty(endpointExec.On) {
+			on = endpointExec.On
+		}
+	}
+
+	if !mode.IsEnumValid() && checker.IsNilOrEmpty(on) {
 		return vo.NewEndpointExecutionConfigDefault()
 	}
-	return vo.NewEndpointExecutionConfig(endpointExec.Mode, endpointExec.On)
+	return vo.NewEndpointExecutionConfig(mode, on)
 }
 
-func resolveBackendExecution(endpointExec *dto.EndpointExecution, backendExec *dto.BackendExecution) vo.BackendExecutionConfig {
-	if checker.IsNil(endpointExec) && checker.IsNil(backendExec) {
+func resolveBackendExecution(endpointExec *dto.EndpointExecution, gopenExec *dto.GopenExecution, backendExec *dto.BackendExecution) vo.BackendExecutionConfig {
+	if checker.IsNil(endpointExec) && checker.IsNil(gopenExec) && checker.IsNil(backendExec) {
 		return vo.NewBackendExecutionConfigDefault()
 	}
 
@@ -1069,6 +1097,15 @@ func resolveBackendExecution(endpointExec *dto.EndpointExecution, backendExec *d
 	var async bool
 	var mode enum.ExecutionMode
 	var on []enum.ExecutionOn
+
+	if checker.NonNil(gopenExec) {
+		if gopenExec.Mode.IsEnumValid() {
+			mode = gopenExec.Mode
+		}
+		if checker.IsNotEmpty(gopenExec.On) {
+			on = gopenExec.On
+		}
+	}
 
 	if checker.NonNil(endpointExec) {
 		async = endpointExec.Parallelism
@@ -1099,4 +1136,59 @@ func resolveAsync(cur *bool, endpointParallelism bool) bool {
 		return *cur
 	}
 	return endpointParallelism
+}
+
+func buildRequestClient(d *dto.RequestClient) *vo.RequestClientConfig {
+	if checker.IsNil(d) {
+		return nil
+	}
+	return vo.NewRequestClientConfig(
+		buildRequestClientValue(d.RequestID),
+		buildRequestClientIP(d.IP),
+		buildRequestClientTransportHeaders(d.TransportHeaders),
+	)
+}
+
+func buildRequestClientValue(d *dto.RequestClientValue) *vo.RequestClientValueConfig {
+	if checker.IsNil(d) {
+		return nil
+	}
+	return vo.NewRequestClientValueConfig(
+		d.Headers,
+		d.Fallback,
+		buildRequestClientPropagate(d.Propagate),
+	)
+}
+
+func buildRequestClientIP(d *dto.RequestClientIP) *vo.RequestClientIPConfig {
+	if checker.IsNil(d) {
+		return nil
+	}
+	return vo.NewRequestClientIPConfig(
+		d.Headers,
+		d.TrustedProxies,
+		buildRequestClientPropagate(d.Propagate),
+	)
+}
+
+func buildRequestClientPropagate(d *dto.RequestClientPropagate) *vo.RequestClientPropagateConfig {
+	if checker.IsNil(d) {
+		return nil
+	}
+	return vo.NewRequestClientPropagateConfig(d.Request, d.Response)
+}
+
+func buildRequestClientTransportHeaders(d *dto.RequestClientTransportHeaders) *vo.RequestClientTransportHeadersConfig {
+	if checker.IsNil(d) {
+		return nil
+	}
+	var req vo.RequestClientTransportHeadersRequestConfig
+	if checker.NonNil(d.Request) {
+		req = vo.NewRequestClientTransportHeadersRequestConfig(d.Request.Degradation, d.Request.Timeout)
+	}
+	var resp vo.RequestClientTransportHeadersResponseConfig
+	if checker.NonNil(d.Response) {
+		resp = vo.NewRequestClientTransportHeadersResponseConfig(d.Response.Cache, d.Response.ExecutionStatus, d.Response.Degradation)
+	}
+	return vo.NewRequestClientTransportHeadersConfig(req, resp)
 }

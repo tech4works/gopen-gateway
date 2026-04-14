@@ -18,6 +18,7 @@ package api
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -26,18 +27,18 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
+	"go.opentelemetry.io/otel/trace"
+	"google.golang.org/grpc/codes"
+
 	"github.com/tech4works/checker"
 	"github.com/tech4works/converter"
 	"github.com/tech4works/errors"
+
 	"github.com/tech4works/gopen-gateway/internal/app"
 	"github.com/tech4works/gopen-gateway/internal/app/model/dto"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
-	"go.elastic.co/apm/v2"
-	"golang.org/x/net/context"
-	"google.golang.org/grpc/codes"
-
-	"github.com/google/uuid"
 )
 
 type Context struct {
@@ -55,7 +56,7 @@ type engine struct {
 }
 
 func newHTTPContext(gin *gin.Context, gopen *vo.GopenConfig, endpoint *vo.EndpointConfig) app.Context {
-	request := buildHTTPRequest(gin)
+	request := buildHTTPRequest(gin, endpoint)
 	return &Context{
 		startTime: time.Now(),
 		mutex:     &sync.RWMutex{},
@@ -66,16 +67,48 @@ func newHTTPContext(gin *gin.Context, gopen *vo.GopenConfig, endpoint *vo.Endpoi
 	}
 }
 
-func buildHTTPRequest(gin *gin.Context) *vo.EndpointRequest {
-	requestID := uuid.New().String()
+func resolveClientIP(gin *gin.Context, cfg *vo.RequestClientConfig) string {
+	if checker.NonNil(cfg) && cfg.IP().HasHeaders() {
+		for _, header := range cfg.IP().Headers() {
+			if val := gin.GetHeader(header); checker.IsNotEmpty(val) {
+				if isIPTrusted(gin.ClientIP(), cfg.IP().TrustedProxies()) {
+					return val
+				}
+			}
+		}
+	}
+	return gin.ClientIP()
+}
+
+func isIPTrusted(clientIP string, trustedProxies []string) bool {
+	if checker.IsEmpty(trustedProxies) {
+		return true
+	}
+	for _, proxy := range trustedProxies {
+		if clientIP == proxy {
+			return true
+		}
+	}
+	return false
+}
+
+func resolveRequestID(gin *gin.Context, cfg *vo.RequestClientConfig) string {
+	if checker.NonNil(cfg) && checker.NonNil(cfg.RequestID()) && cfg.RequestID().HasHeaders() {
+		return cfg.RequestID().ResolveRequestID(gin.Request.Header)
+	}
+	return uuid.New().String() // current behavior when request-id not configured
+}
+
+func buildHTTPRequest(gin *gin.Context, endpoint *vo.EndpointConfig) *vo.EndpointRequest {
+	requestID := resolveRequestID(gin, endpoint.RequestClient())
 
 	var traceID string
-	tx := apm.TransactionFromContext(gin.Request.Context())
-	if checker.NonNil(tx) {
-		traceID = tx.TraceContext().Trace.String()
+	span := trace.SpanFromContext(gin.Request.Context())
+	if span.SpanContext().IsValid() {
+		traceID = span.SpanContext().TraceID().String()
 	}
 
-	clientIP := gin.ClientIP()
+	clientIP := resolveClientIP(gin, endpoint.RequestClient())
 
 	header := vo.NewMetadata(gin.Request.Header)
 
@@ -159,6 +192,7 @@ func (c *Context) WriteError(status enum.ResponseStatus, err error) {
 		Line:      wrapped.Line(),
 		Endpoint:  c.endpoint.Path(),
 		Message:   wrapped.Message(),
+		Stack:     wrapped.Stack(),
 		Timestamp: time.Now(),
 	}))
 
@@ -309,77 +343,63 @@ func (c *Context) parseResponseStatusToGRPCCode(responseStatus enum.ResponseStat
 }
 
 func (c *Context) decorateHTTPTransportHeaders(response *vo.EndpointResponse, statusCode int) {
-	c.engine.http.Header(app.XGopenRequestID, c.request.ID())
+	th := c.endpoint.RequestClient().TransportHeadersResponse()
 
-	if checker.IsNotEmpty(c.request.TraceID()) {
-		c.engine.http.Header(app.XGopenTraceID, c.request.TraceID())
+	// request-id: only inject if propagate.response is explicitly configured
+	requestClient := c.endpoint.RequestClient()
+	if checker.NonNil(requestClient) && checker.NonNil(requestClient.RequestID()) && requestClient.RequestID().HasPropagateResponse() {
+		c.engine.http.Header(requestClient.RequestID().Propagate().Response(), c.request.ID())
 	}
 
-	//c.engine.http.Header(app.XForwardedFor, c.request.ClientIP())
-
-	c.engine.http.Header(app.XGopenCache, converter.ToString(response.ComesFromCache()))
-	c.engine.http.Header(app.XGopenSuccess, converter.ToString(response.Execution().AllOK()))
-	c.engine.http.Header(app.XGopenComplete, converter.ToString(response.Execution().AllExecuted()))
-	c.engine.http.Header(app.XGopenDegraded, converter.ToString(response.Degradation().Any()))
-
-	if response.ComesFromCache() {
-		c.engine.http.Header(app.XGopenCacheTTL, converter.ToString(response.Cache().RemainingTTL().Time().Milliseconds()))
+	// IP propagation via propagate.response (independent of transport-headers groups)
+	if c.endpoint.RequestClient().IP().HasPropagateResponse() {
+		c.engine.http.Header(c.endpoint.RequestClient().IP().Propagate().Response(), c.request.ClientIP())
 	}
 
-	degradation := response.Degradation()
-
-	c.engine.http.Header(
-		app.XGopenHeaderDegraded,
-		converter.ToString(degradation.Has(enum.DegradationKindMetadata)),
-	)
-	c.engine.http.Header(
-		app.XGopenMetadataDegraded,
-		converter.ToString(degradation.Has(enum.DegradationKindMetadata)),
-	)
-	c.engine.http.Header(
-		app.XGopenQueryDegraded,
-		converter.ToString(degradation.Has(enum.DegradationKindQuery)),
-	)
-	c.engine.http.Header(
-		app.XGopenURLPathDegraded,
-		converter.ToString(degradation.Has(enum.DegradationKindURLPath)),
-	)
-	c.engine.http.Header(
-		app.XGopenBodyDegraded,
-		converter.ToString(degradation.Has(enum.DegradationKindPayload)),
-	)
-	c.engine.http.Header(
-		app.XGopenPayloadDegraded,
-		converter.ToString(degradation.Has(enum.DegradationKindPayload)),
-	)
-	c.engine.http.Header(
-		app.XGopenDeduplicationIDDegraded,
-		converter.ToString(degradation.Has(enum.DegradationKindDeduplicationID)),
-	)
-	c.engine.http.Header(
-		app.XGopenGroupIDDegraded,
-		converter.ToString(degradation.Has(enum.DegradationKindGroupID)),
-	)
-	c.engine.http.Header(
-		app.XGopenAttributeDegraded,
-		converter.ToString(degradation.Has(enum.DegradationKindAttributes)),
-	)
-
-	backendsDegraded := response.Execution().Degradations()
-	if checker.IsNotEmpty(backendsDegraded) {
-		ids := make([]string, len(backendsDegraded))
-		for i, backendDegraded := range backendsDegraded {
-			ids[i] = backendDegraded.ID()
+	// cache group
+	if th.CacheEnabled() {
+		c.engine.http.Header(app.XGopenCache, converter.ToString(response.ComesFromCache()))
+		if response.ComesFromCache() {
+			c.engine.http.Header(app.XGopenCacheTTL, converter.ToString(response.Cache().RemainingTTL().Time().Milliseconds()))
 		}
-
-		c.engine.http.Header(app.XGopenDegradedBackendCount, converter.ToString(len(ids)))
-		c.engine.http.Header(app.XGopenDegradedBackends, strings.Join(ids, ", "))
 	}
 
+	// execution-status group
+	if th.ExecutionStatusEnabled() {
+		c.engine.http.Header(app.XGopenSuccess, converter.ToString(response.Execution().AllOK()))
+		c.engine.http.Header(app.XGopenComplete, converter.ToString(response.Execution().AllExecuted()))
+	}
+
+	// degradation group
+	if th.DegradationEnabled() {
+		c.engine.http.Header(app.XGopenDegraded, converter.ToString(response.Degradation().Any()))
+
+		degradation := response.Degradation()
+		c.engine.http.Header(app.XGopenHeaderDegraded, converter.ToString(degradation.Has(enum.DegradationKindMetadata)))
+		c.engine.http.Header(app.XGopenMetadataDegraded, converter.ToString(degradation.Has(enum.DegradationKindMetadata)))
+		c.engine.http.Header(app.XGopenQueryDegraded, converter.ToString(degradation.Has(enum.DegradationKindQuery)))
+		c.engine.http.Header(app.XGopenURLPathDegraded, converter.ToString(degradation.Has(enum.DegradationKindURLPath)))
+		c.engine.http.Header(app.XGopenBodyDegraded, converter.ToString(degradation.Has(enum.DegradationKindPayload)))
+		c.engine.http.Header(app.XGopenPayloadDegraded, converter.ToString(degradation.Has(enum.DegradationKindPayload)))
+		c.engine.http.Header(app.XGopenDeduplicationIDDegraded, converter.ToString(degradation.Has(enum.DegradationKindDeduplicationID)))
+		c.engine.http.Header(app.XGopenGroupIDDegraded, converter.ToString(degradation.Has(enum.DegradationKindGroupID)))
+		c.engine.http.Header(app.XGopenAttributeDegraded, converter.ToString(degradation.Has(enum.DegradationKindAttributes)))
+
+		backendsDegraded := response.Execution().Degradations()
+		if checker.IsNotEmpty(backendsDegraded) {
+			ids := make([]string, len(backendsDegraded))
+			for i, backendDegraded := range backendsDegraded {
+				ids[i] = backendDegraded.ID()
+			}
+			c.engine.http.Header(app.XGopenDegradedBackendCount, converter.ToString(len(ids)))
+			c.engine.http.Header(app.XGopenDegradedBackends, strings.Join(ids, ", "))
+		}
+	}
+
+	// Content headers (always injected, not controlled by transport-headers)
 	if response.HasPayload() {
 		c.engine.http.Header(app.ContentType, response.Payload().ContentType().String())
 		c.engine.http.Header(app.ContentLength, response.Payload().SizeInString())
-
 		if response.Payload().HasContentEncoding() {
 			c.engine.http.Header(app.ContentEncoding, response.Payload().ContentEncoding().String())
 		}

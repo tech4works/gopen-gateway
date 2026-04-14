@@ -30,9 +30,12 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/fsnotify/fsnotify"
 	"github.com/joho/godotenv"
+	"github.com/xeipuuv/gojsonschema"
+
 	"github.com/tech4works/checker"
 	"github.com/tech4works/converter"
 	"github.com/tech4works/errors"
+
 	"github.com/tech4works/gopen-gateway/internal/app"
 	"github.com/tech4works/gopen-gateway/internal/app/model/dto"
 	"github.com/tech4works/gopen-gateway/internal/app/server"
@@ -44,8 +47,7 @@ import (
 	"github.com/tech4works/gopen-gateway/internal/infra/log"
 	"github.com/tech4works/gopen-gateway/internal/infra/nomenclature"
 	"github.com/tech4works/gopen-gateway/internal/infra/publisher"
-	"github.com/xeipuuv/gojsonschema"
-	"go.elastic.co/apm/v2"
+	"github.com/tech4works/gopen-gateway/internal/infra/telemetry"
 )
 
 const runtimeFolder = "./runtime"
@@ -53,11 +55,12 @@ const jsonRuntimeUri = runtimeFolder + "/.json"
 const jsonSchemaUri = "file://./json-schema.json"
 
 type provider struct {
-	log app.BootLog
+	log               app.BootLog
+	telemetryShutdown func(context.Context) error
 }
 
 func New() app.Boot {
-	return provider{
+	return &provider{
 		log: log.NewBoot(),
 	}
 }
@@ -87,10 +90,19 @@ func (p provider) Init() *dto.Gopen {
 		panic(err)
 	}
 
-	os.Setenv("ELASTIC_APM_ENVIRONMENT", os.Getenv("ENV"))
-	os.Setenv("ELASTIC_APM_SERVICE_VERSION", gopen.Version)
+	os.Setenv("OTEL_SERVICE_NAME", "gopen-gateway")
 
-	apm.DefaultTracer().SetLogger(log.NewAPM())
+	shutdown, err := telemetry.Setup(
+		context.Background(),
+		"gopen-gateway",
+		gopen.Version,
+		os.Getenv("ENV"),
+	)
+	if checker.NonNil(err) {
+		p.log.PrintWarn("Error setting up OpenTelemetry:", err)
+	} else {
+		p.telemetryShutdown = shutdown
+	}
 
 	return gopen
 }
@@ -151,7 +163,7 @@ func (p provider) Start(gopen *dto.Gopen) {
 	httpServer.ListenAndServe()
 }
 
-func (p provider) Stop() {
+func (p *provider) Stop() {
 	p.log.SkipLine()
 
 	p.log.PrintInfo("Removing runtime json...")
@@ -159,6 +171,14 @@ func (p provider) Stop() {
 	err := p.removeRuntimeJSON()
 	if checker.NonNil(err) {
 		p.log.PrintWarn("Error to remove runtime json!")
+	}
+
+	if checker.NonNil(p.telemetryShutdown) {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err = p.telemetryShutdown(ctx); checker.NonNil(err) {
+			p.log.PrintWarn("Error shutting down OpenTelemetry:", err)
+		}
 	}
 
 	p.log.PrintTitle("STOPPED")

@@ -21,12 +21,16 @@ import (
 	"time"
 
 	"github.com/redis/go-redis/v9"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+
 	"github.com/tech4works/checker"
 	"github.com/tech4works/compressor"
 	"github.com/tech4works/decompressor"
 	"github.com/tech4works/errors"
+
 	"github.com/tech4works/gopen-gateway/internal/domain"
-	"go.elastic.co/apm/v2"
+	"github.com/tech4works/gopen-gateway/internal/infra/telemetry"
 )
 
 type redisStore struct {
@@ -43,13 +47,15 @@ func NewRedisStore(address, password string) domain.Store {
 }
 
 func (r redisStore) Set(ctx context.Context, key, value string, ttl time.Duration) error {
-	span, ctx := apm.StartSpan(ctx, "global.write", "cache")
+	ctx, span := telemetry.Tracer().Start(ctx, "cache.global.write")
 	defer span.End()
 
-	span.Context.SetLabel("key", key)
+	span.SetAttributes(attribute.String("cache.key", key))
 
 	b64, err := compressor.ToGzipBase64WithErr(value)
 	if checker.NonNil(err) {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return err
 	}
 
@@ -57,24 +63,26 @@ func (r redisStore) Set(ctx context.Context, key, value string, ttl time.Duratio
 }
 
 func (r redisStore) Del(ctx context.Context, key string) error {
-	span, ctx := apm.StartSpan(ctx, "global.read", "cache")
+	ctx, span := telemetry.Tracer().Start(ctx, "cache.global.delete")
 	defer span.End()
 
-	span.Context.SetLabel("key", key)
+	span.SetAttributes(attribute.String("cache.key", key))
 
 	return r.client.Del(ctx, key).Err()
 }
 
 func (r redisStore) Get(ctx context.Context, key string) (string, error) {
-	span, ctx := apm.StartSpan(ctx, "global.read", "cache")
+	ctx, span := telemetry.Tracer().Start(ctx, "cache.global.read")
 	defer span.End()
 
-	span.Context.SetLabel("key", key)
+	span.SetAttributes(attribute.String("cache.key", key))
 
 	cacheGzipBase64, err := r.client.Get(ctx, key).Result()
 	if errors.Is(err, redis.Nil) {
 		return "", domain.NewErrCacheNotFound(key)
 	} else if checker.NonNil(err) {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return "", err
 	}
 

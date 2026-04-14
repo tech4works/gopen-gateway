@@ -6,6 +6,7 @@ import (
 	"github.com/tech4works/checker"
 	"github.com/tech4works/converter"
 	"github.com/tech4works/errors"
+
 	"github.com/tech4works/gopen-gateway/internal/domain/model/aggregate"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
 )
@@ -49,7 +50,11 @@ func NewBuildPipeline(
 func (p BuildPipeline) ApplyHost(
 	spec vo.HostPipelineSpec,
 ) string {
-	return spec.Hosts()[rand.Intn(len(spec.Hosts())-1)]
+	hosts := spec.Hosts()
+	if checker.IsLengthEquals(hosts, 1) {
+		return hosts[0]
+	}
+	return hosts[rand.Intn(len(hosts))]
 }
 
 func (p BuildPipeline) ApplyMetadata(

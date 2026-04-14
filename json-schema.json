@@ -219,6 +219,7 @@
     "request-client-propagate": {
       "type": "object",
       "properties": {
+        "@comment": { "type": "string" },
         "request": {
           "type": "string"
         },
@@ -231,6 +232,7 @@
     "request-client-value": {
       "type": "object",
       "properties": {
+        "@comment": { "type": "string" },
         "headers": {
           "type": "array",
           "minItems": 1,
@@ -251,6 +253,7 @@
     "request-client-ip": {
       "type": "object",
       "properties": {
+        "@comment": { "type": "string" },
         "headers": {
           "type": "array",
           "minItems": 1,
@@ -273,9 +276,38 @@
       },
       "additionalProperties": false
     },
+    "transport-headers-request": {
+      "type": "object",
+      "properties": {
+        "@comment": { "type": "string" },
+        "degradation":  { "type": "boolean" },
+        "timeout":      { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "transport-headers-response": {
+      "type": "object",
+      "properties": {
+        "@comment": { "type": "string" },
+        "cache":            { "type": "boolean" },
+        "execution-status": { "type": "boolean" },
+        "degradation":      { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "transport-headers": {
+      "type": "object",
+      "properties": {
+        "@comment": { "type": "string" },
+        "request":  { "$ref": "#/definitions/transport-headers-request" },
+        "response": { "$ref": "#/definitions/transport-headers-response" }
+      },
+      "additionalProperties": false
+    },
     "request-client": {
       "type": "object",
       "properties": {
+        "@comment": { "type": "string" },
         "request-id": {
           "$ref": "#/definitions/request-client-value"
         },
@@ -284,6 +316,9 @@
         },
         "ip": {
           "$ref": "#/definitions/request-client-ip"
+        },
+        "transport-headers": {
+          "$ref": "#/definitions/transport-headers"
         }
       },
       "additionalProperties": false
@@ -508,6 +543,37 @@
         {
           "required": [
             "allow-credentials"
+          ]
+        }
+      ],
+      "additionalProperties": false
+    },
+    "gopen-execution": {
+      "type": "object",
+      "properties": {
+        "@comment": {
+          "type": "string"
+        },
+        "mode": {
+          "$ref": "#/definitions/execution-mode"
+        },
+        "on": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/execution-on"
+          }
+        }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "mode"
+          ]
+        },
+        {
+          "required": [
+            "on"
           ]
         }
       ],
@@ -1322,17 +1388,6 @@
         "@comment": {
           "type": "string"
         },
-        "request": {
-          "$ref": "#/definitions/backend-propagate-request"
-        }
-      }
-    },
-    "backend-propagate-request": {
-      "type": "object",
-      "properties": {
-        "@comment": {
-          "type": "string"
-        },
         "header": {
           "$ref": "#/definitions/metadata-transformation"
         },
@@ -1964,6 +2019,9 @@
     },
     "timeout": {
       "$ref": "#/definitions/duration"
+    },
+    "execution": {
+      "$ref": "#/definitions/gopen-execution"
     },
     "security-cors": {
       "$ref": "#/definitions/security-cors"

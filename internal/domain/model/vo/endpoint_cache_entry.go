@@ -19,6 +19,7 @@ package vo
 import (
 	"time"
 
+	"github.com/tech4works/checker"
 	"github.com/tech4works/converter"
 )
 
@@ -48,7 +49,14 @@ func (e EndpointCacheEntry) Entry() (string, error) {
 	return converter.ToCompactStringWithErr(e)
 }
 
+func (e EndpointCacheEntry) IsZero() bool {
+	return checker.IsEmpty(e.Status.Value()) && checker.IsNil(e.Metadata.values) && checker.IsNil(e.Payload)
+}
+
 func (e EndpointCacheEntry) Response() *EndpointResponse {
+	if e.IsZero() {
+		return nil
+	}
 	return NewEndpointResponseWithAll(
 		NewCacheInfo(true, e.TTL, NewDuration(e.TTL.Time()-time.Since(e.CreatedAt))),
 		e.Degradation,

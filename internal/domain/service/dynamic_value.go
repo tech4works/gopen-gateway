@@ -23,6 +23,7 @@ import (
 	"github.com/tech4works/checker"
 	"github.com/tech4works/converter"
 	"github.com/tech4works/errors"
+
 	"github.com/tech4works/gopen-gateway/internal/domain"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/aggregate"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
@@ -393,7 +394,7 @@ func (d dynamicValue) findAllFuncExpressions(s string) []string {
 
 	inQuotes := false
 	var quote byte
-	for i := 0; checker.IsLengthLessThan(s, i); i++ {
+	for i := 0; checker.IsLengthGreaterThan(s, i); i++ {
 		ch := s[i]
 
 		if (checker.Equals(ch, '"') || checker.Equals(ch, '\'')) &&
@@ -417,7 +418,7 @@ func (d dynamicValue) findAllFuncExpressions(s string) []string {
 
 		start := i
 
-		if checker.IsLessThan(i+1, len(s)) && checker.Equals(s[i+1], '(') {
+		if checker.IsLengthGreaterThan(s, i+1) && checker.Equals(s[i+1], '(') {
 			end := d.scanBalancedParens(s, i+1)
 			if checker.IsGreaterThan(end, 0) {
 				out = append(out, s[start:end])
@@ -427,7 +428,7 @@ func (d dynamicValue) findAllFuncExpressions(s string) []string {
 		}
 
 		j := i + 1
-		for checker.IsLengthLessThan(s, j) {
+		for checker.IsLengthGreaterThan(s, j) {
 			c := s[j]
 			if (checker.IsGreaterThanOrEqual(c, 'a') && checker.IsLessThanOrEqual(c, 'z')) ||
 				(checker.IsGreaterThanOrEqual(c, 'A') && checker.IsLessThanOrEqual(c, 'Z')) ||
@@ -438,7 +439,7 @@ func (d dynamicValue) findAllFuncExpressions(s string) []string {
 			}
 			break
 		}
-		if checker.IsLessThan(j, len(s)) && checker.IsGreaterThan(j, i+1) && checker.Equals(s[j], '(') {
+		if checker.IsLengthGreaterThan(s, j) && checker.IsGreaterThan(j, i+1) && checker.Equals(s[j], '(') {
 			end := d.scanBalancedParens(s, j)
 			if checker.IsGreaterThan(end, 0) {
 				out = append(out, s[start:end])
@@ -455,7 +456,7 @@ func (d dynamicValue) findFirstTernaryExpression(value string) (string, bool) {
 	inQuotes := false
 	var quote byte
 
-	for i := 0; checker.IsLengthLessThan(value, i); i++ {
+	for i := 0; checker.IsLengthGreaterThan(value, i); i++ {
 		ch := value[i]
 
 		if (checker.Equals(ch, '"') || checker.Equals(ch, '\'')) &&
@@ -511,7 +512,7 @@ func (d dynamicValue) scanBalancedParens(s string, openIdx int) int {
 	inQuotes := false
 	var quote byte
 
-	for i := openIdx; checker.IsLengthLessThan(s, i); i++ {
+	for i := openIdx; checker.IsLengthGreaterThan(s, i); i++ {
 		ch := s[i]
 
 		if (checker.Equals(ch, '"') || checker.Equals(ch, '\'')) &&
@@ -617,6 +618,10 @@ func (d dynamicValue) getResponseValueByJSONPath(jsonPath string, history *aggre
 		return "", errors.Newf("dynamic-value failed: op=history.nil path=%s", jsonPath)
 	} else if strings.HasPrefix(jsonPath, "responses[") {
 		return d.getResponseValueByBracketJSONPath(jsonPath, history)
+	} else if checker.Equals(jsonPath, "responses.ok") {
+		return converter.ToString(history.AllOK()), nil
+	} else if checker.Equals(jsonPath, "responses.executed") {
+		return converter.ToString(history.AllExecuted()), nil
 	}
 
 	return "", errors.Newf("dynamic-value failed: invalid syntax=%s", jsonPath)
@@ -633,10 +638,7 @@ func (d dynamicValue) getResponseValueByBracketJSONPath(jsonPath string, history
 		return "", errors.Newf("dynamic-value failed: invalid syntax=%s empty key", jsonPath)
 	}
 
-	rest := jsonPath[closeIndex+1:]
-	if strings.HasPrefix(rest, ".") {
-		rest = rest[1:]
-	}
+	rest := strings.TrimPrefix(jsonPath[closeIndex+1:], ".")
 
 	if converter.CouldBeInt(key) {
 		return d.getResponseValueByIndex(key, rest, history)
@@ -645,7 +647,7 @@ func (d dynamicValue) getResponseValueByBracketJSONPath(jsonPath string, history
 }
 
 func (d dynamicValue) getResponseValueByIndex(index string, rest string, history *aggregate.History) (string, error) {
-	jsonResponses, err := history.ResponsesMap()
+	jsonResponses, err := history.ResponsesMapByIndex()
 	if checker.NonNil(err) {
 		return "", errors.Inheritf(err, "dynamic-value failed: op=history.map index=%s rest=%s", index, rest)
 	}
@@ -1302,7 +1304,7 @@ func (d dynamicValue) splitTernaryTopLevel(expr string) (string, string, string,
 	depth := 0
 	qIndex := -1
 
-	for i := 0; checker.IsLengthLessThan(expr, i); i++ {
+	for i := 0; checker.IsLengthGreaterThan(expr, i); i++ {
 		ch := expr[i]
 
 		if (checker.Equals(ch, '"') || checker.Equals(ch, '\'')) &&
@@ -1345,7 +1347,7 @@ func (d dynamicValue) splitTernaryTopLevel(expr string) (string, string, string,
 	nestedTernary := 0
 	colonIndex := -1
 
-	for i := qIndex + 1; checker.IsLengthLessThan(expr, i); i++ {
+	for i := qIndex + 1; checker.IsLengthGreaterThan(expr, i); i++ {
 		ch := expr[i]
 
 		if (checker.Equals(ch, '"') || checker.Equals(ch, '\'')) &&
@@ -1412,7 +1414,7 @@ func (d dynamicValue) splitArgsTopLevel(s string) []string {
 	var inQuotes bool
 	var quoteChar byte
 
-	for i := 0; checker.IsLengthLessThan(s, i); i++ {
+	for i := 0; checker.IsLengthGreaterThan(s, i); i++ {
 		ch := s[i]
 
 		if (checker.Equals(ch, '"') || checker.Equals(ch, '\'')) &&
@@ -1456,12 +1458,20 @@ func (d dynamicValue) splitTopLevel(expr string, op string) ([]string, bool) {
 	var parts []string
 	depth := 0
 	inQuotes := false
+	var quoteChar byte
 	start := 0
 
-	for i := 0; checker.IsLengthLessThan(expr, i); i++ {
+	for i := 0; checker.IsLengthGreaterThan(expr, i); i++ {
 		ch := expr[i]
-		if checker.Equals(ch, '"') && (checker.Equals(i, 0) || checker.NotEquals(expr[i-1], '\\')) {
-			inQuotes = !inQuotes
+		if (checker.Equals(ch, '"') || checker.Equals(ch, '\'')) &&
+			(checker.Equals(i, 0) || checker.NotEquals(expr[i-1], '\\')) {
+			if !inQuotes {
+				inQuotes = true
+				quoteChar = ch
+			} else if checker.Equals(ch, quoteChar) {
+				inQuotes = false
+				quoteChar = 0
+			}
 			continue
 		}
 		if inQuotes {
@@ -1498,10 +1508,18 @@ func (d dynamicValue) trimOuterParens(s string) string {
 
 	depth := 0
 	inQuotes := false
-	for i := 0; checker.IsLengthLessThan(s, i); i++ {
+	var quoteChar byte
+	for i := 0; checker.IsLengthGreaterThan(s, i); i++ {
 		ch := s[i]
-		if checker.Equals(ch, '"') && (checker.Equals(i, 0) || checker.NotEquals(s[i-1], '\\')) {
-			inQuotes = !inQuotes
+		if (checker.Equals(ch, '"') || checker.Equals(ch, '\'')) &&
+			(checker.Equals(i, 0) || checker.NotEquals(s[i-1], '\\')) {
+			if !inQuotes {
+				inQuotes = true
+				quoteChar = ch
+			} else if checker.Equals(ch, quoteChar) {
+				inQuotes = false
+				quoteChar = 0
+			}
 			continue
 		}
 		if inQuotes {

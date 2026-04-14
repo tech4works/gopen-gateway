@@ -23,7 +23,9 @@ import (
 	"net/url"
 	"time"
 
-	"go.elastic.co/apm/v2"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/tech4works/checker"
 	"github.com/tech4works/errors"
@@ -36,6 +38,7 @@ import (
 	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
 	"github.com/tech4works/gopen-gateway/internal/domain/service"
+	"github.com/tech4works/gopen-gateway/internal/infra/telemetry"
 )
 
 type endpointUseCase struct {
@@ -185,20 +188,23 @@ func (e endpointUseCase) executeAllBackends(
 			i := i
 			backend := backend
 
-			go func() backendExecResult {
+			go func() {
 				waitDependencies(&backend)
 
 				response := e.executeBackend(seqCtx, executeData, &backend, history)
 
+				r := backendExecResult{i: i, backend: &backend, response: response}
+
 				if e.shouldBackendAbort(&backend, response) {
 					select {
-					case abortCh <- backendExecResult{i: i, backend: &backend, response: response}:
+					case abortCh <- r:
 						cancel()
 					default:
 					}
+					return
 				}
 
-				return backendExecResult{i: i, backend: &backend, response: response}
+				asyncDoneCh <- r
 			}()
 			continue
 		}
@@ -391,7 +397,7 @@ func (e endpointUseCase) makeBackendHTTPRequest(
 ) *vo.BackendResponse {
 	e.backendLog.PrintHTTPRequest(executeData, backend, request)
 
-	httpResponse, err := e.httpClient.MakeRequest(ctx, executeData.Request, request)
+	httpResponse, err := e.httpClient.MakeRequest(ctx, executeData.Endpoint, executeData.Request, request)
 
 	var backendResponse *vo.BackendResponse
 	if err = e.treatHTTPClientErr(err); checker.NonNil(err) {
@@ -477,22 +483,24 @@ func (e endpointUseCase) buildHTTPBackendRequest(
 	backend *vo.BackendConfig,
 	history *aggregate.History,
 ) (*vo.HTTPBackendRequest, error) {
-	span, ctx := apm.StartSpan(ctx, "http.request", "factory")
+	ctx, span := telemetry.Tracer().Start(ctx, "factory.http.request",
+		trace.WithAttributes(
+			attribute.Int("http.transformations", backend.HTTP().CountAllDataTransforms()),
+		),
+	)
 	defer span.End()
-
-	span.Context.SetLabel("transformations", backend.HTTP().CountAllDataTransforms())
 
 	httpBackendRequest, errs := e.backendRequestFactory.BuildHTTPRequest(backend, executeData.Request, history)
 	if checker.IsEmpty(errs) {
 		return httpBackendRequest, nil
 	} else if backend.Execution().ContinueOn(enum.ExecutionOnBuild) {
 		for _, err := range errs {
-			e.backendLog.PrintWarnf(executeData, backend, "error build HTTP backend request: %s", err)
+			e.backendLog.PrintWarnf(executeData, backend, "error build HTTP backend request: %v", err)
 		}
 		return httpBackendRequest, nil
 	}
 
-	return nil, errors.JoinInheritf(
+	err := errors.JoinInheritf(
 		errs,
 		", ",
 		"failed to build http backend request (id=%s method=%s path=%s)",
@@ -500,6 +508,9 @@ func (e endpointUseCase) buildHTTPBackendRequest(
 		backend.HTTP().Method(),
 		backend.HTTP().Path(),
 	)
+	span.RecordError(err)
+	span.SetStatus(codes.Error, err.Error())
+	return nil, err
 }
 
 func (e endpointUseCase) buildPublisherRequest(
@@ -508,10 +519,12 @@ func (e endpointUseCase) buildPublisherRequest(
 	backend *vo.BackendConfig,
 	history *aggregate.History,
 ) (*vo.PublisherBackendRequest, error) {
-	span, ctx := apm.StartSpan(ctx, "publisher.request", "factory")
+	ctx, span := telemetry.Tracer().Start(ctx, "factory.publisher.request",
+		trace.WithAttributes(
+			attribute.Int("publisher.transformations", backend.Publisher().CountAllDataTransforms()),
+		),
+	)
 	defer span.End()
-
-	span.Context.SetLabel("publisher.transformations", backend.Publisher().CountAllDataTransforms())
 
 	publisherRequest, errs := e.backendRequestFactory.BuildPublisherRequest(backend, executeData.Request, history)
 	if checker.IsEmpty(errs) {
@@ -523,13 +536,16 @@ func (e endpointUseCase) buildPublisherRequest(
 		return publisherRequest, nil
 	}
 
-	return nil, errors.JoinInheritf(
+	err := errors.JoinInheritf(
 		errs, ", ",
 		"failed to build PUBLISHER backend request (id=%s broker=%s path=%s)",
 		backend.ID(),
 		backend.Publisher().Broker(),
 		backend.Publisher().Path(),
 	)
+	span.RecordError(err)
+	span.SetStatus(codes.Error, err.Error())
+	return nil, err
 }
 
 func (e endpointUseCase) buildEndpointResponse(
@@ -537,11 +553,13 @@ func (e endpointUseCase) buildEndpointResponse(
 	executeData dto.ExecuteEndpoint,
 	history *aggregate.History,
 ) *vo.EndpointResponse {
-	span, ctx := apm.StartSpan(ctx, "endpoint.response", "factory")
+	ctx, span := telemetry.Tracer().Start(ctx, "factory.endpoint.response")
 	defer span.End()
 
 	err := e.buildFinalBackendResponses(executeData, history)
 	if checker.NonNil(err) {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return e.endpointResponseFactory.BuildErrorResponse(executeData.Endpoint, err)
 	}
 
@@ -555,12 +573,15 @@ func (e endpointUseCase) buildEndpointResponse(
 		return endpointResponse
 	}
 
-	return e.endpointResponseFactory.BuildErrorResponse(executeData.Endpoint, errors.JoinInheritf(
+	buildErr := errors.JoinInheritf(
 		errs, ", ",
 		"failed to build endpoint response (method=%s path=%s)",
 		executeData.Endpoint.Method(),
 		executeData.Endpoint.Path(),
-	))
+	)
+	span.RecordError(buildErr)
+	span.SetStatus(codes.Error, buildErr.Error())
+	return e.endpointResponseFactory.BuildErrorResponse(executeData.Endpoint, buildErr)
 }
 
 func (e endpointUseCase) buildFinalBackendResponses(executeData dto.ExecuteEndpoint, history *aggregate.History) error {
@@ -619,7 +640,9 @@ func (e endpointUseCase) buildFinalBackendResponse(
 func (e endpointUseCase) panicAsError(ctx context.Context, where string, r any) error {
 	err := errors.Newf("panic in backend goroutine (%s): %v", where, r)
 
-	apm.CaptureError(ctx, err).Send()
+	span := trace.SpanFromContext(ctx)
+	span.RecordError(err)
+	span.SetStatus(codes.Error, err.Error())
 
 	return err
 }

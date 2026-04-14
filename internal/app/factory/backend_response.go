@@ -26,6 +26,7 @@ import (
 	"github.com/tech4works/checker"
 	"github.com/tech4works/converter"
 	"github.com/tech4works/errors"
+
 	"github.com/tech4works/gopen-gateway/internal/app"
 	"github.com/tech4works/gopen-gateway/internal/app/model/dto"
 	"github.com/tech4works/gopen-gateway/internal/app/model/publisher"
@@ -79,6 +80,7 @@ func (f backendResponse) BuildResponseByError(
 		Line:      wrapped.Line(),
 		Endpoint:  endpoint.Path(),
 		Message:   wrapped.Message(),
+		Stack:     wrapped.Stack(),
 		Timestamp: time.Now(),
 	}))
 	metadata := vo.NewEmptyMetadata()
