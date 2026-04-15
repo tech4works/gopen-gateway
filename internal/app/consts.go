@@ -46,7 +46,6 @@ func TransportHTTPHeaderKeys() []string {
 		ContentType,
 		ContentEncoding,
 		ContentLength,
-		XForwardedFor,
 		XGopenCache,
 		XGopenCacheTTL,
 		XGopenDegraded,
