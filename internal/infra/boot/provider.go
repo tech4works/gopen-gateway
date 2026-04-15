@@ -242,14 +242,11 @@ func (p provider) initWatcher(oldGopen *dto.Gopen, oldServer server.HTTP) (*fsno
 	}()
 
 	go func() {
-		for {
-			select {
-			case ev, ok := <-watcher.Events:
-				if !ok || checker.NotEquals(ev.Op, fsnotify.Chmod) {
-					continue
-				}
-				p.restart(oldGopen, oldServer)
+		for ev := range watcher.Events {
+			if checker.NotEquals(ev.Op, fsnotify.Chmod) {
+				continue
 			}
+			p.restart(oldGopen, oldServer)
 		}
 	}()
 
@@ -335,7 +332,7 @@ func (p provider) validateJSONBySchema(jsonBytes []byte) error {
 	if checker.NonNil(err) {
 		return errors.New("Error validate schema:", err)
 	} else if !result.Valid() {
-		errorMsg := fmt.Sprintf("Map poorly formatted!\n")
+		errorMsg := "Map poorly formatted!\n"
 		for _, desc := range result.Errors() {
 			errorMsg += fmt.Sprintf("- %s\n", desc)
 		}

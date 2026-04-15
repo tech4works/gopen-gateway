@@ -33,7 +33,7 @@ require (
 	github.com/tech4works/compressor v0.0.0-20240807194218-7122652ffea0
 	github.com/tech4works/converter v0.0.0-20260413194113-f844844ac543
 	github.com/tech4works/decompressor v0.0.0-20240807211058-01326b21a00d
-	github.com/tech4works/errors v0.0.0-20260413191714-94bf17e3e009
+	github.com/tech4works/errors v0.0.0-20260414205150-460ce52a6312
 	github.com/tidwall/gjson v1.18.0
 	github.com/tidwall/sjson v1.2.5
 	github.com/xeipuuv/gojsonschema v1.2.0

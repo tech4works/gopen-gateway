@@ -90,6 +90,13 @@
         "FULL"
       ]
     },
+    "component-merge": {
+      "type": "string",
+      "enum": [
+        "EXTEND",
+        "OVERRIDE"
+      ]
+    },
     "execution-mode": {
       "type": "string",
       "enum": [
@@ -371,7 +378,6 @@
     },
     "cache": {
       "type": "object",
-      "description": "Global cache configuration. When defined at root level, key and ttl are required.",
       "properties": {
          "only-if": {
           "$ref": "#/definitions/only-if"
@@ -386,12 +392,10 @@
           "$ref": "#/definitions/cache-decision"
         },
         "key": {
-          "type": "string",
-          "description": "Cache key template. Required at root level."
+          "type": "string"
         },
         "ttl": {
-          "$ref": "#/definitions/duration",
-          "description": "Time to live for cached entries. Required at root level."
+          "$ref": "#/definitions/duration"
         }
       },
       "required": [
@@ -402,7 +406,6 @@
     },
     "cache-endpoint": {
       "type": "object",
-      "description": "Endpoint/Backend cache configuration. If root cache is defined, key and ttl are inherited and optional here. If root cache is NOT defined, key and ttl must be provided (validated at runtime).",
       "properties": {
          "only-if": {
           "$ref": "#/definitions/only-if"
@@ -417,12 +420,10 @@
           "$ref": "#/definitions/cache-decision"
         },
         "key": {
-          "type": "string",
-          "description": "Cache key template. Optional if root cache is defined (inherits from root). Required if no root cache exists."
+          "type": "string"
         },
         "ttl": {
-          "$ref": "#/definitions/duration",
-          "description": "Time to live for cached entries. Optional if root cache is defined (inherits from root). Required if no root cache exists."
+          "$ref": "#/definitions/duration"
         }
       },
       "additionalProperties": false
@@ -1339,7 +1340,40 @@
       ],
       "additionalProperties": false
     },
-    "backend-request": {
+    "component-reference": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "additionalProperties": false
+    },
+    "backend-request-components": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/component-reference"
+          }
+        },
+        "merge": {
+          "$ref": "#/definitions/component-merge"
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "additionalProperties": false
+    },
+    "backend-request-flat": {
       "type": "object",
       "properties": {
         "@comment": {
@@ -1382,7 +1416,58 @@
       ],
       "additionalProperties": false
     },
-    "backend-propagate": {
+    "backend-request": {
+      "type": "object",
+      "properties": {
+        "@comment": {
+          "type": "string"
+        },
+        "components": {
+          "$ref": "#/definitions/backend-request-components"
+        },
+        "header": {
+          "$ref": "#/definitions/metadata-transformation"
+        },
+        "param": {
+          "$ref": "#/definitions/url-path-transformation"
+        },
+        "query": {
+          "$ref": "#/definitions/query-transformation"
+        },
+        "body": {
+          "$ref": "#/definitions/backend-request-payload-transformation"
+        }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "components"
+          ]
+        },
+        {
+          "required": [
+            "header"
+          ]
+        },
+        {
+          "required": [
+            "param"
+          ]
+        },
+        {
+          "required": [
+            "query"
+          ]
+        },
+        {
+          "required": [
+            "body"
+          ]
+        }
+      ],
+      "additionalProperties": false
+    },
+    "backend-propagate-flat": {
       "type": "object",
       "properties": {
         "@comment": {
@@ -1402,6 +1487,76 @@
         }
       },
       "anyOf": [
+        {
+          "required": [
+            "header"
+          ]
+        },
+        {
+          "required": [
+            "url-path"
+          ]
+        },
+        {
+          "required": [
+            "query"
+          ]
+        },
+        {
+          "required": [
+            "body"
+          ]
+        }
+      ],
+      "additionalProperties": false
+    },
+    "backend-propagate-components": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/component-reference"
+          }
+        },
+        "merge": {
+          "$ref": "#/definitions/component-merge"
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "additionalProperties": false
+    },
+    "backend-propagate": {
+      "type": "object",
+      "properties": {
+        "@comment": {
+          "type": "string"
+        },
+        "components": {
+          "$ref": "#/definitions/backend-propagate-components"
+        },
+        "header": {
+          "$ref": "#/definitions/metadata-transformation"
+        },
+        "url-path": {
+          "$ref": "#/definitions/url-path-transformation"
+        },
+        "query": {
+          "$ref": "#/definitions/query-transformation"
+        },
+        "body": {
+          "$ref": "#/definitions/backend-request-payload-transformation"
+        }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "components"
+          ]
+        },
         {
           "required": [
             "header"
@@ -1996,6 +2151,55 @@
       "items": {
         "$ref": "#/definitions/endpoint"
       }
+    },
+    "components-backends": {
+      "type": "object",
+      "properties": {
+        "request": {
+          "type": "object",
+          "properties": {
+            "@comment": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": {
+            "$ref": "#/definitions/backend-request-flat"
+          }
+        },
+        "propagate": {
+          "type": "object",
+          "properties": {
+            "@comment": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": {
+            "$ref": "#/definitions/backend-propagate-flat"
+          }
+        }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "request"
+          ]
+        },
+        {
+          "required": [
+            "propagate"
+          ]
+        }
+      ],
+      "additionalProperties": false
+    },
+    "components": {
+      "type": "object",
+      "properties": {
+        "backends": {
+          "$ref": "#/definitions/components-backends"
+        }
+      },
+      "additionalProperties": false
     }
   },
   "properties": {
@@ -2031,6 +2235,9 @@
     },
     "cache": {
       "$ref": "#/definitions/cache"
+    },
+    "components": {
+      "$ref": "#/definitions/components"
     },
     "templates": {
       "$ref": "#/definitions/templates"

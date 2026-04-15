@@ -77,7 +77,7 @@ func buildEndpoint(gopen *dto.Gopen, endpoint dto.Endpoint) vo.EndpointConfig {
 		buildSecurityCors(gopen.SecurityCors, endpoint.SecurityCors),
 		buildLimiter(gopen.Limiter, endpoint.Limiter),
 		buildEndpointCache(gopen.Cache, endpoint.Cache),
-		buildBackends(gopen.Templates, gopen.Execution, endpoint),
+		buildBackends(gopen.Templates, gopen.Execution, endpoint, gopen),
 		buildEndpointResponse(endpoint.Response),
 		buildRequestClient(requestClient),
 	)
@@ -294,7 +294,7 @@ func buildEndpointResponse(endpointResponse *dto.EndpointResponse) vo.EndpointRe
 	)
 }
 
-func buildBackends(templates *dto.Templates, gopenExec *dto.GopenExecution, endpoint dto.Endpoint) []vo.BackendConfig {
+func buildBackends(templates *dto.Templates, gopenExec *dto.GopenExecution, endpoint dto.Endpoint, gopen *dto.Gopen) []vo.BackendConfig {
 	var result []vo.BackendConfig
 	var ps propagateState
 	var backendIndex int
@@ -318,6 +318,7 @@ func buildBackends(templates *dto.Templates, gopenExec *dto.GopenExecution, endp
 				&ps,
 				backendIndex,
 				idToIndex,
+				gopen,
 			))
 
 			idToIndex[effective.ID] = backendIndex
@@ -398,6 +399,7 @@ func buildBackendUnified(
 	ps *propagateState,
 	backendIndex int,
 	idToIndex map[string]int,
+	gopen *dto.Gopen,
 ) vo.BackendConfig {
 	var http *vo.BackendHTTPConfig
 	var publisher *vo.BackendPublisherConfig
@@ -417,7 +419,7 @@ func buildBackendUnified(
 			backend.Hosts,
 			backend.Path,
 			backend.Method,
-			buildHTTPBackendRequest(backend, ps, backendIndex),
+			buildHTTPBackendRequest(backend, ps, backendIndex, gopen),
 		)
 	default:
 		panic(errors.Newf("invalid backend.kind=%v (endpoint=%s %s)", backend.Kind, flow, backend.Path))
@@ -481,10 +483,13 @@ func buildBackendCache(cache *dto.Cache) *vo.CacheConfig {
 	)
 }
 
-func buildHTTPBackendRequest(backend dto.Backend, ps *propagateState, backendIndex int) vo.BackendHTTPRequestConfig {
-	effective := mergeBackendRequestWithPropagation(backend.Request, ps)
+func buildHTTPBackendRequest(backend dto.Backend, ps *propagateState, backendIndex int, gopen *dto.Gopen) vo.BackendHTTPRequestConfig {
+	effective := resolveBackendRequestComponents(backend.Request, gopen)
 
-	applyBackendPropagateIntoState(backend.Propagate, ps, backendIndex)
+	effective = mergeBackendRequestWithPropagation(effective, ps)
+
+	effectivePropagate := resolveBackendPropagateComponents(backend.Propagate, gopen)
+	applyBackendPropagateIntoState(effectivePropagate, ps, backendIndex)
 	collectPropagatingModifiersFromRequestIntoState(backend.Request, ps, backendIndex)
 
 	return vo.NewBackendHTTPRequestConfig(
@@ -646,7 +651,7 @@ func resolveBackendTemplate(cur dto.Backend, templates *dto.Templates) dto.Backe
 	}
 
 	tpl := findTemplateBackend(cur.Template.Path, templates)
-	mergeMode := normalizeMerge(cur.Template.Merge)
+	mergeMode := normalizeTemplateMerge(cur.Template.Merge)
 
 	base := tpl
 	base.ID = cur.Template.Path
@@ -684,7 +689,138 @@ func findTemplateBackend(path string, templates *dto.Templates) dto.Backend {
 	panic(errors.Newf("template %q not found in templates.beforewares/backends/publishers/afterwares", path))
 }
 
-func normalizeMerge(in enum.TemplateMerge) enum.TemplateMerge {
+func resolveBackendRequestComponents(br dto.BackendRequest, gopen *dto.Gopen) dto.BackendRequest {
+	// Handle nil or empty components gracefully
+	if checker.IsNil(br.Components) || checker.IsEmpty(br.Components.Path) {
+		return br
+	}
+
+	// Validate components configuration exists in gopen
+	if checker.IsNil(gopen.Components) || checker.IsNil(gopen.Components.Backends) {
+		panic(errors.Newf("components not configured, unable to resolve components"))
+	}
+
+	// Validate merge strategy is valid (EXTEND or OVERRIDE)
+	if checker.IsNotEmpty(br.Components.Merge) && !br.Components.Merge.IsEnumValid() {
+		panic(errors.Newf("invalid merge strategy %q, must be EXTEND or OVERRIDE", br.Components.Merge))
+	}
+
+	// Resolve each component reference in order
+	var components []dto.BackendRequest
+	for i, ref := range br.Components.Path {
+		// Validate component path is not empty
+		if checker.IsEmpty(ref.Path) {
+			panic(errors.Newf("component reference at index %d has empty path", i))
+		}
+
+		// Validate component path exists in components.backends.request
+		component, exists := gopen.Components.Backends.Request[ref.Path]
+		if !exists {
+			panic(errors.Newf("component %q not found in components.backends.request", ref.Path))
+		}
+
+		components = append(components, component)
+	}
+
+	// Determine merge strategy (default to EXTEND)
+	mergeStrategy := normalizeMerge(br.Components.Merge)
+
+	// Call mergeComponentsWithStrategy to apply merge
+	merged := mergeComponentsWithStrategy(components, mergeStrategy)
+
+	// Apply direct configuration on top using mergeBackendRequest
+	return mergeBackendRequest(merged, br)
+}
+
+func resolveBackendPropagateComponents(bp dto.BackendPropagate, gopen *dto.Gopen) dto.BackendPropagate {
+	if checker.IsNil(bp.Components) || checker.IsEmpty(bp.Components.Path) {
+		return bp
+	}
+
+	if checker.IsNil(gopen.Components) || checker.IsNil(gopen.Components.Backends) {
+		panic(errors.Newf("components not configured, unable to resolve propagate components"))
+	}
+
+	if checker.IsNotEmpty(bp.Components.Merge) && !bp.Components.Merge.IsEnumValid() {
+		panic(errors.Newf("invalid merge strategy %q, must be EXTEND or OVERRIDE", bp.Components.Merge))
+	}
+
+	var components []dto.BackendPropagate
+	for i, ref := range bp.Components.Path {
+		if checker.IsEmpty(ref.Path) {
+			panic(errors.Newf("propagate component reference at index %d has empty path", i))
+		}
+
+		component, exists := gopen.Components.Backends.Propagate[ref.Path]
+		if !exists {
+			panic(errors.Newf("component %q not found in components.backends.propagate", ref.Path))
+		}
+
+		components = append(components, component)
+	}
+
+	mergeStrategy := normalizeMerge(bp.Components.Merge)
+	merged := mergePropagateComponentsWithStrategy(components, mergeStrategy)
+
+	return mergeBackendPropagate(merged, bp)
+}
+
+func mergePropagateComponentsWithStrategy(components []dto.BackendPropagate, strategy enum.ComponentMerge) dto.BackendPropagate {
+	if checker.IsEmpty(components) {
+		return dto.BackendPropagate{}
+	}
+
+	result := components[0]
+
+	for i := 1; checker.IsLengthGreaterThan(components, i); i++ {
+		if checker.Equals(strategy, enum.ComponentMergeOverride) {
+			result = mergeBackendPropagateOverride(result, components[i])
+		} else {
+			result = mergeBackendPropagate(result, components[i])
+		}
+	}
+
+	return result
+}
+
+func mergeBackendPropagateOverride(base, override dto.BackendPropagate) dto.BackendPropagate {
+	out := base
+
+	out.Header = mergeMetadataTransformationOverride(out.Header, override.Header)
+	out.URLPath = mergeURLPathTransformationOverride(out.URLPath, override.URLPath)
+	out.Query = mergeQueryTransformationOverride(out.Query, override.Query)
+	out.Body = mergePayloadTransformationOverride(out.Body, override.Body)
+
+	return out
+}
+
+func mergeComponentsWithStrategy(components []dto.BackendRequest, strategy enum.ComponentMerge) dto.BackendRequest {
+	if checker.IsEmpty(components) {
+		return dto.BackendRequest{}
+	}
+
+	result := components[0]
+
+	for i := 1; checker.IsLengthGreaterThan(components, i); i++ {
+		if checker.Equals(strategy, enum.ComponentMergeOverride) {
+			result = mergeBackendRequestOverride(result, components[i])
+		} else {
+			// Default to EXTEND
+			result = mergeBackendRequest(result, components[i])
+		}
+	}
+
+	return result
+}
+
+func normalizeMerge(in enum.ComponentMerge) enum.ComponentMerge {
+	if !in.IsEnumValid() {
+		return enum.ComponentMergeExtend
+	}
+	return in
+}
+
+func normalizeTemplateMerge(in enum.TemplateMerge) enum.TemplateMerge {
 	if !in.IsEnumValid() {
 		return enum.TemplateMergeFull
 	}
@@ -944,6 +1080,87 @@ func mergeBackendPropagate(tpl, cur dto.BackendPropagate) dto.BackendPropagate {
 	out.Body = mergePayloadTransformation(out.Body, cur.Body)
 
 	return out
+}
+
+func mergeBackendRequestOverride(base, override dto.BackendRequest) dto.BackendRequest {
+	out := base
+
+	out.Header = mergeMetadataTransformationOverride(out.Header, override.Header)
+	out.Param = mergeURLPathTransformationOverride(out.Param, override.Param)
+	out.Query = mergeQueryTransformationOverride(out.Query, override.Query)
+	out.Body = mergePayloadTransformationOverride(out.Body, override.Body)
+
+	return out
+}
+
+func mergeMetadataTransformationOverride(base, override *dto.MetadataTransformation) *dto.MetadataTransformation {
+	if checker.IsNil(base) && checker.IsNil(override) {
+		return nil
+	}
+
+	if checker.IsNil(override) {
+		return base
+	}
+
+	out := *override
+
+	// Omit flag: if override sets omit, result is omitted
+	if checker.NonNil(base) {
+		out.Omit = out.Omit || base.Omit
+	}
+
+	return &out
+}
+
+func mergeURLPathTransformationOverride(base, override *dto.URLPathTransformation) *dto.URLPathTransformation {
+	if checker.IsNil(base) && checker.IsNil(override) {
+		return nil
+	}
+
+	if checker.IsNil(override) {
+		return base
+	}
+
+	return override
+}
+
+func mergeQueryTransformationOverride(base, override *dto.QueryTransformation) *dto.QueryTransformation {
+	if checker.IsNil(base) && checker.IsNil(override) {
+		return nil
+	}
+
+	if checker.IsNil(override) {
+		return base
+	}
+
+	out := *override
+
+	// Omit flag: if override sets omit, result is omitted
+	if checker.NonNil(base) {
+		out.Omit = out.Omit || base.Omit
+	}
+
+	return &out
+}
+
+func mergePayloadTransformationOverride(base, override *dto.PayloadTransformation) *dto.PayloadTransformation {
+	if checker.IsNil(base) && checker.IsNil(override) {
+		return nil
+	}
+
+	if checker.IsNil(override) {
+		return base
+	}
+
+	out := *override
+
+	// Omit flags: accumulate
+	if checker.NonNil(base) {
+		out.Omit = out.Omit || base.Omit
+		out.OmitEmpty = out.OmitEmpty || base.OmitEmpty
+	}
+
+	return &out
 }
 
 func applyBackendPropagateIntoState(p dto.BackendPropagate, ps *propagateState, backendIndex int) {

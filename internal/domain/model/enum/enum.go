@@ -38,6 +38,8 @@ type BackendBroker string
 
 type TemplateMerge string
 
+type ComponentMerge string
+
 type JoinTargetOnMissing string
 
 type JoinTargetPolicy string
@@ -109,6 +111,10 @@ const (
 const (
 	TemplateMergeBase TemplateMerge = "BASE"
 	TemplateMergeFull TemplateMerge = "FULL"
+)
+const (
+	ComponentMergeExtend   ComponentMerge = "EXTEND"
+	ComponentMergeOverride ComponentMerge = "OVERRIDE"
 )
 const (
 	JoinTargetOnMissingNull  JoinTargetOnMissing = "NULL"
@@ -303,6 +309,14 @@ func (b BackendFlow) Abbreviation() string {
 func (t TemplateMerge) IsEnumValid() bool {
 	switch t {
 	case TemplateMergeBase, TemplateMergeFull:
+		return true
+	}
+	return false
+}
+
+func (c ComponentMerge) IsEnumValid() bool {
+	switch c {
+	case ComponentMergeExtend, ComponentMergeOverride:
 		return true
 	}
 	return false

@@ -382,10 +382,7 @@ func (e endpointUseCase) makeConcurrentBackendHTTPRequest(
 		}()
 	}
 
-	select {
-	case backendResponse := <-responseChan:
-		return backendResponse
-	}
+	return <-responseChan
 }
 
 func (e endpointUseCase) makeBackendHTTPRequest(

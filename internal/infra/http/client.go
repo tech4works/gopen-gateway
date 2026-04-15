@@ -38,7 +38,7 @@ type client struct {
 func NewClient() app.HTTPClient {
 	return client{
 		engine: &http.Client{
-			Transport: otelhttp.NewTransport(http.DefaultTransport),
+			Transport: otelhttp.NewTransport(&http.Transport{}),
 		},
 	}
 }
@@ -77,6 +77,13 @@ func (c client) buildNetHTTPRequestHeader(ctx context.Context, clientCfg *vo.Req
 	// The gateway should be transparent — if User-Agent was deleted by a modifier it must not reappear.
 	if _, exists := httpHeader["User-Agent"]; !exists {
 		httpHeader["User-Agent"] = []string{""}
+	}
+
+	// Prevent net/http from injecting "Accept-Encoding: gzip" automatically.
+	// The gateway should be transparent — if Accept-Encoding was deleted by a modifier it must not reappear.
+	// If not explicitly configured, send only the encodings we support: gzip and deflate
+	if _, exists := httpHeader["Accept-Encoding"]; !exists {
+		httpHeader.Set("Accept-Encoding", "gzip, deflate")
 	}
 
 	// IP propagation (replaces unconditional X-Forwarded-For injection)

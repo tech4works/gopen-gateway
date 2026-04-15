@@ -144,8 +144,8 @@ github.com/tech4works/converter v0.0.0-20260413194113-f844844ac543 h1:gZ/Eg2FVsf
 github.com/tech4works/converter v0.0.0-20260413194113-f844844ac543/go.mod h1:E6kmMLu94wlJ3cn4XUkUmN1xLtPtrIpBWR1HorsqjZo=
 github.com/tech4works/decompressor v0.0.0-20240807211058-01326b21a00d h1:JRpkRNwr/igktfKz4+KTRFUZFAOXGofAverY3q8UVRQ=
 github.com/tech4works/decompressor v0.0.0-20240807211058-01326b21a00d/go.mod h1:lM9ziR+hXj0kJaj6qn2GCoIE3BOWrUoAj3j+QIq1jAI=
-github.com/tech4works/errors v0.0.0-20260413191714-94bf17e3e009 h1:0dAI5/U0OUqzoVdSmU2HEEV3L6V4+GcJn7a3UXbZElU=
-github.com/tech4works/errors v0.0.0-20260413191714-94bf17e3e009/go.mod h1:ngQrdo7xcZSw58OMLmnBPeO3xy3uzBWY4cKt2XJAkU4=
+github.com/tech4works/errors v0.0.0-20260414205150-460ce52a6312 h1:yCttE47ZXGo5ds4v+BwSqt4BwqGrK8N4iYjlkXYZmcY=
+github.com/tech4works/errors v0.0.0-20260414205150-460ce52a6312/go.mod h1:ngQrdo7xcZSw58OMLmnBPeO3xy3uzBWY4cKt2XJAkU4=
 github.com/tidwall/gjson v1.14.2/go.mod h1:/wbyibRr2FHMks5tjHJ5F8dMZh3AcwJEMf5vlfC0lxk=
 github.com/tidwall/gjson v1.18.0 h1:FIDeeyB800efLX89e5a8Y0BNH+LOngJyGrIWxG2FKQY=
 github.com/tidwall/gjson v1.18.0/go.mod h1:/wbyibRr2FHMks5tjHJ5F8dMZh3AcwJEMf5vlfC0lxk=

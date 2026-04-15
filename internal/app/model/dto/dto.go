@@ -34,6 +34,7 @@ type Gopen struct {
 	Limiter      *Limiter        `json:"limiter,omitempty"`
 	Cache        *Cache          `json:"cache,omitempty"`
 	Request      *Request        `json:"request,omitempty"`
+	Components   *Components     `json:"components,omitempty"`
 	Templates    *Templates      `json:"templates,omitempty"`
 	Endpoints    []Endpoint      `json:"endpoints,omitempty"`
 }
@@ -168,6 +169,19 @@ type Template struct {
 	Merge enum.TemplateMerge `json:"merge,omitempty"`
 }
 
+type ComponentReference struct {
+	Path string `json:"path"`
+}
+
+type Components struct {
+	Backends *ComponentsBackends `json:"backends,omitempty"`
+}
+
+type ComponentsBackends struct {
+	Request   map[string]BackendRequest   `json:"request,omitempty"`
+	Propagate map[string]BackendPropagate `json:"propagate,omitempty"`
+}
+
 type Endpoint struct {
 	Comment      string             `json:"@comment,omitempty"`
 	Execution    *EndpointExecution `json:"execution,omitempty"`
@@ -229,7 +243,8 @@ type Backend struct {
 }
 
 type BackendRequest struct {
-	Comment string `json:"@comment,omitempty"`
+	Comment    string                    `json:"@comment,omitempty"`
+	Components *BackendRequestComponents `json:"components,omitempty"`
 
 	// ---- HTTP ----
 	Header *MetadataTransformation `json:"header,omitempty"`
@@ -238,14 +253,25 @@ type BackendRequest struct {
 	Body   *PayloadTransformation  `json:"body,omitempty"`
 }
 
+type BackendRequestComponents struct {
+	Path  []ComponentReference `json:"path,omitempty"`
+	Merge enum.ComponentMerge  `json:"merge,omitempty"`
+}
+
 type BackendPropagate struct {
-	Comment string `json:"@comment,omitempty"`
+	Comment    string                      `json:"@comment,omitempty"`
+	Components *BackendPropagateComponents `json:"components,omitempty"`
 
 	// ---- HTTP ----
 	Header  *MetadataTransformation `json:"header,omitempty"`
 	URLPath *URLPathTransformation  `json:"url-path,omitempty"`
 	Query   *QueryTransformation    `json:"query,omitempty"`
 	Body    *PayloadTransformation  `json:"body,omitempty"`
+}
+
+type BackendPropagateComponents struct {
+	Path  []ComponentReference `json:"path,omitempty"`
+	Merge enum.ComponentMerge  `json:"merge,omitempty"`
 }
 
 type MetadataTransformation struct {
