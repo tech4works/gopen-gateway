@@ -159,7 +159,7 @@ func (c *Context) IsAborted() bool {
 }
 
 func (c *Context) Duration() time.Duration {
-	return time.Now().Sub(c.startTime)
+	return time.Since(c.startTime)
 }
 
 func (c *Context) Gopen() *vo.GopenConfig {
@@ -358,28 +358,28 @@ func (c *Context) decorateHTTPTransportHeaders(response *vo.EndpointResponse, st
 
 	// cache group
 	if th.CacheEnabled() {
-		// X-Gopen-Cache: true if endpoint cache OR all backends from cache
+		// X-Gopen-Cache: true if endpoint came from cache OR all final response backends came from cache
 		cacheHit := response.ComesFromCache()
-		if !cacheHit && th.BackendCacheEnabled() {
-			cacheHit = response.AllBackendsFromCache()
+		if !cacheHit {
+			cacheHit = response.AllFinalResponseBackendsFromCache()
 		}
 		c.engine.http.Header(app.XGopenCache, converter.ToString(cacheHit))
 
-		// X-Gopen-Cache-TTL: endpoint TTL or newest backend TTL
+		// X-Gopen-Cache-TTL: endpoint TTL or newest final response backend TTL
 		if response.ComesFromCache() {
 			c.engine.http.Header(app.XGopenCacheTTL, converter.ToString(response.Cache().RemainingTTL().Time().Milliseconds()))
-		} else if th.BackendCacheEnabled() {
-			if newestTTL := response.NewestBackendCacheTTLMillis(); newestTTL >= 0 {
+		} else {
+			if newestTTL := response.NewestFinalResponseBackendCacheTTLMillis(); newestTTL >= 0 {
 				c.engine.http.Header(app.XGopenCacheTTL, converter.ToString(newestTTL))
 			}
 		}
+	}
 
-		// X-Gopen-Backend-Cache: list of cached backend IDs
-		if th.BackendCacheEnabled() {
-			cachedIDs := response.BackendsCachedIDs()
-			if checker.IsNotEmpty(cachedIDs) {
-				c.engine.http.Header(app.XGopenBackendCache, strings.Join(cachedIDs, ", "))
-			}
+	// backend-cache group (independent from cache group)
+	if th.BackendCacheEnabled() {
+		cachedIDs := response.BackendsCachedIDs()
+		if checker.IsNotEmpty(cachedIDs) {
+			c.engine.http.Header(app.XGopenBackendCache, strings.Join(cachedIDs, ", "))
 		}
 	}
 

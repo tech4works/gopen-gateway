@@ -272,37 +272,43 @@ func (h *History) BackendsCachedIDs() []string {
 	for i := 0; checker.IsLessThan(i, h.sizeUnlocked()); i++ {
 		backend := h.backends[i]
 		resp := h.responses[i]
-		if checker.NonNil(backend) && checker.NonNil(resp) && resp.ComesFromCache() {
+		// Include all normal backends (not middlewares)
+		if checker.NonNil(backend) && !backend.IsMiddleware() && checker.NonNil(resp) && resp.ComesFromCache() {
 			ids = append(ids, backend.ID())
 		}
 	}
 	return ids
 }
 
-func (h *History) AllBackendsFromCache() bool {
+func (h *History) AllFinalResponseBackendsFromCache() bool {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 
 	hasBackends := false
 	for i := 0; checker.IsLessThan(i, h.sizeUnlocked()); i++ {
-		resp := h.responses[i]
-		if checker.IsNil(resp) {
+		// Only consider backends that should be in final response
+		if !h.shouldBeInFinalResponseUnlocked(i) {
 			continue
 		}
 		hasBackends = true
-		if !resp.ComesFromCache() {
+		resp := h.responses[i]
+		if checker.IsNil(resp) || !resp.ComesFromCache() {
 			return false
 		}
 	}
 	return hasBackends
 }
 
-func (h *History) NewestBackendCacheTTLMillis() int64 {
+func (h *History) NewestFinalResponseBackendCacheTTLMillis() int64 {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 
 	var newestMillis int64 = -1
 	for i := 0; checker.IsLessThan(i, h.sizeUnlocked()); i++ {
+		// Only consider backends that should be in final response
+		if !h.shouldBeInFinalResponseUnlocked(i) {
+			continue
+		}
 		resp := h.responses[i]
 		if checker.IsNil(resp) || !resp.ComesFromCache() {
 			continue

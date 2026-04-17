@@ -26,10 +26,12 @@ type EndpointResponse struct {
 
 	execution EndpointExecution
 
-	// Backend cache info
-	backendsCachedIDs    []string
-	allBackendsFromCache bool
-	newestBackendTTL     int64 // milliseconds, -1 if no backend cache
+	// Backend cache info (all normal backends)
+	backendsCachedIDs []string
+
+	// Final response backend cache info (only backends in final response)
+	allFinalResponseBackendsFromCache bool
+	newestFinalResponseBackendTTL     int64 // milliseconds, -1 if no backend cache
 
 	status   ResponseStatus
 	metadata Metadata
@@ -88,22 +90,22 @@ func NewEndpointResponseWithBackendCache(
 	degradation Degradation,
 	execution EndpointExecution,
 	backendsCachedIDs []string,
-	allBackendsFromCache bool,
-	newestBackendTTL int64,
+	allFinalResponseBackendsFromCache bool,
+	newestFinalResponseBackendTTL int64,
 	status ResponseStatus,
 	metadata Metadata,
 	payload *Payload,
 ) *EndpointResponse {
 	return &EndpointResponse{
-		cache:                cache,
-		degradation:          degradation,
-		execution:            execution,
-		backendsCachedIDs:    backendsCachedIDs,
-		allBackendsFromCache: allBackendsFromCache,
-		newestBackendTTL:     newestBackendTTL,
-		status:               status,
-		metadata:             metadata,
-		payload:              payload,
+		cache:                             cache,
+		degradation:                       degradation,
+		execution:                         execution,
+		backendsCachedIDs:                 backendsCachedIDs,
+		allFinalResponseBackendsFromCache: allFinalResponseBackendsFromCache,
+		newestFinalResponseBackendTTL:     newestFinalResponseBackendTTL,
+		status:                            status,
+		metadata:                          metadata,
+		payload:                           payload,
 	}
 }
 
@@ -119,12 +121,12 @@ func (e *EndpointResponse) BackendsCachedIDs() []string {
 	return e.backendsCachedIDs
 }
 
-func (e *EndpointResponse) AllBackendsFromCache() bool {
-	return e.allBackendsFromCache
+func (e *EndpointResponse) AllFinalResponseBackendsFromCache() bool {
+	return e.allFinalResponseBackendsFromCache
 }
 
-func (e *EndpointResponse) NewestBackendCacheTTLMillis() int64 {
-	return e.newestBackendTTL
+func (e *EndpointResponse) NewestFinalResponseBackendCacheTTLMillis() int64 {
+	return e.newestFinalResponseBackendTTL
 }
 
 func (e *EndpointResponse) Degradation() Degradation {
