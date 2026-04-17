@@ -161,6 +161,7 @@ func (e endpointUseCase) executeAllBackends(
 		default:
 			close(committed[r.i])
 		}
+		e.writeBackendResponseOnCacheIfNeeded(seqCtx, executeData, r.backend, history, r.response)
 	}
 
 	pollAbort := func() (backendExecResult, bool) {
@@ -249,7 +250,6 @@ func (e endpointUseCase) executeBackend(
 			backendResponse = e.backendResponseFactory.BuildResponseByError(executeData.Endpoint, backend, err,
 				time.Since(startTime))
 		}
-		e.writeBackendResponseOnCacheIfNeeded(parentCtx, executeData, backend, history, backendResponse)
 	}()
 
 	timeout, ok := parentCtx.Deadline()
