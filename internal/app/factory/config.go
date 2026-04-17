@@ -1405,7 +1405,7 @@ func buildRequestClientTransportHeaders(d *dto.RequestClientTransportHeaders) *v
 	}
 	var resp vo.RequestClientTransportHeadersResponseConfig
 	if checker.NonNil(d.Response) {
-		resp = vo.NewRequestClientTransportHeadersResponseConfig(d.Response.Cache, d.Response.ExecutionStatus, d.Response.Degradation)
+		resp = vo.NewRequestClientTransportHeadersResponseConfig(d.Response.Cache, d.Response.BackendCache, d.Response.ExecutionStatus, d.Response.Degradation)
 	}
 	return vo.NewRequestClientTransportHeadersConfig(req, resp)
 }

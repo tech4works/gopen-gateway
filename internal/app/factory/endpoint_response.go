@@ -102,9 +102,13 @@ func (f endpointResponse) BuildResponse(
 		degradationKinds = append(degradationKinds, enum.DegradationKindMetadata)
 	}
 
-	return vo.NewEndpointResponseWithExecution(
+	return vo.NewEndpointResponseWithBackendCache(
+		vo.NewEmptyCacheInfo(),
 		vo.NewDegradation(degradationKinds...),
 		f.buildEndpointExecution(history),
+		history.BackendsCachedIDs(),
+		history.AllBackendsFromCache(),
+		history.NewestBackendCacheTTLMillis(),
 		status,
 		metadata,
 		payload,

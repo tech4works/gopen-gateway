@@ -76,6 +76,7 @@ type RequestClientTransportHeadersRequest struct {
 // RequestClientTransportHeadersResponse controls headers injected in the response to the client.
 type RequestClientTransportHeadersResponse struct {
 	Cache           *bool `json:"cache,omitempty"`
+	BackendCache    *bool `json:"backend-cache,omitempty"`
 	ExecutionStatus *bool `json:"execution-status,omitempty"`
 	Degradation     *bool `json:"degradation,omitempty"`
 }

@@ -263,3 +263,54 @@ func (h *History) sizeForFinalResponseUnlocked() int {
 	}
 	return count
 }
+
+func (h *History) BackendsCachedIDs() []string {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	var ids []string
+	for i := 0; checker.IsLessThan(i, h.sizeUnlocked()); i++ {
+		backend := h.backends[i]
+		resp := h.responses[i]
+		if checker.NonNil(backend) && checker.NonNil(resp) && resp.ComesFromCache() {
+			ids = append(ids, backend.ID())
+		}
+	}
+	return ids
+}
+
+func (h *History) AllBackendsFromCache() bool {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	hasBackends := false
+	for i := 0; checker.IsLessThan(i, h.sizeUnlocked()); i++ {
+		resp := h.responses[i]
+		if checker.IsNil(resp) {
+			continue
+		}
+		hasBackends = true
+		if !resp.ComesFromCache() {
+			return false
+		}
+	}
+	return hasBackends
+}
+
+func (h *History) NewestBackendCacheTTLMillis() int64 {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	var newestMillis int64 = -1
+	for i := 0; checker.IsLessThan(i, h.sizeUnlocked()); i++ {
+		resp := h.responses[i]
+		if checker.IsNil(resp) || !resp.ComesFromCache() {
+			continue
+		}
+		ttlMillis := resp.Cache().RemainingTTL().Time().Milliseconds()
+		if newestMillis < 0 || ttlMillis > newestMillis {
+			newestMillis = ttlMillis
+		}
+	}
+	return newestMillis
+}

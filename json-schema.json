@@ -297,6 +297,7 @@
       "properties": {
         "@comment": { "type": "string" },
         "cache":            { "type": "boolean" },
+        "backend-cache":    { "type": "boolean" },
         "execution-status": { "type": "boolean" },
         "degradation":      { "type": "boolean" }
       },

@@ -34,6 +34,7 @@ const (
 	XGopenTimeout                 = "X-Gopen-Timeout"
 	XGopenCache                   = "X-Gopen-Cache"
 	XGopenCacheTTL                = "X-Gopen-Cache-Ttl"
+	XGopenBackendCache            = "X-Gopen-Backend-Cache"
 	XGopenDegraded                = "X-Gopen-Degraded"
 	XGopenDegradedBackendCount    = "X-Gopen-Degraded-Backend-Count"
 	XGopenDegradedBackends        = "X-Gopen-Degraded-Backends"

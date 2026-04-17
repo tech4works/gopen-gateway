@@ -358,9 +358,28 @@ func (c *Context) decorateHTTPTransportHeaders(response *vo.EndpointResponse, st
 
 	// cache group
 	if th.CacheEnabled() {
-		c.engine.http.Header(app.XGopenCache, converter.ToString(response.ComesFromCache()))
+		// X-Gopen-Cache: true if endpoint cache OR all backends from cache
+		cacheHit := response.ComesFromCache()
+		if !cacheHit && th.BackendCacheEnabled() {
+			cacheHit = response.AllBackendsFromCache()
+		}
+		c.engine.http.Header(app.XGopenCache, converter.ToString(cacheHit))
+
+		// X-Gopen-Cache-TTL: endpoint TTL or newest backend TTL
 		if response.ComesFromCache() {
 			c.engine.http.Header(app.XGopenCacheTTL, converter.ToString(response.Cache().RemainingTTL().Time().Milliseconds()))
+		} else if th.BackendCacheEnabled() {
+			if newestTTL := response.NewestBackendCacheTTLMillis(); newestTTL >= 0 {
+				c.engine.http.Header(app.XGopenCacheTTL, converter.ToString(newestTTL))
+			}
+		}
+
+		// X-Gopen-Backend-Cache: list of cached backend IDs
+		if th.BackendCacheEnabled() {
+			cachedIDs := response.BackendsCachedIDs()
+			if checker.IsNotEmpty(cachedIDs) {
+				c.engine.http.Header(app.XGopenBackendCache, strings.Join(cachedIDs, ", "))
+			}
 		}
 	}
 

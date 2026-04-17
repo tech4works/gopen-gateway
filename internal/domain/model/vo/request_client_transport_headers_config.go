@@ -53,17 +53,20 @@ func (r RequestClientTransportHeadersRequestConfig) TimeoutEnabled() bool {
 // Todos os métodos retornam true quando o ponteiro correspondente é nil (default habilitado).
 type RequestClientTransportHeadersResponseConfig struct {
 	cache           *bool
+	backendCache    *bool
 	executionStatus *bool
 	degradation     *bool
 }
 
 func NewRequestClientTransportHeadersResponseConfig(
 	cache *bool,
+	backendCache *bool,
 	executionStatus *bool,
 	degradation *bool,
 ) RequestClientTransportHeadersResponseConfig {
 	return RequestClientTransportHeadersResponseConfig{
 		cache:           cache,
+		backendCache:    backendCache,
 		executionStatus: executionStatus,
 		degradation:     degradation,
 	}
@@ -74,6 +77,13 @@ func (r RequestClientTransportHeadersResponseConfig) CacheEnabled() bool {
 		return true
 	}
 	return *r.cache
+}
+
+func (r RequestClientTransportHeadersResponseConfig) BackendCacheEnabled() bool {
+	if checker.IsNil(r.backendCache) {
+		return false // default disabled
+	}
+	return *r.backendCache
 }
 
 func (r RequestClientTransportHeadersResponseConfig) ExecutionStatusEnabled() bool {

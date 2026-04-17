@@ -72,7 +72,7 @@ func (r *RequestClientConfig) TransportHeadersRequest() RequestClientTransportHe
 // Returns a config with all nil pointers (all enabled) when RequestClientConfig or TransportHeaders are nil.
 func (r *RequestClientConfig) TransportHeadersResponse() RequestClientTransportHeadersResponseConfig {
 	if checker.IsNil(r) || checker.IsNil(r.transportHeaders) {
-		return NewRequestClientTransportHeadersResponseConfig(nil, nil, nil)
+		return NewRequestClientTransportHeadersResponseConfig(nil, nil, nil, nil)
 	}
 	return r.transportHeaders.Response()
 }

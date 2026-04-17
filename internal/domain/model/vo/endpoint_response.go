@@ -26,6 +26,11 @@ type EndpointResponse struct {
 
 	execution EndpointExecution
 
+	// Backend cache info
+	backendsCachedIDs    []string
+	allBackendsFromCache bool
+	newestBackendTTL     int64 // milliseconds, -1 if no backend cache
+
 	status   ResponseStatus
 	metadata Metadata
 	payload  *Payload
@@ -78,12 +83,48 @@ func NewEndpointResponseWithAll(
 	}
 }
 
+func NewEndpointResponseWithBackendCache(
+	cache CacheInfo,
+	degradation Degradation,
+	execution EndpointExecution,
+	backendsCachedIDs []string,
+	allBackendsFromCache bool,
+	newestBackendTTL int64,
+	status ResponseStatus,
+	metadata Metadata,
+	payload *Payload,
+) *EndpointResponse {
+	return &EndpointResponse{
+		cache:                cache,
+		degradation:          degradation,
+		execution:            execution,
+		backendsCachedIDs:    backendsCachedIDs,
+		allBackendsFromCache: allBackendsFromCache,
+		newestBackendTTL:     newestBackendTTL,
+		status:               status,
+		metadata:             metadata,
+		payload:              payload,
+	}
+}
+
 func (e *EndpointResponse) Cache() CacheInfo {
 	return e.cache
 }
 
 func (e *EndpointResponse) ComesFromCache() bool {
 	return e.cache.Hit()
+}
+
+func (e *EndpointResponse) BackendsCachedIDs() []string {
+	return e.backendsCachedIDs
+}
+
+func (e *EndpointResponse) AllBackendsFromCache() bool {
+	return e.allBackendsFromCache
+}
+
+func (e *EndpointResponse) NewestBackendCacheTTLMillis() int64 {
+	return e.newestBackendTTL
 }
 
 func (e *EndpointResponse) Degradation() Degradation {
