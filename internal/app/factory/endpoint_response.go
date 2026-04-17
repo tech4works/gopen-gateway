@@ -102,6 +102,17 @@ func (f endpointResponse) BuildResponse(
 		degradationKinds = append(degradationKinds, enum.DegradationKindMetadata)
 	}
 
+	// DEBUG: Log para verificar os valores
+	cachedIDs := history.BackendsCachedIDs()
+	allFromCache := history.AllFinalResponseBackendsFromCache()
+	newestTTL := history.NewestFinalResponseBackendCacheTTLMillis()
+	println("DEBUG BuildResponse: BackendsCachedIDs =", len(cachedIDs), "items")
+	for _, id := range cachedIDs {
+		println("DEBUG BuildResponse:   -", id)
+	}
+	println("DEBUG BuildResponse: AllFinalResponseBackendsFromCache =", allFromCache)
+	println("DEBUG BuildResponse: NewestFinalResponseBackendCacheTTLMillis =", newestTTL)
+
 	return vo.NewEndpointResponseWithBackendCache(
 		vo.NewEmptyCacheInfo(),
 		vo.NewDegradation(degradationKinds...),

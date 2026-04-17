@@ -378,6 +378,11 @@ func (c *Context) decorateHTTPTransportHeaders(response *vo.EndpointResponse, st
 	// backend-cache group (independent from cache group)
 	if th.BackendCacheEnabled() {
 		cachedIDs := response.BackendsCachedIDs()
+		println("DEBUG context: BackendCacheEnabled =", th.BackendCacheEnabled())
+		println("DEBUG context: BackendsCachedIDs =", len(cachedIDs), "items")
+		for _, id := range cachedIDs {
+			println("DEBUG context:   -", id)
+		}
 		if checker.IsNotEmpty(cachedIDs) {
 			c.engine.http.Header(app.XGopenBackendCache, strings.Join(cachedIDs, ", "))
 		}
