@@ -323,7 +323,7 @@ func (e endpointUseCase) readBackendResponseOnCacheIfNeeded(
 	}
 
 	var backendCacheEntry vo.BackendCacheEntry
-	err := e.cacheService.Read(ctx, executeData.Endpoint.Cache(), executeData.Request, history, &backendCacheEntry)
+	err := e.cacheService.Read(ctx, backend.Cache(), executeData.Request, history, &backendCacheEntry)
 	if checker.NonNil(err) {
 		e.backendLog.PrintWarnf(executeData, backend, "error to read backend response cache: %v", err)
 		return nil
