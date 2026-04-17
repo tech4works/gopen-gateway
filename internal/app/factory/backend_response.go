@@ -161,8 +161,9 @@ func (f backendResponse) BuildFinalResponse(
 		degradationKinds = append(degradationKinds, enum.DegradationKindMetadata)
 	}
 
-	return vo.NewBackendResponseWithDegradation(
+	return vo.NewBackendResponseWithAll(
 		backend.Kind(),
+		response.Cache(), // ← PRESERVA o CacheInfo original
 		response.Outcome(),
 		vo.NewDegradation(degradationKinds...),
 		response.Duration(),
