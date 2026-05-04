@@ -316,7 +316,7 @@ func (s modifier) evalModifierGuards(
 ) (bool, error) {
 	shouldRun, _, errs := s.dynamicValueService.EvalGuards(config.OnlyIf(), config.IgnoreIf(), request, history)
 	if checker.IsNotEmpty(errs) {
-		return false, errors.JoinInheritf(errs, ", ", "modifier failed: op=eval-guards kind=%s action=%s key=%s",
+		return false, errors.NewByChainf(errs, "modifier failed: op=eval-guards kind=%s action=%s key=%s",
 			kind, config.Action(), config.Key())
 	}
 	return shouldRun, nil
@@ -637,7 +637,7 @@ func (s modifier) joinDynamicValueErr(kind string, modifier *vo.ModifierConfig, 
 		return nil
 	}
 
-	return errors.JoinInheritf(errs, ", ",
+	return errors.NewByChainf(errs,
 		"modifier failed: op=resolve-dynamic-value kind=%s action=%s key=%s value=%s",
 		kind, modifier.Action(), modifier.Key(), modifier.Value())
 }

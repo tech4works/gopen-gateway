@@ -149,7 +149,7 @@ func (s projector) evalProjectorGuards(
 ) (bool, error) {
 	shouldRun, _, errs := s.dynamicValueService.EvalGuards(config.OnlyIf(), config.IgnoreIf(), request, history)
 	if checker.IsNotEmpty(errs) {
-		return false, errors.JoinInheritf(errs, ", ", "failed to evaluate guard for %s projector", kind)
+		return false, errors.NewByChainf(errs, "failed to evaluate guard for %s projector", kind)
 	}
 	return shouldRun, nil
 }

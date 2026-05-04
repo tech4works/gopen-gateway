@@ -304,7 +304,7 @@ func (e endpointUseCase) evalBackendGuards(
 	if errors.Only(errs, domain.ErrEvalGuards) {
 		return errs[0]
 	} else if checker.IsNotEmpty(errs) {
-		return errors.JoinInheritf(errs, ", ", "failed to evaluate guard for backend id=%s kind=%s",
+		return errors.NewByChainf(errs, "failed to evaluate guard for backend id=%s kind=%s",
 			backend.ID(), backend.Kind())
 	} else {
 		return nil
@@ -497,9 +497,8 @@ func (e endpointUseCase) buildHTTPBackendRequest(
 		return httpBackendRequest, nil
 	}
 
-	err := errors.JoinInheritf(
+	err := errors.NewByChainf(
 		errs,
-		", ",
 		"failed to build http backend request (id=%s method=%s path=%s)",
 		backend.ID(),
 		backend.HTTP().Method(),
@@ -533,8 +532,8 @@ func (e endpointUseCase) buildPublisherRequest(
 		return publisherRequest, nil
 	}
 
-	err := errors.JoinInheritf(
-		errs, ", ",
+	err := errors.NewByChainf(
+		errs,
 		"failed to build PUBLISHER backend request (id=%s broker=%s path=%s)",
 		backend.ID(),
 		backend.Publisher().Broker(),
@@ -570,8 +569,8 @@ func (e endpointUseCase) buildEndpointResponse(
 		return endpointResponse
 	}
 
-	buildErr := errors.JoinInheritf(
-		errs, ", ",
+	buildErr := errors.NewByChainf(
+		errs,
 		"failed to build endpoint response (method=%s path=%s)",
 		executeData.Endpoint.Method(),
 		executeData.Endpoint.Path(),
@@ -599,8 +598,8 @@ func (e endpointUseCase) buildFinalBackendResponses(executeData dto.ExecuteEndpo
 		history.Add(i, backend, finalResponse)
 	}
 	if checker.IsNotEmpty(allErrs) {
-		return errors.JoinInheritf(
-			allErrs, ", ",
+		return errors.NewByChainf(
+			allErrs,
 			"failed to build final backend responses (method=%s path=%s)",
 			executeData.Endpoint.Method(),
 			executeData.Endpoint.Path(),
@@ -626,8 +625,8 @@ func (e endpointUseCase) buildFinalBackendResponse(
 		return finalBackendResponse, nil
 	}
 
-	return nil, errors.JoinInheritf(
-		errs, ", ",
+	return nil, errors.NewByChainf(
+		errs,
 		"failed to build final backend response (endpoint=%s id=%s)",
 		executeData.Endpoint.Path(),
 		backend.ID(),

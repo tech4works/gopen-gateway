@@ -80,7 +80,7 @@ func (f backendResponse) BuildResponseByError(
 		Line:      wrapped.Line(),
 		Endpoint:  endpoint.Path(),
 		Message:   wrapped.Message(),
-		Stack:     wrapped.Stack(),
+		Stack:     wrapped.StackAsSlice(),
 		Timestamp: time.Now(),
 	}))
 	metadata := vo.NewEmptyMetadata()

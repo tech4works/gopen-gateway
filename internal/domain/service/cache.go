@@ -127,7 +127,7 @@ func (c cache) evalCacheGuards(
 ) (bool, error) {
 	shouldRun, _, errs := c.dynamicValueService.EvalGuards(decision.OnlyIf(), decision.IgnoreIf(), request, history)
 	if checker.IsNotEmpty(errs) {
-		return false, errors.JoinInheritf(errs, ", ", "failed to evaluate guard for cache %s", operation)
+		return false, errors.NewByChainf(errs, "failed to evaluate guard for cache %s", operation)
 	}
 	return shouldRun, nil
 }
@@ -135,7 +135,7 @@ func (c cache) evalCacheGuards(
 func (c cache) buildKey(config *vo.CacheConfig, request *vo.EndpointRequest, history *aggregate.History) (string, error) {
 	key, errs := c.dynamicValueService.Get(config.Key(), request, history)
 	if checker.IsNotEmpty(errs) {
-		return "", errors.JoinInheritf(errs, ", ", "cache failed: op=build-key")
+		return "", errors.NewByChainf(errs, "cache failed: op=build-key")
 	}
 	return fmt.Sprintf("%s:%s", config.Kind(), key), nil
 }

@@ -393,6 +393,6 @@ type ErrorPayload struct {
 	Line      int       `json:"line"`
 	Endpoint  string    `json:"endpoint"`
 	Message   string    `json:"message"`
-	Stack     string    `json:"stack,omitempty"`
+	Stack     []string  `json:"stack,omitempty"`
 	Timestamp time.Time `json:"timestamp"`
 }

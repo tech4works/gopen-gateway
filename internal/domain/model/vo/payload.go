@@ -66,7 +66,7 @@ func (p *Payload) ContentEncoding() ContentEncoding {
 }
 
 func (p *Payload) IsValid() bool {
-	return checker.NonNil(p.Validate())
+	return checker.IsNil(p.Validate())
 }
 
 func (p *Payload) IsNotValid() bool {

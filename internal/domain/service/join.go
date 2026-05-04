@@ -23,6 +23,7 @@ import (
 	"github.com/tech4works/checker"
 	"github.com/tech4works/converter"
 	"github.com/tech4works/errors"
+
 	"github.com/tech4works/gopen-gateway/internal/domain"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/aggregate"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/enum"
@@ -393,7 +394,7 @@ func (s join) applyMatchOnArrayItem(
 			errs = append(errs, errors.Inheritf(err, "join failed: op=set-json-path"))
 		}
 
-		return out, errors.JoinInheritf(errs, ", ", "join failed: op=set-target-array")
+		return out, errors.NewByChainf(errs, "join failed: op=set-target-array")
 	}
 
 	id := strings.TrimSpace(targetKey.String())
@@ -514,7 +515,7 @@ func (s join) getSourceByPath(
 ) (domain.JSONValue, error) {
 	sourceValue, sourceErrs := s.dynamicValueService.Get(config.Source().Path(), request, history)
 	if checker.IsNotEmpty(sourceErrs) {
-		return nil, errors.JoinInheritf(sourceErrs, ", ", "join failed: op=resolve-source path=%s key=%s",
+		return nil, errors.NewByChainf(sourceErrs, "join failed: op=resolve-source path=%s key=%s",
 			config.Source().Path(), config.Source().Key())
 	}
 	return s.jsonPath.Parse(strings.TrimSpace(sourceValue)), nil
@@ -702,7 +703,7 @@ func (s join) evalJoinGuards(
 ) (bool, error) {
 	shouldRun, _, errs := s.dynamicValueService.EvalGuards(config.OnlyIf(), config.IgnoreIf(), request, history)
 	if checker.IsNotEmpty(errs) {
-		return false, errors.JoinInherit(errs, ", ", "failed to evaluate guard for join")
+		return false, errors.NewByChain(errs, "failed to evaluate guard for join")
 	}
 	return shouldRun, nil
 }

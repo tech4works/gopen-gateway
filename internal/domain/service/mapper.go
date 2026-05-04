@@ -24,6 +24,7 @@ import (
 	"github.com/tech4works/checker"
 	"github.com/tech4works/converter"
 	"github.com/tech4works/errors"
+
 	"github.com/tech4works/gopen-gateway/internal/domain"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/aggregate"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
@@ -393,7 +394,7 @@ func (m mapper) evalMapperGuards(config *vo.MapperConfig, kind string, request *
 	history *aggregate.History) (bool, error) {
 	shouldRun, _, errs := m.dynamicValueService.EvalGuards(config.OnlyIf(), config.IgnoreIf(), request, history)
 	if checker.IsNotEmpty(errs) {
-		return false, errors.JoinInheritf(errs, ", ", "failed to evaluate guard for %s mapper", kind)
+		return false, errors.NewByChainf(errs, "failed to evaluate guard for %s mapper", kind)
 	}
 	return shouldRun, nil
 }

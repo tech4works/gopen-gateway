@@ -225,8 +225,7 @@ func (p BuildPipeline) ApplyGroupID(
 			run: func(in string) (string, []error) {
 				value, allErrs := p.dynamicValueService.Get(in, request, history)
 				if checker.IsNotEmpty(allErrs) {
-					allErrs = errors.JoinInheritAsSlicef(allErrs, ", ",
-						"pipeline failed: op=build-group-id value=%s", in)
+					allErrs = errors.NewByChainAsSlicef(allErrs, "pipeline failed: op=build-group-id value=%s", in)
 				}
 				return value, allErrs
 			},
@@ -248,7 +247,7 @@ func (p BuildPipeline) ApplyDeduplicationID(
 			run: func(in string) (string, []error) {
 				value, allErrs := p.dynamicValueService.Get(in, request, history)
 				if checker.IsNotEmpty(allErrs) {
-					allErrs = errors.JoinInheritAsSlicef(allErrs, ", ",
+					allErrs = errors.NewByChainAsSlicef(allErrs,
 						"pipeline failed: op=build-deduplicate-id value=%s", in)
 				}
 				return value, allErrs
@@ -275,7 +274,7 @@ func (p BuildPipeline) ApplyAttributes(
 				for key, attribute := range spec.Attributes() {
 					value, errs := p.dynamicValueService.Get(attribute.Value(), request, history)
 					if checker.IsNotEmpty(errs) {
-						allErrs = append(allErrs, errors.JoinInheritf(errs, ", ",
+						allErrs = append(allErrs, errors.NewByChainf(errs,
 							"pipeline failed: op=build-message-attribute key=%s value=%s", key, attribute.Value()))
 						continue
 					}

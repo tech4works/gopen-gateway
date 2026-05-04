@@ -59,7 +59,7 @@ func (f endpointResponse) BuildErrorResponse(endpoint *vo.EndpointConfig, err er
 		Line:      wrapped.Line(),
 		Endpoint:  endpoint.Path(),
 		Message:   wrapped.Message(),
-		Stack:     wrapped.Stack(),
+		Stack:     wrapped.StackAsSlice(),
 		Timestamp: time.Now(),
 	}))
 	metadata := vo.NewEmptyMetadata()

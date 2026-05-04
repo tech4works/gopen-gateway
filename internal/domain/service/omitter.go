@@ -20,6 +20,7 @@ import (
 	"github.com/tech4works/checker"
 	"github.com/tech4works/converter"
 	"github.com/tech4works/errors"
+
 	"github.com/tech4works/gopen-gateway/internal/domain"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
 )
@@ -98,7 +99,7 @@ func (o omitterService) removeAllEmptyFields(jsonStr string) (string, []error) {
 		if value.IsObject() || value.IsArray() {
 			childClean, childErrs := o.removeAllEmptyFields(value.Raw())
 			if checker.IsNotEmpty(childErrs) {
-				errs = append(errs, errors.JoinInheritf(childErrs, ", ", "omitter failed: op=child key=%s", key))
+				errs = append(errs, errors.NewByChainf(childErrs, "omitter failed: op=child key=%s", key))
 			}
 			value = o.jsonPath.Parse(childClean)
 		}

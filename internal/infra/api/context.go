@@ -192,7 +192,7 @@ func (c *Context) WriteError(status enum.ResponseStatus, err error) {
 		Line:      wrapped.Line(),
 		Endpoint:  c.endpoint.Path(),
 		Message:   wrapped.Message(),
-		Stack:     wrapped.Stack(),
+		Stack:     wrapped.StackAsSlice(),
 		Timestamp: time.Now(),
 	}))
 

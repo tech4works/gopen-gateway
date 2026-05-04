@@ -22,6 +22,7 @@ import (
 	"github.com/tech4works/checker"
 	"github.com/tech4works/converter"
 	"github.com/tech4works/errors"
+
 	"github.com/tech4works/gopen-gateway/internal/domain"
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
 )
@@ -118,7 +119,7 @@ func (s securityCors) evalSecurityCorsGuards(config *vo.SecurityCorsConfig, requ
 	if errors.Only(errs, domain.ErrEvalGuards) {
 		return errs[0]
 	} else if checker.IsNotEmpty(errs) {
-		return errors.JoinInheritf(errs, ", ", "failed to evaluate guard for security-cors")
+		return errors.NewByChainf(errs, "failed to evaluate guard for security-cors")
 	} else {
 		return nil
 	}
