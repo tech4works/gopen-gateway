@@ -25,26 +25,32 @@ import (
 	"github.com/tech4works/gopen-gateway/internal/domain/model/vo"
 )
 
-func BuildLevelText(lvl level) string {
+// BuildLevelText retorna o texto do nível formatado em negrito para o console.
+func BuildLevelText(lvl Level) string {
 	return fmt.Sprint(StyleBold, lvl.String(), StyleReset)
 }
 
+// BuildTagText retorna o texto da tag formatado em negrito para o console.
 func BuildTagText(tag string) string {
 	return fmt.Sprint(StyleBold, tag, StyleReset)
 }
 
+// BuildTraceIDText retorna o trace ID formatado para exibição no prefixo.
 func BuildTraceIDText(traceID string) string {
 	return traceID
 }
 
+// BuildTintText retorna o método/broker com cor de fundo para o console.
 func BuildTintText(method string) string {
 	return fmt.Sprint(tintTextStyle(method), " ", method, " ", StyleReset)
 }
 
+// BuildURIText retorna a URI entre aspas para exibição segura.
 func BuildURIText(uri string) string {
 	return strconv.Quote(uri)
 }
 
+// BuildStatusCodeText retorna o status code com cor de fundo conforme a faixa HTTP.
 func BuildStatusCodeText(status vo.ResponseStatus) string {
 	return fmt.Sprint(statusCodeTextStyle(status), " ", status.Value(), " ", StyleReset)
 }
@@ -64,16 +70,16 @@ func statusCodeTextStyle(status vo.ResponseStatus) string {
 func tintTextStyle(s string) string {
 	switch s {
 	case http.MethodPost:
-		return fmt.Sprint(BackgroundYellow)
+		return BackgroundYellow
 	case http.MethodGet, enum.BackendBrokerAwsSns.String(), enum.BackendBrokerAwsSqs.String():
-		return fmt.Sprint(BackgroundBlue)
+		return BackgroundBlue
 	case http.MethodDelete:
-		return fmt.Sprint(BackgroundRed)
+		return BackgroundRed
 	case http.MethodPut:
-		return fmt.Sprint(BackgroundMagenta)
+		return BackgroundMagenta
 	case http.MethodPatch:
-		return fmt.Sprint(BackgroundCyan)
+		return BackgroundCyan
 	default:
-		return fmt.Sprint(BackgroundBlack)
+		return BackgroundBlack
 	}
 }

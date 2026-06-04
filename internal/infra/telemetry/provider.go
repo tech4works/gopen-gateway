@@ -14,20 +14,31 @@
  * limitations under the License.
  */
 
+// Package telemetry configura os exportadores OpenTelemetry (traces, métricas e logs)
+// para o gopen-gateway. Segue o mesmo padrão do sdk-manas boot, com suporte a
+// OTLP HTTP exporters, autenticação via headers genéricos ou Basic Auth,
+// Go runtime metrics e skip de exportação em ambiente local.
 package telemetry
 
 import (
 	"context"
+	"encoding/base64"
+	"fmt"
 	"os"
-	"time"
+	"strings"
 
+	"go.opentelemetry.io/contrib/instrumentation/runtime"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp"
+	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+	otelglobal "go.opentelemetry.io/otel/log/global"
 	"go.opentelemetry.io/otel/propagation"
+	sdklog "go.opentelemetry.io/otel/sdk/log"
+	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/tech4works/checker"
@@ -35,54 +46,178 @@ import (
 
 const tracerName = "gopen-gateway"
 
-// Setup initializes the global OTel TracerProvider with an OTLP HTTP exporter.
-// The exporter endpoint is read from OTEL_EXPORTER_OTLP_ENDPOINT (default: http://localhost:4318).
-// Returns a shutdown function that must be called on application exit.
+// Setup inicializa o OpenTelemetry com exportadores OTLP para traces, métricas e logs.
+//
+// Se OTEL_EXPORTER_OTLP_ENDPOINT estiver definido e o environment não for "local",
+// configura exportadores completos (traces + metrics + logs) com autenticação.
+// Caso contrário, configura apenas um TracerProvider local sem exportação.
+//
+// Autenticação (verificada na seguinte ordem de prioridade):
+//  1. OTEL_EXPORTER_OTLP_HEADERS — formato padrão OTel "key=value,key2=value2"
+//  2. OTEL_EXPORTER_OTLP_INSTANCE_ID + OTEL_EXPORTER_OTLP_API_TOKEN — Basic Auth
+//
+// Retorna uma função de shutdown que deve ser chamada no encerramento da aplicação.
 func Setup(ctx context.Context, serviceName, serviceVersion, environment string) (func(context.Context) error, error) {
-	exp, err := otlptracehttp.New(ctx,
-		otlptracehttp.WithEndpointURL(otlpEndpoint()),
-	)
-	if checker.NonNil(err) {
-		return nil, err
-	}
+	// Configura propagadores globais W3C TraceContext + Baggage.
+	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(
+		propagation.TraceContext{},
+		propagation.Baggage{},
+	))
 
-	res, err := resource.New(ctx,
-		resource.WithAttributes(
-			semconv.ServiceName(serviceName),
-			semconv.ServiceVersion(serviceVersion),
-			attribute.String("deployment.environment", environment),
+	res, err := resource.Merge(
+		resource.Default(),
+		resource.NewWithAttributes(
+			"",
+			attribute.String("service.name", serviceName),
+			attribute.String("service.version", serviceVersion),
+			attribute.String("deployment.environment.name", environment),
+			attribute.String("service.instance.id", resolveInstanceID()),
 		),
 	)
 	if checker.NonNil(err) {
 		return nil, err
 	}
 
-	tp := sdktrace.NewTracerProvider(
-		sdktrace.WithBatcher(exp, sdktrace.WithBatchTimeout(5*time.Second)),
-		sdktrace.WithResource(res),
-		sdktrace.WithSampler(sdktrace.AlwaysSample()),
-	)
+	endpoint := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
 
-	otel.SetTracerProvider(tp)
+	// Sem OTLP ou ambiente local — TracerProvider sem exporter
+	if checker.IsEmpty(endpoint) || checker.Equals(environment, "local") {
+		tp := sdktrace.NewTracerProvider(sdktrace.WithResource(res))
+		otel.SetTracerProvider(tp)
+		return tp.Shutdown, nil
+	}
 
-	// Configura o propagador global W3C TraceContext + Baggage.
-	// Sem isso, otelhttp e otelgin não injetam nem extraem o traceparent.
-	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(
-		propagation.TraceContext{},
-		propagation.Baggage{},
-	))
-
-	return tp.Shutdown, nil
+	return setupOTLP(ctx, res, endpoint)
 }
 
-// Tracer returns the named tracer for this gateway.
+// Tracer retorna o tracer nomeado do gateway.
 func Tracer() trace.Tracer {
 	return otel.Tracer(tracerName)
 }
 
-func otlpEndpoint() string {
-	if ep := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT"); checker.IsNotEmpty(ep) {
-		return ep
+// setupOTLP configura exportadores OTLP para traces, métricas e logs.
+// Retorna shutdown function que encerra todos os providers.
+func setupOTLP(ctx context.Context, res *resource.Resource, endpoint string) (func(context.Context) error, error) {
+	// Monta opções base com endpoint por sinal
+	traceOpts := []otlptracehttp.Option{
+		otlptracehttp.WithEndpointURL(endpoint + "/v1/traces"),
 	}
-	return "http://localhost:4318"
+	logOpts := []otlploghttp.Option{
+		otlploghttp.WithEndpointURL(endpoint + "/v1/logs"),
+	}
+	metricOpts := []otlpmetrichttp.Option{
+		otlpmetrichttp.WithEndpointURL(endpoint + "/v1/metrics"),
+	}
+
+	// Resolve headers de autenticação
+	headers := resolveOTLPHeaders()
+	if len(headers) > 0 {
+		traceOpts = append(traceOpts, otlptracehttp.WithHeaders(headers))
+		logOpts = append(logOpts, otlploghttp.WithHeaders(headers))
+		metricOpts = append(metricOpts, otlpmetrichttp.WithHeaders(headers))
+	}
+
+	// Trace exporter
+	traceExporter, err := otlptracehttp.New(ctx, traceOpts...)
+	if checker.NonNil(err) {
+		return nil, fmt.Errorf("failed to create otlp trace exporter: %w", err)
+	}
+
+	tp := sdktrace.NewTracerProvider(
+		sdktrace.WithResource(res),
+		sdktrace.WithBatcher(traceExporter),
+	)
+	otel.SetTracerProvider(tp)
+
+	// Metric exporter
+	metricExporter, err := otlpmetrichttp.New(ctx, metricOpts...)
+	if checker.NonNil(err) {
+		return nil, fmt.Errorf("failed to create otlp metric exporter: %w", err)
+	}
+
+	mp := sdkmetric.NewMeterProvider(
+		sdkmetric.WithResource(res),
+		sdkmetric.WithReader(sdkmetric.NewPeriodicReader(metricExporter)),
+	)
+	otel.SetMeterProvider(mp)
+
+	// Log exporter
+	logExporter, err := otlploghttp.New(ctx, logOpts...)
+	if checker.NonNil(err) {
+		return nil, fmt.Errorf("failed to create otlp log exporter: %w", err)
+	}
+
+	lp := sdklog.NewLoggerProvider(
+		sdklog.WithResource(res),
+		sdklog.WithProcessor(sdklog.NewBatchProcessor(logExporter)),
+	)
+	otelglobal.SetLoggerProvider(lp)
+
+	// Go runtime metrics (goroutines, GC, memória)
+	if err := runtime.Start(); checker.NonNil(err) {
+		fmt.Printf("WARNING: failed to start Go runtime metrics: %s\n", err)
+	}
+
+	fmt.Printf("OTLP exporters configured: endpoint=%s (traces, metrics, logs)\n", endpoint)
+
+	// Shutdown composto: encerra todos os providers
+	shutdown := func(ctx context.Context) error {
+		var firstErr error
+		if err := tp.Shutdown(ctx); checker.NonNil(err) && checker.IsNil(firstErr) {
+			firstErr = err
+		}
+		if err := mp.Shutdown(ctx); checker.NonNil(err) && checker.IsNil(firstErr) {
+			firstErr = err
+		}
+		if err := lp.Shutdown(ctx); checker.NonNil(err) && checker.IsNil(firstErr) {
+			firstErr = err
+		}
+		return firstErr
+	}
+
+	return shutdown, nil
+}
+
+// resolveOTLPHeaders resolve os headers de autenticação para os exportadores OTLP.
+//
+// Prioridade:
+//  1. OTEL_EXPORTER_OTLP_HEADERS (formato "key=value,key2=value2")
+//  2. OTEL_EXPORTER_OTLP_INSTANCE_ID + OTEL_EXPORTER_OTLP_API_TOKEN (Basic Auth)
+//
+// Retorna nil se nenhuma autenticação estiver configurada.
+func resolveOTLPHeaders() map[string]string {
+	// Prioridade 1: headers genéricos (padrão OTel — funciona com New Relic, Elastic, etc.)
+	rawHeaders := os.Getenv("OTEL_EXPORTER_OTLP_HEADERS")
+	if checker.IsNotEmpty(rawHeaders) {
+		headers := make(map[string]string)
+		for _, pair := range strings.Split(rawHeaders, ",") {
+			parts := strings.SplitN(strings.TrimSpace(pair), "=", 2)
+			if checker.Equals(len(parts), 2) {
+				headers[strings.TrimSpace(parts[0])] = strings.TrimSpace(parts[1])
+			}
+		}
+		return headers
+	}
+
+	// Prioridade 2: Basic Auth (Grafana Cloud)
+	instanceID := os.Getenv("OTEL_EXPORTER_OTLP_INSTANCE_ID")
+	apiToken := os.Getenv("OTEL_EXPORTER_OTLP_API_TOKEN")
+	if checker.IsNotEmpty(instanceID) && checker.IsNotEmpty(apiToken) {
+		authValue := "Basic " + base64.StdEncoding.EncodeToString([]byte(instanceID+":"+apiToken))
+		return map[string]string{"Authorization": authValue}
+	}
+
+	return nil
+}
+
+// resolveInstanceID retorna identificador único para a instância do serviço.
+// Prioridade: RAILWAY_REPLICA_ID > hostname > "unknown".
+func resolveInstanceID() string {
+	if replicaID := os.Getenv("RAILWAY_REPLICA_ID"); checker.IsNotEmpty(replicaID) {
+		return replicaID
+	}
+	if hostname, err := os.Hostname(); checker.IsNil(err) && checker.IsNotEmpty(hostname) {
+		return hostname
+	}
+	return "unknown"
 }

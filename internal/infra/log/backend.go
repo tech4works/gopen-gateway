@@ -29,6 +29,7 @@ import (
 type backendLog struct {
 }
 
+// NewBackend cria uma instância de BackendLog para mensagens de backends HTTP e publisher.
 func NewBackend() app.BackendLog {
 	return backendLog{}
 }
@@ -38,26 +39,37 @@ func (b backendLog) PrintHTTPRequest(
 	backend *vo.BackendConfig,
 	request *vo.HTTPBackendRequest,
 ) {
-	text := fmt.Sprintf("HTTP REQ url: %s | header.user-agent: %s | header.size: %s",
-		BuildURIText(request.FullPath()), request.Header().Get("User-Agent"), request.Header().SizeStr())
+	text := fmt.Sprintf(
+		"Backend HTTP request started url=%s userAgent=%s headerSize=%s",
+		BuildURIText(request.FullPath()),
+		request.Header().Get("User-Agent"),
+		request.Header().SizeStr(),
+	)
 	if request.HasBody() {
 		body := request.Body()
-		text += fmt.Sprintf(" | body.content-type: %s | body.size: %s", body.ContentType().String(), body.SizeInByteUnit())
+		text += fmt.Sprintf(" contentType=%s bodySize=%s",
+			body.ContentType().String(),
+			body.SizeInByteUnit(),
+		)
 	}
 
 	Print(InfoLevel, backend.Flow().Abbreviation(), b.prefix(executeData, backend), text)
 }
 
-func (b backendLog) PrintPublisherRequest(executeData dto.ExecuteEndpoint, backend *vo.BackendConfig, request *vo.PublisherBackendRequest) {
-	text := fmt.Sprintf("PUBLISHER REQ body.size: %s", request.Body().SizeInByteUnit())
+func (b backendLog) PrintPublisherRequest(
+	executeData dto.ExecuteEndpoint,
+	backend *vo.BackendConfig,
+	request *vo.PublisherBackendRequest,
+) {
+	text := fmt.Sprintf("Backend publisher request started bodySize=%s", request.Body().SizeInByteUnit())
 	if checker.NonNil(request.GroupID()) {
-		text += fmt.Sprintf(" | group-id: %s", *request.GroupID())
+		text += fmt.Sprintf(" groupId=%s", *request.GroupID())
 	}
 	if checker.NonNil(request.DeduplicationID()) {
-		text += fmt.Sprintf(" | deduplication-id: %s", *request.DeduplicationID())
+		text += fmt.Sprintf(" deduplicationId=%s", *request.DeduplicationID())
 	}
 	if checker.IsGreaterThan(request.Delay().Time().Milliseconds(), 0) {
-		text += fmt.Sprintf(" | delay: %vms", request.Delay().Time().Milliseconds())
+		text += fmt.Sprintf(" delay=%dms", request.Delay().Time().Milliseconds())
 	}
 
 	Print(InfoLevel, backend.Flow().Abbreviation(), b.prefix(executeData, backend), text)
@@ -68,8 +80,11 @@ func (b backendLog) PrintResponse(
 	backend *vo.BackendConfig,
 	response *vo.BackendResponse,
 ) {
-	text := fmt.Sprintf("%s RES ok: %v | duration: %vms", backend.Kind(), response.OK(),
-		response.Duration().Milliseconds())
+	text := fmt.Sprintf("Backend %s response received ok=%v duration=%dms",
+		backend.Kind(),
+		response.OK(),
+		response.Duration().Milliseconds(),
+	)
 
 	Print(InfoLevel, backend.Flow().Abbreviation(), b.prefix(executeData, backend), text)
 }

@@ -19,6 +19,7 @@ package log
 type noop struct {
 }
 
+// NewNoop cria um logger no-op que descarta todas as mensagens silenciosamente.
 func NewNoop() noop {
 	return noop{}
 }

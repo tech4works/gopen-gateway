@@ -27,6 +27,7 @@ type endpointLog struct {
 	tag string
 }
 
+// NewEndpoint cria uma instância de EndpointLog para mensagens de execução de endpoint.
 func NewEndpoint() app.EndpointLog {
 	return endpointLog{
 		tag: "END",
@@ -60,7 +61,6 @@ func (e endpointLog) PrintError(executeData dto.ExecuteEndpoint, msg ...any) {
 func (e endpointLog) prefix(executeData dto.ExecuteEndpoint) string {
 	path := executeData.Endpoint.Path()
 	traceIDText := BuildTraceIDText(executeData.Request.TraceID())
-
 	method := BuildTintText(executeData.Endpoint.Method())
 	url := BuildURIText(executeData.Request.Route())
 

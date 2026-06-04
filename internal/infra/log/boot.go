@@ -26,6 +26,7 @@ type bootLog struct {
 	tag string
 }
 
+// NewBoot cria uma instância de BootLog para mensagens de inicialização da aplicação.
 func NewBoot() app.BootLog {
 	return bootLog{
 		tag: "APP",

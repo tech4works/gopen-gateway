@@ -25,6 +25,7 @@ import (
 type httpLog struct {
 }
 
+// NewHTTPLog cria uma instância de HTTPLog para mensagens de request/response HTTP.
 func NewHTTPLog() app.HTTPLog {
 	return httpLog{}
 }
@@ -32,23 +33,28 @@ func NewHTTPLog() app.HTTPLog {
 func (a httpLog) PrintRequest(ctx app.Context) {
 	header := ctx.Request().Metadata()
 
-	text := fmt.Sprintf("header.user-agent: %s | header.size: %s", header.Get("User-Agent"), header.SizeStr())
+	text := fmt.Sprintf(
+		"Server received request userAgent=%s headerSize=%s",
+		header.Get("User-Agent"),
+		header.SizeStr(),
+	)
 	if ctx.Request().HasPayload() {
 		payload := ctx.Request().Payload()
-		text += fmt.Sprintf(" | body.content-type: %s | body.size: %s", payload.ContentType().String(),
-			payload.SizeInByteUnit())
+		text += fmt.Sprintf(" contentType=%s bodySize=%s",
+			payload.ContentType().String(),
+			payload.SizeInByteUnit(),
+		)
 	}
 
-	Print(InfoLevel, "REQ", a.prefix(ctx), text)
+	PrintfCtx(ctx.Context(), InfoLevel, "REQ", a.prefix(ctx), "%s", text)
 }
 
 func (a httpLog) PrintResponse(ctx app.Context) {
 	statusCode := BuildStatusCodeText(ctx.Response().Status())
 	duration := ctx.Duration().Milliseconds()
 
-	prefix := a.prefix(ctx)
-
-	Printf(InfoLevel, "RES", prefix, "status:%s| duration: %vms", statusCode, duration)
+	text := fmt.Sprintf("Server responded request statusCode=%s duration=%dms", statusCode, duration)
+	PrintfCtx(ctx.Context(), InfoLevel, "RES", a.prefix(ctx), "%s", text)
 }
 
 func (a httpLog) prefix(ctx app.Context) string {

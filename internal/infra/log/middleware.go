@@ -26,40 +26,40 @@ type middlewareLog struct {
 	tag string
 }
 
+// NewMiddleware cria uma instância de MiddlewareLog para mensagens de interceptors.
 func NewMiddleware() app.MiddlewareLog {
 	return middlewareLog{
-		tag: "END",
+		tag: "MID",
 	}
 }
 
 func (e middlewareLog) PrintInfof(ctx app.Context, format string, msg ...any) {
-	Printf(InfoLevel, e.tag, e.prefix(ctx), format, msg...)
+	PrintfCtx(ctx.Context(), InfoLevel, e.tag, e.prefix(ctx), format, msg...)
 }
 
 func (e middlewareLog) PrintInfo(ctx app.Context, msg ...any) {
-	Print(InfoLevel, e.tag, e.prefix(ctx), msg...)
+	PrintCtx(ctx.Context(), InfoLevel, e.tag, e.prefix(ctx), msg...)
 }
 
 func (e middlewareLog) PrintWarnf(ctx app.Context, format string, msg ...any) {
-	Printf(WarnLevel, e.tag, e.prefix(ctx), format, msg...)
+	PrintfCtx(ctx.Context(), WarnLevel, e.tag, e.prefix(ctx), format, msg...)
 }
 
 func (e middlewareLog) PrintWarn(ctx app.Context, msg ...any) {
-	Print(WarnLevel, e.tag, e.prefix(ctx), msg...)
+	PrintCtx(ctx.Context(), WarnLevel, e.tag, e.prefix(ctx), msg...)
 }
 
 func (e middlewareLog) PrintErrorf(ctx app.Context, format string, msg ...any) {
-	Printf(ErrorLevel, e.tag, e.prefix(ctx), format, msg...)
+	PrintfCtx(ctx.Context(), ErrorLevel, e.tag, e.prefix(ctx), format, msg...)
 }
 
 func (e middlewareLog) PrintError(ctx app.Context, msg ...any) {
-	Print(ErrorLevel, e.tag, e.prefix(ctx), msg...)
+	PrintCtx(ctx.Context(), ErrorLevel, e.tag, e.prefix(ctx), msg...)
 }
 
 func (e middlewareLog) prefix(ctx app.Context) string {
 	path := ctx.Endpoint().Path()
 	traceIDText := BuildTraceIDText(ctx.Request().TraceID())
-
 	method := BuildTintText(ctx.Endpoint().Method())
 	url := BuildURIText(ctx.Request().Route())
 

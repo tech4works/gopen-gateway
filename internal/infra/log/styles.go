@@ -16,6 +16,7 @@
 
 package log
 
+// Constantes ANSI para formatação de cores no console.
 const (
 	StyleReset = "\x1b[0m"
 	StyleBold  = "\x1b[1m"
