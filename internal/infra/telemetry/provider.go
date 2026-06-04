@@ -44,35 +44,53 @@ import (
 	"github.com/tech4works/checker"
 )
 
-const tracerName = "gopen-gateway"
+const defaultApplicationName = "gopen-gateway"
+
+// resolvedServiceName armazena o nome do serviço resolvido para uso no Tracer.
+var resolvedServiceName string
 
 // Setup inicializa o OpenTelemetry com exportadores OTLP para traces, métricas e logs.
 //
-// Se OTEL_EXPORTER_OTLP_ENDPOINT estiver definido e o environment não for "local",
-// configura exportadores completos (traces + metrics + logs) com autenticação.
-// Caso contrário, configura apenas um TracerProvider local sem exportação.
+// O service.name é construído dinamicamente:
+//   - Formato completo: "{PROJECT_NAME}-{ENV}-{APPLICATION_NAME}"
+//   - Sem PROJECT_NAME: "{ENV}-{APPLICATION_NAME}"
+//   - APPLICATION_NAME fallback: "gopen-gateway"
 //
-// Autenticação (verificada na seguinte ordem de prioridade):
-//  1. OTEL_EXPORTER_OTLP_HEADERS — formato padrão OTel "key=value,key2=value2"
-//  2. OTEL_EXPORTER_OTLP_INSTANCE_ID + OTEL_EXPORTER_OTLP_API_TOKEN — Basic Auth
+// Variáveis de ambiente usadas:
+//   - APPLICATION_NAME — nome da aplicação (fallback: "gopen-gateway")
+//   - PROJECT_NAME — prefixo de projeto (opcional)
+//
+// Tags adicionais no resource: service.version, deployment.environment.name,
+// service.instance.id, application.name, project.name.
 //
 // Retorna uma função de shutdown que deve ser chamada no encerramento da aplicação.
-func Setup(ctx context.Context, serviceName, serviceVersion, environment string) (func(context.Context) error, error) {
+func Setup(ctx context.Context, serviceVersion, environment string) (func(context.Context) error, error) {
+	serviceName := resolveServiceName(environment)
+	resolvedServiceName = serviceName
+	applicationName := resolveApplicationName()
+
 	// Configura propagadores globais W3C TraceContext + Baggage.
 	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(
 		propagation.TraceContext{},
 		propagation.Baggage{},
 	))
 
+	attrs := []attribute.KeyValue{
+		attribute.String("service.name", serviceName),
+		attribute.String("service.version", serviceVersion),
+		attribute.String("deployment.environment.name", environment),
+		attribute.String("service.instance.id", resolveInstanceID()),
+		attribute.String("application.name", applicationName),
+	}
+
+	// Tags extras opcionais
+	if projectName := os.Getenv("PROJECT_NAME"); checker.IsNotEmpty(projectName) {
+		attrs = append(attrs, attribute.String("project.name", projectName))
+	}
+
 	res, err := resource.Merge(
 		resource.Default(),
-		resource.NewWithAttributes(
-			"",
-			attribute.String("service.name", serviceName),
-			attribute.String("service.version", serviceVersion),
-			attribute.String("deployment.environment.name", environment),
-			attribute.String("service.instance.id", resolveInstanceID()),
-		),
+		resource.NewWithAttributes("", attrs...),
 	)
 	if checker.NonNil(err) {
 		return nil, err
@@ -90,9 +108,12 @@ func Setup(ctx context.Context, serviceName, serviceVersion, environment string)
 	return setupOTLP(ctx, res, endpoint)
 }
 
-// Tracer retorna o tracer nomeado do gateway.
+// Tracer retorna o tracer nomeado do gateway usando o service name resolvido.
 func Tracer() trace.Tracer {
-	return otel.Tracer(tracerName)
+	if checker.IsNotEmpty(resolvedServiceName) {
+		return otel.Tracer(resolvedServiceName)
+	}
+	return otel.Tracer(defaultApplicationName)
 }
 
 // setupOTLP configura exportadores OTLP para traces, métricas e logs.
@@ -210,10 +231,32 @@ func resolveOTLPHeaders() map[string]string {
 	return nil
 }
 
+// resolveServiceName constrói o nome do serviço para o OTLP resource.
+// Formato: "{PROJECT_NAME}-{ENV}-{APPLICATION_NAME}"
+// Se PROJECT_NAME não estiver definido: "{ENV}-{APPLICATION_NAME}"
+// APPLICATION_NAME fallback: "gopen-gateway"
+func resolveServiceName(environment string) string {
+	appName := resolveApplicationName()
+	projectName := os.Getenv("PROJECT_NAME")
+
+	if checker.IsNotEmpty(projectName) {
+		return projectName + "-" + environment + "-" + appName
+	}
+	return environment + "-" + appName
+}
+
+// resolveApplicationName retorna APPLICATION_NAME ou fallback "gopen-gateway".
+func resolveApplicationName() string {
+	if appName := os.Getenv("APPLICATION_NAME"); checker.IsNotEmpty(appName) {
+		return appName
+	}
+	return defaultApplicationName
+}
+
 // resolveInstanceID retorna identificador único para a instância do serviço.
-// Prioridade: RAILWAY_REPLICA_ID > hostname > "unknown".
+// Prioridade: INSTANCE_REPLICA_ID > hostname > "unknown".
 func resolveInstanceID() string {
-	if replicaID := os.Getenv("RAILWAY_REPLICA_ID"); checker.IsNotEmpty(replicaID) {
+	if replicaID := os.Getenv("INSTANCE_REPLICA_ID"); checker.IsNotEmpty(replicaID) {
 		return replicaID
 	}
 	if hostname, err := os.Hostname(); checker.IsNil(err) && checker.IsNotEmpty(hostname) {

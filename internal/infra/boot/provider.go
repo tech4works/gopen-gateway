@@ -96,7 +96,6 @@ func (p provider) Init() *dto.Gopen {
 
 	shutdown, err := telemetry.Setup(
 		context.Background(),
-		"gopen-gateway",
 		gopen.Version,
 		os.Getenv("ENV"),
 	)
