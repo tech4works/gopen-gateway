@@ -39,21 +39,31 @@ func (b backendLog) PrintHTTPRequest(
 	backend *vo.BackendConfig,
 	request *vo.HTTPBackendRequest,
 ) {
-	text := fmt.Sprintf(
-		"Backend HTTP request started url=%s userAgent=%s headerSize=%s",
-		BuildURIText(request.FullPath()),
-		request.Header().Get("User-Agent"),
-		request.Header().SizeStr(),
-	)
-	if request.HasBody() {
-		body := request.Body()
-		text += fmt.Sprintf(" contentType=%s bodySize=%s",
-			body.ContentType().String(),
-			body.SizeInByteUnit(),
-		)
-	}
+	method := BuildTintText(request.Method())
+	url := BuildURIText(request.URL())
 
-	Print(InfoLevel, backend.Flow().Abbreviation(), b.prefix(executeData, backend), text)
+	if DebugLevel.Allowed() {
+		header := request.Header().String()
+		body := "<nil>"
+		if request.HasBody() {
+			if s, err := request.Body().CompactString(); err == nil {
+				body = s
+			}
+		}
+		text := fmt.Sprintf("Backend HTTP request started method=%s url=%s header=%s body=%s",
+			method, url, header, body)
+		Print(DebugLevel, backend.Flow().Abbreviation(), b.prefix(executeData, backend), text)
+	} else {
+		text := fmt.Sprintf("Backend HTTP request started method=%s url=%s", method, url)
+		if request.HasBody() {
+			body := request.Body()
+			text += fmt.Sprintf(" content_type=%s body_size=%s",
+				body.ContentType().String(),
+				body.SizeInByteUnit(),
+			)
+		}
+		Print(InfoLevel, backend.Flow().Abbreviation(), b.prefix(executeData, backend), text)
+	}
 }
 
 func (b backendLog) PrintPublisherRequest(
@@ -61,18 +71,43 @@ func (b backendLog) PrintPublisherRequest(
 	backend *vo.BackendConfig,
 	request *vo.PublisherBackendRequest,
 ) {
-	text := fmt.Sprintf("Backend publisher request started bodySize=%s", request.Body().SizeInByteUnit())
-	if checker.NonNil(request.GroupID()) {
-		text += fmt.Sprintf(" groupId=%s", *request.GroupID())
-	}
-	if checker.NonNil(request.DeduplicationID()) {
-		text += fmt.Sprintf(" deduplicationId=%s", *request.DeduplicationID())
-	}
-	if checker.IsGreaterThan(request.Delay().Time().Milliseconds(), 0) {
-		text += fmt.Sprintf(" delay=%dms", request.Delay().Time().Milliseconds())
-	}
+	broker := request.Broker().String()
+	path := request.Path()
 
-	Print(InfoLevel, backend.Flow().Abbreviation(), b.prefix(executeData, backend), text)
+	if DebugLevel.Allowed() {
+		body := "<nil>"
+		if request.HasBody() {
+			if s, err := request.Body().CompactString(); err == nil {
+				body = s
+			}
+		}
+		text := fmt.Sprintf("Backend publisher request started broker=%s path=%s body=%s", broker, path, body)
+		if checker.NonNil(request.GroupID()) {
+			text += fmt.Sprintf(" group_id=%s", *request.GroupID())
+		}
+		if checker.NonNil(request.DeduplicationID()) {
+			text += fmt.Sprintf(" deduplication_id=%s", *request.DeduplicationID())
+		}
+		if checker.IsGreaterThan(request.Delay().Time().Milliseconds(), 0) {
+			text += fmt.Sprintf(" delay=%dms", request.Delay().Time().Milliseconds())
+		}
+		Print(DebugLevel, backend.Flow().Abbreviation(), b.prefix(executeData, backend), text)
+	} else {
+		text := fmt.Sprintf("Backend publisher request started broker=%s path=%s", broker, path)
+		if request.HasBody() {
+			text += fmt.Sprintf(" body_size=%s", request.Body().SizeInByteUnit())
+		}
+		if checker.NonNil(request.GroupID()) {
+			text += fmt.Sprintf(" group_id=%s", *request.GroupID())
+		}
+		if checker.NonNil(request.DeduplicationID()) {
+			text += fmt.Sprintf(" deduplication_id=%s", *request.DeduplicationID())
+		}
+		if checker.IsGreaterThan(request.Delay().Time().Milliseconds(), 0) {
+			text += fmt.Sprintf(" delay=%dms", request.Delay().Time().Milliseconds())
+		}
+		Print(InfoLevel, backend.Flow().Abbreviation(), b.prefix(executeData, backend), text)
+	}
 }
 
 func (b backendLog) PrintResponse(
@@ -80,13 +115,32 @@ func (b backendLog) PrintResponse(
 	backend *vo.BackendConfig,
 	response *vo.BackendResponse,
 ) {
-	text := fmt.Sprintf("Backend %s response received ok=%v duration=%dms",
-		backend.Kind(),
-		response.OK(),
-		response.Duration().Milliseconds(),
-	)
+	statusCode := BuildStatusCodeText(response.Status())
+	duration := response.Duration().Milliseconds()
 
-	Print(InfoLevel, backend.Flow().Abbreviation(), b.prefix(executeData, backend), text)
+	if DebugLevel.Allowed() {
+		header := response.Metadata().String()
+		body := "<nil>"
+		if response.HasBody() {
+			if s, err := response.Payload().CompactString(); err == nil {
+				body = s
+			}
+		}
+		text := fmt.Sprintf("Backend %s response received status_code=%s ok=%v duration=%dms header=%s body=%s",
+			backend.Kind(), statusCode, response.OK(), duration, header, body)
+		Print(DebugLevel, backend.Flow().Abbreviation(), b.prefix(executeData, backend), text)
+	} else {
+		text := fmt.Sprintf("Backend %s response received status_code=%s ok=%v duration=%dms",
+			backend.Kind(), statusCode, response.OK(), duration)
+		if response.HasBody() {
+			body := response.Payload()
+			text += fmt.Sprintf(" content_type=%s body_size=%s",
+				body.ContentType().String(),
+				body.SizeInByteUnit(),
+			)
+		}
+		Print(InfoLevel, backend.Flow().Abbreviation(), b.prefix(executeData, backend), text)
+	}
 }
 
 func (b backendLog) PrintInfof(executeData dto.ExecuteEndpoint, backend *vo.BackendConfig, format string, msg ...any) {
@@ -115,17 +169,15 @@ func (b backendLog) PrintError(executeData dto.ExecuteEndpoint, backend *vo.Back
 
 func (b backendLog) prefix(executeData dto.ExecuteEndpoint, backend *vo.BackendConfig) string {
 	id := backend.ID()
+	traceID := BuildTraceIDText(executeData.Request.TraceID())
+	ip := executeData.Request.ClientIP()
 
 	var tintText string
 	if backend.IsHTTP() {
-		tintText = backend.HTTP().Method()
+		tintText = BuildTintText(backend.HTTP().Method())
 	} else if backend.IsPublisher() {
-		tintText = backend.Publisher().Broker().String()
+		tintText = BuildTintText(backend.Publisher().Broker().String())
 	}
-
-	traceID := BuildTraceIDText(executeData.Request.TraceID())
-	ip := executeData.Request.ClientIP()
-	tintText = BuildTintText(tintText)
 
 	return fmt.Sprintf("[%s | %s | %s |%s]", id, ip, traceID, tintText)
 }

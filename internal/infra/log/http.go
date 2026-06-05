@@ -31,30 +31,63 @@ func NewHTTPLog() app.HTTPLog {
 }
 
 func (a httpLog) PrintRequest(ctx app.Context) {
-	header := ctx.Request().Metadata()
+	method := ctx.Request().Operation()
+	url := ctx.Request().Route()
 
-	text := fmt.Sprintf(
-		"Server received request userAgent=%s headerSize=%s",
-		header.Get("User-Agent"),
-		header.SizeStr(),
-	)
-	if ctx.Request().HasPayload() {
-		payload := ctx.Request().Payload()
-		text += fmt.Sprintf(" contentType=%s bodySize=%s",
-			payload.ContentType().String(),
-			payload.SizeInByteUnit(),
-		)
+	if DebugLevel.Allowed() {
+		header := ctx.Request().Metadata().String()
+		body := "<nil>"
+		if ctx.Request().HasPayload() {
+			if s, err := ctx.Request().Payload().CompactString(); err == nil {
+				body = s
+			}
+		}
+		text := fmt.Sprintf("Server received request method=%s url=%s header=%s body=%s",
+			BuildTintText(method), BuildURIText(url), header, body)
+		PrintfCtx(ctx.Context(), DebugLevel, "REQ", a.prefix(ctx), "%s", text)
+	} else {
+		text := fmt.Sprintf("Server received request method=%s url=%s",
+			BuildTintText(method), BuildURIText(url))
+		if ctx.Request().HasPayload() {
+			payload := ctx.Request().Payload()
+			text += fmt.Sprintf(" content_type=%s body_size=%s",
+				payload.ContentType().String(),
+				payload.SizeInByteUnit(),
+			)
+		}
+		PrintfCtx(ctx.Context(), InfoLevel, "REQ", a.prefix(ctx), "%s", text)
 	}
-
-	PrintfCtx(ctx.Context(), InfoLevel, "REQ", a.prefix(ctx), "%s", text)
 }
 
 func (a httpLog) PrintResponse(ctx app.Context) {
-	statusCode := BuildStatusCodeText(ctx.Response().Status())
+	method := ctx.Request().Operation()
+	url := ctx.Request().Route()
+	status := ctx.Response().Status()
 	duration := ctx.Duration().Milliseconds()
 
-	text := fmt.Sprintf("Server responded request statusCode=%s duration=%dms", statusCode, duration)
-	PrintfCtx(ctx.Context(), InfoLevel, "RES", a.prefix(ctx), "%s", text)
+	if DebugLevel.Allowed() {
+		header := ctx.Response().Metadata().String()
+		body := "<nil>"
+		if ctx.Response().HasPayload() {
+			if s, err := ctx.Response().Payload().CompactString(); err == nil {
+				body = s
+			}
+		}
+		text := fmt.Sprintf("Server responded request method=%s url=%s status_code=%s duration=%dms header=%s body=%s",
+			BuildTintText(method), BuildURIText(url), BuildStatusCodeText(status), duration, header, body)
+		PrintfCtx(ctx.Context(), DebugLevel, "RES", a.prefix(ctx), "%s", text)
+	} else {
+		text := fmt.Sprintf("Server responded request method=%s url=%s status_code=%s duration=%dms",
+			BuildTintText(method), BuildURIText(url), BuildStatusCodeText(status), duration)
+		if ctx.Response().HasPayload() {
+			payload := ctx.Response().Payload()
+			text += fmt.Sprintf(" content_type=%s body_size=%s",
+				payload.ContentType().String(),
+				payload.SizeInByteUnit(),
+			)
+		}
+		PrintfCtx(ctx.Context(), InfoLevel, "RES", a.prefix(ctx), "%s", text)
+	}
 }
 
 func (a httpLog) prefix(ctx app.Context) string {
@@ -62,8 +95,5 @@ func (a httpLog) prefix(ctx app.Context) string {
 	traceID := BuildTraceIDText(ctx.Request().TraceID())
 	ip := ctx.Request().ClientIP()
 
-	method := BuildTintText(ctx.Request().Operation())
-	url := BuildURIText(ctx.Request().Route())
-
-	return fmt.Sprintf("[%s | %s | %s |%s| %s]", path, ip, traceID, method, url)
+	return fmt.Sprintf("[%s | %s | %s]", path, ip, traceID)
 }

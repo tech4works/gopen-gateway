@@ -92,17 +92,20 @@ func printConsole(lvl Level, tag, prefix, msgText string) {
 }
 
 // emitOTel envia o log record ao OpenTelemetry LoggerProvider global.
-// Inclui atributos estruturados: tag, prefixo e trace context.
+// Inclui atributos estruturados: tag, prefixo, trace context e extra fields extraídos da mensagem.
 func emitOTel(ctx context.Context, lvl Level, tag, prefix, msgText string) {
 	logger := global.GetLoggerProvider().Logger(instrumentationName)
+
+	cleanMsg := removeAnsiCodes(msgText)
 
 	var rec otellog.Record
 	rec.SetTimestamp(time.Now().UTC())
 	rec.SetSeverity(levelToOTelSeverity(lvl))
 	rec.SetSeverityText(lvl.Text())
-	rec.SetBody(otellog.StringValue(removeAnsiCodes(msgText)))
+	rec.SetBody(otellog.StringValue(cleanMsg))
 
 	attrs := []otellog.KeyValue{
+		otellog.String("level", lvl.Text()),
 		otellog.String("tag", tag),
 	}
 
@@ -116,9 +119,118 @@ func emitOTel(ctx context.Context, lvl Level, tag, prefix, msgText string) {
 		attrs = append(attrs, otellog.String("trace.id", spanCtx.TraceID().String()))
 	}
 
+	// Extrai pares chave=valor da mensagem como extra fields.
+	// Campos já mapeados como atributos dedicados são excluídos dos extras.
+	fields := extractFields(cleanMsg)
+	reservedKeys := map[string]bool{
+		"level": true, "tag": true, "prefix": true,
+		"header": true, "body": true,
+		"method": true, "url": true, "status_code": true, "duration": true,
+		"broker": true, "path": true,
+	}
+	for k, v := range fields {
+		if reservedKeys[k] {
+			continue
+		}
+		attrs = append(attrs, otellog.String("extra."+k, v))
+	}
+
 	rec.AddAttributes(attrs...)
 
 	logger.Emit(ctx, rec)
+}
+
+// extractFields analisa a mensagem de log em busca de pares chave=valor e retorna um mapa.
+// Suporta valores sem espaço (chave=valor) e valores entre aspas (chave="valor com espaço").
+// Chaves aceitas: [a-zA-Z_][a-zA-Z0-9_.]*
+func extractFields(msg string) map[string]string {
+	fields := make(map[string]string)
+	remaining := msg
+
+	for len(remaining) > 0 {
+		remaining = strings.TrimLeft(remaining, " ")
+		if len(remaining) == 0 {
+			break
+		}
+
+		key, value, rest, found := parseField(remaining)
+		if found {
+			fields[key] = value
+			remaining = rest
+		} else {
+			// Avança para a próxima palavra
+			idx := strings.IndexByte(remaining, ' ')
+			if idx < 0 {
+				break
+			}
+			remaining = remaining[idx+1:]
+		}
+	}
+
+	if len(fields) == 0 {
+		return nil
+	}
+	return fields
+}
+
+// parseField tenta parsear um par chave=valor no início de s.
+// Valores são trimados de espaços para compensar formatação ANSI removida.
+func parseField(s string) (key, value, rest string, found bool) {
+	if len(s) == 0 || !isKeyStart(rune(s[0])) {
+		return "", "", s, false
+	}
+
+	i := 1
+	for i < len(s) && isKeyChar(rune(s[i])) {
+		i++
+	}
+
+	if i >= len(s) || s[i] != '=' {
+		return "", "", s, false
+	}
+
+	key = s[:i]
+	i++ // pula o '='
+
+	// Pula espaços iniciais do valor (resíduos de formatação ANSI removida)
+	for i < len(s) && s[i] == ' ' {
+		i++
+	}
+
+	if i >= len(s) {
+		return key, "", "", true
+	}
+
+	// Valor entre aspas
+	if s[i] == '"' {
+		i++ // pula aspa de abertura
+		end := strings.IndexByte(s[i:], '"')
+		if end < 0 {
+			return key, strings.TrimSpace(s[i:]), "", true
+		}
+		value = strings.TrimSpace(s[i : i+end])
+		rest = s[i+end+1:]
+		return key, value, rest, true
+	}
+
+	// Valor sem aspas: vai até o próximo espaço
+	end := strings.IndexByte(s[i:], ' ')
+	if end < 0 {
+		return key, strings.TrimSpace(s[i:]), "", true
+	}
+	value = strings.TrimSpace(s[i : i+end])
+	rest = s[i+end:]
+	return key, value, rest, true
+}
+
+// isKeyStart verifica se o rune pode iniciar uma chave de field.
+func isKeyStart(r rune) bool {
+	return (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || r == '_'
+}
+
+// isKeyChar verifica se o rune pode fazer parte de uma chave de field.
+func isKeyChar(r rune) bool {
+	return isKeyStart(r) || (r >= '0' && r <= '9') || r == '.' || r == '-'
 }
 
 // levelToOTelSeverity converte Level para otel.Severity.
