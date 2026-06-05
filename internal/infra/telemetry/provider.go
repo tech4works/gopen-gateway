@@ -51,17 +51,13 @@ var resolvedServiceName string
 
 // Setup inicializa o OpenTelemetry com exportadores OTLP para traces, métricas e logs.
 //
-// O service.name é construído dinamicamente:
-//   - Formato completo: "{PROJECT_NAME}-{ENV}-{APPLICATION_NAME}"
-//   - Sem PROJECT_NAME: "{ENV}-{APPLICATION_NAME}"
-//   - APPLICATION_NAME fallback: "gopen-gateway"
+// O service.name usa APPLICATION_NAME diretamente (fallback: "gopen-gateway").
+// Informações de projeto e ambiente são propagadas via entity tags (tags.environment,
+// tags.team, tags.role, tags.version) para agrupamento no New Relic e plataformas similares.
 //
 // Variáveis de ambiente usadas:
 //   - APPLICATION_NAME — nome da aplicação (fallback: "gopen-gateway")
-//   - PROJECT_NAME — prefixo de projeto (opcional)
-//
-// Tags adicionais no resource: service.version, deployment.environment.name,
-// service.instance.id, application.name, project.name.
+//   - PROJECT_NAME — nome do projeto (usado em tags.team)
 //
 // Retorna uma função de shutdown que deve ser chamada no encerramento da aplicação.
 func Setup(ctx context.Context, serviceVersion, environment string) (func(context.Context) error, error) {
@@ -81,6 +77,10 @@ func Setup(ctx context.Context, serviceVersion, environment string) (func(contex
 		attribute.String("deployment.environment.name", environment),
 		attribute.String("service.instance.id", resolveInstanceID()),
 		attribute.String("application.name", applicationName),
+		attribute.String("tags.environment", environment),
+		attribute.String("tags.team", os.Getenv("PROJECT_NAME")),
+		attribute.String("tags.role", "server"),
+		attribute.String("tags.version", serviceVersion),
 	}
 
 	// Tags extras opcionais
@@ -231,18 +231,11 @@ func resolveOTLPHeaders() map[string]string {
 	return nil
 }
 
-// resolveServiceName constrói o nome do serviço para o OTLP resource.
-// Formato: "{PROJECT_NAME}-{ENV}-{APPLICATION_NAME}"
-// Se PROJECT_NAME não estiver definido: "{ENV}-{APPLICATION_NAME}"
-// APPLICATION_NAME fallback: "gopen-gateway"
+// resolveServiceName retorna o nome do serviço para o OTLP resource.
+// Usa apenas APPLICATION_NAME (fallback: "gopen-gateway").
+// Informações de projeto e ambiente são separadas via entity tags.
 func resolveServiceName(environment string) string {
-	appName := resolveApplicationName()
-	projectName := os.Getenv("PROJECT_NAME")
-
-	if checker.IsNotEmpty(projectName) {
-		return projectName + "-" + environment + "-" + appName
-	}
-	return environment + "-" + appName
+	return resolveApplicationName()
 }
 
 // resolveApplicationName retorna APPLICATION_NAME ou fallback "gopen-gateway".
