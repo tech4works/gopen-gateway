@@ -92,11 +92,13 @@ func printConsole(lvl Level, tag, prefix, msgText string) {
 }
 
 // emitOTel envia o log record ao OpenTelemetry LoggerProvider global.
-// Inclui atributos estruturados: tag, prefixo, trace context e extra fields extraídos da mensagem.
+// Inclui atributos estruturados: level, tag, subtag, trace context, campos dedicados
+// de request/response e extra fields extraídos da mensagem.
 func emitOTel(ctx context.Context, lvl Level, tag, prefix, msgText string) {
 	logger := global.GetLoggerProvider().Logger(instrumentationName)
 
 	cleanMsg := removeAnsiCodes(msgText)
+	cleanPrefix := removeAnsiCodes(prefix)
 
 	var rec otellog.Record
 	rec.SetTimestamp(time.Now().UTC())
@@ -104,13 +106,20 @@ func emitOTel(ctx context.Context, lvl Level, tag, prefix, msgText string) {
 	rec.SetSeverityText(lvl.Text())
 	rec.SetBody(otellog.StringValue(cleanMsg))
 
+	// Resolve subtag a partir do prefixo da mensagem
+	subtag := resolveSubtag(cleanMsg)
+
 	attrs := []otellog.KeyValue{
 		otellog.String("level", lvl.Text()),
 		otellog.String("tag", tag),
 	}
 
-	if checker.IsNotEmpty(prefix) {
-		attrs = append(attrs, otellog.String("prefix", removeAnsiCodes(prefix)))
+	if checker.IsNotEmpty(subtag) {
+		attrs = append(attrs, otellog.String("subtag", subtag))
+	}
+
+	if checker.IsNotEmpty(cleanPrefix) {
+		attrs = append(attrs, otellog.String("prefix", cleanPrefix))
 	}
 
 	// Extrai trace_id do span context se disponível
@@ -119,20 +128,44 @@ func emitOTel(ctx context.Context, lvl Level, tag, prefix, msgText string) {
 		attrs = append(attrs, otellog.String("trace.id", spanCtx.TraceID().String()))
 	}
 
-	// Extrai pares chave=valor da mensagem como extra fields.
-	// Campos já mapeados como atributos dedicados são excluídos dos extras.
-	fields := extractFields(cleanMsg)
+	// Extrai pares chave=valor da mensagem
+	fields := extractExtraFields(cleanMsg)
+
+	// Campos dedicados de request/response (equivalente ao payload tipado do sdk-manas)
+	dedicatedKeys := map[string]string{
+		"method":           "request.method",
+		"url":              "request.url",
+		"header":           "request.header",
+		"body":             "request.body",
+		"status_code":      "response.status_code",
+		"duration":         "response.duration",
+		"ok":               "response.ok",
+		"content_type":     "request.content_type",
+		"body_size":        "request.body_size",
+		"broker":           "messaging.broker",
+		"path":             "request.path",
+		"group_id":         "messaging.group_id",
+		"deduplication_id": "messaging.deduplication_id",
+		"delay":            "messaging.delay",
+	}
+
+	// Reservados: não vão pro extraFields
 	reservedKeys := map[string]bool{
 		"level": true, "tag": true, "prefix": true,
-		"header": true, "body": true,
-		"method": true, "url": true, "status_code": true, "duration": true,
-		"broker": true, "path": true,
 	}
+	for k := range dedicatedKeys {
+		reservedKeys[k] = true
+	}
+
 	for k, v := range fields {
-		if reservedKeys[k] {
+		if checker.IsEmpty(v) {
 			continue
 		}
-		attrs = append(attrs, otellog.String("extra."+k, v))
+		if mappedKey, ok := dedicatedKeys[k]; ok {
+			attrs = append(attrs, otellog.String(mappedKey, v))
+		} else if !reservedKeys[k] {
+			attrs = append(attrs, otellog.String("extra_fields."+k, v))
+		}
 	}
 
 	rec.AddAttributes(attrs...)
@@ -140,10 +173,38 @@ func emitOTel(ctx context.Context, lvl Level, tag, prefix, msgText string) {
 	logger.Emit(ctx, rec)
 }
 
-// extractFields analisa a mensagem de log em busca de pares chave=valor e retorna um mapa.
+// resolveSubtag identifica o subtag da mensagem pelo prefixo de texto.
+// Retorna string vazia se nenhum prefixo conhecido for encontrado.
+func resolveSubtag(msg string) string {
+	subtags := []string{
+		"Server received request", "Server responded request", "Server request detail", "Server response detail",
+		"Backend HTTP request", "Backend HTTP response", "Backend publisher request", "Backend publisher response",
+	}
+	for _, s := range subtags {
+		if strings.HasPrefix(msg, s) {
+			switch {
+			case strings.Contains(s, "received") || strings.Contains(s, "request detail"):
+				return "REQUEST"
+			case strings.Contains(s, "responded") || strings.Contains(s, "response detail"):
+				return "RESPONSE"
+			case strings.Contains(s, "Backend HTTP"):
+				return "REST"
+			case strings.Contains(s, "publisher"):
+				return "PRODUCER"
+			}
+		}
+	}
+	// Backend response genérico
+	if strings.HasPrefix(msg, "Backend") && strings.Contains(msg, "response received") {
+		return "RESPONSE"
+	}
+	return ""
+}
+
+// extractExtraFields analisa a mensagem de log em busca de pares chave=valor e retorna um mapa.
 // Suporta valores sem espaço (chave=valor) e valores entre aspas (chave="valor com espaço").
 // Chaves aceitas: [a-zA-Z_][a-zA-Z0-9_.]*
-func extractFields(msg string) map[string]string {
+func extractExtraFields(msg string) map[string]string {
 	fields := make(map[string]string)
 	remaining := msg
 
