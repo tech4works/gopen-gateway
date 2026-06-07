@@ -17,6 +17,11 @@
 package interceptor
 
 import (
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
+
+	"github.com/tech4works/checker"
+
 	"github.com/tech4works/gopen-gateway/internal/app"
 )
 
@@ -37,7 +42,30 @@ func NewLog(log app.HTTPLog) Log {
 func (l logMiddleware) Do(ctx app.Context) {
 	l.log.PrintRequest(ctx)
 
+	// Enriquece span OTel com header e body da request (apenas conteúdo legível)
+	span := trace.SpanFromContext(ctx.Context())
+	span.SetAttributes(
+		attribute.String("http.request.header", ctx.Request().Metadata().String()),
+	)
+	if ctx.Request().HasPayload() && ctx.Request().Payload().ContentType().IsSupported() {
+		if body, err := ctx.Request().Payload().CompactString(); checker.IsNil(err) {
+			span.SetAttributes(attribute.String("http.request.body", body))
+		}
+	}
+
 	ctx.Next()
+
+	// Enriquece span OTel com header e body da response (apenas conteúdo legível)
+	if checker.NonNil(ctx.Response()) {
+		span.SetAttributes(
+			attribute.String("http.response.header", ctx.Response().Metadata().String()),
+		)
+		if ctx.Response().HasPayload() && ctx.Response().Payload().ContentType().IsSupported() {
+			if body, err := ctx.Response().Payload().CompactString(); checker.IsNil(err) {
+				span.SetAttributes(attribute.String("http.response.body", body))
+			}
+		}
+	}
 
 	l.log.PrintResponse(ctx)
 }
