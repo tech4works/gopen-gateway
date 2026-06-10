@@ -2201,6 +2201,33 @@
         }
       },
       "additionalProperties": false
+    },
+    "server": {
+      "type": "object",
+      "properties": {
+        "@comment": { "type": "string" },
+        "read-timeout": {
+          "$ref": "#/definitions/duration",
+          "description": "Maximum duration for reading the entire request including body. Default: 60s"
+        },
+        "write-timeout": {
+          "$ref": "#/definitions/duration",
+          "description": "Maximum duration for writing the response. Default: 60s"
+        },
+        "read-header-timeout": {
+          "$ref": "#/definitions/duration",
+          "description": "Maximum duration for reading request headers. Protects against slowloris attacks. Default: 10s"
+        },
+        "idle-timeout": {
+          "$ref": "#/definitions/duration",
+          "description": "Maximum duration to keep idle keep-alive connections open. The gateway injects Keep-Alive header with timeout slightly below this value to signal clients when to close. Default: 65s"
+        },
+        "keep-alive": {
+          "type": "boolean",
+          "description": "Whether HTTP keep-alive connections are enabled. When false, the server sends Connection: close on every response. Default: true"
+        }
+      },
+      "additionalProperties": false
     }
   },
   "properties": {
@@ -2215,6 +2242,9 @@
     },
     "hot-reload": {
       "type": "boolean"
+    },
+    "server": {
+      "$ref": "#/definitions/server"
     },
     "request": {
       "$ref": "#/definitions/request"

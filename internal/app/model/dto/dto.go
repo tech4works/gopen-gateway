@@ -27,6 +27,7 @@ type Gopen struct {
 	Comment      string          `json:"@comment,omitempty"`
 	Version      string          `json:"version,omitempty"`
 	HotReload    bool            `json:"hot-reload,omitempty"`
+	Server       *Server         `json:"server,omitempty"`
 	Store        *Store          `json:"store,omitempty"`
 	Timeout      vo.Duration     `json:"timeout,omitempty"`
 	Execution    *GopenExecution `json:"execution,omitempty"`
@@ -37,6 +38,15 @@ type Gopen struct {
 	Components   *Components     `json:"components,omitempty"`
 	Templates    *Templates      `json:"templates,omitempty"`
 	Endpoints    []Endpoint      `json:"endpoints,omitempty"`
+}
+
+type Server struct {
+	Comment           string       `json:"@comment,omitempty"`
+	ReadTimeout       *vo.Duration `json:"read-timeout,omitempty"`
+	WriteTimeout      *vo.Duration `json:"write-timeout,omitempty"`
+	ReadHeaderTimeout *vo.Duration `json:"read-header-timeout,omitempty"`
+	IdleTimeout       *vo.Duration `json:"idle-timeout,omitempty"`
+	KeepAlive         *bool        `json:"keep-alive,omitempty"`
 }
 
 type GopenExecution struct {

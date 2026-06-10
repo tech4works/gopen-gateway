@@ -36,7 +36,32 @@ type propagateState struct {
 }
 
 func BuildGopen(gopen *dto.Gopen) *vo.GopenConfig {
-	return vo.NewGopenConfig(buildEndpoints(gopen))
+	return vo.NewGopenConfig(buildServer(gopen.Server), buildEndpoints(gopen))
+}
+
+func buildServer(server *dto.Server) *vo.ServerConfig {
+	var readTimeout, writeTimeout, readHeaderTimeout, idleTimeout vo.Duration
+	keepAlive := true
+
+	if checker.NonNil(server) {
+		if checker.NonNil(server.ReadTimeout) {
+			readTimeout = *server.ReadTimeout
+		}
+		if checker.NonNil(server.WriteTimeout) {
+			writeTimeout = *server.WriteTimeout
+		}
+		if checker.NonNil(server.ReadHeaderTimeout) {
+			readHeaderTimeout = *server.ReadHeaderTimeout
+		}
+		if checker.NonNil(server.IdleTimeout) {
+			idleTimeout = *server.IdleTimeout
+		}
+		if checker.NonNil(server.KeepAlive) {
+			keepAlive = *server.KeepAlive
+		}
+	}
+
+	return vo.NewServerConfig(readTimeout, writeTimeout, readHeaderTimeout, idleTimeout, keepAlive)
 }
 
 func buildEndpoints(gopen *dto.Gopen) []vo.EndpointConfig {

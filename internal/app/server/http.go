@@ -25,6 +25,7 @@ import (
 
 	"github.com/tech4works/checker"
 	"github.com/tech4works/converter"
+
 	"github.com/tech4works/gopen-gateway/internal/app"
 	"github.com/tech4works/gopen-gateway/internal/app/controller"
 	"github.com/tech4works/gopen-gateway/internal/app/factory"
@@ -46,6 +47,7 @@ type http struct {
 	securityCorsInterceptor  interceptor.SecurityCors
 	timeoutInterceptor       interceptor.Timeout
 	limiterInterceptor       interceptor.Limiter
+	keepAliveInterceptor     interceptor.KeepAlive
 	staticController         controller.Static
 	endpointController       controller.Endpoint
 }
@@ -108,14 +110,18 @@ func New(
 	endpointController := controller.NewEndpoint(endpointUseCase)
 
 	log.PrintInfo("Building value objects...")
+	gopenConfig := factory.BuildGopen(gopen)
+	keepAliveInterceptor := interceptor.NewKeepAlive(gopenConfig.Server())
+
 	return &http{
-		gopen:                    factory.BuildGopen(gopen),
+		gopen:                    gopenConfig,
 		log:                      log,
 		router:                   router,
 		panicRecoveryInterceptor: panicRecoveryInterceptor,
 		logInterceptor:           logInterceptor,
 		timeoutInterceptor:       timeoutInterceptor,
 		limiterInterceptor:       limiterInterceptor,
+		keepAliveInterceptor:     keepAliveInterceptor,
 		securityCorsInterceptor:  securityCorsInterceptor,
 		staticController:         staticController,
 		endpointController:       endpointController,
@@ -131,9 +137,22 @@ func (h *http) ListenAndServe() {
 	h.buildStaticRoutes()
 	h.buildRoutes()
 
+	serverConfig := h.gopen.Server()
+
 	h.net = &nethttp.Server{
-		Handler: h.router.Engine(),
+		Handler:           h.router.Engine(),
+		ReadTimeout:       serverConfig.ReadTimeout(),
+		WriteTimeout:      serverConfig.WriteTimeout(),
+		ReadHeaderTimeout: serverConfig.ReadHeaderTimeout(),
+		IdleTimeout:       serverConfig.IdleTimeout(),
 	}
+
+	// When keep-alive is disabled, net/http sends Connection: close automatically.
+	h.net.SetKeepAlivesEnabled(serverConfig.KeepAlive())
+
+	h.log.PrintInfof("Server config: read-timeout=%s write-timeout=%s read-header-timeout=%s idle-timeout=%s keep-alive=%s",
+		serverConfig.ReadTimeout(), serverConfig.WriteTimeout(), serverConfig.ReadHeaderTimeout(),
+		serverConfig.IdleTimeout(), converter.ToString(serverConfig.KeepAlive()))
 
 	var listener net.Listener
 	var err error
@@ -185,7 +204,7 @@ func (h *http) buildRoutes() {
 }
 
 func (h *http) buildStaticRoutes() {
-	formatLog := "Registered route with 5 handles: %s --> \"%s\""
+	formatLog := "Registered route with 6 handles: %s --> \"%s\""
 
 	pingEndpoint := h.buildStaticPingRoute()
 	h.log.PrintInfof(formatLog, pingEndpoint.Method(), pingEndpoint.Path())
@@ -207,15 +226,17 @@ func (h *http) buildStaticVersionRoute() *vo.EndpointConfig {
 }
 
 func (h *http) buildStaticRoute(endpointStatic *vo.EndpointConfig, handler app.HandlerFunc) {
+	keepAliveHandler := h.keepAliveInterceptor.Do
 	timeoutHandler := h.timeoutInterceptor.Do
 	panicHandler := h.panicRecoveryInterceptor.Do
 	logHandler := h.logInterceptor.Do
 	limiterHandler := h.limiterInterceptor.Do
-	h.router.Handle(h.gopen, endpointStatic, timeoutHandler, panicHandler, logHandler, limiterHandler, handler)
+	h.router.Handle(h.gopen, endpointStatic, keepAliveHandler, timeoutHandler, panicHandler, logHandler, limiterHandler, handler)
 }
 
 func (h *http) buildEndpointHandles() []app.HandlerFunc {
 	return []app.HandlerFunc{
+		h.keepAliveInterceptor.Do,
 		h.panicRecoveryInterceptor.Do,
 		h.timeoutInterceptor.Do,
 		h.logInterceptor.Do,

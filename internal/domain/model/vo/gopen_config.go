@@ -17,13 +17,19 @@
 package vo
 
 type GopenConfig struct {
+	server    *ServerConfig
 	endpoints []EndpointConfig
 }
 
-func NewGopenConfig(endpoints []EndpointConfig) *GopenConfig {
+func NewGopenConfig(server *ServerConfig, endpoints []EndpointConfig) *GopenConfig {
 	return &GopenConfig{
+		server:    server,
 		endpoints: endpoints,
 	}
+}
+
+func (g GopenConfig) Server() *ServerConfig {
+	return g.server
 }
 
 func (g GopenConfig) Endpoints() []EndpointConfig {
