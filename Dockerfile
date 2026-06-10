@@ -1,5 +1,8 @@
 # Build phase (Go binary creation)
-FROM golang:1.25.0 AS builder
+FROM --platform=$BUILDPLATFORM golang:1.25.0 AS builder
+
+ARG TARGETOS=linux
+ARG TARGETARCH=amd64
 
 # Set the working directory
 WORKDIR /app
@@ -18,8 +21,8 @@ COPY ./internal ./internal
 # Change to the directory containing main.go
 WORKDIR /app/cmd
 
-# Build the Go app for Linux/amd64 architecture
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -installsuffix cgo -o main .
+# Build the Go app for the target platform (cross-compilation)
+RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -a -installsuffix cgo -o main .
 
 # Execution phase (using Alpine to run the binary)
 FROM alpine:latest
