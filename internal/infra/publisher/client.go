@@ -69,7 +69,7 @@ func (c client) Publish(
 	parent *vo.EndpointRequest,
 	request *vo.PublisherBackendRequest,
 ) (*publisher.Response, error) {
-	spanName := fmt.Sprintf("%s %s publish", request.Broker().String(), extractDestinationName(request.Path()))
+	spanName := fmt.Sprintf("producer/%s send", extractDestinationName(request.Path()))
 	ctx, span := telemetry.Tracer().Start(ctx, spanName)
 	defer span.End()
 

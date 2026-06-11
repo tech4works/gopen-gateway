@@ -480,10 +480,11 @@ func (e endpointUseCase) buildHTTPBackendRequest(
 	backend *vo.BackendConfig,
 	history *aggregate.History,
 ) (*vo.HTTPBackendRequest, error) {
-	spanName := fmt.Sprintf("build %s %s request", backend.HTTP().Method(), backend.ID())
+	spanName := fmt.Sprintf("backend/%s build-request", backend.ID())
 	ctx, span := telemetry.Tracer().Start(ctx, spanName,
 		trace.WithAttributes(
 			attribute.Int("http.transformations", backend.HTTP().CountAllDataTransforms()),
+			attribute.String("http.method", backend.HTTP().Method()),
 		),
 	)
 	defer span.End()
@@ -516,10 +517,11 @@ func (e endpointUseCase) buildPublisherRequest(
 	backend *vo.BackendConfig,
 	history *aggregate.History,
 ) (*vo.PublisherBackendRequest, error) {
-	spanName := fmt.Sprintf("build %s %s request", backend.Publisher().Broker(), backend.ID())
+	spanName := fmt.Sprintf("backend/%s build-request", backend.ID())
 	ctx, span := telemetry.Tracer().Start(ctx, spanName,
 		trace.WithAttributes(
 			attribute.Int("publisher.transformations", backend.Publisher().CountAllDataTransforms()),
+			attribute.String("publisher.broker", backend.Publisher().Broker().String()),
 		),
 	)
 	defer span.End()
@@ -551,7 +553,7 @@ func (e endpointUseCase) buildEndpointResponse(
 	executeData dto.ExecuteEndpoint,
 	history *aggregate.History,
 ) *vo.EndpointResponse {
-	spanName := fmt.Sprintf("build %s %s response", executeData.Endpoint.Method(), executeData.Endpoint.Path())
+	spanName := fmt.Sprintf("endpoint/%s %s build-response", executeData.Endpoint.Method(), executeData.Endpoint.Path())
 	ctx, span := telemetry.Tracer().Start(ctx, spanName)
 	defer span.End()
 

@@ -47,7 +47,7 @@ func NewRedisStore(address, password string) domain.Store {
 }
 
 func (r redisStore) Set(ctx context.Context, key, value string, ttl time.Duration) error {
-	ctx, span := telemetry.Tracer().Start(ctx, "cache.global.write")
+	ctx, span := telemetry.Tracer().Start(ctx, "cache/global write")
 	defer span.End()
 
 	span.SetAttributes(attribute.String("cache.key", key))
@@ -63,7 +63,7 @@ func (r redisStore) Set(ctx context.Context, key, value string, ttl time.Duratio
 }
 
 func (r redisStore) Del(ctx context.Context, key string) error {
-	ctx, span := telemetry.Tracer().Start(ctx, "cache.global.delete")
+	ctx, span := telemetry.Tracer().Start(ctx, "cache/global delete")
 	defer span.End()
 
 	span.SetAttributes(attribute.String("cache.key", key))
@@ -72,7 +72,7 @@ func (r redisStore) Del(ctx context.Context, key string) error {
 }
 
 func (r redisStore) Get(ctx context.Context, key string) (string, error) {
-	ctx, span := telemetry.Tracer().Start(ctx, "cache.global.read")
+	ctx, span := telemetry.Tracer().Start(ctx, "cache/global read")
 	defer span.End()
 
 	span.SetAttributes(attribute.String("cache.key", key))

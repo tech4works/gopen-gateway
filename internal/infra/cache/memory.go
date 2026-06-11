@@ -46,7 +46,7 @@ func NewMemoryStore() domain.Store {
 }
 
 func (m memoryStore) Set(ctx context.Context, key, value string, ttl time.Duration) error {
-	ctx, span := telemetry.Tracer().Start(ctx, "cache.local.write")
+	ctx, span := telemetry.Tracer().Start(ctx, "cache/local write")
 	defer span.End()
 
 	span.SetAttributes(attribute.String("cache.key", key))
@@ -66,7 +66,7 @@ func (m memoryStore) Del(_ context.Context, key string) error {
 }
 
 func (m memoryStore) Get(ctx context.Context, key string) (string, error) {
-	ctx, span := telemetry.Tracer().Start(ctx, "cache.local.read")
+	ctx, span := telemetry.Tracer().Start(ctx, "cache/local read")
 	defer span.End()
 
 	span.SetAttributes(attribute.String("cache.key", key))
