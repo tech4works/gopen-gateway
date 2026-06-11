@@ -54,6 +54,7 @@ func NewKeepAlive(serverConfig *vo.ServerConfig) KeepAlive {
 	}
 
 	metadata := vo.NewMetadata(map[string][]string{
+		"Connection": {"keep-alive"},
 		"Keep-Alive": {fmt.Sprintf("timeout=%d", timeoutSeconds)},
 	})
 
