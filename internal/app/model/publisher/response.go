@@ -10,4 +10,6 @@ type Body struct {
 	Provider         string `json:"provider,omitempty"`
 	MessageID        string `json:"messageId,omitempty"`
 	SequentialNumber string `json:"sequentialNumber,omitempty"`
+	DeduplicationID  string `json:"deduplicationId,omitempty"`
+	GroupID          string `json:"groupId,omitempty"`
 }

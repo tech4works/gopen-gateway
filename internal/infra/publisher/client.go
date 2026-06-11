@@ -156,6 +156,12 @@ func (c client) buildResponse(
 	if checker.IsNotNilOrEmpty(sequenceNumber) {
 		response.Body.SequentialNumber = *sequenceNumber
 	}
+	if checker.IsNotNilOrEmpty(request.DeduplicationID()) {
+		response.Body.DeduplicationID = *request.DeduplicationID()
+	}
+	if checker.IsNotNilOrEmpty(request.GroupID()) {
+		response.Body.GroupID = *request.GroupID()
+	}
 
 	return response
 }
