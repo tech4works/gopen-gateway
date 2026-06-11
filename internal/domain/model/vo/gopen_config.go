@@ -18,18 +18,27 @@ package vo
 
 type GopenConfig struct {
 	server    *ServerConfig
+	client    *ClientConfig
 	endpoints []EndpointConfig
 }
 
-func NewGopenConfig(server *ServerConfig, endpoints []EndpointConfig) *GopenConfig {
+func NewGopenConfig(server *ServerConfig, client *ClientConfig, endpoints []EndpointConfig) *GopenConfig {
 	return &GopenConfig{
 		server:    server,
+		client:    client,
 		endpoints: endpoints,
 	}
 }
 
 func (g GopenConfig) Server() *ServerConfig {
 	return g.server
+}
+
+func (g GopenConfig) Client() *ClientConfig {
+	if g.client == nil {
+		return &ClientConfig{}
+	}
+	return g.client
 }
 
 func (g GopenConfig) Endpoints() []EndpointConfig {

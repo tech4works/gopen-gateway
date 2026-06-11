@@ -36,7 +36,60 @@ type propagateState struct {
 }
 
 func BuildGopen(gopen *dto.Gopen) *vo.GopenConfig {
-	return vo.NewGopenConfig(buildServer(gopen.Server), buildEndpoints(gopen))
+	return vo.NewGopenConfig(buildServer(gopen.Server), buildClient(gopen.Server), buildEndpoints(gopen))
+}
+
+func buildClient(server *dto.Server) *vo.ClientConfig {
+	var timeout, idleConnTimeout vo.Duration
+	var maxIdleConns, maxIdleConnsPerHost int
+	var cb vo.CircuitBreakerConfig
+	var retry vo.RetryConfig
+
+	if checker.NonNil(server) && checker.NonNil(server.Client) {
+		client := server.Client
+		if checker.NonNil(client.Timeout) {
+			timeout = *client.Timeout
+		}
+		if checker.NonNil(client.MaxIdleConns) {
+			maxIdleConns = *client.MaxIdleConns
+		}
+		if checker.NonNil(client.MaxIdleConnsPerHost) {
+			maxIdleConnsPerHost = *client.MaxIdleConnsPerHost
+		}
+		if checker.NonNil(client.IdleConnTimeout) {
+			idleConnTimeout = *client.IdleConnTimeout
+		}
+		if checker.NonNil(client.CircuitBreaker) {
+			var failureThreshold, successThreshold, halfOpenMaxReqs int
+			var openTimeout vo.Duration
+			if checker.NonNil(client.CircuitBreaker.FailureThreshold) {
+				failureThreshold = *client.CircuitBreaker.FailureThreshold
+			}
+			if checker.NonNil(client.CircuitBreaker.SuccessThreshold) {
+				successThreshold = *client.CircuitBreaker.SuccessThreshold
+			}
+			if checker.NonNil(client.CircuitBreaker.OpenTimeout) {
+				openTimeout = *client.CircuitBreaker.OpenTimeout
+			}
+			if checker.NonNil(client.CircuitBreaker.HalfOpenMaxReqs) {
+				halfOpenMaxReqs = *client.CircuitBreaker.HalfOpenMaxReqs
+			}
+			cb = vo.NewCircuitBreakerConfig(failureThreshold, successThreshold, openTimeout, halfOpenMaxReqs)
+		}
+		if checker.NonNil(client.Retry) {
+			var maxRetries int
+			var backoff vo.Duration
+			if checker.NonNil(client.Retry.MaxRetries) {
+				maxRetries = *client.Retry.MaxRetries
+			}
+			if checker.NonNil(client.Retry.Backoff) {
+				backoff = *client.Retry.Backoff
+			}
+			retry = vo.NewRetryConfig(maxRetries, backoff)
+		}
+	}
+
+	return vo.NewClientConfig(timeout, maxIdleConns, maxIdleConnsPerHost, idleConnTimeout, cb, retry)
 }
 
 func buildServer(server *dto.Server) *vo.ServerConfig {

@@ -91,6 +91,15 @@ func (f backendResponse) BuildResponseByError(
 func (f backendResponse) BuildResponseByHTTP(httpResponse *http.Response, duration time.Duration) *vo.BackendResponse {
 	status := f.buildResponseStatusFromHTTP(httpResponse.StatusCode)
 
+	// Close the response body after reading to return the TCP connection to the pool.
+	// io.ReadAll reads the full body; the deferred close ensures the connection is released
+	// even if a panic occurs during processing.
+	defer func() {
+		if checker.NonNil(httpResponse.Body) {
+			httpResponse.Body.Close()
+		}
+	}()
+
 	var body *vo.Payload
 	if checker.NonNil(httpResponse.Body) {
 		contentType := httpResponse.Header.Get(app.ContentType)

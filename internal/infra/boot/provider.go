@@ -57,6 +57,7 @@ const jsonSchemaUri = "file://./json-schema.json"
 type provider struct {
 	log               app.BootLog
 	telemetryShutdown func(context.Context) error
+	httpServer        server.HTTP
 }
 
 func New() app.Boot {
@@ -142,7 +143,7 @@ func (p provider) Start(gopen *dto.Gopen) {
 
 	p.log.PrintInfo("Building server...")
 	router := api.NewRouter()
-	httpClient := http.NewClient()
+	httpClient := http.NewClient(gopen, p.log)
 	publisherClient := publisher.NewClient(sqsClient, snsClient)
 	jsonPath := jsonpath.New()
 	nConverter := convert.New()
@@ -150,6 +151,8 @@ func (p provider) Start(gopen *dto.Gopen) {
 
 	httpServer := server.New(gopen, p.log, router, httpClient, publisherClient, middlewareLog, endpointLog, backendLog,
 		httpLog, jsonPath, nConverter, store, nNomenclature)
+
+	p.httpServer = httpServer
 
 	if gopen.HotReload {
 		p.log.PrintInfo("Configuring watcher...")
@@ -166,6 +169,19 @@ func (p provider) Start(gopen *dto.Gopen) {
 
 func (p *provider) Stop() {
 	p.log.SkipLine()
+
+	// Graceful shutdown: drain active connections before stopping.
+	// Gives in-flight requests up to 120s to complete.
+	if checker.NonNil(p.httpServer) {
+		p.log.PrintInfo("Shutting down HTTP server (graceful, 120s deadline)...")
+		ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+		defer cancel()
+		if err := p.httpServer.Shutdown(ctx); checker.NonNil(err) {
+			p.log.PrintWarnf("Error shutting down HTTP server: %s", err)
+		} else {
+			p.log.PrintInfo("HTTP server stopped gracefully.")
+		}
+	}
 
 	p.log.PrintInfo("Removing runtime json...")
 

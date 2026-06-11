@@ -47,6 +47,31 @@ type Server struct {
 	ReadHeaderTimeout *vo.Duration `json:"read-header-timeout,omitempty"`
 	IdleTimeout       *vo.Duration `json:"idle-timeout,omitempty"`
 	KeepAlive         *bool        `json:"keep-alive,omitempty"`
+	Client            *ClientPool  `json:"client,omitempty"`
+}
+
+type ClientPool struct {
+	Comment             string          `json:"@comment,omitempty"`
+	Timeout             *vo.Duration    `json:"timeout,omitempty"`
+	MaxIdleConns        *int            `json:"max-idle-conns,omitempty"`
+	MaxIdleConnsPerHost *int            `json:"max-idle-conns-per-host,omitempty"`
+	IdleConnTimeout     *vo.Duration    `json:"idle-conn-timeout,omitempty"`
+	CircuitBreaker      *CircuitBreaker `json:"circuit-breaker,omitempty"`
+	Retry               *Retry          `json:"retry,omitempty"`
+}
+
+type CircuitBreaker struct {
+	Comment          string       `json:"@comment,omitempty"`
+	FailureThreshold *int         `json:"failure-threshold,omitempty"`
+	SuccessThreshold *int         `json:"success-threshold,omitempty"`
+	OpenTimeout      *vo.Duration `json:"open-timeout,omitempty"`
+	HalfOpenMaxReqs  *int         `json:"half-open-max-requests,omitempty"`
+}
+
+type Retry struct {
+	Comment    string       `json:"@comment,omitempty"`
+	MaxRetries *int         `json:"max-retries,omitempty"`
+	Backoff    *vo.Duration `json:"backoff,omitempty"`
 }
 
 type GopenExecution struct {

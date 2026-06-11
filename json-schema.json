@@ -2225,6 +2225,76 @@
         "keep-alive": {
           "type": "boolean",
           "description": "Whether HTTP keep-alive connections are enabled. When false, the server sends Connection: close on every response. Default: true"
+        },
+        "client": {
+          "type": "object",
+          "description": "HTTP client settings for outbound requests to backends. Controls connection pooling, circuit breaker, retry and client timeout.",
+          "properties": {
+            "@comment": { "type": "string" },
+            "timeout": {
+              "$ref": "#/definitions/duration",
+              "description": "Safety-net timeout for outbound HTTP requests. Kills requests stuck without context deadline. Default: 300s"
+            },
+            "max-idle-conns": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Total idle connections in the pool across all hosts. Default: 200"
+            },
+            "max-idle-conns-per-host": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Idle connections per backend host. Gateways should set this higher than microservices. Default: 50"
+            },
+            "idle-conn-timeout": {
+              "$ref": "#/definitions/duration",
+              "description": "How long idle connections stay in the pool before being discarded. Default: 90s"
+            },
+            "circuit-breaker": {
+              "type": "object",
+              "description": "Circuit breaker per backend host. Prevents cascading failures by rejecting requests to hosts that are known to be down.",
+              "properties": {
+                "@comment": { "type": "string" },
+                "failure-threshold": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "Consecutive failures to trip the breaker open. Default: 5"
+                },
+                "success-threshold": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "Consecutive successes in half-open state to close the breaker. Default: 2"
+                },
+                "open-timeout": {
+                  "$ref": "#/definitions/duration",
+                  "description": "Duration the breaker stays open before transitioning to half-open for testing. Default: 30s"
+                },
+                "half-open-max-requests": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "Requests allowed through in half-open state for testing. Default: 2"
+                }
+              },
+              "additionalProperties": false
+            },
+            "retry": {
+              "type": "object",
+              "description": "Retry settings for idempotent requests (GET/HEAD) on transient errors (502, 503, 504, connection reset).",
+              "properties": {
+                "@comment": { "type": "string" },
+                "max-retries": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "Maximum number of retries. Set 0 to disable. Default: 1"
+                },
+                "backoff": {
+                  "$ref": "#/definitions/duration",
+                  "description": "Delay between retry attempts. Default: 100ms"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
