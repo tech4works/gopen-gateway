@@ -381,11 +381,14 @@ func (d dynamicValue) findAllBySyntax(value string) []string {
 	// - token simples: #request.body.x
 	// - responses por índice: #responses[0].body.x
 	// - responses por id:     #responses[ms-auth/v1/validate].body.x
-	// - id pode conter ":" (ex.: "id/asoaks/:id")
+	// - id pode conter ":" (ex.: "id/asoaks/:id") — permitido SOMENTE dentro de [...]
 	// - coalesce: #request.body.x || #request.query.x || #responses[0].body.x || #responses[...].body.x
 	//
 	// Observação: permite espaços em volta do operador.
-	regex := regexp.MustCompile(`\B#[a-zA-Z0-9_.:\-/\[\]]+(?:\s*\|\|\s*#[a-zA-Z0-9_.:\-/\[\]]+)+|\B#[a-zA-Z0-9_.:\-/\[\]]+`)
+	// Nota: ":" fora de brackets funciona como separador entre tokens, permitindo
+	// construir chaves compostas (ex: "#request.body.code:#request.body.type").
+	const tokenPattern = `\B#(?:[a-zA-Z0-9_.\-/]|\[[a-zA-Z0-9_.:\-/]*\])+`
+	regex := regexp.MustCompile(tokenPattern + `(?:\s*\|\|\s*` + tokenPattern + `)+|` + tokenPattern)
 	return regex.FindAllString(value, -1)
 }
 

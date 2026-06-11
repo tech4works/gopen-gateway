@@ -480,7 +480,8 @@ func (e endpointUseCase) buildHTTPBackendRequest(
 	backend *vo.BackendConfig,
 	history *aggregate.History,
 ) (*vo.HTTPBackendRequest, error) {
-	ctx, span := telemetry.Tracer().Start(ctx, "factory.http.request",
+	spanName := fmt.Sprintf("build %s %s request", backend.HTTP().Method(), backend.ID())
+	ctx, span := telemetry.Tracer().Start(ctx, spanName,
 		trace.WithAttributes(
 			attribute.Int("http.transformations", backend.HTTP().CountAllDataTransforms()),
 		),
@@ -515,7 +516,8 @@ func (e endpointUseCase) buildPublisherRequest(
 	backend *vo.BackendConfig,
 	history *aggregate.History,
 ) (*vo.PublisherBackendRequest, error) {
-	ctx, span := telemetry.Tracer().Start(ctx, "factory.publisher.request",
+	spanName := fmt.Sprintf("build %s %s request", backend.Publisher().Broker(), backend.ID())
+	ctx, span := telemetry.Tracer().Start(ctx, spanName,
 		trace.WithAttributes(
 			attribute.Int("publisher.transformations", backend.Publisher().CountAllDataTransforms()),
 		),
@@ -549,7 +551,8 @@ func (e endpointUseCase) buildEndpointResponse(
 	executeData dto.ExecuteEndpoint,
 	history *aggregate.History,
 ) *vo.EndpointResponse {
-	ctx, span := telemetry.Tracer().Start(ctx, "factory.endpoint.response")
+	spanName := fmt.Sprintf("build %s %s response", executeData.Endpoint.Method(), executeData.Endpoint.Path())
+	ctx, span := telemetry.Tracer().Start(ctx, spanName)
 	defer span.End()
 
 	err := e.buildFinalBackendResponses(executeData, history)

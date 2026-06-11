@@ -18,6 +18,8 @@ package publisher
 
 import (
 	"context"
+	"fmt"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/service/sns"
 	snsTypes "github.com/aws/aws-sdk-go-v2/service/sns/types"
@@ -67,7 +69,8 @@ func (c client) Publish(
 	parent *vo.EndpointRequest,
 	request *vo.PublisherBackendRequest,
 ) (*publisher.Response, error) {
-	ctx, span := telemetry.Tracer().Start(ctx, "messaging.publish")
+	spanName := fmt.Sprintf("%s %s publish", request.Broker().String(), extractDestinationName(request.Path()))
+	ctx, span := telemetry.Tracer().Start(ctx, spanName)
 	defer span.End()
 
 	c.fillSpanAttributes(span, request)
@@ -326,22 +329,48 @@ func (c client) parseBodyToPointerString(request *vo.PublisherBackendRequest) (*
 	return converter.ToPointer(compactString), nil
 }
 
-func (c client) fillSpanAttributes(span trace.Span, request *vo.PublisherBackendRequest) {
-	span.SetAttributes(
-		attribute.String("messaging.broker", request.Broker().String()),
-		attribute.String("messaging.path", request.Path()),
-	)
+// extractDestinationName extrai o nome do destino a partir do path (ARN ou URL).
+// Ex: "arn:aws:sns:sa-east-1:123456:manas-dev-v1-charge-provider-event.fifo" → "manas-dev-v1-charge-provider-event.fifo"
+// Ex: "https://sqs.sa-east-1.amazonaws.com/123456/my-queue" → "my-queue"
+func extractDestinationName(path string) string {
+	if idx := strings.LastIndex(path, ":"); idx >= 0 && idx < len(path)-1 {
+		candidate := path[idx+1:]
+		if !strings.Contains(candidate, "/") {
+			return candidate
+		}
+	}
+	if idx := strings.LastIndex(path, "/"); idx >= 0 && idx < len(path)-1 {
+		return path[idx+1:]
+	}
+	return path
+}
 
-	if checker.IsNil(request.GroupID()) {
-		span.SetAttributes(attribute.String("messaging.group_id", "<nil>"))
-	} else {
-		span.SetAttributes(attribute.String("messaging.group_id", *request.GroupID()))
+func (c client) fillSpanAttributes(span trace.Span, request *vo.PublisherBackendRequest) {
+	system := "aws_sns"
+	destKey := "messaging.topic"
+	if request.Broker() == enum.BackendBrokerAwsSqs {
+		system = "aws_sqs"
+		destKey = "messaging.queue"
 	}
 
-	if checker.IsNil(request.DeduplicationID()) {
-		span.SetAttributes(attribute.String("messaging.deduplication_id", "<nil>"))
-	} else {
-		span.SetAttributes(attribute.String("messaging.deduplication_id", *request.DeduplicationID()))
+	span.SetAttributes(
+		attribute.String("messaging.system", system),
+		attribute.String("messaging.operation.name", "publish"),
+		attribute.String("messaging.operation.type", "send"),
+		attribute.String("messaging.destination.name", extractDestinationName(request.Path())),
+		attribute.String(destKey, request.Path()),
+	)
+
+	if request.HasGroupID() {
+		span.SetAttributes(attribute.String("messaging.message.group_id", *request.GroupID()))
+	}
+
+	if request.HasDeduplicationID() {
+		span.SetAttributes(attribute.String("messaging.message.deduplication_id", *request.DeduplicationID()))
+	}
+
+	if request.Delay().Time().Seconds() > 0 {
+		span.SetAttributes(attribute.Int("messaging.delay_seconds", int(request.Delay().Time().Seconds())))
 	}
 
 	if request.HasBody() {
@@ -351,7 +380,5 @@ func (c client) fillSpanAttributes(span trace.Span, request *vo.PublisherBackend
 		} else {
 			span.SetAttributes(attribute.String("messaging.body", bodyCompactString))
 		}
-	} else {
-		span.SetAttributes(attribute.String("messaging.body", "<nil>"))
 	}
 }
